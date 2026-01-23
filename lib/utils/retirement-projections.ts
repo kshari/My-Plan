@@ -34,6 +34,20 @@ export type WithdrawalPriority =
   | 'liquidity'
   | 'default' // Default tax-efficient strategy
 
+export type WithdrawalStrategyType = 
+  | 'goal_based' // Use priority-based strategy (existing)
+  | 'amount_based_4_percent' // 4% Rule
+  | 'amount_based_fixed_percentage' // Fixed percentage of portfolio
+  | 'amount_based_fixed_dollar' // Fixed dollar amount
+  | 'amount_based_swp' // Systematic Withdrawal Plan (earnings only)
+  | 'sequence_proportional' // Proportional withdrawals
+  | 'sequence_bracket_topping' // Bracket-topping strategy
+  | 'market_bucket' // Bucket strategy
+  | 'market_guardrails' // Guardrails (Guyton-Klinger)
+  | 'market_floor_upside' // Floor-and-Upside
+  | 'tax_roth_conversion' // Roth Conversion Bridge
+  | 'tax_qcd' // Qualified Charitable Distributions
+
 export interface CalculatorSettings {
   current_year: number
   retirement_age: number
@@ -49,8 +63,15 @@ export interface CalculatorSettings {
   debt_interest_rate?: number // decimal, default 0.06 (6%)
   enable_borrowing?: boolean // Enable borrowing to cover negative cashflow
   ssa_start_age?: number // Age to start SSA income, default 62
-  withdrawal_priority?: WithdrawalPriority // Primary withdrawal strategy priority
+  withdrawal_priority?: WithdrawalPriority // Primary withdrawal strategy priority (for goal-based)
   withdrawal_secondary_priority?: WithdrawalPriority // Secondary priority for tie-breaking
+  withdrawal_strategy_type?: WithdrawalStrategyType // Strategy type selection
+  // Strategy-specific parameters
+  fixed_percentage_rate?: number // For fixed percentage strategy (e.g., 0.04 for 4%)
+  fixed_dollar_amount?: number // For fixed dollar strategy
+  guardrails_ceiling?: number // For guardrails strategy (e.g., 0.06 for 6%)
+  guardrails_floor?: number // For guardrails strategy (e.g., 0.03 for 3%)
+  bracket_topping_threshold?: number // Tax bracket threshold for bracket-topping
 }
 
 export interface ProjectionDetail {
@@ -312,6 +333,7 @@ export function calculateRetirementProjections(
   let debtBalance = 0 // Track outstanding debt
   let year = currentYear
   let age = currentAge
+  let initialRetirementPortfolioValue: number | null = null // Track initial portfolio value for 4% rule
   
   // Calculate base monthly expenses
   const baseMonthlyExpenses = expenses.reduce((sum, exp) => {
@@ -421,25 +443,32 @@ export function calculateRetirementProjections(
       requiredRMD = totalTraditionalBalance / lifeExpectancyFactor
     }
     
+    // Calculate current situation metrics (before withdrawals)
+    const totalNetworth = accountBalances['401k'] + accountBalances['IRA'] + accountBalances['Roth IRA'] + 
+                         accountBalances['Taxable'] + accountBalances['HSA'] + accountBalances['Other']
+    
+    // Track initial portfolio value for 4% rule (first year of retirement, before any withdrawals)
+    const isFirstRetirementYear = isRetired && yearsSinceRetirement === 1
+    if (isFirstRetirementYear && initialRetirementPortfolioValue === null) {
+      initialRetirementPortfolioValue = totalNetworth
+    }
+    const initialPortfolioValue = initialRetirementPortfolioValue || totalNetworth
+    
     if (isRetired && expensesToCover > 0) {
       let remainingNeed = expensesToCover
       
-      // DYNAMIC WITHDRAWAL STRATEGY
-      // Evaluate situation each year and adjust based on user priorities
-      const priority = settings.withdrawal_priority || 'default'
-      const secondaryPriority = settings.withdrawal_secondary_priority || 'tax_optimization'
+      // Get strategy type (default to goal_based if not specified)
+      const strategyType = settings.withdrawal_strategy_type || 'goal_based'
       
       // Calculate current situation metrics
-      const totalNetworth = accountBalances['401k'] + accountBalances['IRA'] + accountBalances['Roth IRA'] + 
-                           accountBalances['Taxable'] + accountBalances['HSA'] + accountBalances['Other']
       const yearsRemaining = projectionEndAge - age
       const traditionalBalance = accountBalances['401k'] + accountBalances['IRA']
       const rothBalance = accountBalances['Roth IRA']
       const taxableBalance = accountBalances['Taxable']
       const hsaBalance = accountBalances['HSA']
       
-      // Handle RMDs first if required (mandatory by law)
-      if (requiresRMD && requiredRMD > 0) {
+      // Handle RMDs first if required (mandatory by law, except for QCD strategy)
+      if (requiresRMD && requiredRMD > 0 && strategyType !== 'tax_qcd') {
         const totalTraditionalBalance = accountBalances['401k'] + accountBalances['IRA']
         if (totalTraditionalBalance > 0) {
           const rmdFrom401k = (accountBalances['401k'] / totalTraditionalBalance) * requiredRMD
@@ -463,90 +492,560 @@ export function calculateRetirementProjections(
         }
       }
       
-      // Determine dynamic withdrawal order based on priority and current situation
-      const withdrawalOrder = determineWithdrawalOrder(
-        priority,
-        secondaryPriority,
-        age,
-        rmdAge,
-        requiresRMD,
-        requiredRMD,
-        remainingNeed,
-        accountBalances,
-        yearsRemaining,
-        totalNetworth
-      )
+      // Calculate target withdrawal amount based on strategy type
+      // For amount-based strategies, we use the strategy's target amount
+      // For other strategies, we use the remaining need
+      let useStrategyAmount = false
+      let targetWithdrawalAmount = remainingNeed
       
-      // Execute withdrawals in the determined order
-      for (const accountType of withdrawalOrder) {
-        if (remainingNeed <= 0) break
+      if (strategyType === 'amount_based_4_percent') {
+        // 4% Rule: 4% of initial portfolio in year 1, then adjust for inflation
+        useStrategyAmount = true
+        if (isFirstRetirementYear) {
+          targetWithdrawalAmount = initialPortfolioValue * 0.04
+        } else {
+          // Find first year withdrawal and adjust for inflation
+          const firstYearWithdrawal = initialPortfolioValue * 0.04
+          targetWithdrawalAmount = firstYearWithdrawal * Math.pow(1 + settings.inflation_rate, yearsSinceRetirement - 1)
+        }
+      } else if (strategyType === 'amount_based_fixed_percentage') {
+        // Fixed Percentage: Set percentage of current portfolio value
+        useStrategyAmount = true
+        const percentage = settings.fixed_percentage_rate || 0.04
+        targetWithdrawalAmount = totalNetworth * percentage
+      } else if (strategyType === 'amount_based_fixed_dollar') {
+        // Fixed Dollar: Specific dollar amount regardless of market
+        useStrategyAmount = true
+        targetWithdrawalAmount = settings.fixed_dollar_amount || 50000
+      } else if (strategyType === 'amount_based_swp') {
+        // SWP: Only withdraw earnings (dividends/interest)
+        // Estimate earnings as a percentage of portfolio (simplified)
+        useStrategyAmount = true
+        const earningsRate = settings.growth_rate_during_retirement || 0.05
+        targetWithdrawalAmount = totalNetworth * earningsRate
+      } else if (strategyType === 'market_guardrails') {
+        // Guardrails: Set ceiling and floor based on market performance
+        useStrategyAmount = true
+        const ceiling = settings.guardrails_ceiling || 0.06
+        const floor = settings.guardrails_floor || 0.03
+        // Simplified: use base rate, adjust based on portfolio performance vs initial
+        const baseRate = 0.045 // 4.5% base
+        const portfolioPerformance = initialPortfolioValue > 0 ? totalNetworth / initialPortfolioValue : 1.0
+        let adjustedRate = baseRate
+        if (portfolioPerformance > 1.1) {
+          // Portfolio up >10%, can take raise (up to ceiling)
+          adjustedRate = Math.min(ceiling, baseRate * 1.1)
+        } else if (portfolioPerformance < 0.9) {
+          // Portfolio down >10%, reduce to floor
+          adjustedRate = Math.max(floor, baseRate * 0.9)
+        }
+        targetWithdrawalAmount = totalNetworth * adjustedRate
+      }
+      
+      // For amount-based strategies, use the strategy's target amount
+      // This means we may withdraw less than needed (creating a shortfall) or more than needed
+      if (useStrategyAmount) {
+        // Calculate total income from other sources
+        const otherIncomeTotal = totalSsaIncome + otherRecurringIncome
+        // The strategy amount is the total withdrawal target (including other income)
+        // We need to withdraw from accounts: targetWithdrawalAmount - otherIncomeTotal
+        // Always use the strategy amount, even if it's less than needed (this creates shortfalls)
+        remainingNeed = Math.max(0, targetWithdrawalAmount - otherIncomeTotal)
+      }
+      // For other strategies, remainingNeed stays as calculated (expenses - other income)
+      
+      // Execute withdrawals based on strategy type
+      if (strategyType === 'sequence_proportional') {
+        // Proportional: Withdraw from all account types proportionally
+        const totalBalance = totalNetworth
+        if (totalBalance > 0 && remainingNeed > 0) {
+          if (accountBalances['401k'] > 0) {
+            const proportional401k = (accountBalances['401k'] / totalBalance) * remainingNeed
+            const withdrawal401k = Math.min(proportional401k, accountBalances['401k'])
+            distribution401k += withdrawal401k
+            accountBalances['401k'] -= withdrawal401k
+            remainingNeed -= withdrawal401k
+          }
+          if (accountBalances['IRA'] > 0 && remainingNeed > 0) {
+            const proportionalIRA = (accountBalances['IRA'] / totalBalance) * remainingNeed
+            const withdrawalIRA = Math.min(proportionalIRA, accountBalances['IRA'])
+            distributionIra += withdrawalIRA
+            accountBalances['IRA'] -= withdrawalIRA
+            remainingNeed -= withdrawalIRA
+          }
+          if (accountBalances['Roth IRA'] > 0 && remainingNeed > 0) {
+            const proportionalRoth = (accountBalances['Roth IRA'] / totalBalance) * remainingNeed
+            const withdrawalRoth = Math.min(proportionalRoth, accountBalances['Roth IRA'])
+            distributionRoth += withdrawalRoth
+            accountBalances['Roth IRA'] -= withdrawalRoth
+            remainingNeed -= withdrawalRoth
+          }
+          if (accountBalances['Taxable'] > 0 && remainingNeed > 0) {
+            const proportionalTaxable = (accountBalances['Taxable'] / totalBalance) * remainingNeed
+            const withdrawalTaxable = Math.min(proportionalTaxable, accountBalances['Taxable'])
+            distributionTaxable += withdrawalTaxable
+            accountBalances['Taxable'] -= withdrawalTaxable
+            remainingNeed -= withdrawalTaxable
+          }
+          if (accountBalances['HSA'] > 0 && remainingNeed > 0) {
+            const proportionalHsa = (accountBalances['HSA'] / totalBalance) * remainingNeed
+            const withdrawalHsa = Math.min(proportionalHsa, accountBalances['HSA'])
+            distributionHsa += withdrawalHsa
+            accountBalances['HSA'] -= withdrawalHsa
+            remainingNeed -= withdrawalHsa
+          }
+          if (accountBalances['Other'] > 0 && remainingNeed > 0) {
+            const proportionalOther = (accountBalances['Other'] / totalBalance) * remainingNeed
+            const withdrawalOther = Math.min(proportionalOther, accountBalances['Other'])
+            distributionOther += withdrawalOther
+            accountBalances['Other'] -= withdrawalOther
+            remainingNeed -= withdrawalOther
+          }
+        }
+      } else if (strategyType === 'sequence_bracket_topping') {
+        // Bracket-Topping: Fill low tax bracket with tax-deferred, then use taxable/Roth
+        const bracketThreshold = settings.bracket_topping_threshold || 12 // 12% bracket
+        // Simplified: estimate taxable income from traditional accounts to fill bracket
+        // Assume we want to fill up to bracket threshold
+        const estimatedBracketIncome = 50000 // Simplified threshold amount
+        const currentTaxableIncome = distribution401k + distributionIra + otherRecurringIncome
         
-        let withdrawal = 0
-        switch (accountType) {
-          case '401k':
-            if (accountBalances['401k'] > 0 && (!requiresRMD || requiredRMD === 0)) {
-              withdrawal = Math.min(remainingNeed, accountBalances['401k'])
-              distribution401k += withdrawal
-              accountBalances['401k'] -= withdrawal
-              remainingNeed -= withdrawal
+        if (currentTaxableIncome < estimatedBracketIncome && traditionalBalance > 0) {
+          // Fill bracket with traditional accounts first
+          const bracketFillAmount = estimatedBracketIncome - currentTaxableIncome
+          if (accountBalances['401k'] > 0 && remainingNeed > 0) {
+            const withdrawal401k = Math.min(remainingNeed, accountBalances['401k'], bracketFillAmount)
+            distribution401k += withdrawal401k
+            accountBalances['401k'] -= withdrawal401k
+            remainingNeed -= withdrawal401k
+          }
+          if (accountBalances['IRA'] > 0 && remainingNeed > 0) {
+            const withdrawalIRA = Math.min(remainingNeed, accountBalances['IRA'], bracketFillAmount - distribution401k)
+            distributionIra += withdrawalIRA
+            accountBalances['IRA'] -= withdrawalIRA
+            remainingNeed -= withdrawalIRA
+          }
+        }
+        // Then use taxable and Roth for remaining need
+        if (remainingNeed > 0 && accountBalances['Taxable'] > 0) {
+          const withdrawalTaxable = Math.min(remainingNeed, accountBalances['Taxable'])
+          distributionTaxable += withdrawalTaxable
+          accountBalances['Taxable'] -= withdrawalTaxable
+          remainingNeed -= withdrawalTaxable
+        }
+        if (remainingNeed > 0 && accountBalances['Roth IRA'] > 0) {
+          const withdrawalRoth = Math.min(remainingNeed, accountBalances['Roth IRA'])
+          distributionRoth += withdrawalRoth
+          accountBalances['Roth IRA'] -= withdrawalRoth
+          remainingNeed -= withdrawalRoth
+        }
+        if (remainingNeed > 0 && accountBalances['HSA'] > 0) {
+          const withdrawalHsa = Math.min(remainingNeed, accountBalances['HSA'])
+          distributionHsa += withdrawalHsa
+          accountBalances['HSA'] -= withdrawalHsa
+          remainingNeed -= withdrawalHsa
+        }
+        if (remainingNeed > 0 && accountBalances['Other'] > 0) {
+          const withdrawalOther = Math.min(remainingNeed, accountBalances['Other'])
+          distributionOther += withdrawalOther
+          accountBalances['Other'] -= withdrawalOther
+          remainingNeed -= withdrawalOther
+        }
+      } else if (strategyType === 'market_bucket') {
+        // Bucket Strategy: Cash (1-3y), Fixed Income (3-10y), Equities (10+y)
+        // Simplified: Use Taxable/HSA for short-term (Bucket 1), Traditional for medium (Bucket 2), Roth for long-term (Bucket 3)
+        const yearsInRetirement = yearsSinceRetirement
+        if (yearsInRetirement <= 3) {
+          // Bucket 1: Use Taxable and HSA first
+          if (remainingNeed > 0 && accountBalances['Taxable'] > 0) {
+            const withdrawalTaxable = Math.min(remainingNeed, accountBalances['Taxable'])
+            distributionTaxable += withdrawalTaxable
+            accountBalances['Taxable'] -= withdrawalTaxable
+            remainingNeed -= withdrawalTaxable
+          }
+          if (remainingNeed > 0 && accountBalances['HSA'] > 0) {
+            const withdrawalHsa = Math.min(remainingNeed, accountBalances['HSA'])
+            distributionHsa += withdrawalHsa
+            accountBalances['HSA'] -= withdrawalHsa
+            remainingNeed -= withdrawalHsa
+          }
+        } else if (yearsInRetirement <= 10) {
+          // Bucket 2: Use Traditional accounts
+          if (remainingNeed > 0 && accountBalances['401k'] > 0) {
+            const withdrawal401k = Math.min(remainingNeed, accountBalances['401k'])
+            distribution401k += withdrawal401k
+            accountBalances['401k'] -= withdrawal401k
+            remainingNeed -= withdrawal401k
+          }
+          if (remainingNeed > 0 && accountBalances['IRA'] > 0) {
+            const withdrawalIRA = Math.min(remainingNeed, accountBalances['IRA'])
+            distributionIra += withdrawalIRA
+            accountBalances['IRA'] -= withdrawalIRA
+            remainingNeed -= withdrawalIRA
+          }
+        } else {
+          // Bucket 3: Use Roth for long-term
+          if (remainingNeed > 0 && accountBalances['Roth IRA'] > 0) {
+            const withdrawalRoth = Math.min(remainingNeed, accountBalances['Roth IRA'])
+            distributionRoth += withdrawalRoth
+            accountBalances['Roth IRA'] -= withdrawalRoth
+            remainingNeed -= withdrawalRoth
+          }
+        }
+        // Fallback to any remaining accounts
+        if (remainingNeed > 0) {
+          if (accountBalances['Taxable'] > 0) {
+            const withdrawalTaxable = Math.min(remainingNeed, accountBalances['Taxable'])
+            distributionTaxable += withdrawalTaxable
+            accountBalances['Taxable'] -= withdrawalTaxable
+            remainingNeed -= withdrawalTaxable
+          }
+          if (accountBalances['401k'] > 0 && remainingNeed > 0) {
+            const withdrawal401k = Math.min(remainingNeed, accountBalances['401k'])
+            distribution401k += withdrawal401k
+            accountBalances['401k'] -= withdrawal401k
+            remainingNeed -= withdrawal401k
+          }
+          if (accountBalances['IRA'] > 0 && remainingNeed > 0) {
+            const withdrawalIRA = Math.min(remainingNeed, accountBalances['IRA'])
+            distributionIra += withdrawalIRA
+            accountBalances['IRA'] -= withdrawalIRA
+            remainingNeed -= withdrawalIRA
+          }
+          if (accountBalances['Other'] > 0 && remainingNeed > 0) {
+            const withdrawalOther = Math.min(remainingNeed, accountBalances['Other'])
+            distributionOther += withdrawalOther
+            accountBalances['Other'] -= withdrawalOther
+            remainingNeed -= withdrawalOther
+          }
+        }
+      } else if (strategyType === 'market_floor_upside') {
+        // Floor-and-Upside: Guaranteed income for essentials, portfolio for discretionary
+        // Use SSA + other income for essentials, portfolio for remaining
+        const essentialExpenses = livingExpenses * 0.7 // Assume 70% are essential
+        const guaranteedIncome = totalSsaIncome + otherRecurringIncome
+        const essentialShortfall = Math.max(0, essentialExpenses - guaranteedIncome)
+        const discretionaryNeed = remainingNeed - essentialShortfall
+        
+        // Cover essential shortfall first from portfolio
+        if (essentialShortfall > 0) {
+          // Use tax-efficient order for essentials
+          if (accountBalances['Taxable'] > 0) {
+            const withdrawalTaxable = Math.min(essentialShortfall, accountBalances['Taxable'])
+            distributionTaxable += withdrawalTaxable
+            accountBalances['Taxable'] -= withdrawalTaxable
+            remainingNeed -= withdrawalTaxable
+          }
+          if (accountBalances['HSA'] > 0 && remainingNeed > 0) {
+            const withdrawalHsa = Math.min(remainingNeed, accountBalances['HSA'])
+            distributionHsa += withdrawalHsa
+            accountBalances['HSA'] -= withdrawalHsa
+            remainingNeed -= withdrawalHsa
+          }
+          if (accountBalances['401k'] > 0 && remainingNeed > 0) {
+            const withdrawal401k = Math.min(remainingNeed, accountBalances['401k'])
+            distribution401k += withdrawal401k
+            accountBalances['401k'] -= withdrawal401k
+            remainingNeed -= withdrawal401k
+          }
+          if (accountBalances['IRA'] > 0 && remainingNeed > 0) {
+            const withdrawalIRA = Math.min(remainingNeed, accountBalances['IRA'])
+            distributionIra += withdrawalIRA
+            accountBalances['IRA'] -= withdrawalIRA
+            remainingNeed -= withdrawalIRA
+          }
+        }
+        // Then use Roth for discretionary
+        if (remainingNeed > 0 && accountBalances['Roth IRA'] > 0) {
+          const withdrawalRoth = Math.min(remainingNeed, accountBalances['Roth IRA'])
+          distributionRoth += withdrawalRoth
+          accountBalances['Roth IRA'] -= withdrawalRoth
+          remainingNeed -= withdrawalRoth
+        }
+        if (remainingNeed > 0 && accountBalances['Other'] > 0) {
+          const withdrawalOther = Math.min(remainingNeed, accountBalances['Other'])
+          distributionOther += withdrawalOther
+          accountBalances['Other'] -= withdrawalOther
+          remainingNeed -= withdrawalOther
+        }
+      } else if (strategyType === 'tax_roth_conversion') {
+        // Roth Conversion Bridge: Convert Traditional to Roth before RMD age
+        if (age < rmdAge) {
+          // Convert a portion of traditional to Roth each year (simplified: convert 10% or $10k, whichever is less)
+          const conversionAmount = Math.min(10000, traditionalBalance * 0.1)
+          if (conversionAmount > 0 && traditionalBalance > 0) {
+            // Move from traditional to Roth (this is a conversion, not a withdrawal)
+            // For simplicity, we'll treat this as a withdrawal from traditional and addition to Roth
+            // In reality, this would be a conversion with tax implications
+            if (accountBalances['401k'] > 0) {
+              const convertFrom401k = Math.min(conversionAmount * (accountBalances['401k'] / traditionalBalance), accountBalances['401k'])
+              accountBalances['401k'] -= convertFrom401k
+              accountBalances['Roth IRA'] += convertFrom401k * 0.85 // Assume 15% tax on conversion
+              // The conversion itself is taxable
+              distribution401k += convertFrom401k * 0.15 // Tax portion
             }
-            break
-          case 'IRA':
-            if (accountBalances['IRA'] > 0 && (!requiresRMD || requiredRMD === 0)) {
-              withdrawal = Math.min(remainingNeed, accountBalances['IRA'])
-              distributionIra += withdrawal
-              accountBalances['IRA'] -= withdrawal
-              remainingNeed -= withdrawal
+            if (accountBalances['IRA'] > 0) {
+              const convertFromIRA = Math.min(conversionAmount * (accountBalances['IRA'] / traditionalBalance), accountBalances['IRA'])
+              accountBalances['IRA'] -= convertFromIRA
+              accountBalances['Roth IRA'] += convertFromIRA * 0.85
+              distributionIra += convertFromIRA * 0.15
             }
-            break
-          case 'Roth IRA':
-            if (accountBalances['Roth IRA'] > 0) {
-              withdrawal = Math.min(remainingNeed, accountBalances['Roth IRA'])
-              distributionRoth += withdrawal
-              accountBalances['Roth IRA'] -= withdrawal
-              remainingNeed -= withdrawal
+          }
+        }
+        // Then use standard tax-efficient withdrawal order
+        const priority = settings.withdrawal_priority || 'default'
+        const secondaryPriority = settings.withdrawal_secondary_priority || 'tax_optimization'
+        const withdrawalOrder = determineWithdrawalOrder(
+          priority,
+          secondaryPriority,
+          age,
+          rmdAge,
+          requiresRMD,
+          requiredRMD,
+          remainingNeed,
+          accountBalances,
+          yearsRemaining,
+          totalNetworth
+        )
+        for (const accountType of withdrawalOrder) {
+          if (remainingNeed <= 0) break
+          let withdrawal = 0
+          switch (accountType) {
+            case '401k':
+              if (accountBalances['401k'] > 0 && (!requiresRMD || requiredRMD === 0)) {
+                withdrawal = Math.min(remainingNeed, accountBalances['401k'])
+                distribution401k += withdrawal
+                accountBalances['401k'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'IRA':
+              if (accountBalances['IRA'] > 0 && (!requiresRMD || requiredRMD === 0)) {
+                withdrawal = Math.min(remainingNeed, accountBalances['IRA'])
+                distributionIra += withdrawal
+                accountBalances['IRA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Roth IRA':
+              if (accountBalances['Roth IRA'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Roth IRA'])
+                distributionRoth += withdrawal
+                accountBalances['Roth IRA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Taxable':
+              if (accountBalances['Taxable'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Taxable'])
+                distributionTaxable += withdrawal
+                accountBalances['Taxable'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'HSA':
+              if (accountBalances['HSA'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['HSA'])
+                distributionHsa += withdrawal
+                accountBalances['HSA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Other':
+              if (accountBalances['Other'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Other'])
+                distributionOther += withdrawal
+                accountBalances['Other'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+          }
+        }
+      } else if (strategyType === 'tax_qcd') {
+        // QCDs: After age 70½, send IRA distributions directly to charity
+        if (age >= 70.5 && requiredRMD > 0) {
+          // QCD can satisfy RMD up to $100k/year (simplified: use 50% of RMD for QCD)
+          const qcdAmount = Math.min(requiredRMD * 0.5, 100000)
+          if (accountBalances['IRA'] > 0) {
+            const qcdFromIRA = Math.min(qcdAmount, accountBalances['IRA'])
+            distributionIra += qcdFromIRA
+            accountBalances['IRA'] -= qcdFromIRA
+            // QCD is not taxable, so reduce taxable income
+            remainingNeed = Math.max(0, remainingNeed - qcdFromIRA)
+          }
+          // Remaining RMD must still be taken
+          const remainingRMD = requiredRMD - qcdAmount
+          if (remainingRMD > 0) {
+            const totalTraditionalBalance = accountBalances['401k'] + accountBalances['IRA']
+            if (totalTraditionalBalance > 0) {
+              const rmdFrom401k = (accountBalances['401k'] / totalTraditionalBalance) * remainingRMD
+              const rmdFromIRA = (accountBalances['IRA'] / totalTraditionalBalance) * remainingRMD
+              const actual401kRMD = Math.min(rmdFrom401k, accountBalances['401k'])
+              const actualIRARMD = Math.min(rmdFromIRA, accountBalances['IRA'])
+              distribution401k += actual401kRMD
+              distributionIra += actualIRARMD
+              accountBalances['401k'] -= actual401kRMD
+              accountBalances['IRA'] -= actualIRARMD
             }
-            break
-          case 'Taxable':
-            if (accountBalances['Taxable'] > 0) {
-              withdrawal = Math.min(remainingNeed, accountBalances['Taxable'])
-              distributionTaxable += withdrawal
-              accountBalances['Taxable'] -= withdrawal
-              remainingNeed -= withdrawal
-            }
-            break
-          case 'HSA':
-            if (accountBalances['HSA'] > 0) {
-              withdrawal = Math.min(remainingNeed, accountBalances['HSA'])
-              distributionHsa += withdrawal
-              accountBalances['HSA'] -= withdrawal
-              remainingNeed -= withdrawal
-            }
-            break
-          case 'Other':
-            if (accountBalances['Other'] > 0) {
-              withdrawal = Math.min(remainingNeed, accountBalances['Other'])
-              distributionOther += withdrawal
-              accountBalances['Other'] -= withdrawal
-              remainingNeed -= withdrawal
-            }
-            break
+          }
+        }
+        // Then use standard withdrawal for remaining need
+        const priority = settings.withdrawal_priority || 'default'
+        const secondaryPriority = settings.withdrawal_secondary_priority || 'tax_optimization'
+        const withdrawalOrder = determineWithdrawalOrder(
+          priority,
+          secondaryPriority,
+          age,
+          rmdAge,
+          requiresRMD,
+          requiredRMD,
+          remainingNeed,
+          accountBalances,
+          yearsRemaining,
+          totalNetworth
+        )
+        for (const accountType of withdrawalOrder) {
+          if (remainingNeed <= 0) break
+          let withdrawal = 0
+          switch (accountType) {
+            case '401k':
+              if (accountBalances['401k'] > 0 && (!requiresRMD || requiredRMD === 0)) {
+                withdrawal = Math.min(remainingNeed, accountBalances['401k'])
+                distribution401k += withdrawal
+                accountBalances['401k'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'IRA':
+              if (accountBalances['IRA'] > 0 && (!requiresRMD || requiredRMD === 0)) {
+                withdrawal = Math.min(remainingNeed, accountBalances['IRA'])
+                distributionIra += withdrawal
+                accountBalances['IRA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Roth IRA':
+              if (accountBalances['Roth IRA'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Roth IRA'])
+                distributionRoth += withdrawal
+                accountBalances['Roth IRA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Taxable':
+              if (accountBalances['Taxable'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Taxable'])
+                distributionTaxable += withdrawal
+                accountBalances['Taxable'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'HSA':
+              if (accountBalances['HSA'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['HSA'])
+                distributionHsa += withdrawal
+                accountBalances['HSA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Other':
+              if (accountBalances['Other'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Other'])
+                distributionOther += withdrawal
+                accountBalances['Other'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+          }
+        }
+      } else {
+        // Goal-based strategy (default) - use existing logic
+        const priority = settings.withdrawal_priority || 'default'
+        const secondaryPriority = settings.withdrawal_secondary_priority || 'tax_optimization'
+        const withdrawalOrder = determineWithdrawalOrder(
+          priority,
+          secondaryPriority,
+          age,
+          rmdAge,
+          requiresRMD,
+          requiredRMD,
+          remainingNeed,
+          accountBalances,
+          yearsRemaining,
+          totalNetworth
+        )
+        for (const accountType of withdrawalOrder) {
+          if (remainingNeed <= 0) break
+          let withdrawal = 0
+          switch (accountType) {
+            case '401k':
+              if (accountBalances['401k'] > 0 && (!requiresRMD || requiredRMD === 0)) {
+                withdrawal = Math.min(remainingNeed, accountBalances['401k'])
+                distribution401k += withdrawal
+                accountBalances['401k'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'IRA':
+              if (accountBalances['IRA'] > 0 && (!requiresRMD || requiredRMD === 0)) {
+                withdrawal = Math.min(remainingNeed, accountBalances['IRA'])
+                distributionIra += withdrawal
+                accountBalances['IRA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Roth IRA':
+              if (accountBalances['Roth IRA'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Roth IRA'])
+                distributionRoth += withdrawal
+                accountBalances['Roth IRA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Taxable':
+              if (accountBalances['Taxable'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Taxable'])
+                distributionTaxable += withdrawal
+                accountBalances['Taxable'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'HSA':
+              if (accountBalances['HSA'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['HSA'])
+                distributionHsa += withdrawal
+                accountBalances['HSA'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+            case 'Other':
+              if (accountBalances['Other'] > 0) {
+                withdrawal = Math.min(remainingNeed, accountBalances['Other'])
+                distributionOther += withdrawal
+                accountBalances['Other'] -= withdrawal
+                remainingNeed -= withdrawal
+              }
+              break
+          }
         }
       }
-    } else if (isRetired && requiresRMD && requiredRMD > 0) {
-      // Even if expenses are covered, must take RMDs after age 73
-      const totalTraditionalBalance = accountBalances['401k'] + accountBalances['IRA']
-      if (totalTraditionalBalance > 0) {
-        const rmdFrom401k = (accountBalances['401k'] / totalTraditionalBalance) * requiredRMD
-        const rmdFromIRA = (accountBalances['IRA'] / totalTraditionalBalance) * requiredRMD
-        
-        const actual401kRMD = Math.min(rmdFrom401k, accountBalances['401k'])
-        const actualIRARMD = Math.min(rmdFromIRA, accountBalances['IRA'])
-        
-        distribution401k = actual401kRMD
-        distributionIra = actualIRARMD
-        accountBalances['401k'] -= actual401kRMD
-        accountBalances['IRA'] -= actualIRARMD
+    } else if (isRetired && requiresRMD && requiredRMD > 0 && expensesToCover <= 0) {
+      // Even if expenses are covered, must take RMDs after age 73 (unless QCD strategy)
+      const strategyType = settings.withdrawal_strategy_type || 'goal_based'
+      if (strategyType !== 'tax_qcd') {
+        const totalTraditionalBalance = accountBalances['401k'] + accountBalances['IRA']
+        if (totalTraditionalBalance > 0) {
+          const rmdFrom401k = (accountBalances['401k'] / totalTraditionalBalance) * requiredRMD
+          const rmdFromIRA = (accountBalances['IRA'] / totalTraditionalBalance) * requiredRMD
+          
+          const actual401kRMD = Math.min(rmdFrom401k, accountBalances['401k'])
+          const actualIRARMD = Math.min(rmdFromIRA, accountBalances['IRA'])
+          
+          distribution401k = actual401kRMD
+          distributionIra = actualIRARMD
+          accountBalances['401k'] -= actual401kRMD
+          accountBalances['IRA'] -= actualIRARMD
+        }
       }
     }
     

@@ -54,6 +54,31 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   const [scenarios, setScenarios] = useState<Array<{ id: number; scenario_name: string; is_default: boolean }>>([])
   const [modelingWithdrawalPriority, setModelingWithdrawalPriority] = useState<'default' | 'longevity' | 'legacy' | 'tax_optimization' | 'stable_income' | 'sequence_risk' | 'liquidity'>('default')
   const [modelingWithdrawalSecondary, setModelingWithdrawalSecondary] = useState<'default' | 'longevity' | 'legacy' | 'tax_optimization' | 'stable_income' | 'sequence_risk' | 'liquidity'>('tax_optimization')
+  const [strategyModelerExpanded, setStrategyModelerExpanded] = useState(false)
+  const [modelingStrategyType, setModelingStrategyType] = useState<'goal_based' | 'amount_based_4_percent' | 'amount_based_fixed_percentage' | 'amount_based_fixed_dollar' | 'amount_based_swp' | 'sequence_proportional' | 'sequence_bracket_topping' | 'market_bucket' | 'market_guardrails' | 'market_floor_upside' | 'tax_roth_conversion' | 'tax_qcd'>('goal_based')
+  const [strategyParams, setStrategyParams] = useState({
+    fixed_percentage_rate: 4, // 4%
+    fixed_dollar_amount: 50000,
+    guardrails_ceiling: 6, // 6%
+    guardrails_floor: 3, // 3%
+    bracket_topping_threshold: 12, // 12% tax bracket
+  })
+  const [comparingStrategies, setComparingStrategies] = useState(false)
+  const [strategyComparison, setStrategyComparison] = useState<Array<{
+    strategyName: string
+    strategyType: string
+    legacyValue: number
+    longevity: number
+    totalTax: number
+    avgAnnualTax: number
+    taxEfficiency: number
+    negativeYears: number
+    negativeYearsPercentage: number
+    lifetimeIncome: number
+    lifetimeExpenses: number
+    totalWithdrawals: number
+  }>>([])
+  const [activeSubTab, setActiveSubTab] = useState<'projections' | 'strategy-modeling'>('projections')
   const [visibleColumns, setVisibleColumns] = useState({
     year: true,
     age: true,
@@ -116,6 +141,18 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
     }
   }, [selectedScenarioId, hasAutoCalculated, projections.length])
 
+  // Recalculate projections when strategy type or parameters change
+  useEffect(() => {
+    if (selectedScenarioId && hasAutoCalculated && projections.length > 0) {
+      // Debounce to avoid too many recalculations
+      const timeoutId = setTimeout(() => {
+        calculateAndSaveProjections()
+      }, 300)
+      return () => clearTimeout(timeoutId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelingStrategyType, modelingWithdrawalPriority, modelingWithdrawalSecondary, strategyParams.fixed_percentage_rate, strategyParams.fixed_dollar_amount, strategyParams.guardrails_ceiling, strategyParams.guardrails_floor, strategyParams.bracket_topping_threshold, selectedScenarioId])
+
   const loadProjections = async (scenarioId?: number) => {
     const targetScenarioId = scenarioId || selectedScenarioId
     if (!targetScenarioId) return
@@ -125,15 +162,15 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       // Load retirement age from settings and life expectancy from plan
       const [settingsResult, planResult] = await Promise.all([
         supabase
-          .from('rp_calculator_settings')
-          .select('retirement_age')
-          .eq('scenario_id', targetScenarioId)
+        .from('rp_calculator_settings')
+        .select('retirement_age')
+        .eq('scenario_id', targetScenarioId)
           .single(),
         supabase
           .from('rp_retirement_plans')
           .select('life_expectancy')
           .eq('id', planId)
-          .single()
+        .single()
       ])
       
       if (!settingsResult.error && settingsResult.data?.retirement_age) {
@@ -156,6 +193,232 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       console.error('Error loading projections:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const compareAllStrategies = async () => {
+    if (!selectedScenarioId) return
+
+    try {
+      // Get all the data needed for calculations
+      const [planData, accountsData, expensesData, otherIncomeData, settingsData] = await Promise.all([
+        supabase.from('rp_retirement_plans').select('*').eq('id', planId).single(),
+        supabase.from('rp_accounts').select('*').eq('plan_id', planId).order('id'),
+        supabase.from('rp_expenses').select('*').eq('plan_id', planId).order('id'),
+        supabase.from('rp_other_income').select('*').eq('plan_id', planId).order('id'),
+        supabase.from('rp_calculator_settings').select('*').eq('scenario_id', selectedScenarioId).single(),
+      ])
+
+      if (planData.error || accountsData.error || expensesData.error || otherIncomeData.error || settingsData.error) {
+        console.error('Error loading data for comparison:', { planData, accountsData, expensesData, otherIncomeData, settingsData })
+        return
+      }
+
+      const accounts: Account[] = (accountsData.data || []).map(acc => ({
+        id: acc.id,
+        account_name: acc.account_name || '',
+        account_type: acc.account_type || 'Other',
+        balance: acc.balance || 0,
+        growth_rate: acc.growth_rate || 0,
+      }))
+
+      const expenses: Expense[] = (expensesData.data || []).map(exp => ({
+        id: exp.id,
+        expense_name: exp.expense_name || '',
+        amount_before_65: exp.amount_before_65 || 0,
+        amount_after_65: exp.amount_after_65 || 0,
+      }))
+
+      const otherIncome: OtherIncome[] = (otherIncomeData.data || []).map(inc => ({
+        id: inc.id,
+        income_name: inc.income_source || '',
+        amount: inc.annual_amount || 0,
+        start_year: inc.start_year || undefined,
+        end_year: inc.end_year || undefined,
+        inflation_adjusted: inc.inflation_adjusted || false,
+      }))
+
+      const lifeExpectancy = planData.data?.life_expectancy || 90
+
+      // Base settings
+      const baseSettings: CalculatorSettings = {
+        current_year: settingsData.data.current_year || new Date().getFullYear(),
+        retirement_age: settingsData.data.retirement_age || 65,
+        retirement_start_year: settingsData.data.retirement_start_year || 0,
+        years_to_retirement: settingsData.data.years_to_retirement || 0,
+        annual_retirement_expenses: settingsData.data.annual_retirement_expenses || 0,
+        growth_rate_before_retirement: parseFloat(settingsData.data.growth_rate_before_retirement?.toString() || '0.1'),
+        growth_rate_during_retirement: parseFloat(settingsData.data.growth_rate_during_retirement?.toString() || '0.05'),
+        capital_gains_tax_rate: parseFloat(settingsData.data.capital_gains_tax_rate?.toString() || '0.2'),
+        income_tax_rate_retirement: parseFloat(settingsData.data.income_tax_rate_retirement?.toString() || '0.25'),
+        inflation_rate: parseFloat(settingsData.data.inflation_rate?.toString() || '0.04'),
+        enable_borrowing: settingsData.data.enable_borrowing || false,
+        ssa_start_age: settingsData.data.ssa_start_age || 62,
+        withdrawal_priority: 'default',
+        withdrawal_secondary_priority: 'tax_optimization',
+      }
+
+      // Define all strategies to compare
+      const strategiesToCompare: Array<{
+        name: string
+        type: typeof modelingStrategyType
+        settings: CalculatorSettings
+      }> = [
+        {
+          name: 'Goal-Based: Default',
+          type: 'goal_based',
+          settings: { ...baseSettings, withdrawal_priority: 'default', withdrawal_secondary_priority: 'tax_optimization' },
+        },
+        {
+          name: 'Goal-Based: Longevity',
+          type: 'goal_based',
+          settings: { ...baseSettings, withdrawal_priority: 'longevity', withdrawal_secondary_priority: 'tax_optimization' },
+        },
+        {
+          name: 'Goal-Based: Legacy',
+          type: 'goal_based',
+          settings: { ...baseSettings, withdrawal_priority: 'legacy', withdrawal_secondary_priority: 'tax_optimization' },
+        },
+        {
+          name: '4% Rule',
+          type: 'amount_based_4_percent',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'amount_based_4_percent' },
+        },
+        {
+          name: `Fixed Percentage (${strategyParams.fixed_percentage_rate}%)`,
+          type: 'amount_based_fixed_percentage',
+          settings: {
+            ...baseSettings,
+            withdrawal_strategy_type: 'amount_based_fixed_percentage',
+            fixed_percentage_rate: strategyParams.fixed_percentage_rate / 100,
+          },
+        },
+        {
+          name: `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString()})`,
+          type: 'amount_based_fixed_dollar',
+          settings: {
+            ...baseSettings,
+            withdrawal_strategy_type: 'amount_based_fixed_dollar',
+            fixed_dollar_amount: strategyParams.fixed_dollar_amount,
+          },
+        },
+        {
+          name: 'SWP (Earnings Only)',
+          type: 'amount_based_swp',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'amount_based_swp' },
+        },
+        {
+          name: 'Proportional Withdrawals',
+          type: 'sequence_proportional',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'sequence_proportional' },
+        },
+        {
+          name: `Bracket-Topping (${strategyParams.bracket_topping_threshold}%)`,
+          type: 'sequence_bracket_topping',
+          settings: {
+            ...baseSettings,
+            withdrawal_strategy_type: 'sequence_bracket_topping',
+            bracket_topping_threshold: strategyParams.bracket_topping_threshold,
+          },
+        },
+        {
+          name: 'Bucket Strategy',
+          type: 'market_bucket',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'market_bucket' },
+        },
+        {
+          name: `Guardrails (${strategyParams.guardrails_floor}%-${strategyParams.guardrails_ceiling}%)`,
+          type: 'market_guardrails',
+          settings: {
+            ...baseSettings,
+            withdrawal_strategy_type: 'market_guardrails',
+            guardrails_ceiling: strategyParams.guardrails_ceiling / 100,
+            guardrails_floor: strategyParams.guardrails_floor / 100,
+          },
+        },
+        {
+          name: 'Floor-and-Upside',
+          type: 'market_floor_upside',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'market_floor_upside' },
+        },
+        {
+          name: 'Roth Conversion Bridge',
+          type: 'tax_roth_conversion',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'tax_roth_conversion' },
+        },
+        {
+          name: 'QCDs',
+          type: 'tax_qcd',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'tax_qcd' },
+        },
+      ]
+
+      // Calculate projections for each strategy
+      const comparisonResults = strategiesToCompare.map(strategy => {
+        const calculatedProjections = calculateRetirementProjections(
+          planData.data.birth_year,
+          accounts,
+          expenses,
+          otherIncome,
+          strategy.settings,
+          lifeExpectancy,
+          planData.data.spouse_birth_year || undefined,
+          planData.data.spouse_life_expectancy || undefined,
+          settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true,
+          planData.data.include_spouse && (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : true) || false
+        )
+
+        // Calculate metrics
+        const retirementAge = strategy.settings.retirement_age || 65
+        const retirementProjections = calculatedProjections.filter(p => {
+          const age = p.age || 0
+          return age >= retirementAge
+        })
+
+        const finalProjection = calculatedProjections[calculatedProjections.length - 1]
+        const legacyValue = finalProjection?.networth || 0
+
+        const totalTax = retirementProjections.reduce((sum, p) => sum + (p.tax || 0), 0)
+        const avgAnnualTax = retirementProjections.length > 0 ? totalTax / retirementProjections.length : 0
+
+        const zeroNetworthYear = calculatedProjections.findIndex(p => (p.networth || 0) <= 0)
+        const finalAge = finalProjection?.age || 0
+        const longevityBeyondLifeExpectancy = zeroNetworthYear >= 0
+          ? (calculatedProjections[zeroNetworthYear]?.age || 0) - lifeExpectancy
+          : finalAge - lifeExpectancy
+
+        const totalIncome = retirementProjections.reduce((sum, p) => sum + (p.total_income || 0), 0)
+        const lifetimeExpenses = retirementProjections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
+        const taxEfficiency = totalIncome > 0 ? ((totalTax / totalIncome) * 100) : 0
+
+        // Only count as negative if gap_excess is significantly negative (more than -$1 to avoid rounding errors)
+        const negativeYears = retirementProjections.filter(p => (p.gap_excess || 0) < -1).length
+        const negativeYearsPercentage = retirementProjections.length > 0 ? (negativeYears / retirementProjections.length) * 100 : 0
+
+        const totalWithdrawals = retirementProjections.reduce((sum, p) => {
+          return sum + (p.distribution_401k || 0) + (p.distribution_roth || 0) + (p.distribution_taxable || 0) +
+                 (p.distribution_hsa || 0) + (p.distribution_ira || 0) + (p.distribution_other || 0)
+        }, 0)
+
+        return {
+          strategyName: strategy.name,
+          strategyType: strategy.type,
+          legacyValue,
+          longevity: longevityBeyondLifeExpectancy,
+          totalTax,
+          avgAnnualTax,
+          taxEfficiency,
+          negativeYears,
+          negativeYearsPercentage,
+          lifetimeIncome: totalIncome,
+          lifetimeExpenses,
+          totalWithdrawals,
+        }
+      })
+
+      setStrategyComparison(comparisonResults)
+    } catch (error) {
+      console.error('Error comparing strategies:', error)
     }
   }
 
@@ -256,10 +519,23 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       }
       
       // For display only, use modeling strategy
+      // Note: This uses the current state values, which may not be updated yet if called synchronously
+      // We'll use the latest state by reading it directly
+      const currentStrategyType = modelingStrategyType
+      const currentPriority = modelingWithdrawalPriority
+      const currentSecondary = modelingWithdrawalSecondary
+      const currentParams = strategyParams
+      
       const settings: CalculatorSettings = {
         ...baseSettings,
-        withdrawal_priority: modelingWithdrawalPriority, // Use modeling selection for display
-        withdrawal_secondary_priority: modelingWithdrawalSecondary, // Use modeling selection for display
+        withdrawal_priority: currentPriority, // Use modeling selection for display
+        withdrawal_secondary_priority: currentSecondary, // Use modeling selection for display
+        withdrawal_strategy_type: currentStrategyType, // Strategy type selection
+        fixed_percentage_rate: currentParams.fixed_percentage_rate ? currentParams.fixed_percentage_rate / 100 : undefined,
+        fixed_dollar_amount: currentParams.fixed_dollar_amount,
+        guardrails_ceiling: currentParams.guardrails_ceiling ? currentParams.guardrails_ceiling / 100 : undefined,
+        guardrails_floor: currentParams.guardrails_floor ? currentParams.guardrails_floor / 100 : undefined,
+        bracket_topping_threshold: currentParams.bracket_topping_threshold,
       }
       
       // Set retirement age for display filtering
@@ -403,196 +679,6 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={showPreRetirement}
-              onChange={(e) => setShowPreRetirement(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span>Show Pre-Retirement Years</span>
-          </label>
-          <div className="relative">
-            <button
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              onClick={(e) => {
-                const menu = e.currentTarget.nextElementSibling as HTMLElement
-                menu?.classList.toggle('hidden')
-              }}
-            >
-              Show/Hide Columns
-            </button>
-            <div className="absolute right-0 mt-1 hidden w-64 rounded-md border border-gray-200 bg-white shadow-lg z-20 max-h-96 overflow-y-auto">
-              <div className="p-2">
-                <div className="mb-2 border-b pb-2">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={Object.values(visibleColumns).every(v => v)}
-                      onChange={(e) => {
-                        const allVisible = e.target.checked
-                        setVisibleColumns({
-                          year: allVisible,
-                          age: allVisible,
-                          event: allVisible,
-                          ssa: allVisible,
-                          dist401k: allVisible,
-                          distRoth: allVisible,
-                          distTaxable: allVisible,
-                          distHsa: allVisible,
-                          distIra: allVisible,
-                          distOther: allVisible,
-                          otherIncome: allVisible,
-                          totalIncome: allVisible,
-                          tax: allVisible,
-                          expenses: allVisible,
-                          gapExcess: allVisible,
-                          networth: allVisible,
-                          balance401k: allVisible,
-                          balanceRoth: allVisible,
-                          balanceTaxable: allVisible,
-                          balanceHsa: allVisible,
-                          balanceIra: allVisible,
-                          balanceOther: allVisible,
-                        })
-                      }}
-                      className="rounded border-gray-300 text-blue-600"
-                    />
-                    <span>Select All</span>
-                  </label>
-                </div>
-                <div className="mb-2 border-b pb-2 space-y-1">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={incomeGroupExpanded}
-                      onChange={(e) => {
-                        const expanded = e.target.checked
-                        setIncomeGroupExpanded(expanded)
-                        if (expanded) {
-                          // When expanding, show all income columns if they're enabled
-                          setVisibleColumns({
-                            ...visibleColumns,
-                            ssa: visibleColumns.ssa || true,
-                            dist401k: visibleColumns.dist401k || true,
-                            distRoth: visibleColumns.distRoth || true,
-                            distTaxable: visibleColumns.distTaxable || true,
-                            distHsa: visibleColumns.distHsa || true,
-                            distIra: visibleColumns.distIra || true,
-                            distOther: visibleColumns.distOther || true,
-                            otherIncome: visibleColumns.otherIncome || true,
-                          })
-                        }
-                      }}
-                      className="rounded border-gray-300 text-blue-600"
-                    />
-                    <span>Expand Income Group</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={balanceGroupExpanded}
-                      onChange={(e) => {
-                        const expanded = e.target.checked
-                        setBalanceGroupExpanded(expanded)
-                        if (expanded) {
-                          // When expanding, show all balance columns if they're enabled
-                          setVisibleColumns({
-                            ...visibleColumns,
-                            balance401k: visibleColumns.balance401k || true,
-                            balanceRoth: visibleColumns.balanceRoth || true,
-                            balanceTaxable: visibleColumns.balanceTaxable || true,
-                            balanceHsa: visibleColumns.balanceHsa || true,
-                            balanceIra: visibleColumns.balanceIra || true,
-                            balanceOther: visibleColumns.balanceOther || true,
-                          })
-                        }
-                      }}
-                      className="rounded border-gray-300 text-blue-600"
-                    />
-                    <span>Expand Balance Group</span>
-                  </label>
-                </div>
-                <div className="space-y-1">
-                  {Object.entries(visibleColumns).map(([key, value]) => {
-                    const isIncomeColumn = ['ssa', 'dist401k', 'distRoth', 'distTaxable', 'distHsa', 'distIra', 'distOther', 'otherIncome'].includes(key)
-                    const isBalanceColumn = ['balance401k', 'balanceRoth', 'balanceTaxable', 'balanceHsa', 'balanceIra', 'balanceOther'].includes(key)
-                    // Event column is always available (not part of income/balance groups)
-                    const shouldShow = key === 'event' || !((isIncomeColumn && !incomeGroupExpanded) || (isBalanceColumn && !balanceGroupExpanded))
-                    
-                    return (
-                      <label key={key} className={`flex items-center gap-2 text-xs text-gray-700 hover:bg-gray-50 px-2 py-1 rounded ${!shouldShow ? 'opacity-50' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={value}
-                          disabled={!shouldShow}
-                          onChange={(e) => setVisibleColumns({ ...visibleColumns, [key]: e.target.checked })}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                      </label>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-3 py-1 text-sm rounded-l-md ${
-                viewMode === 'table'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Table
-            </button>
-            <button
-              onClick={() => setViewMode('graph')}
-              className={`px-3 py-1 text-sm rounded-r-md ${
-                viewMode === 'graph'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Graph
-            </button>
-          </div>
-          {viewMode === 'graph' && (
-            <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
-              <button
-                onClick={() => setGraphType('line')}
-                className={`px-3 py-1 text-sm rounded-l-md ${
-                  graphType === 'line'
-                    ? 'bg-gray-200 text-gray-900'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Line
-              </button>
-              <button
-                onClick={() => setGraphType('area')}
-                className={`px-3 py-1 text-sm ${
-                  graphType === 'area'
-                    ? 'bg-gray-200 text-gray-900'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Area
-              </button>
-              <button
-                onClick={() => setGraphType('bar')}
-                className={`px-3 py-1 text-sm rounded-r-md ${
-                  graphType === 'bar'
-                    ? 'bg-gray-200 text-gray-900'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Bar
-              </button>
-            </div>
-          )}
           <button
             onClick={calculateAndSaveProjections}
             disabled={calculating || !selectedScenarioId}
@@ -600,107 +686,45 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           >
             {calculating ? 'Calculating...' : 'Calculate Projections'}
           </button>
+          <button
+            onClick={() => setActiveSubTab('strategy-modeling')}
+            className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+          >
+            Strategy Modeling
+          </button>
         </div>
       </div>
 
-      {/* Withdrawal Strategy Modeling Tool */}
-      <div className="mb-6 rounded-lg border border-purple-200 bg-purple-50 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-purple-900">Withdrawal Strategy Modeling</h3>
-        <p className="mb-4 text-xs text-purple-700">
-          <strong>Model different strategies:</strong> Select a withdrawal strategy to see how it affects your projections. 
-          This is for illustration only and does not save to your scenario. The default strategy is used for saved projections.
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-purple-900 mb-2">Primary Strategy</label>
-            <select
-              value={modelingWithdrawalPriority}
-              onChange={(e) => {
-                setModelingWithdrawalPriority(e.target.value as any)
-                // Recalculate projections when strategy changes
-                if (selectedScenarioId) {
-                  calculateAndSaveProjections()
-                }
-              }}
-              className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-            >
-              <option value="default">Default (Tax-Efficient)</option>
-              <option value="longevity">Longevity (Preserve Assets)</option>
-              <option value="legacy">Legacy Value (Maximize Inheritance)</option>
-              <option value="tax_optimization">Tax Optimization</option>
-              <option value="stable_income">Stable Income</option>
-              <option value="sequence_risk">Sequence of Returns Risk Mitigation</option>
-              <option value="liquidity">Liquidity (Easy Access)</option>
-            </select>
-            <p className="mt-1 text-xs text-purple-600">
-              {modelingWithdrawalPriority === 'default' && 'Balanced tax-efficient strategy (default)'}
-              {modelingWithdrawalPriority === 'longevity' && 'Prioritizes preserving assets for long retirement'}
-              {modelingWithdrawalPriority === 'legacy' && 'Maximizes inheritance value for heirs'}
-              {modelingWithdrawalPriority === 'tax_optimization' && 'Minimizes taxes over retirement'}
-              {modelingWithdrawalPriority === 'stable_income' && 'Maintains consistent income levels'}
-              {modelingWithdrawalPriority === 'sequence_risk' && 'Protects against early market downturns'}
-              {modelingWithdrawalPriority === 'liquidity' && 'Keeps funds easily accessible'}
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-purple-900 mb-2">Secondary Strategy</label>
-            <select
-              value={modelingWithdrawalSecondary}
-              onChange={(e) => {
-                setModelingWithdrawalSecondary(e.target.value as any)
-                // Recalculate projections when strategy changes
-                if (selectedScenarioId) {
-                  calculateAndSaveProjections()
-                }
-              }}
-              className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-            >
-              <option value="tax_optimization">Tax Optimization</option>
-              <option value="longevity">Longevity</option>
-              <option value="legacy">Legacy Value</option>
-              <option value="stable_income">Stable Income</option>
-              <option value="sequence_risk">Sequence Risk Mitigation</option>
-              <option value="liquidity">Liquidity</option>
-              <option value="default">Default</option>
-            </select>
-            <p className="mt-1 text-xs text-purple-600">Used for tie-breaking when primary strategy doesn't clearly determine the best choice</p>
-          </div>
-        </div>
-
-        <div className="rounded-md border border-purple-200 bg-white p-3">
-          <p className="text-xs font-medium text-purple-900 mb-2">Current Modeling Strategy:</p>
-          <p className="text-sm text-purple-800">
-            <strong>Primary:</strong> {
-              modelingWithdrawalPriority === 'default' ? 'Default (Tax-Efficient)' :
-              modelingWithdrawalPriority === 'longevity' ? 'Longevity (Preserve Assets)' :
-              modelingWithdrawalPriority === 'legacy' ? 'Legacy Value (Maximize Inheritance)' :
-              modelingWithdrawalPriority === 'tax_optimization' ? 'Tax Optimization' :
-              modelingWithdrawalPriority === 'stable_income' ? 'Stable Income' :
-              modelingWithdrawalPriority === 'sequence_risk' ? 'Sequence of Returns Risk Mitigation' :
-              modelingWithdrawalPriority === 'liquidity' ? 'Liquidity (Easy Access)' :
-              'Default'
-            }
-            {modelingWithdrawalSecondary && modelingWithdrawalSecondary !== 'default' && (
-              <span className="ml-2">
-                • <strong>Secondary:</strong> {
-                  modelingWithdrawalSecondary === 'tax_optimization' ? 'Tax Optimization' :
-                  modelingWithdrawalSecondary === 'longevity' ? 'Longevity' :
-                  modelingWithdrawalSecondary === 'legacy' ? 'Legacy Value' :
-                  modelingWithdrawalSecondary === 'stable_income' ? 'Stable Income' :
-                  modelingWithdrawalSecondary === 'sequence_risk' ? 'Sequence Risk Mitigation' :
-                  modelingWithdrawalSecondary === 'liquidity' ? 'Liquidity' :
-                  modelingWithdrawalSecondary
-                }
-              </span>
-            )}
-          </p>
-          <p className="text-xs text-purple-600 mt-2">
-            The system dynamically evaluates your situation each year (account balances, age, years remaining, etc.) and adjusts the withdrawal order based on the selected strategy.
-          </p>
-        </div>
+      {/* Sub-tabs */}
+      <div className="mb-4 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveSubTab('projections')}
+            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+              activeSubTab === 'projections'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+            }`}
+          >
+            Projections
+          </button>
+          <button
+            onClick={() => setActiveSubTab('strategy-modeling')}
+            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+              activeSubTab === 'strategy-modeling'
+                ? 'border-purple-500 text-purple-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+            }`}
+          >
+            Strategy Modeling
+          </button>
+        </nav>
       </div>
+
+      {/* Projections Sub-tab */}
+      {activeSubTab === 'projections' && (
+        <div>
+
 
       {viewMode === 'graph' ? (
         <div className="mt-4">
@@ -861,23 +885,298 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           const taxEfficiency = totalIncome > 0 ? ((totalTax / totalIncome) * 100) : 0
           
           // Years with negative gap/excess
-          const negativeYears = retirementProjections.filter(p => (p.gap_excess || 0) < 0).length
+          // Only count as negative if gap_excess is significantly negative (more than -$1 to avoid rounding errors)
+        const negativeYears = retirementProjections.filter(p => (p.gap_excess || 0) < -1).length
           const negativeYearsPercentage = retirementProjections.length > 0 ? (negativeYears / retirementProjections.length) * 100 : 0
+          
+          // Remaining balances for each account type
+          const remaining401k = finalProjection?.balance_401k || 0
+          const remainingRoth = finalProjection?.balance_roth || 0
+          const remainingTaxable = finalProjection?.balance_investment || 0
+          const remainingIra = finalProjection?.balance_ira || 0
+          const remainingHsa = finalProjection?.balance_hsa || 0
+          const remainingOther = finalProjection?.balance_other_investments || 0
+          
+          // Lifetime expenses
+          const lifetimeExpenses = retirementProjections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
           
           return (
             <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">
-                Strategy Metrics: {
-                  modelingWithdrawalPriority === 'default' ? 'Default (Tax-Efficient)' :
-                  modelingWithdrawalPriority === 'longevity' ? 'Longevity (Preserve Assets)' :
-                  modelingWithdrawalPriority === 'legacy' ? 'Legacy Value (Maximize Inheritance)' :
-                  modelingWithdrawalPriority === 'tax_optimization' ? 'Tax Optimization' :
-                  modelingWithdrawalPriority === 'stable_income' ? 'Stable Income' :
-                  modelingWithdrawalPriority === 'sequence_risk' ? 'Sequence of Returns Risk Mitigation' :
-                  modelingWithdrawalPriority === 'liquidity' ? 'Liquidity (Easy Access)' :
-                  'Default'
-                }
-              </h3>
+              <button
+                onClick={() => setStrategyModelerExpanded(!strategyModelerExpanded)}
+                className="w-full flex items-center justify-between mb-4 text-left"
+              >
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Withdrawal Strategy: {
+                    modelingStrategyType === 'goal_based' ? (
+                      modelingWithdrawalPriority === 'default' ? 'Default (Tax-Efficient)' :
+                      modelingWithdrawalPriority === 'longevity' ? 'Longevity (Preserve Assets)' :
+                      modelingWithdrawalPriority === 'legacy' ? 'Legacy Value (Maximize Inheritance)' :
+                      modelingWithdrawalPriority === 'tax_optimization' ? 'Tax Optimization' :
+                      modelingWithdrawalPriority === 'stable_income' ? 'Stable Income' :
+                      modelingWithdrawalPriority === 'sequence_risk' ? 'Sequence of Returns Risk Mitigation' :
+                      modelingWithdrawalPriority === 'liquidity' ? 'Liquidity (Easy Access)' :
+                      'Default'
+                    ) : modelingStrategyType === 'amount_based_4_percent' ? '4% Rule' :
+                    modelingStrategyType === 'amount_based_fixed_percentage' ? `Fixed Percentage (${strategyParams.fixed_percentage_rate}%)` :
+                    modelingStrategyType === 'amount_based_fixed_dollar' ? `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString()})` :
+                    modelingStrategyType === 'amount_based_swp' ? 'Systematic Withdrawal Plan (Earnings Only)' :
+                    modelingStrategyType === 'sequence_proportional' ? 'Proportional Withdrawals' :
+                    modelingStrategyType === 'sequence_bracket_topping' ? `Bracket-Topping (${strategyParams.bracket_topping_threshold}% bracket)` :
+                    modelingStrategyType === 'market_bucket' ? 'Bucket Strategy' :
+                    modelingStrategyType === 'market_guardrails' ? `Guardrails (${strategyParams.guardrails_floor}%-${strategyParams.guardrails_ceiling}%)` :
+                    modelingStrategyType === 'market_floor_upside' ? 'Floor-and-Upside' :
+                    modelingStrategyType === 'tax_roth_conversion' ? 'Roth Conversion Bridge' :
+                    modelingStrategyType === 'tax_qcd' ? 'Qualified Charitable Distributions (QCDs)' :
+                    'Default'
+                  }
+                </h3>
+                <span className="text-gray-500">{strategyModelerExpanded ? '▼' : '▶'}</span>
+              </button>
+              
+              {/* Collapsible Strategy Modeler */}
+              {strategyModelerExpanded && (
+                <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-4">
+                  <p className="mb-4 text-xs text-purple-700">
+                    <strong>Model different strategies:</strong> Select a withdrawal strategy to see how it affects your projections. 
+                    This is for illustration only and does not save to your scenario. The default strategy is used for saved projections.
+                  </p>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-purple-900 mb-2">Strategy Type</label>
+                    <select
+                      value={modelingStrategyType}
+                      onChange={(e) => {
+                        setModelingStrategyType(e.target.value as any)
+                        if (selectedScenarioId) {
+                          calculateAndSaveProjections()
+                        }
+                      }}
+                      className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <optgroup label="Goal-Based (Priority Selection)">
+                        <option value="goal_based">Goal-Based Strategy</option>
+                      </optgroup>
+                      <optgroup label="Amount-Based Strategies">
+                        <option value="amount_based_4_percent">4% Rule</option>
+                        <option value="amount_based_fixed_percentage">Fixed Percentage</option>
+                        <option value="amount_based_fixed_dollar">Fixed Dollar Amount</option>
+                        <option value="amount_based_swp">Systematic Withdrawal Plan (Earnings Only)</option>
+                      </optgroup>
+                      <optgroup label="Sequence-Based Strategies">
+                        <option value="sequence_proportional">Proportional Withdrawals</option>
+                        <option value="sequence_bracket_topping">Bracket-Topping Strategy</option>
+                      </optgroup>
+                      <optgroup label="Market & Risk-Responsive">
+                        <option value="market_bucket">Bucket Strategy</option>
+                        <option value="market_guardrails">Guardrails Strategy (Guyton-Klinger)</option>
+                        <option value="market_floor_upside">Floor-and-Upside Strategy</option>
+                      </optgroup>
+                      <optgroup label="Tax-Optimization Tactics">
+                        <option value="tax_roth_conversion">Roth Conversion Bridge</option>
+                        <option value="tax_qcd">Qualified Charitable Distributions (QCDs)</option>
+                      </optgroup>
+                    </select>
+                    <p className="mt-1 text-xs text-purple-600">
+                      {modelingStrategyType === 'goal_based' && 'Select goals/priorities to determine withdrawal order'}
+                      {modelingStrategyType === 'amount_based_4_percent' && 'Withdraw 4% of portfolio in year 1, then adjust for inflation'}
+                      {modelingStrategyType === 'amount_based_fixed_percentage' && 'Withdraw a fixed percentage of portfolio value each year'}
+                      {modelingStrategyType === 'amount_based_fixed_dollar' && 'Withdraw a fixed dollar amount regardless of market performance'}
+                      {modelingStrategyType === 'amount_based_swp' && 'Withdraw only investment earnings (dividends/interest), preserve principal'}
+                      {modelingStrategyType === 'sequence_proportional' && 'Withdraw proportionally from all account types'}
+                      {modelingStrategyType === 'sequence_bracket_topping' && 'Fill low tax bracket with tax-deferred, then use taxable/Roth'}
+                      {modelingStrategyType === 'market_bucket' && 'Divide assets by time horizon: Cash (1-3y), Fixed Income (3-10y), Equities (10+y)'}
+                      {modelingStrategyType === 'market_guardrails' && 'Set ceiling and floor for withdrawal rate based on market performance'}
+                      {modelingStrategyType === 'market_floor_upside' && 'Use guaranteed income for essentials, portfolio for discretionary'}
+                      {modelingStrategyType === 'tax_roth_conversion' && 'Convert Traditional IRA to Roth before RMD age to lower future distributions'}
+                      {modelingStrategyType === 'tax_qcd' && 'Send IRA distributions directly to charity after age 70½ to satisfy RMDs tax-free'}
+                    </p>
+                  </div>
+
+                  {/* Goal-Based Strategy Options (only show if goal_based selected) */}
+                  {modelingStrategyType === 'goal_based' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-purple-900 mb-2">Primary Goal</label>
+                        <select
+                          value={modelingWithdrawalPriority}
+                          onChange={(e) => {
+                            setModelingWithdrawalPriority(e.target.value as any)
+                            if (selectedScenarioId) {
+                              calculateAndSaveProjections()
+                            }
+                          }}
+                          className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        >
+                          <option value="default">Default (Tax-Efficient)</option>
+                          <option value="longevity">Longevity (Preserve Assets)</option>
+                          <option value="legacy">Legacy Value (Maximize Inheritance)</option>
+                          <option value="tax_optimization">Tax Optimization</option>
+                          <option value="stable_income">Stable Income</option>
+                          <option value="sequence_risk">Sequence of Returns Risk Mitigation</option>
+                          <option value="liquidity">Liquidity (Easy Access)</option>
+                        </select>
+                        <p className="mt-1 text-xs text-purple-600">
+                          {modelingWithdrawalPriority === 'default' && 'Balanced tax-efficient strategy (default)'}
+                          {modelingWithdrawalPriority === 'longevity' && 'Prioritizes preserving assets for long retirement'}
+                          {modelingWithdrawalPriority === 'legacy' && 'Maximizes inheritance value for heirs'}
+                          {modelingWithdrawalPriority === 'tax_optimization' && 'Minimizes taxes over retirement'}
+                          {modelingWithdrawalPriority === 'stable_income' && 'Maintains consistent income levels'}
+                          {modelingWithdrawalPriority === 'sequence_risk' && 'Protects against early market downturns'}
+                          {modelingWithdrawalPriority === 'liquidity' && 'Keeps funds easily accessible'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-purple-900 mb-2">Secondary Goal</label>
+                        <select
+                          value={modelingWithdrawalSecondary}
+                          onChange={(e) => {
+                            setModelingWithdrawalSecondary(e.target.value as any)
+                            // Recalculation will be triggered by useEffect when state updates
+                          }}
+                          className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        >
+                          <option value="tax_optimization">Tax Optimization</option>
+                          <option value="longevity">Longevity</option>
+                          <option value="legacy">Legacy Value</option>
+                          <option value="stable_income">Stable Income</option>
+                          <option value="sequence_risk">Sequence Risk Mitigation</option>
+                          <option value="liquidity">Liquidity</option>
+                          <option value="default">Default</option>
+                        </select>
+                        <p className="mt-1 text-xs text-purple-600">Used for tie-breaking when primary goal doesn't clearly determine the best choice</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Strategy-Specific Parameters */}
+                  {modelingStrategyType === 'amount_based_fixed_percentage' && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-purple-900 mb-2">Withdrawal Percentage (%)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="20"
+                        value={strategyParams.fixed_percentage_rate}
+                        onChange={(e) => {
+                          setStrategyParams({ ...strategyParams, fixed_percentage_rate: parseFloat(e.target.value) || 4 })
+                          // Recalculation will be triggered by useEffect when state updates
+                        }}
+                        className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                      />
+                      <p className="mt-1 text-xs text-purple-600">Percentage of portfolio value to withdraw each year (e.g., 4 for 4%)</p>
+                    </div>
+                  )}
+
+                  {modelingStrategyType === 'amount_based_fixed_dollar' && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-purple-900 mb-2">Annual Withdrawal Amount ($)</label>
+                      <input
+                        type="number"
+                        step="1000"
+                        min="0"
+                        value={strategyParams.fixed_dollar_amount}
+                        onChange={(e) => {
+                          setStrategyParams({ ...strategyParams, fixed_dollar_amount: parseFloat(e.target.value) || 50000 })
+                          // Recalculation will be triggered by useEffect when state updates
+                        }}
+                        className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                      />
+                      <p className="mt-1 text-xs text-purple-600">Fixed dollar amount to withdraw each year regardless of market performance</p>
+                    </div>
+                  )}
+
+                  {modelingStrategyType === 'market_guardrails' && (
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-purple-900 mb-2">Ceiling (%)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="20"
+                          value={strategyParams.guardrails_ceiling}
+                          onChange={(e) => {
+                            setStrategyParams({ ...strategyParams, guardrails_ceiling: parseFloat(e.target.value) || 6 })
+                            // Recalculation will be triggered by useEffect when state updates
+                          }}
+                          className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                        />
+                        <p className="mt-1 text-xs text-purple-600">Maximum withdrawal rate when market performs well</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-purple-900 mb-2">Floor (%)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="20"
+                          value={strategyParams.guardrails_floor}
+                          onChange={(e) => {
+                            setStrategyParams({ ...strategyParams, guardrails_floor: parseFloat(e.target.value) || 3 })
+                            // Recalculation will be triggered by useEffect when state updates
+                          }}
+                          className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                        />
+                        <p className="mt-1 text-xs text-purple-600">Minimum withdrawal rate to protect principal</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {modelingStrategyType === 'sequence_bracket_topping' && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-purple-900 mb-2">Tax Bracket Threshold (%)</label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="37"
+                        value={strategyParams.bracket_topping_threshold}
+                        onChange={(e) => {
+                          setStrategyParams({ ...strategyParams, bracket_topping_threshold: parseFloat(e.target.value) || 12 })
+                          // Recalculation will be triggered by useEffect when state updates
+                        }}
+                        className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                      />
+                      <p className="mt-1 text-xs text-purple-600">Fill this tax bracket with tax-deferred withdrawals, then use taxable/Roth</p>
+                    </div>
+                  )}
+
+                  <div className="rounded-md border border-purple-200 bg-white p-3">
+                    <p className="text-xs font-medium text-purple-900 mb-2">Current Modeling Strategy:</p>
+                    <p className="text-sm text-purple-800">
+                      <strong>Primary:</strong> {
+                        modelingWithdrawalPriority === 'default' ? 'Default (Tax-Efficient)' :
+                        modelingWithdrawalPriority === 'longevity' ? 'Longevity (Preserve Assets)' :
+                        modelingWithdrawalPriority === 'legacy' ? 'Legacy Value (Maximize Inheritance)' :
+                        modelingWithdrawalPriority === 'tax_optimization' ? 'Tax Optimization' :
+                        modelingWithdrawalPriority === 'stable_income' ? 'Stable Income' :
+                        modelingWithdrawalPriority === 'sequence_risk' ? 'Sequence of Returns Risk Mitigation' :
+                        modelingWithdrawalPriority === 'liquidity' ? 'Liquidity (Easy Access)' :
+                        'Default'
+                      }
+                      {modelingWithdrawalSecondary && modelingWithdrawalSecondary !== 'default' && (
+                        <span className="ml-2">
+                          • <strong>Secondary:</strong> {
+                            modelingWithdrawalSecondary === 'tax_optimization' ? 'Tax Optimization' :
+                            modelingWithdrawalSecondary === 'longevity' ? 'Longevity' :
+                            modelingWithdrawalSecondary === 'legacy' ? 'Legacy Value' :
+                            modelingWithdrawalSecondary === 'stable_income' ? 'Stable Income' :
+                            modelingWithdrawalSecondary === 'sequence_risk' ? 'Sequence Risk Mitigation' :
+                            modelingWithdrawalSecondary === 'liquidity' ? 'Liquidity' :
+                            modelingWithdrawalSecondary
+                          }
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-purple-600 mt-2">
+                      The system dynamically evaluates your situation each year (account balances, age, years remaining, etc.) and adjusts the withdrawal order based on the selected strategy.
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                   <p className="text-xs font-medium text-blue-900 mb-1">Legacy Value</p>
@@ -928,6 +1227,70 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                 </div>
               </div>
               
+              {/* Lifetime Income and Expenses */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-200">
+                    <p className="text-xs font-medium text-indigo-900 mb-1">Lifetime Income</p>
+                    <p className="text-lg font-semibold text-indigo-900">
+                      ${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                    <p className="text-xs text-indigo-700 mt-1">Total income during retirement</p>
+                  </div>
+                  
+                  <div className="bg-pink-50 rounded-lg p-3 border border-pink-200">
+                    <p className="text-xs font-medium text-pink-900 mb-1">Lifetime Expenses</p>
+                    <p className="text-lg font-semibold text-pink-900">
+                      ${lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                    <p className="text-xs text-pink-700 mt-1">Total expenses during retirement</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Remaining Balances */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-xs font-medium text-gray-700 mb-2">Remaining Account Balances:</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                  <div>
+                    <span className="text-gray-600">401k:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      ${remaining401k.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">IRA:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      ${remainingIra.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Roth:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      ${remainingRoth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Taxable:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      ${remainingTaxable.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">HSA:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      ${remainingHsa.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Other:</span>
+                    <span className="ml-2 font-medium text-gray-900">
+                      ${remainingOther.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
               {/* Withdrawal Breakdown */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-xs font-medium text-gray-700 mb-2">Total Withdrawals by Account Type:</p>
@@ -967,106 +1330,389 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
             </div>
           )
         })()}
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 border text-xs">
-          <thead className="bg-gray-50 sticky top-0 z-10">
-            <tr>
-              {visibleColumns.year && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Year</th>}
-              {visibleColumns.age && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Age</th>}
-              {visibleColumns.event && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Event</th>}
-              
-              {/* Individual Income Columns (shown when expanded) */}
-              {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">SSA</th>}
-              {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">401k Dist</th>}
-              {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Roth Dist</th>}
-              {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Taxable Dist</th>}
-              {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">HSA Dist</th>}
-              {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">IRA Dist</th>}
-              {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Dist</th>}
-              {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Income</th>}
-              
-              {/* Total Income - Clickable to expand/collapse income columns */}
-              {visibleColumns.totalIncome && (
-                <th 
-                  className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase bg-blue-50 cursor-pointer hover:bg-blue-100"
-                  onClick={() => {
-                    setIncomeGroupExpanded(!incomeGroupExpanded)
-                    if (!incomeGroupExpanded) {
-                      // When expanding, enable all income columns
-                      setVisibleColumns({
-                        ...visibleColumns,
-                        ssa: true,
-                        dist401k: true,
-                        distRoth: true,
-                        distTaxable: true,
-                        distHsa: true,
-                        distIra: true,
-                        distOther: true,
-                        otherIncome: true,
-                      })
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-end gap-2">
-                    <span>Total Income</span>
-                    <span className="text-gray-600">{incomeGroupExpanded ? '▼' : '▶'}</span>
+
+          {/* Show current strategy metrics in Strategy Modeling tab */}
+          {projections.length > 0 && settings && (() => {
+            const retirementProjections = projections.filter(p => {
+              const age = p.age || 0
+              return retirementAge !== null && age >= retirementAge
+            })
+            
+            const finalProjection = projections[projections.length - 1]
+            const legacyValue = finalProjection?.networth || 0
+            const totalTax = retirementProjections.reduce((sum, p) => sum + (p.tax || 0), 0)
+            const avgAnnualTax = retirementProjections.length > 0 ? totalTax / retirementProjections.length : 0
+            const zeroNetworthYear = projections.findIndex(p => (p.networth || 0) <= 0)
+            const finalAge = finalProjection?.age || 0
+            const longevityBeyondLifeExpectancy = zeroNetworthYear >= 0 
+              ? (projections[zeroNetworthYear]?.age || 0) - lifeExpectancy
+              : finalAge - lifeExpectancy
+            const totalIncome = retirementProjections.reduce((sum, p) => sum + (p.total_income || 0), 0)
+            const lifetimeExpenses = retirementProjections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
+            const taxEfficiency = totalIncome > 0 ? ((totalTax / totalIncome) * 100) : 0
+            const negativeYears = retirementProjections.filter(p => (p.gap_excess || 0) < -1).length
+            const negativeYearsPercentage = retirementProjections.length > 0 ? (negativeYears / retirementProjections.length) * 100 : 0
+
+            return (
+              <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <h3 className="mb-4 text-sm font-semibold text-gray-900">
+                  Current Strategy Metrics: {
+                    modelingStrategyType === 'goal_based' ? (
+                      modelingWithdrawalPriority === 'default' ? 'Default (Tax-Efficient)' :
+                      modelingWithdrawalPriority === 'longevity' ? 'Longevity (Preserve Assets)' :
+                      modelingWithdrawalPriority === 'legacy' ? 'Legacy Value (Maximize Inheritance)' :
+                      modelingWithdrawalPriority === 'tax_optimization' ? 'Tax Optimization' :
+                      modelingWithdrawalPriority === 'stable_income' ? 'Stable Income' :
+                      modelingWithdrawalPriority === 'sequence_risk' ? 'Sequence of Returns Risk Mitigation' :
+                      modelingWithdrawalPriority === 'liquidity' ? 'Liquidity (Easy Access)' :
+                      'Default'
+                    ) : modelingStrategyType === 'amount_based_4_percent' ? '4% Rule' :
+                    modelingStrategyType === 'amount_based_fixed_percentage' ? `Fixed Percentage (${strategyParams.fixed_percentage_rate}%)` :
+                    modelingStrategyType === 'amount_based_fixed_dollar' ? `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString()})` :
+                    modelingStrategyType === 'amount_based_swp' ? 'Systematic Withdrawal Plan (Earnings Only)' :
+                    modelingStrategyType === 'sequence_proportional' ? 'Proportional Withdrawals' :
+                    modelingStrategyType === 'sequence_bracket_topping' ? `Bracket-Topping (${strategyParams.bracket_topping_threshold}% bracket)` :
+                    modelingStrategyType === 'market_bucket' ? 'Bucket Strategy' :
+                    modelingStrategyType === 'market_guardrails' ? `Guardrails (${strategyParams.guardrails_floor}%-${strategyParams.guardrails_ceiling}%)` :
+                    modelingStrategyType === 'market_floor_upside' ? 'Floor-and-Upside' :
+                    modelingStrategyType === 'tax_roth_conversion' ? 'Roth Conversion Bridge' :
+                    modelingStrategyType === 'tax_qcd' ? 'Qualified Charitable Distributions (QCDs)' :
+                    'Default'
+                  }
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <p className="text-xs font-medium text-blue-900 mb-1">Legacy Value</p>
+                    <p className="text-lg font-semibold text-blue-900">
+                      ${legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
                   </div>
-                </th>
-              )}
-              
-              {visibleColumns.tax && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>}
-              {visibleColumns.expenses && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Expenses</th>}
-              {visibleColumns.gapExcess && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gap/Excess</th>}
-              
-              {/* Networth - Clickable to expand/collapse balance columns */}
-              {visibleColumns.networth && (
-                <th 
-                  className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  onClick={() => {
-                    setBalanceGroupExpanded(!balanceGroupExpanded)
-                    if (!balanceGroupExpanded) {
-                      // When expanding, enable all balance columns
-                      setVisibleColumns({
-                        ...visibleColumns,
-                        balance401k: true,
-                        balanceRoth: true,
-                        balanceTaxable: true,
-                        balanceHsa: true,
-                        balanceIra: true,
-                        balanceOther: true,
-                      })
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-end gap-2">
-                    <span>Networth</span>
-                    <span className="text-gray-600">{balanceGroupExpanded ? '▼' : '▶'}</span>
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <p className="text-xs font-medium text-green-900 mb-1">Longevity</p>
+                    <p className="text-lg font-semibold text-green-900">
+                      {longevityBeyondLifeExpectancy > 0 ? `+${longevityBeyondLifeExpectancy.toFixed(1)}` : longevityBeyondLifeExpectancy.toFixed(1)} years
+                    </p>
                   </div>
-                </th>
-              )}
-              
-              {/* Individual Balance Columns (shown when expanded, to the right of Networth) */}
-              {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">401k Bal</th>}
-              {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Roth Bal</th>}
-              {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Taxable Bal</th>}
-              {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">HSA Bal</th>}
-              {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">IRA Bal</th>}
-              {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Bal</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {filteredProjections.length === 0 ? (
-              <tr>
-                <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-gray-500">
-                  {projections.length === 0 
-                    ? 'No projections yet. Configure your calculator settings, accounts, expenses, and income sources, then generate projections.'
-                    : 'No projections match the current filter. Try enabling "Show Pre-Retirement Years".'}
-                </td>
-              </tr>
-            ) : (
-              <TooltipProvider>
-                {filteredProjections.map((proj, index) => {
+                  <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                    <p className="text-xs font-medium text-red-900 mb-1">Total Tax</p>
+                    <p className="text-lg font-semibold text-red-900">
+                      ${totalTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                    <p className="text-xs font-medium text-purple-900 mb-1">Avg Annual Tax</p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      ${avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                  <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                    <p className="text-xs font-medium text-yellow-900 mb-1">Tax Efficiency</p>
+                    <p className="text-lg font-semibold text-yellow-900">
+                      {taxEfficiency.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                    <p className="text-xs font-medium text-orange-900 mb-1">Negative Years</p>
+                    <p className="text-lg font-semibold text-orange-900">
+                      {negativeYears} ({negativeYearsPercentage.toFixed(1)}%)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Controls - Moved below metrics */}
+          <div className="mb-4 flex items-center gap-4 flex-wrap">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={showPreRetirement}
+              onChange={(e) => setShowPreRetirement(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>Show Pre-Retirement Years</span>
+          </label>
+          <div className="relative">
+            <button
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              onClick={(e) => {
+                const menu = e.currentTarget.nextElementSibling as HTMLElement
+                menu?.classList.toggle('hidden')
+              }}
+            >
+              Show/Hide Columns
+            </button>
+            <div className="absolute right-0 mt-1 hidden w-64 rounded-md border border-gray-200 bg-white shadow-lg z-20 max-h-96 overflow-y-auto">
+              <div className="p-2">
+                <div className="mb-2 border-b pb-2">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={Object.values(visibleColumns).every(v => v)}
+                      onChange={(e) => {
+                        const allVisible = e.target.checked
+                        setVisibleColumns({
+                          year: allVisible,
+                          age: allVisible,
+                          event: allVisible,
+                          ssa: allVisible,
+                          dist401k: allVisible,
+                          distRoth: allVisible,
+                          distTaxable: allVisible,
+                          distHsa: allVisible,
+                          distIra: allVisible,
+                          distOther: allVisible,
+                          otherIncome: allVisible,
+                          totalIncome: allVisible,
+                          tax: allVisible,
+                          expenses: allVisible,
+                          gapExcess: allVisible,
+                          networth: allVisible,
+                          balance401k: allVisible,
+                          balanceRoth: allVisible,
+                          balanceTaxable: allVisible,
+                          balanceHsa: allVisible,
+                          balanceIra: allVisible,
+                          balanceOther: allVisible,
+                        })
+                      }}
+                      className="rounded border-gray-300 text-blue-600"
+                    />
+                    <span>Select All</span>
+                  </label>
+                </div>
+                <div className="mb-2 border-b pb-2 space-y-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={incomeGroupExpanded}
+                      onChange={(e) => {
+                        const expanded = e.target.checked
+                        setIncomeGroupExpanded(expanded)
+                        if (expanded) {
+                          setVisibleColumns({
+                            ...visibleColumns,
+                            ssa: visibleColumns.ssa || true,
+                            dist401k: visibleColumns.dist401k || true,
+                            distRoth: visibleColumns.distRoth || true,
+                            distTaxable: visibleColumns.distTaxable || true,
+                            distHsa: visibleColumns.distHsa || true,
+                            distIra: visibleColumns.distIra || true,
+                            distOther: visibleColumns.distOther || true,
+                            otherIncome: visibleColumns.otherIncome || true,
+                          })
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600"
+                    />
+                    <span>Expand Income Group</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={balanceGroupExpanded}
+                      onChange={(e) => {
+                        const expanded = e.target.checked
+                        setBalanceGroupExpanded(expanded)
+                        if (expanded) {
+                          setVisibleColumns({
+                            ...visibleColumns,
+                            balance401k: visibleColumns.balance401k || true,
+                            balanceRoth: visibleColumns.balanceRoth || true,
+                            balanceTaxable: visibleColumns.balanceTaxable || true,
+                            balanceHsa: visibleColumns.balanceHsa || true,
+                            balanceIra: visibleColumns.balanceIra || true,
+                            balanceOther: visibleColumns.balanceOther || true,
+                          })
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600"
+                    />
+                    <span>Expand Balance Group</span>
+                  </label>
+                </div>
+                <div className="space-y-1">
+                  {Object.entries(visibleColumns).map(([key, value]) => {
+                    const isIncomeColumn = ['ssa', 'dist401k', 'distRoth', 'distTaxable', 'distHsa', 'distIra', 'distOther', 'otherIncome'].includes(key)
+                    const isBalanceColumn = ['balance401k', 'balanceRoth', 'balanceTaxable', 'balanceHsa', 'balanceIra', 'balanceOther'].includes(key)
+                    const shouldShow = key === 'event' || !((isIncomeColumn && !incomeGroupExpanded) || (isBalanceColumn && !balanceGroupExpanded))
+                    
+                    return (
+                      <label key={key} className={`flex items-center gap-2 text-xs text-gray-700 hover:bg-gray-50 px-2 py-1 rounded ${!shouldShow ? 'opacity-50' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={value}
+                          disabled={!shouldShow}
+                          onChange={(e) => setVisibleColumns({ ...visibleColumns, [key]: e.target.checked })}
+                          className="rounded border-gray-300 text-blue-600"
+                        />
+                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1 text-sm rounded-l-md ${
+                viewMode === 'table'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Table
+            </button>
+            <button
+              onClick={() => setViewMode('graph')}
+              className={`px-3 py-1 text-sm rounded-r-md ${
+                viewMode === 'graph'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Graph
+            </button>
+          </div>
+          {viewMode === 'graph' && (
+            <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
+              <button
+                onClick={() => setGraphType('line')}
+                className={`px-3 py-1 text-sm rounded-l-md ${
+                  graphType === 'line'
+                    ? 'bg-gray-200 text-gray-900'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Line
+              </button>
+              <button
+                onClick={() => setGraphType('area')}
+                className={`px-3 py-1 text-sm ${
+                  graphType === 'area'
+                    ? 'bg-gray-200 text-gray-900'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Area
+              </button>
+              <button
+                onClick={() => setGraphType('bar')}
+                className={`px-3 py-1 text-sm rounded-r-md ${
+                  graphType === 'bar'
+                    ? 'bg-gray-200 text-gray-900'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Bar
+              </button>
+            </div>
+          )}
+          </div>
+          
+          {viewMode === 'table' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 border text-xs">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    {visibleColumns.year && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Year</th>}
+                    {visibleColumns.age && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Age</th>}
+                    {visibleColumns.event && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Event</th>}
+                    
+                    {/* Individual Income Columns (shown when expanded) */}
+                    {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">SSA</th>}
+                    {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">401k Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Roth Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Taxable Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">HSA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">IRA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Income</th>}
+                    
+                    {/* Total Income - Clickable to expand/collapse income columns */}
+                    {visibleColumns.totalIncome && (
+                      <th 
+                        className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase bg-blue-50 cursor-pointer hover:bg-blue-100"
+                        onClick={() => {
+                          setIncomeGroupExpanded(!incomeGroupExpanded)
+                          if (!incomeGroupExpanded) {
+                            // When expanding, enable all income columns
+                            setVisibleColumns({
+                              ...visibleColumns,
+                              ssa: true,
+                              dist401k: true,
+                              distRoth: true,
+                              distTaxable: true,
+                              distHsa: true,
+                              distIra: true,
+                              distOther: true,
+                              otherIncome: true,
+                            })
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-end gap-2">
+                          <span>Total Income</span>
+                          <span className="text-gray-600">{incomeGroupExpanded ? '▼' : '▶'}</span>
+                        </div>
+                      </th>
+                    )}
+                    
+                    {visibleColumns.tax && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>}
+                    {visibleColumns.expenses && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Expenses</th>}
+                    {visibleColumns.gapExcess && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gap/Excess</th>}
+                    
+                    {/* Networth - Clickable to expand/collapse balance columns */}
+                    {visibleColumns.networth && (
+                      <th 
+                        className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                        onClick={() => {
+                          setBalanceGroupExpanded(!balanceGroupExpanded)
+                          if (!balanceGroupExpanded) {
+                            // When expanding, enable all balance columns
+                            setVisibleColumns({
+                              ...visibleColumns,
+                              balance401k: true,
+                              balanceRoth: true,
+                              balanceTaxable: true,
+                              balanceHsa: true,
+                              balanceIra: true,
+                              balanceOther: true,
+                            })
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-end gap-2">
+                          <span>Networth</span>
+                          <span className="text-gray-600">{balanceGroupExpanded ? '▼' : '▶'}</span>
+                        </div>
+                      </th>
+                    )}
+                    
+                    {/* Individual Balance Columns (shown when expanded, to the right of Networth) */}
+                    {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">401k Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Roth Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Taxable Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">HSA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">IRA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Bal</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {filteredProjections.length === 0 ? (
+                    <tr>
+                      <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-gray-500">
+                        {projections.length === 0 
+                          ? 'No projections yet. Configure your calculator settings, accounts, expenses, and income sources, then generate projections.'
+                          : 'No projections match the current filter. Try enabling "Show Pre-Retirement Years".'}
+                      </td>
+                    </tr>
+                  ) : (
+                    <TooltipProvider>
+                      {filteredProjections.map((proj, index) => {
                   const isRetired = retirementAge !== null && (proj.age || 0) >= retirementAge
                   const originalIndex = projections.findIndex(p => p.year === proj.year && p.age === proj.age)
                   const prevProj = originalIndex > 0 ? projections[originalIndex - 1] : null
@@ -1701,10 +2347,374 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                 })}
               </TooltipProvider>
             )}
-          </tbody>
-        </table>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </div>
+      )}
+        </div>
+      )}
+
+      {/* Strategy Modeling Sub-tab */}
+      {activeSubTab === 'strategy-modeling' && (
+        <div>
+          {/* Strategy Modeler UI */}
+          <div className="mb-6 rounded-lg border border-purple-200 bg-purple-50 p-4">
+            <p className="mb-4 text-xs text-purple-700">
+              <strong>Model different strategies:</strong> Select a withdrawal strategy to see how it affects your projections.
+              This is for illustration only and does not save to your scenario. The default strategy is used for saved projections.
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-purple-900 mb-2">Strategy Type</label>
+              <select
+                value={modelingStrategyType}
+                onChange={(e) => {
+                  setModelingStrategyType(e.target.value as any)
+                  if (selectedScenarioId) {
+                    calculateAndSaveProjections()
+                  }
+                }}
+                className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <optgroup label="Goal-Based (Priority Selection)">
+                  <option value="goal_based">Goal-Based Strategy</option>
+                </optgroup>
+                <optgroup label="Amount-Based Strategies">
+                  <option value="amount_based_4_percent">4% Rule</option>
+                  <option value="amount_based_fixed_percentage">Fixed Percentage</option>
+                  <option value="amount_based_fixed_dollar">Fixed Dollar Amount</option>
+                  <option value="amount_based_swp">Systematic Withdrawal Plan (Earnings Only)</option>
+                </optgroup>
+                <optgroup label="Sequence-Based Strategies">
+                  <option value="sequence_proportional">Proportional Withdrawals</option>
+                  <option value="sequence_bracket_topping">Bracket-Topping Strategy</option>
+                </optgroup>
+                <optgroup label="Market & Risk-Responsive">
+                  <option value="market_bucket">Bucket Strategy</option>
+                  <option value="market_guardrails">Guardrails Strategy (Guyton-Klinger)</option>
+                  <option value="market_floor_upside">Floor-and-Upside Strategy</option>
+                </optgroup>
+                <optgroup label="Tax-Optimization Tactics">
+                  <option value="tax_roth_conversion">Roth Conversion Bridge</option>
+                  <option value="tax_qcd">Qualified Charitable Distributions (QCDs)</option>
+                </optgroup>
+              </select>
+              <p className="mt-1 text-xs text-purple-600">
+                {modelingStrategyType === 'goal_based' && 'Select goals/priorities to determine withdrawal order'}
+                {modelingStrategyType === 'amount_based_4_percent' && 'Withdraw 4% of portfolio in year 1, then adjust for inflation'}
+                {modelingStrategyType === 'amount_based_fixed_percentage' && 'Withdraw a fixed percentage of portfolio value each year'}
+                {modelingStrategyType === 'amount_based_fixed_dollar' && 'Withdraw a fixed dollar amount regardless of market performance'}
+                {modelingStrategyType === 'amount_based_swp' && 'Withdraw only investment earnings (dividends/interest), preserve principal'}
+                {modelingStrategyType === 'sequence_proportional' && 'Withdraw proportionally from all account types'}
+                {modelingStrategyType === 'sequence_bracket_topping' && 'Fill low tax bracket with tax-deferred, then use taxable/Roth'}
+                {modelingStrategyType === 'market_bucket' && 'Divide assets by time horizon: Cash (1-3y), Fixed Income (3-10y), Equities (10+y)'}
+                {modelingStrategyType === 'market_guardrails' && 'Set ceiling and floor for withdrawal rate based on market performance'}
+                {modelingStrategyType === 'market_floor_upside' && 'Use guaranteed income for essentials, portfolio for discretionary'}
+                {modelingStrategyType === 'tax_roth_conversion' && 'Convert Traditional IRA to Roth before RMD age to lower future distributions'}
+                {modelingStrategyType === 'tax_qcd' && 'Send IRA distributions directly to charity after age 70½ to satisfy RMDs tax-free'}
+              </p>
+            </div>
+
+            {/* Goal-Based Strategy Options (only show if goal_based selected) */}
+            {modelingStrategyType === 'goal_based' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-purple-900 mb-2">Primary Goal</label>
+                  <select
+                    value={modelingWithdrawalPriority}
+                    onChange={(e) => {
+                      setModelingWithdrawalPriority(e.target.value as any)
+                      if (selectedScenarioId) {
+                        calculateAndSaveProjections()
+                      }
+                    }}
+                    className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="default">Default (Tax-Efficient)</option>
+                    <option value="longevity">Longevity (Preserve Assets)</option>
+                    <option value="legacy">Legacy Value (Maximize Inheritance)</option>
+                    <option value="tax_optimization">Tax Optimization</option>
+                    <option value="stable_income">Stable Income</option>
+                    <option value="sequence_risk">Sequence of Returns Risk Mitigation</option>
+                    <option value="liquidity">Liquidity (Easy Access)</option>
+                  </select>
+                  <p className="mt-1 text-xs text-purple-600">
+                    {modelingWithdrawalPriority === 'default' && 'Balanced tax-efficient strategy (default)'}
+                    {modelingWithdrawalPriority === 'longevity' && 'Prioritizes preserving assets for long retirement'}
+                    {modelingWithdrawalPriority === 'legacy' && 'Maximizes inheritance value for heirs'}
+                    {modelingWithdrawalPriority === 'tax_optimization' && 'Minimizes taxes over retirement'}
+                    {modelingWithdrawalPriority === 'stable_income' && 'Maintains consistent income levels'}
+                    {modelingWithdrawalPriority === 'sequence_risk' && 'Protects against early market downturns'}
+                    {modelingWithdrawalPriority === 'liquidity' && 'Keeps funds easily accessible'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-purple-900 mb-2">Secondary Goal</label>
+                  <select
+                    value={modelingWithdrawalSecondary}
+                    onChange={(e) => {
+                      setModelingWithdrawalSecondary(e.target.value as any)
+                    }}
+                    className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="tax_optimization">Tax Optimization</option>
+                    <option value="longevity">Longevity</option>
+                    <option value="legacy">Legacy Value</option>
+                    <option value="stable_income">Stable Income</option>
+                    <option value="sequence_risk">Sequence Risk Mitigation</option>
+                    <option value="liquidity">Liquidity</option>
+                    <option value="default">Default</option>
+                  </select>
+                  <p className="mt-1 text-xs text-purple-600">Used for tie-breaking when primary goal doesn't clearly determine the best choice</p>
+                </div>
+              </div>
+            )}
+
+            {/* Strategy-Specific Parameters */}
+            {modelingStrategyType === 'amount_based_fixed_percentage' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-purple-900 mb-2">Withdrawal Percentage (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="20"
+                  value={strategyParams.fixed_percentage_rate}
+                  onChange={(e) => {
+                    setStrategyParams({ ...strategyParams, fixed_percentage_rate: parseFloat(e.target.value) || 4 })
+                  }}
+                  className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                />
+                <p className="mt-1 text-xs text-purple-600">Percentage of portfolio value to withdraw each year (e.g., 4 for 4%)</p>
+              </div>
+            )}
+
+            {modelingStrategyType === 'amount_based_fixed_dollar' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-purple-900 mb-2">Annual Withdrawal Amount ($)</label>
+                <input
+                  type="number"
+                  step="1000"
+                  min="0"
+                  value={strategyParams.fixed_dollar_amount}
+                  onChange={(e) => {
+                    setStrategyParams({ ...strategyParams, fixed_dollar_amount: parseFloat(e.target.value) || 50000 })
+                  }}
+                  className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                />
+                <p className="mt-1 text-xs text-purple-600">Fixed dollar amount to withdraw each year regardless of market performance</p>
+              </div>
+            )}
+
+            {modelingStrategyType === 'market_guardrails' && (
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-purple-900 mb-2">Ceiling (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="20"
+                    value={strategyParams.guardrails_ceiling}
+                    onChange={(e) => {
+                      setStrategyParams({ ...strategyParams, guardrails_ceiling: parseFloat(e.target.value) || 6 })
+                    }}
+                    className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  />
+                  <p className="mt-1 text-xs text-purple-600">Maximum withdrawal rate when market performs well</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-purple-900 mb-2">Floor (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="20"
+                    value={strategyParams.guardrails_floor}
+                    onChange={(e) => {
+                      setStrategyParams({ ...strategyParams, guardrails_floor: parseFloat(e.target.value) || 3 })
+                    }}
+                    className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  />
+                  <p className="mt-1 text-xs text-purple-600">Minimum withdrawal rate to protect principal</p>
+                </div>
+              </div>
+            )}
+
+            {modelingStrategyType === 'sequence_bracket_topping' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-purple-900 mb-2">Tax Bracket Threshold (%)</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="37"
+                  value={strategyParams.bracket_topping_threshold}
+                  onChange={(e) => {
+                    setStrategyParams({ ...strategyParams, bracket_topping_threshold: parseFloat(e.target.value) || 12 })
+                  }}
+                  className="block w-full rounded-md border border-purple-300 bg-white px-3 py-2 text-sm text-gray-900"
+                />
+                <p className="mt-1 text-xs text-purple-600">Fill this tax bracket with tax-deferred withdrawals, then use taxable/Roth</p>
+              </div>
+            )}
+
+            <div className="rounded-md border border-purple-200 bg-white p-3 mb-4">
+              <p className="text-xs font-medium text-purple-900 mb-2">Current Modeling Strategy:</p>
+              <p className="text-sm text-purple-800">
+                <strong>Strategy:</strong> {
+                  modelingStrategyType === 'goal_based' ? (
+                    modelingWithdrawalPriority === 'default' ? 'Default (Tax-Efficient)' :
+                    modelingWithdrawalPriority === 'longevity' ? 'Longevity (Preserve Assets)' :
+                    modelingWithdrawalPriority === 'legacy' ? 'Legacy Value (Maximize Inheritance)' :
+                    modelingWithdrawalPriority === 'tax_optimization' ? 'Tax Optimization' :
+                    modelingWithdrawalPriority === 'stable_income' ? 'Stable Income' :
+                    modelingWithdrawalPriority === 'sequence_risk' ? 'Sequence of Returns Risk Mitigation' :
+                    modelingWithdrawalPriority === 'liquidity' ? 'Liquidity (Easy Access)' :
+                    'Default'
+                  ) : modelingStrategyType === 'amount_based_4_percent' ? '4% Rule' :
+                  modelingStrategyType === 'amount_based_fixed_percentage' ? `Fixed Percentage (${strategyParams.fixed_percentage_rate}%)` :
+                  modelingStrategyType === 'amount_based_fixed_dollar' ? `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString()})` :
+                  modelingStrategyType === 'amount_based_swp' ? 'Systematic Withdrawal Plan (Earnings Only)' :
+                  modelingStrategyType === 'sequence_proportional' ? 'Proportional Withdrawals' :
+                  modelingStrategyType === 'sequence_bracket_topping' ? `Bracket-Topping (${strategyParams.bracket_topping_threshold}% bracket)` :
+                  modelingStrategyType === 'market_bucket' ? 'Bucket Strategy' :
+                  modelingStrategyType === 'market_guardrails' ? `Guardrails (${strategyParams.guardrails_floor}%-${strategyParams.guardrails_ceiling}%)` :
+                  modelingStrategyType === 'market_floor_upside' ? 'Floor-and-Upside' :
+                  modelingStrategyType === 'tax_roth_conversion' ? 'Roth Conversion Bridge' :
+                  modelingStrategyType === 'tax_qcd' ? 'Qualified Charitable Distributions (QCDs)' :
+                  'Default'
+                }
+              </p>
+              <p className="text-xs text-purple-600 mt-2">
+                The system dynamically evaluates your situation each year (account balances, age, years remaining, etc.) and adjusts the withdrawal order based on the selected strategy.
+              </p>
+            </div>
+
+            {/* Compare Strategies Button */}
+            <div className="mb-4 pt-4 border-t border-purple-300">
+              <button
+                onClick={async () => {
+                  if (!selectedScenarioId) return
+                  setComparingStrategies(true)
+                  await compareAllStrategies()
+                  setComparingStrategies(false)
+                }}
+                disabled={comparingStrategies || !selectedScenarioId}
+                className="w-full rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {comparingStrategies ? 'Comparing Strategies...' : 'Compare All Strategies'}
+              </button>
+              <p className="mt-2 text-xs text-purple-600">
+                Run all strategies and compare metrics side-by-side
+              </p>
+            </div>
+          </div>
+
+          {/* Strategy Comparison Table */}
+          {strategyComparison.length > 0 && (
+            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Strategy Comparison</h3>
+                <button
+                  onClick={() => setStrategyComparison([])}
+                  className="text-sm text-gray-600 hover:text-gray-900"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 sticky left-0 bg-gray-50 z-10">
+                        Strategy
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Legacy Value
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Longevity (years)
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Total Tax
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Avg Annual Tax
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Tax Efficiency (%)
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Negative Years
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Lifetime Income
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Lifetime Expenses
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
+                        Total Withdrawals
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {strategyComparison.map((strategy, index) => {
+                      // Find best values for highlighting
+                      const bestLegacy = Math.max(...strategyComparison.map(s => s.legacyValue))
+                      const bestLongevity = Math.max(...strategyComparison.map(s => s.longevity))
+                      const bestTaxEfficiency = Math.min(...strategyComparison.map(s => s.taxEfficiency))
+                      const lowestTax = Math.min(...strategyComparison.map(s => s.totalTax))
+                      const lowestNegativeYears = Math.min(...strategyComparison.map(s => s.negativeYears))
+
+                      return (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="sticky left-0 bg-inherit px-4 py-3 text-sm font-medium text-gray-900 z-10">
+                            {strategy.strategyName}
+                          </td>
+                          <td className={`px-4 py-3 text-right text-sm ${strategy.legacyValue === bestLegacy ? 'font-bold text-green-600' : 'text-gray-700'}`}>
+                            ${strategy.legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className={`px-4 py-3 text-right text-sm ${strategy.longevity === bestLongevity ? 'font-bold text-green-600' : 'text-gray-700'}`}>
+                            {strategy.longevity > 0 ? `+${strategy.longevity.toFixed(1)}` : strategy.longevity.toFixed(1)}
+                          </td>
+                          <td className={`px-4 py-3 text-right text-sm ${strategy.totalTax === lowestTax ? 'font-bold text-green-600' : 'text-gray-700'}`}>
+                            ${strategy.totalTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-700">
+                            ${strategy.avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className={`px-4 py-3 text-right text-sm ${strategy.taxEfficiency === bestTaxEfficiency ? 'font-bold text-green-600' : 'text-gray-700'}`}>
+                            {strategy.taxEfficiency.toFixed(1)}%
+                          </td>
+                          <td className={`px-4 py-3 text-right text-sm ${strategy.negativeYears === lowestNegativeYears ? 'font-bold text-green-600' : strategy.negativeYears > 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                            {strategy.negativeYears} ({strategy.negativeYearsPercentage.toFixed(1)}%)
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-700">
+                            ${strategy.lifetimeIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-700">
+                            ${strategy.lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-700">
+                            ${strategy.totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-4 text-xs text-gray-600">
+                <strong>Note:</strong> Best values are highlighted in green. Negative years indicate years with shortfalls.
+              </p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

@@ -32,6 +32,15 @@ export default async function Home() {
       color: 'bg-green-500 hover:bg-green-600',
       gradient: 'from-green-500 to-green-600',
     },
+    {
+      id: 'retirement',
+      name: 'Retirement Planner',
+      description: 'Plan your retirement with comprehensive financial modeling',
+      icon: '🎯',
+      href: '/apps/retirement',
+      color: 'bg-purple-500 hover:bg-purple-600',
+      gradient: 'from-purple-500 to-purple-600',
+    },
   ]
 
   return (
@@ -65,7 +74,7 @@ export default async function Home() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {apps.map((app) => (
             <Link
               key={app.id}
