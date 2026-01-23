@@ -772,28 +772,28 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">RMD Analysis</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <div className="text-sm text-gray-600">First RMD Year</div>
-              <div className="text-lg font-semibold">{rmdAnalysis.firstRmdYear}</div>
+              <div className="text-sm text-gray-700 font-medium">First RMD Year</div>
+              <div className="text-lg font-semibold text-gray-900">{rmdAnalysis.firstRmdYear}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">First RMD Amount</div>
-              <div className="text-lg font-semibold">
+              <div className="text-sm text-gray-700 font-medium">First RMD Amount</div>
+              <div className="text-lg font-semibold text-gray-900">
                 ${rmdAnalysis.firstRmdAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Peak RMD Year</div>
-              <div className="text-lg font-semibold">{rmdAnalysis.peakRmdYear}</div>
+              <div className="text-sm text-gray-700 font-medium">Peak RMD Year</div>
+              <div className="text-lg font-semibold text-gray-900">{rmdAnalysis.peakRmdYear}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Peak RMD Amount</div>
-              <div className="text-lg font-semibold">
+              <div className="text-sm text-gray-700 font-medium">Peak RMD Amount</div>
+              <div className="text-lg font-semibold text-gray-900">
                 ${rmdAnalysis.peakRmdAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
             </div>
             <div className="md:col-span-2">
-              <div className="text-sm text-gray-600 mb-2">Total RMDs Over Lifetime</div>
-              <div className="text-lg font-semibold">
+              <div className="text-sm text-gray-700 font-medium mb-2">Total RMDs Over Lifetime</div>
+              <div className="text-lg font-semibold text-gray-900">
                 ${rmdAnalysis.totalRmds.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
             </div>
@@ -819,20 +819,20 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                   <div>
-                    <div className="text-sm text-gray-600">Optimal Conversion Amount</div>
-                    <div className="text-lg font-semibold">
+                    <div className="text-sm text-gray-700 font-medium">Optimal Conversion Amount</div>
+                    <div className="text-lg font-semibold text-gray-900">
                       ${taxEfficiency.rothConversion.optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Tax Cost</div>
-                    <div className="text-lg font-semibold">
+                    <div className="text-sm text-gray-700 font-medium">Tax Cost</div>
+                    <div className="text-lg font-semibold text-gray-900">
                       ${taxEfficiency.rothConversion.taxCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Future Tax Savings</div>
-                    <div className="text-lg font-semibold text-green-700">
+                    <div className="text-sm text-gray-700 font-medium">Future Tax Savings</div>
+                    <div className="text-lg font-semibold text-green-800">
                       ${taxEfficiency.rothConversion.futureSavings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                   </div>
@@ -849,20 +849,20 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
             <h4 className="font-semibold text-gray-900 mb-3">Tax Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <div className="text-sm text-gray-600">Total Taxes Over Retirement</div>
-                <div className="text-lg font-semibold">
+                <div className="text-sm text-gray-700 font-medium">Total Taxes Over Retirement</div>
+                <div className="text-lg font-semibold text-gray-900">
                   ${taxEfficiency.totalTaxes.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
               </div>
               <div>
-                <div className="text-sm text-gray-600">Average Annual Tax</div>
-                <div className="text-lg font-semibold">
+                <div className="text-sm text-gray-700 font-medium">Average Annual Tax</div>
+                <div className="text-lg font-semibold text-gray-900">
                   ${taxEfficiency.avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
               </div>
               <div>
-                <div className="text-sm text-gray-600">Tax Efficiency Score</div>
-                <div className="text-lg font-semibold">
+                <div className="text-sm text-gray-700 font-medium">Tax Efficiency Score</div>
+                <div className="text-lg font-semibold text-gray-900">
                   {taxEfficiency.efficiencyScore}/100
                 </div>
               </div>
