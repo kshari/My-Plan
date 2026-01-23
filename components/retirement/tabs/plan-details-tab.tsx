@@ -479,7 +479,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         await loadScenarios()
       } else {
         // If no scenarioName provided, use the provided scenarioId or selectedScenarioId
-        targetScenarioId = scenarioId || selectedScenarioId
+        targetScenarioId = scenarioId || selectedScenarioId || undefined
       }
 
       if (!targetScenarioId) {

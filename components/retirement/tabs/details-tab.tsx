@@ -756,15 +756,15 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="age" label={{ value: 'Age', position: 'insideBottom', offset: -5 }} />
                 <YAxis label={{ value: 'Amount ($)', angle: -90, position: 'insideLeft' }} />
-                <RechartsTooltip formatter={(value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+                <RechartsTooltip formatter={(value: number | undefined) => value !== undefined ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''} />
                 <Legend />
                 {visibleColumns.networth && <Line type="monotone" dataKey="networth" stroke="#0ea5e9" strokeWidth={3} name="Networth" />}
-                {visibleColumns.balance401k && <Line type="monotone" dataKey="balance401k" stackId="balances" stroke="#22c55e" strokeWidth={2} name="401k Balance" />}
-                {visibleColumns.balanceRoth && <Line type="monotone" dataKey="balanceRoth" stackId="balances" stroke="#eab308" strokeWidth={2} name="Roth Balance" />}
-                {visibleColumns.balanceTaxable && <Line type="monotone" dataKey="balanceTaxable" stackId="balances" stroke="#f43f5e" strokeWidth={2} name="Taxable Balance" />}
-                {visibleColumns.balanceHsa && <Line type="monotone" dataKey="balanceHsa" stackId="balances" stroke="#a855f7" strokeWidth={2} name="HSA Balance" />}
-                {visibleColumns.balanceIra && <Line type="monotone" dataKey="balanceIra" stackId="balances" stroke="#06b6d4" strokeWidth={2} name="IRA Balance" />}
-                {visibleColumns.balanceOther && <Line type="monotone" dataKey="balanceOther" stackId="balances" stroke="#ec4899" strokeWidth={2} name="Other Balance" />}
+                {visibleColumns.balance401k && <Line type="monotone" dataKey="balance401k" stroke="#22c55e" strokeWidth={2} name="401k Balance" />}
+                {visibleColumns.balanceRoth && <Line type="monotone" dataKey="balanceRoth" stroke="#eab308" strokeWidth={2} name="Roth Balance" />}
+                {visibleColumns.balanceTaxable && <Line type="monotone" dataKey="balanceTaxable" stroke="#f43f5e" strokeWidth={2} name="Taxable Balance" />}
+                {visibleColumns.balanceHsa && <Line type="monotone" dataKey="balanceHsa" stroke="#a855f7" strokeWidth={2} name="HSA Balance" />}
+                {visibleColumns.balanceIra && <Line type="monotone" dataKey="balanceIra" stroke="#06b6d4" strokeWidth={2} name="IRA Balance" />}
+                {visibleColumns.balanceOther && <Line type="monotone" dataKey="balanceOther" stroke="#ec4899" strokeWidth={2} name="Other Balance" />}
               </LineChart>
             ) : graphType === 'area' ? (
               <AreaChart data={filteredProjections.map(proj => ({
@@ -792,7 +792,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="age" label={{ value: 'Age', position: 'insideBottom', offset: -5 }} />
                 <YAxis label={{ value: 'Amount ($)', angle: -90, position: 'insideLeft' }} />
-                <RechartsTooltip formatter={(value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+                <RechartsTooltip formatter={(value: number | undefined) => value !== undefined ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''} />
                 <Legend />
                 {visibleColumns.networth && <Area type="monotone" dataKey="networth" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.3} name="Networth" />}
                 {visibleColumns.balance401k && <Area type="monotone" dataKey="balance401k" stackId="balances" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} name="401k Balance" />}
@@ -828,7 +828,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="age" label={{ value: 'Age', position: 'insideBottom', offset: -5 }} />
                 <YAxis label={{ value: 'Amount ($)', angle: -90, position: 'insideLeft' }} />
-                <RechartsTooltip formatter={(value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+                <RechartsTooltip formatter={(value: number | undefined) => value !== undefined ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''} />
                 <Legend />
                 {visibleColumns.networth && <Bar dataKey="networth" fill="#0ea5e9" name="Networth" />}
                 {visibleColumns.balance401k && <Bar dataKey="balance401k" stackId="balances" fill="#22c55e" name="401k Balance" />}
@@ -1570,7 +1570,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
             <button
               onClick={() => setViewMode('graph')}
               className={`px-3 py-1 text-sm rounded-r-md ${
-                viewMode === 'graph'
+                (viewMode as 'table' | 'graph') === 'graph'
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
@@ -1578,7 +1578,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
               Graph
             </button>
           </div>
-          {viewMode === 'graph' && (
+          {(viewMode as 'table' | 'graph') === 'graph' && (
             <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
               <button
                 onClick={() => setGraphType('line')}
@@ -1869,7 +1869,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   const networthChange = calculateNetworthChange()
                   
                   return (
-                  <tr key={proj.id || `${proj.year}-${proj.age}`}>
+                  <tr key={`${proj.year}-${proj.age}`}>
                     {visibleColumns.year && <td className="px-2 py-2 text-sm">{proj.year}</td>}
                     {visibleColumns.age && <td className="px-2 py-2 text-sm">{proj.age || '-'}</td>}
                     {visibleColumns.event && <td className="px-2 py-2 text-sm">{proj.event || '-'}</td>}
