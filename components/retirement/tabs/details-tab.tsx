@@ -217,9 +217,10 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       const accounts: Account[] = (accountsData.data || []).map(acc => ({
         id: acc.id,
         account_name: acc.account_name || '',
+        owner: acc.owner || 'planner',
         account_type: acc.account_type || 'Other',
         balance: acc.balance || 0,
-        growth_rate: acc.growth_rate || 0,
+        annual_contribution: acc.annual_contribution || 0,
       }))
 
       const expenses: Expense[] = (expensesData.data || []).map(exp => ({
