@@ -661,13 +661,13 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         </div>
       )}
       {/* Section 1: Plan Basis - Expandable Card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Plan Basis</h3>
+      <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">Plan Basis</h3>
           <button
             onClick={handleSavePlanBasis}
             disabled={saving}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full sm:w-auto rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 active:bg-blue-800"
           >
             {saving ? 'Saving...' : 'Save Plan Basis'}
           </button>
@@ -700,13 +700,13 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           {planBasisExpanded && (
             <div className="space-y-4">
               {/* Filing Status and Include Spouse - Same Line */}
-              <div className="flex items-end gap-4">
-                <div className="flex-1 max-w-xs">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                <div className="flex-1 sm:max-w-xs">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Filing Status</label>
                   <select
                     value={planBasis.filing_status}
                     onChange={(e) => setPlanBasis({ ...planBasis, filing_status: e.target.value as any })}
-                    className="block w-full rounded-md border border-gray-300 px-3 py-2"
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   >
                     <option value="Single">Single</option>
                     <option value="Married Filing Jointly">Married Filing Jointly</option>
@@ -722,7 +722,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                       onChange={(e) => setPlanBasis({ ...planBasis, include_spouse: e.target.checked })}
                       className="rounded border-gray-300"
                     />
-                    <span className="text-sm font-medium text-gray-700">Include Spouse in Plan</span>
+                    <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Include Spouse in Plan</span>
                   </label>
                 </div>
               </div>
@@ -730,7 +730,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               {/* Planner Section - Sub Card */}
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <h5 className="mb-3 text-sm font-semibold text-gray-900">Planner</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
                       Birth Year
@@ -748,7 +748,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                         const age = currentYear - birthYear
                         setPlanBasis({ ...planBasis, birth_year: birthYear, age })
                       }}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                     />
                   </div>
                   <div>
@@ -757,7 +757,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                       type="number"
                       value={planBasis.life_expectancy}
                       onChange={(e) => setPlanBasis({ ...planBasis, life_expectancy: parseInt(e.target.value) || 90 })}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                     />
                     <p className="mt-1 text-xs text-gray-500">Projections will run until this age</p>
                   </div>
@@ -785,7 +785,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                           const spouseBirthYear = parseInt(e.target.value) || new Date().getFullYear() - 50
                           setPlanBasis({ ...planBasis, spouse_birth_year: spouseBirthYear })
                         }}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                       />
                     </div>
                     <div>
@@ -794,7 +794,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                         type="number"
                         value={planBasis.spouse_life_expectancy}
                         onChange={(e) => setPlanBasis({ ...planBasis, spouse_life_expectancy: parseInt(e.target.value) || 90 })}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                       />
                     </div>
                   </div>
@@ -836,12 +836,12 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               <table className="min-w-full divide-y divide-gray-200 border">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Account Name</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Owner</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Annual Contribution</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Account Name</th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Owner</th>
+                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Balance</th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Type</th>
+                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Annual Contribution</th>
+                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
@@ -985,10 +985,10 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               <table className="min-w-full divide-y divide-gray-200 border">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Expense</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">After 65</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Before 65</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Expense</th>
+                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">After 65</th>
+                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Before 65</th>
+                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">

@@ -35,24 +35,25 @@ export default function RetirementPlanTabs({ planId }: RetirementPlanTabsProps) 
                 onClick={() => !tab.disabled && setActiveTab(tab.id)}
                 disabled={tab.disabled}
                 className={`
-                  flex items-center gap-2 whitespace-nowrap border-b-2 px-6 py-4 text-sm font-medium
+                  flex items-center gap-1 sm:gap-2 whitespace-nowrap border-b-2 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium
                   ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
                   }
                   ${tab.disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
               >
-                <span>{tab.icon}</span>
-                {tab.label}
+                <span className="text-base sm:text-lg">{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
               </button>
             ))}
           </nav>
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {activeTab === 'plan-details' && <PlanDetailsTab planId={planId} />}
           {activeTab === 'compounding' && <CompoundingTab planId={planId} />}
           {activeTab === 'details' && <DetailsTab planId={planId} />}

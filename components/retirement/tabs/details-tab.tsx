@@ -655,16 +655,16 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl font-semibold text-gray-900">Projections</h2>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Projections</h2>
           {/* Scenario Selector */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Scenario:</label>
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Scenario:</label>
             <select
               value={selectedScenarioId || ''}
               onChange={(e) => setSelectedScenarioId(parseInt(e.target.value))}
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 sm:flex-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {scenarios.length === 0 ? (
                 <option value="">No scenarios available</option>
@@ -679,17 +679,17 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
             </select>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
           <button
             onClick={calculateAndSaveProjections}
             disabled={calculating || !selectedScenarioId}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 active:bg-blue-800"
           >
             {calculating ? 'Calculating...' : 'Calculate Projections'}
           </button>
           <button
             onClick={() => setActiveSubTab('strategy-modeling')}
-            className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+            className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 active:bg-purple-800"
           >
             Strategy Modeling
           </button>
@@ -697,24 +697,24 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       </div>
 
       {/* Sub-tabs */}
-      <div className="mb-4 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      <div className="mb-4 border-b border-gray-200 overflow-x-auto">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max sm:min-w-0">
           <button
             onClick={() => setActiveSubTab('projections')}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+            className={`whitespace-nowrap border-b-2 px-2 sm:px-1 py-3 sm:py-4 text-sm font-medium ${
               activeSubTab === 'projections'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
             }`}
           >
             Projections
           </button>
           <button
             onClick={() => setActiveSubTab('strategy-modeling')}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+            className={`whitespace-nowrap border-b-2 px-2 sm:px-1 py-3 sm:py-4 text-sm font-medium ${
               activeSubTab === 'strategy-modeling'
                 ? 'border-purple-500 text-purple-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
             }`}
           >
             Strategy Modeling
@@ -1615,28 +1615,29 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           </div>
           
           {viewMode === 'table' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 border text-xs">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    {visibleColumns.year && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Year</th>}
-                    {visibleColumns.age && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Age</th>}
-                    {visibleColumns.event && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Event</th>}
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <table className="min-w-full divide-y divide-gray-200 border text-xs sm:text-sm">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      {visibleColumns.year && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Year</th>}
+                      {visibleColumns.age && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Age</th>}
+                      {visibleColumns.event && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Event</th>}
                     
                     {/* Individual Income Columns (shown when expanded) */}
-                    {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">SSA</th>}
-                    {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">401k Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Roth Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Taxable Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">HSA Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">IRA Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Income</th>}
+                    {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">SSA</th>}
+                    {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">401k Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Roth Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Taxable Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">HSA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">IRA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Income</th>}
                     
                     {/* Total Income - Clickable to expand/collapse income columns */}
                     {visibleColumns.totalIncome && (
                       <th 
-                        className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase bg-blue-50 cursor-pointer hover:bg-blue-100"
+                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase bg-blue-50 cursor-pointer hover:bg-blue-100 active:bg-blue-200"
                         onClick={() => {
                           setIncomeGroupExpanded(!incomeGroupExpanded)
                           if (!incomeGroupExpanded) {
@@ -1657,19 +1658,19 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       >
                         <div className="flex items-center justify-end gap-2">
                           <span>Total Income</span>
-                          <span className="text-gray-600">{incomeGroupExpanded ? '▼' : '▶'}</span>
+                          <span className="text-gray-700">{incomeGroupExpanded ? '▼' : '▶'}</span>
                         </div>
                       </th>
                     )}
                     
-                    {visibleColumns.tax && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>}
-                    {visibleColumns.expenses && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Expenses</th>}
-                    {visibleColumns.gapExcess && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gap/Excess</th>}
+                    {visibleColumns.tax && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Tax</th>}
+                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Expenses</th>}
+                    {visibleColumns.gapExcess && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Gap/Excess</th>}
                     
                     {/* Networth - Clickable to expand/collapse balance columns */}
                     {visibleColumns.networth && (
                       <th 
-                        className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 active:bg-gray-200"
                         onClick={() => {
                           setBalanceGroupExpanded(!balanceGroupExpanded)
                           if (!balanceGroupExpanded) {
@@ -1688,24 +1689,24 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       >
                         <div className="flex items-center justify-end gap-2">
                           <span>Networth</span>
-                          <span className="text-gray-600">{balanceGroupExpanded ? '▼' : '▶'}</span>
+                          <span className="text-gray-700">{balanceGroupExpanded ? '▼' : '▶'}</span>
                         </div>
                       </th>
                     )}
                     
                     {/* Individual Balance Columns (shown when expanded, to the right of Networth) */}
-                    {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">401k Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Roth Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Taxable Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">HSA Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">IRA Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Other Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">401k Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Roth Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Taxable Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">HSA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">IRA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Bal</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredProjections.length === 0 ? (
                     <tr>
-                      <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-sm sm:text-base text-gray-700">
                         {projections.length === 0 
                           ? 'No projections yet. Configure your calculator settings, accounts, expenses, and income sources, then generate projections.'
                           : 'No projections match the current filter. Try enabling "Show Pre-Retirement Years".'}
@@ -1869,13 +1870,13 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   const networthChange = calculateNetworthChange()
                   
                   return (
-                  <tr key={`${proj.year}-${proj.age}`}>
-                    {visibleColumns.year && <td className="px-2 py-2 text-sm">{proj.year}</td>}
-                    {visibleColumns.age && <td className="px-2 py-2 text-sm">{proj.age || '-'}</td>}
-                    {visibleColumns.event && <td className="px-2 py-2 text-sm">{proj.event || '-'}</td>}
+                  <tr key={`${proj.year}-${proj.age}`} className="hover:bg-gray-50">
+                    {visibleColumns.year && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.year}</td>}
+                    {visibleColumns.age && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.age || '-'}</td>}
+                    {visibleColumns.event && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.event || '-'}</td>}
                     
                     {/* Individual Income Columns (shown when expanded) */}
-                    {incomeGroupExpanded && visibleColumns.ssa && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.ssa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {showIncome && ssaIncome > 0 ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1899,7 +1900,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.dist401k && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.dist401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1919,7 +1920,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distRoth && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.distRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1939,7 +1940,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distTaxable && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.distTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1959,7 +1960,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distHsa && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.distHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1979,7 +1980,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distIra && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.distIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1999,7 +2000,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distOther && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.distOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2019,7 +2020,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.otherIncome && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {incomeGroupExpanded && visibleColumns.otherIncome && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2039,7 +2040,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {visibleColumns.totalIncome && <td className="px-2 py-2 text-sm text-right font-semibold bg-blue-50">
+                    {visibleColumns.totalIncome && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold bg-blue-50 text-gray-900">
                       {showIncome ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2073,7 +2074,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {visibleColumns.tax && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {visibleColumns.tax && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2098,15 +2099,15 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {visibleColumns.expenses && <td className="px-2 py-2 text-sm text-right">
+                    {visibleColumns.expenses && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? `$${(proj.total_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
                     </td>}
-                    {visibleColumns.gapExcess && <td className={`px-2 py-2 text-sm text-right font-semibold ${
+                    {visibleColumns.gapExcess && <td className={`px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold ${
                       showIncome ? ((proj.gap_excess || 0) >= 0 ? 'text-green-700' : 'text-red-700') : 'text-gray-400'
                     }`}>
                       {showIncome ? `$${(proj.gap_excess || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
                     </td>}
-                    {visibleColumns.networth && <td className="px-2 py-2 text-sm text-right font-semibold">
+                    {visibleColumns.networth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2142,7 +2143,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balance401k && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {balanceGroupExpanded && visibleColumns.balance401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2175,7 +2176,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceRoth && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {balanceGroupExpanded && visibleColumns.balanceRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2208,7 +2209,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2244,7 +2245,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceHsa && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {balanceGroupExpanded && visibleColumns.balanceHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2277,7 +2278,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceIra && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {balanceGroupExpanded && visibleColumns.balanceIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2310,7 +2311,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceOther && <td className="px-2 py-2 text-sm text-right text-gray-600">
+                    {balanceGroupExpanded && visibleColumns.balanceOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2350,6 +2351,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
             )}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
