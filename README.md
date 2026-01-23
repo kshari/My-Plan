@@ -4,13 +4,16 @@ A comprehensive financial planning application built with Next.js and Supabase. 
 
 ## Applications
 
-My Plan currently includes two main modules:
+My Plan currently includes three main modules:
 
 ### 1. Portfolio Analyzer
 Track your stock and options positions, analyze portfolio performance, and calculate key risk metrics.
 
 ### 2. Property Investment Analyzer
 Analyze real estate investment opportunities, model financial scenarios, and evaluate property performance metrics.
+
+### 3. Retirement Planner
+Comprehensive retirement planning tool with scenario modeling, withdrawal strategy analysis, and detailed projections.
 
 ---
 
@@ -43,6 +46,102 @@ Analyze real estate investment opportunities, model financial scenarios, and eva
 - Strike price and expiration date tracking
 - Delta calculation for options positions
 - Contract quantity management
+
+---
+
+## Retirement Planner Features
+
+### Retirement Plan Management
+- Create and manage multiple retirement plans
+- Store personal information (birth year, filing status, life expectancy)
+- Support for spouse planning (include spouse, spouse birth year, spouse life expectancy)
+- Organize retirement data with expandable cards and summaries
+
+### Account Management
+- Track multiple retirement accounts (401k, IRA, Roth IRA, HSA, Taxable, Other)
+- Set account balances and annual contributions
+- View account balances over time in projections
+
+### Expense Planning
+- Define monthly expenses (before and after age 65)
+- Categorize expenses as essential or discretionary
+- Track expense growth with inflation adjustments
+- View total expenses in projections
+
+### Income Sources
+- Social Security (SSA) income for planner and spouse
+- Configurable SSA start age (typically 62-70)
+- Other recurring income sources with start/end years
+- Inflation-adjusted income options
+
+### Scenario Modeling
+- **Create Multiple Scenarios:** Model different retirement strategies
+- **Scenario Variables:**
+  - Retirement age
+  - Growth rates (before and during retirement)
+  - Tax rates (capital gains and income tax)
+  - Inflation rate
+  - SSA income inclusion flags
+  - Borrowing options for negative cashflow
+- **Scenario Comparison:** Compare different scenarios side-by-side
+- **Default Scenarios:** Set default scenario for quick access
+
+### Withdrawal Strategy Modeling
+- **Dynamic Withdrawal Strategies:** Model different withdrawal approaches
+- **Available Strategies:**
+  - **Default (Tax-Efficient):** Balanced tax-efficient strategy
+  - **Longevity:** Preserve assets for long retirement
+  - **Legacy Value:** Maximize inheritance for heirs
+  - **Tax Optimization:** Minimize taxes over retirement
+  - **Stable Income:** Maintain consistent income levels
+  - **Sequence Risk Mitigation:** Protect against early market downturns
+  - **Liquidity:** Keep funds easily accessible
+- **Year-by-Year Evaluation:** Strategy adapts dynamically based on current situation
+- **Modeling Tool:** Test different strategies without saving (illustration only)
+- **Strategy Metrics:** View Legacy Value, Longevity, Total Tax, Tax Efficiency, and more
+
+### Projections & Analysis
+- **Detailed Projections:**
+  - Year-by-year projections from current age to life expectancy
+  - Account balances over time
+  - Income sources (SSA, distributions, other income)
+  - Tax calculations
+  - Expenses and gap/excess analysis
+  - Net worth tracking
+- **View Modes:**
+  - **Table View:** Detailed year-by-year data with column visibility controls
+  - **Graph View:** Visual charts (Line, Area, Bar) for trends
+- **Pre-Retirement Years:** Toggle to show/hide pre-retirement projections
+- **Event Tracking:** Shows important events (retirement, SSA eligibility, etc.)
+
+### Strategy Metrics Summary
+- **Legacy Value:** Final net worth at end of projection
+- **Longevity:** Years beyond life expectancy (positive if assets last longer)
+- **Total Tax:** Lifetime taxes paid during retirement
+- **Average Annual Tax:** Average tax per year
+- **Tax Efficiency:** Tax as percentage of total income
+- **Negative Years:** Count and percentage of years with shortfalls
+- **Withdrawal Breakdown:** Total withdrawals by account type (401k, IRA, Roth, Taxable, HSA)
+
+### Retirement Analysis
+- **Retirement Score (0-100):** Comprehensive evaluation across multiple dimensions
+  - **Longevity (60% weight):** Asset preservation over time
+  - **Tax Efficiency (15% weight):** Tax minimization
+  - **Cashflow (5% weight):** Income consistency
+  - **Inflation (10% weight):** Income keeps up with expenses
+  - **Medical (10% weight):** Healthcare expense risk
+- **Risk Assessment:** Identifies potential risks (longevity, tax, inflation, medical, sequence of returns)
+- **Recommendations:** Actionable suggestions to improve retirement plan
+- **RMD Analysis:** Required Minimum Distribution analysis
+- **Tax Efficiency Analysis:** Detailed tax optimization insights
+- **Monte Carlo Simulation:** Run simulations to assess plan robustness
+- **Sequence of Returns Risk:** Analyze impact of market timing
+
+### Advanced Features
+- **Compounding Analysis:** View how accounts grow with contributions
+- **Defaults Management:** Set default values for new scenarios
+- **Scenario Selector:** Easy switching between scenarios in projections and analysis tabs
+- **Export Capabilities:** View and analyze detailed projections
 
 ---
 
@@ -154,6 +253,16 @@ The database schema has been automatically created in your Supabase project. Tab
 - **pi_financial_scenarios** - Financial scenarios for properties
 - **pi_loans** - Loan details associated with scenarios
 
+**Retirement Planner Tables (rp_ prefix):**
+- **rp_retirement_plans** - User retirement plans
+- **rp_accounts** - Retirement accounts (401k, IRA, Roth, HSA, Taxable, Other)
+- **rp_expenses** - Monthly expenses (before/after 65)
+- **rp_other_income** - Other recurring income sources
+- **rp_scenarios** - Retirement scenarios
+- **rp_calculator_settings** - Scenario-specific calculator settings
+- **rp_projection_details** - Year-by-year projection data
+- **rp_default_settings** - Default values for new scenarios
+
 Row Level Security (RLS) policies ensure users can only access their own data.
 
 ## CSV Upload Format
@@ -245,6 +354,33 @@ AAPL,10,5000,2024-03-01,option
 5. **View Details:** Click on any property or scenario to see detailed financial metrics, loan information, and amortization schedules
 6. **Manage Loans:** Add loan details to scenarios to calculate mortgage payments and DSCR
 
+### Retirement Planner
+
+1. **Navigate to Retirement Planner:** Click on "Retirement Planner" from the home page
+2. **Sign Up/Login:** Create an account or sign in (separate from other apps)
+3. **Create Retirement Plan:** Click "Create Plan" and enter your personal information
+4. **Set Up Plan Basis:**
+   - Enter birth year, filing status, and life expectancy
+   - Include spouse information if applicable
+   - Configure SSA income settings
+5. **Add Accounts:** Add all your retirement accounts (401k, IRA, Roth, HSA, Taxable, etc.) with current balances
+6. **Define Expenses:** Enter monthly expenses (separate amounts for before/after age 65)
+7. **Add Income Sources:** Configure Social Security and other recurring income
+8. **Create Scenarios:**
+   - Set retirement age, growth rates, tax rates, and inflation
+   - Create multiple scenarios to compare different strategies
+   - Use "Add Scenario" to create new scenarios
+9. **View Projections:**
+   - Navigate to "Projections" tab to see year-by-year projections
+   - Use "Withdrawal Strategy Modeling" to test different withdrawal approaches
+   - View strategy metrics (Legacy Value, Longevity, Total Tax, etc.)
+   - Switch between table and graph views
+10. **Analyze Plan:**
+    - Navigate to "Analysis" tab for comprehensive retirement score
+    - Review risks and recommendations
+    - Run Monte Carlo simulations
+    - Analyze tax efficiency and RMD requirements
+
 ## Market Data Integration
 
 The application integrates with free market data APIs to fetch real-time stock prices and market information:
@@ -303,11 +439,17 @@ my-plan/
 │   ├── apps/
 │   │   ├── portfolio/          # Portfolio Analyzer module
 │   │   │   └── page.tsx        # Portfolio Analyzer home
-│   │   └── property/           # Property Investment module
-│   │       ├── dashboard/      # Property dashboard
-│   │       ├── properties/     # Property management pages
-│   │       ├── login/          # Property app login
-│   │       ├── signup/         # Property app signup
+│   │   ├── property/           # Property Investment module
+│   │   │   ├── dashboard/      # Property dashboard
+│   │   │   ├── properties/     # Property management pages
+│   │   │   ├── login/          # Property app login
+│   │   │   ├── signup/         # Property app signup
+│   │   │   └── profile/       # User profile management
+│   │   └── retirement/         # Retirement Planner module
+│   │       ├── dashboard/      # Retirement dashboard
+│   │       ├── plans/          # Retirement plan management pages
+│   │       ├── login/          # Retirement app login
+│   │       ├── signup/         # Retirement app signup
 │   │       └── profile/       # User profile management
 │   ├── auth/
 │   │   ├── callback/           # OAuth callback handler
@@ -323,17 +465,33 @@ my-plan/
 │   ├── PositionManager.tsx    # Position CRUD
 │   ├── CSVUpload.tsx          # CSV import with field mapping
 │   ├── PortfolioAnalysis.tsx # Portfolio analysis display
-│   └── property/              # Property Investment components
-│       ├── property-list.tsx
-│       ├── property-form.tsx
-│       ├── property-details.tsx
-│       ├── scenario-form.tsx
-│       ├── financial-scenarios-list.tsx
-│       ├── recommended-scenarios-list.tsx
-│       ├── financial-metrics.tsx
-│       ├── loan-form.tsx
-│       ├── loan-details.tsx
-│       └── amortization-table.tsx
+│   ├── property/              # Property Investment components
+│   │   ├── property-list.tsx
+│   │   ├── property-form.tsx
+│   │   ├── property-details.tsx
+│   │   ├── scenario-form.tsx
+│   │   ├── financial-scenarios-list.tsx
+│   │   ├── recommended-scenarios-list.tsx
+│   │   ├── financial-metrics.tsx
+│   │   ├── loan-form.tsx
+│   │   ├── loan-details.tsx
+│   │   └── amortization-table.tsx
+│   └── retirement/            # Retirement Planner components
+│       ├── retirement-plan-list.tsx
+│       ├── retirement-plan-form.tsx
+│       ├── retirement-plan-tabs.tsx
+│       ├── scenarios-table.tsx
+│       ├── scenario-context.tsx
+│       ├── defaults-popup.tsx
+│       └── tabs/              # Retirement planner tabs
+│           ├── plan-details-tab.tsx
+│           ├── accounts-tab.tsx
+│           ├── expenses-tab.tsx
+│           ├── other-income-tab.tsx
+│           ├── details-tab.tsx
+│           ├── analysis-tab.tsx
+│           ├── compounding-tab.tsx
+│           └── defaults-tab.tsx
 ├── lib/
 │   ├── supabase/
 │   │   ├── client.ts          # Browser Supabase client
@@ -341,7 +499,9 @@ my-plan/
 │   │   └── middleware.ts      # Auth middleware
 │   └── utils/
 │       ├── portfolio-analysis.ts  # Portfolio calculation utilities
-│       └── market-data.ts        # Market data API integration
+│       ├── market-data.ts        # Market data API integration
+│       ├── retirement-projections.ts  # Retirement projection calculations
+│       └── monte-carlo.ts        # Monte Carlo simulation utilities
 ├── middleware.ts              # Next.js middleware
 └── .env.local                # Environment variables
 ```
@@ -383,11 +543,23 @@ Database migrations are managed through Supabase. To create new migrations:
 - 1031 exchange analysis
 - Export scenario reports (PDF/CSV)
 
+### Retirement Planner
+- Social Security optimization strategies
+- Tax bracket management and optimization
+- Healthcare cost modeling
+- Long-term care planning
+- Estate planning integration
+- Multiple retirement date scenarios
+- What-if analysis tools
+- Export projection reports (PDF/CSV)
+- Integration with tax planning tools
+
 ### General
 - Additional financial planning modules
 - Cross-module analytics
 - Mobile app support
 - Advanced reporting and visualization
+- Unified dashboard across all modules
 
 ## License
 
