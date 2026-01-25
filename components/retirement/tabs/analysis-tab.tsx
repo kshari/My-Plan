@@ -65,6 +65,68 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
   const [sequenceRisk, setSequenceRisk] = useState<any>(null)
   const [runningMonteCarlo, setRunningMonteCarlo] = useState(false)
   const [scenarios, setScenarios] = useState<Array<{ id: number; scenario_name: string; is_default: boolean }>>([])
+  const [showRothExplanation, setShowRothExplanation] = useState(false)
+  const [showTaxSavingsCalculation, setShowTaxSavingsCalculation] = useState(false)
+  const [showTaxInputForm, setShowTaxInputForm] = useState(false)
+  const [currentGrossIncome, setCurrentGrossIncome] = useState<number | null>(null)
+  const [currentTaxBracket, setCurrentTaxBracket] = useState<number | null>(null)
+  const [saveToProfile, setSaveToProfile] = useState(false)
+  const [savingTaxInfo, setSavingTaxInfo] = useState(false)
+  const [currentSettings, setCurrentSettings] = useState<CalculatorSettings | null>(null)
+
+  // Calculate tax bracket from income based on 2024 tax brackets
+  const calculateTaxBracket = (income: number, filingStatus: string): number => {
+    // 2024 tax brackets (marginal rates)
+    const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
+      'Single': [
+        { min: 0, max: 11600, rate: 0.10 },
+        { min: 11600, max: 47150, rate: 0.12 },
+        { min: 47150, max: 100525, rate: 0.22 },
+        { min: 100525, max: 191950, rate: 0.24 },
+        { min: 191950, max: 243725, rate: 0.32 },
+        { min: 243725, max: 609350, rate: 0.35 },
+        { min: 609350, max: Infinity, rate: 0.37 }
+      ],
+      'Married Filing Jointly': [
+        { min: 0, max: 23200, rate: 0.10 },
+        { min: 23200, max: 94300, rate: 0.12 },
+        { min: 94300, max: 201050, rate: 0.22 },
+        { min: 201050, max: 383900, rate: 0.24 },
+        { min: 383900, max: 487450, rate: 0.32 },
+        { min: 487450, max: 731200, rate: 0.35 },
+        { min: 731200, max: Infinity, rate: 0.37 }
+      ],
+      'Married Filing Separately': [
+        { min: 0, max: 11600, rate: 0.10 },
+        { min: 11600, max: 47150, rate: 0.12 },
+        { min: 47150, max: 100525, rate: 0.22 },
+        { min: 100525, max: 191950, rate: 0.24 },
+        { min: 191950, max: 243725, rate: 0.32 },
+        { min: 243725, max: 365600, rate: 0.35 },
+        { min: 365600, max: Infinity, rate: 0.37 }
+      ],
+      'Head of Household': [
+        { min: 0, max: 16550, rate: 0.10 },
+        { min: 16550, max: 63100, rate: 0.12 },
+        { min: 63100, max: 100500, rate: 0.22 },
+        { min: 100500, max: 191950, rate: 0.24 },
+        { min: 191950, max: 243700, rate: 0.32 },
+        { min: 243700, max: 609350, rate: 0.35 },
+        { min: 609350, max: Infinity, rate: 0.37 }
+      ]
+    }
+    
+    const status = filingStatus || 'Single'
+    const bracketList = brackets[status] || brackets['Single']
+    
+    for (const bracket of bracketList) {
+      if (income >= bracket.min && income < bracket.max) {
+        return bracket.rate
+      }
+    }
+    
+    return 0.37 // Top bracket
+  }
 
   useEffect(() => {
     loadScenarios()
@@ -76,7 +138,6 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
     setRisks([])
     setRecommendations([])
     setRmdAnalysis(null)
-    setTaxEfficiency(null)
     setMonteCarloSummary(null)
     setSequenceRisk(null)
     
@@ -199,7 +260,6 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
       const calculatedRisks = identifyRisks(projections, settings, accounts)
       const calculatedRecommendations = generateRecommendations(projections, settings, accounts, expenses)
       const calculatedRmdAnalysis = analyzeRMDs(projections, settings, accounts)
-      const calculatedTaxEfficiency = analyzeTaxEfficiency(projections, settings, accounts)
       
       // Analyze sequence of returns risk (always calculate, even if Low risk)
       if (projections.length > 0) {
@@ -223,7 +283,6 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
       setRisks(calculatedRisks)
       setRecommendations(calculatedRecommendations)
       setRmdAnalysis(calculatedRmdAnalysis)
-      setTaxEfficiency(calculatedTaxEfficiency)
     } catch (error) {
       console.error('Error calculating analysis:', error)
     } finally {
@@ -318,27 +377,27 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                     <div className="text-xs text-gray-500 mt-1">(60% weight)</div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-md">
+                <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
-                    <p className="font-semibold mb-2">Longevity Score Calculation</p>
-                    <p className="text-xs mb-2">Measures asset preservation over retirement period.</p>
-                    <p className="text-xs font-medium mt-2">Formula:</p>
-                    <p className="text-xs font-mono bg-gray-100 p-2 rounded">
+                    <p className="font-semibold mb-2 text-gray-100">Longevity Score Calculation</p>
+                    <p className="text-xs mb-2 text-gray-200">Measures asset preservation over retirement period.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
+                    <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
                       Score = min(100, (Final Networth / Initial Networth) × 50 + 50)
                     </p>
-                    <p className="text-xs mt-2">Where:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs mt-2 text-gray-200">Where:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Initial Networth = Networth at retirement age</li>
                       <li>Final Networth = Networth at end of projections</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Assumptions:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Maintaining 100%+ of initial networth = Score of 100</li>
                       <li>Maintaining 0% of initial networth = Score of 50</li>
                       <li>Below 0% (negative) = Score of 0</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Research Reference:</p>
-                    <p className="text-xs">Bengen (1994) "Determining Withdrawal Rates Using Historical Data" - 4% rule emphasizes maintaining principal to ensure 30-year sustainability.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
+                    <p className="text-xs text-gray-200">Bengen (1994) "Determining Withdrawal Rates Using Historical Data" - 4% rule emphasizes maintaining principal to ensure 30-year sustainability.</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -352,28 +411,28 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                     <div className="text-xs text-gray-500 mt-1">(15% weight)</div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-md">
+                <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
-                    <p className="font-semibold mb-2">Tax Efficiency Score Calculation</p>
-                    <p className="text-xs mb-2">Evaluates how well taxes are minimized over retirement.</p>
-                    <p className="text-xs font-medium mt-2">Formula:</p>
-                    <p className="text-xs font-mono bg-gray-100 p-2 rounded">
+                    <p className="font-semibold mb-2 text-gray-100">Tax Efficiency Score Calculation</p>
+                    <p className="text-xs mb-2 text-gray-200">Evaluates how well taxes are minimized over retirement.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
+                    <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
                       Score = max(0, 100 - (Total Taxes / Total Income) × 100 × 2)
                     </p>
-                    <p className="text-xs mt-2">Where:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs mt-2 text-gray-200">Where:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Total Taxes = Sum of all tax payments across projections</li>
                       <li>Total Income = Sum of all income (SSA, distributions, other) across projections</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Assumptions:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Tax rate of 0% = Score of 100</li>
                       <li>Tax rate of 25% = Score of 50</li>
                       <li>Tax rate of 50%+ = Score of 0</li>
                       <li>Multiplier of 2 penalizes higher tax rates more severely</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Research Reference:</p>
-                    <p className="text-xs">Kitces (2013) "The Tax Torpedo and Social Security Planning" - Strategic withdrawal sequencing from tax-advantaged accounts can reduce lifetime tax burden by 10-30%.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
+                    <p className="text-xs text-gray-200">Kitces (2013) "The Tax Torpedo and Social Security Planning" - Strategic withdrawal sequencing from tax-advantaged accounts can reduce lifetime tax burden by 10-30%.</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -387,28 +446,28 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                     <div className="text-xs text-gray-500 mt-1">(5% weight)</div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-md">
+                <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
-                    <p className="font-semibold mb-2">Cashflow Score Calculation</p>
-                    <p className="text-xs mb-2">Measures cash flow consistency - fewer negative years = higher score.</p>
-                    <p className="text-xs font-medium mt-2">Formula:</p>
-                    <p className="text-xs font-mono bg-gray-100 p-2 rounded">
+                    <p className="font-semibold mb-2 text-gray-100">Cashflow Score Calculation</p>
+                    <p className="text-xs mb-2 text-gray-200">Measures cash flow consistency - fewer negative years = higher score.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
+                    <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
                       Score = max(0, 100 - (Negative Years / Total Years) × 100)
                     </p>
-                    <p className="text-xs mt-2">Where:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs mt-2 text-gray-200">Where:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Negative Years = Count of years where gap_excess &lt; 0</li>
                       <li>Total Years = Total number of projection years</li>
                       <li>Gap/Excess = Total Income - Total Expenses - Tax</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Assumptions:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>0% negative years = Score of 100</li>
                       <li>50% negative years = Score of 50</li>
                       <li>100% negative years = Score of 0</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Research Reference:</p>
-                    <p className="text-xs">Pfau (2015) "Safe Withdrawal Rates for Retirees" - Consistent positive cash flow is critical for retirement sustainability, with &lt;20% negative years being optimal.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
+                    <p className="text-xs text-gray-200">Pfau (2015) "Safe Withdrawal Rates for Retirees" - Consistent positive cash flow is critical for retirement sustainability, with &lt;20% negative years being optimal.</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -422,32 +481,32 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                     <div className="text-xs text-gray-500 mt-1">(10% weight)</div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-md">
+                <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
-                    <p className="font-semibold mb-2">Inflation Score Calculation</p>
-                    <p className="text-xs mb-2">Evaluates how well income keeps up with expense growth due to inflation.</p>
-                    <p className="text-xs font-medium mt-2">Formula:</p>
-                    <p className="text-xs font-mono bg-gray-100 p-2 rounded">
+                    <p className="font-semibold mb-2 text-gray-100">Inflation Score Calculation</p>
+                    <p className="text-xs mb-2 text-gray-200">Evaluates how well income keeps up with expense growth due to inflation.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
+                    <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
                       Expense Growth Rate = (Late Expenses - Early Expenses) / Early Expenses<br/>
                       Income Growth Rate = (Late Income - Early Income) / Early Income<br/>
                       Gap = Expense Growth Rate - Income Growth Rate<br/>
                       Score = max(0, 100 - (Gap / Expense Growth Rate) × 100)
                     </p>
-                    <p className="text-xs mt-2">Where:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs mt-2 text-gray-200">Where:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Early Period = First 1/3 of retirement years</li>
                       <li>Late Period = Last 1/3 of retirement years</li>
                       <li>Early/Late Expenses = Average expenses in that period</li>
                       <li>Early/Late Income = Average income in that period</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Assumptions:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Income growth = Expense growth = Score of 100</li>
                       <li>Income growth = 0, Expense growth &gt; 0 = Lower score</li>
                       <li>Uses scenario inflation rate assumption for projections</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Research Reference:</p>
-                    <p className="text-xs">Blanchett (2014) "Estimating the True Cost of Retirement" - Health care costs grow at 2-3x general inflation rate. Fidelity estimates average retiree needs $315K for health care (2023).</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
+                    <p className="text-xs text-gray-200">Blanchett (2014) "Estimating the True Cost of Retirement" - Health care costs grow at 2-3x general inflation rate. Fidelity estimates average retiree needs $315K for health care (2023).</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -461,31 +520,31 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                     <div className="text-xs text-gray-500 mt-1">(10% weight)</div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-md">
+                <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
-                    <p className="font-semibold mb-2">Medical/Health Care Score Calculation</p>
-                    <p className="text-xs mb-2">Assesses health care expense risk in later retirement years.</p>
-                    <p className="text-xs font-medium mt-2">Formula:</p>
-                    <p className="text-xs font-mono bg-gray-100 p-2 rounded">
+                    <p className="font-semibold mb-2 text-gray-100">Medical/Health Care Score Calculation</p>
+                    <p className="text-xs mb-2 text-gray-200">Assesses health care expense risk in later retirement years.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
+                    <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
                       Average Expenses = Total Expenses / Total Years<br/>
                       Late Year Expenses = Average of last 1/3 of years<br/>
                       Medical Expense Ratio = (Late Year Expenses - Average Expenses) / Average Expenses<br/>
                       Score = max(0, 100 - (Medical Expense Ratio × 200))
                     </p>
-                    <p className="text-xs mt-2">Where:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs mt-2 text-gray-200">Where:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>Late Year Expenses = Average expenses in final 1/3 of projection years</li>
                       <li>Medical Expense Ratio = Percentage increase in late-year expenses</li>
                       <li>Multiplier of 200 penalizes high medical cost increases</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Assumptions:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1">
+                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
                       <li>No increase in late years = Score of 100</li>
                       <li>50% increase in late years = Score of 0</li>
                       <li>Uses expense growth as proxy for medical costs (not explicitly tracked)</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2">Research Reference:</p>
-                    <p className="text-xs">Fidelity Retiree Health Care Cost Estimate (2023) - Average 65-year-old couple needs $315K for health care. HealthView Services projects 5.5% annual health care inflation vs 2.5% general inflation.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
+                    <p className="text-xs text-gray-200">Fidelity Retiree Health Care Cost Estimate (2023) - Average 65-year-old couple needs $315K for health care. HealthView Services projects 5.5% annual health care inflation vs 2.5% general inflation.</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -807,69 +866,12 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
         </div>
       )}
 
-      {/* Tax Efficiency Levers */}
-      {taxEfficiency && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Tax Efficiency Levers</h3>
-          
-          {/* Roth Conversion Analysis */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-900 mb-3">Roth Conversion Opportunities</h4>
-            {taxEfficiency.rothConversion && (
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                  <div>
-                    <div className="text-sm text-gray-700 font-medium">Optimal Conversion Amount</div>
-                    <div className="text-lg font-semibold text-gray-900">
-                      ${taxEfficiency.rothConversion.optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-700 font-medium">Tax Cost</div>
-                    <div className="text-lg font-semibold text-gray-900">
-                      ${taxEfficiency.rothConversion.taxCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-700 font-medium">Future Tax Savings</div>
-                    <div className="text-lg font-semibold text-green-800">
-                      ${taxEfficiency.rothConversion.futureSavings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm text-gray-700 mt-2">
-                  {taxEfficiency.rothConversion.recommendation}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Tax Summary */}
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-3">Tax Summary</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <div className="text-sm text-gray-700 font-medium">Total Taxes Over Retirement</div>
-                <div className="text-lg font-semibold text-gray-900">
-                  ${taxEfficiency.totalTaxes.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-700 font-medium">Average Annual Tax</div>
-                <div className="text-lg font-semibold text-gray-900">
-                  ${taxEfficiency.avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-700 font-medium">Tax Efficiency Score</div>
-                <div className="text-lg font-semibold text-gray-900">
-                  {taxEfficiency.efficiencyScore}/100
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Link to Tax Efficiency Tab */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 mb-6">
+        <p className="text-sm text-blue-900 mb-2">
+          <strong>💡 Tax Optimization:</strong> For detailed tax efficiency analysis, Roth conversion opportunities, and advanced tax strategies, visit the <button onClick={() => { const event = new CustomEvent('switchTab', { detail: 'tax-efficiency' }); window.dispatchEvent(event); }} className="font-semibold text-blue-700 underline hover:text-blue-800">Tax Efficiency</button> tab.
+        </p>
+      </div>
     </div>
   )
 }
@@ -1202,7 +1204,7 @@ function analyzeRMDs(
   }
 }
 
-function analyzeTaxEfficiency(
+export function analyzeTaxEfficiency(
   projections: ProjectionDetail[],
   settings: CalculatorSettings,
   accounts: Account[]
@@ -1212,15 +1214,17 @@ function analyzeTaxEfficiency(
       totalTaxes: 0,
       avgAnnualTax: 0,
       efficiencyScore: 0,
-      rothConversion: null
+      rothConversion: null,
+      taxesWithRothConversion: null
     }
   }
   
-  const totalTaxes = projections.reduce((sum, p) => sum + (p.tax || 0), 0)
-  const avgAnnualTax = totalTaxes / projections.length
+  // Current projections are WITHOUT Roth conversion (baseline)
+  const totalTaxesWithoutRoth = projections.reduce((sum, p) => sum + (p.tax || 0), 0)
+  const avgAnnualTaxWithoutRoth = totalTaxesWithoutRoth / projections.length
   
   const totalIncome = projections.reduce((sum, p) => sum + (p.total_income || 0), 0)
-  const taxRate = totalIncome > 0 ? (totalTaxes / totalIncome) * 100 : 0
+  const taxRate = totalIncome > 0 ? (totalTaxesWithoutRoth / totalIncome) * 100 : 0
   const efficiencyScore = Math.max(0, 100 - taxRate * 2)
   
   // Roth conversion analysis
@@ -1229,25 +1233,254 @@ function analyzeTaxEfficiency(
     .reduce((sum, acc) => sum + (acc.balance || 0), 0)
   
   let rothConversion = null
+  let taxesWithRothConversion = null
+  
   if (traditionalBalance > 50000) {
     // Suggest converting up to $50k per year in lower tax brackets
     const optimalAmount = Math.min(50000, traditionalBalance * 0.1)
-    const taxCost = optimalAmount * settings.income_tax_rate_retirement
-    // Estimate future savings (simplified: assume 20% tax savings over 20 years)
-    const futureSavings = optimalAmount * 0.2 * 20
+    
+    // Calculate estimated taxes WITH Roth conversion
+    // This is a simplified estimate: assume conversions reduce RMDs and future taxable distributions
+    const retirementAge = settings.retirement_age || 65
+    const rmdAge = 73
+    const currentYear = settings.current_year || new Date().getFullYear()
+    
+    // Use retirement_start_year from scenario settings to determine conversion start year
+    // If not set (0 or undefined), calculate it from current year and years_to_retirement
+    const retirementStartYear = (settings.retirement_start_year && settings.retirement_start_year > 0) 
+      ? settings.retirement_start_year
+      : (currentYear + (settings.years_to_retirement || 0))
+    
+    // Calculate the year when RMDs start (retirement start year + years until age 73)
+    const yearsUntilRmd = Math.max(0, rmdAge - retirementAge)
+    const rmdStartYear = retirementStartYear + yearsUntilRmd
+    
+    // Conversion window: from retirement start year to year before RMD starts
+    const conversionStartYear = retirementStartYear
+    const conversionEndYear = rmdStartYear - 1
+    const conversionYears = Math.max(1, conversionEndYear - conversionStartYear + 1)
+    
+    // Filter projections for the conversion window (years between retirement start and RMD start)
+    const retirementProjections = projections.filter(p => {
+      const projectionYear = p.year || 0
+      return projectionYear >= conversionStartYear && projectionYear < rmdStartYear
+    })
+    
+    const totalConverted = optimalAmount * conversionYears
+    
+    // Calculate actual tax on conversion amount for each year based on taxable income
+    // Use tax bracket calculation to determine incremental tax
+    const calculateTaxOnConversion = (taxableIncome: number, conversionAmount: number, filingStatus: string): number => {
+      // Calculate tax brackets (2024 rates)
+      const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
+        'Single': [
+          { min: 0, max: 11600, rate: 0.10 },
+          { min: 11600, max: 47150, rate: 0.12 },
+          { min: 47150, max: 100525, rate: 0.22 },
+          { min: 100525, max: 191950, rate: 0.24 },
+          { min: 191950, max: 243725, rate: 0.32 },
+          { min: 243725, max: 609350, rate: 0.35 },
+          { min: 609350, max: Infinity, rate: 0.37 }
+        ],
+        'Married Filing Jointly': [
+          { min: 0, max: 23200, rate: 0.10 },
+          { min: 23200, max: 94300, rate: 0.12 },
+          { min: 94300, max: 201050, rate: 0.22 },
+          { min: 201050, max: 383900, rate: 0.24 },
+          { min: 383900, max: 487450, rate: 0.32 },
+          { min: 487450, max: 731200, rate: 0.35 },
+          { min: 731200, max: Infinity, rate: 0.37 }
+        ],
+        'Married Filing Separately': [
+          { min: 0, max: 11600, rate: 0.10 },
+          { min: 11600, max: 47150, rate: 0.12 },
+          { min: 47150, max: 100525, rate: 0.22 },
+          { min: 100525, max: 191950, rate: 0.24 },
+          { min: 191950, max: 243725, rate: 0.32 },
+          { min: 243725, max: 365600, rate: 0.35 },
+          { min: 365600, max: Infinity, rate: 0.37 }
+        ],
+        'Head of Household': [
+          { min: 0, max: 16550, rate: 0.10 },
+          { min: 16550, max: 63100, rate: 0.12 },
+          { min: 63100, max: 100500, rate: 0.22 },
+          { min: 100500, max: 191950, rate: 0.24 },
+          { min: 191950, max: 243700, rate: 0.32 },
+          { min: 243700, max: 609350, rate: 0.35 },
+          { min: 609350, max: Infinity, rate: 0.37 }
+        ]
+      }
+      
+      const status = filingStatus || 'Single'
+      const bracketList = brackets[status] || brackets['Single']
+      
+      // Calculate tax on income without conversion
+      let taxWithoutConversion = 0
+      let remainingIncome = taxableIncome
+      for (const bracket of bracketList) {
+        if (remainingIncome <= 0) break
+        const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min)
+        taxWithoutConversion += taxableInBracket * bracket.rate
+        remainingIncome -= taxableInBracket
+      }
+      
+      // Calculate tax on income with conversion
+      let taxWithConversion = 0
+      remainingIncome = taxableIncome + conversionAmount
+      for (const bracket of bracketList) {
+        if (remainingIncome <= 0) break
+        const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min)
+        taxWithConversion += taxableInBracket * bracket.rate
+        remainingIncome -= taxableInBracket
+      }
+      
+      // Return incremental tax on conversion amount
+      return taxWithConversion - taxWithoutConversion
+    }
+    
+    // Calculate conversion taxes for each year based on actual taxable income
+    let totalConversionTaxes = 0
+    let annualTaxCost = 0
+    
+    if (retirementProjections.length > 0) {
+      // Calculate average tax cost per year
+      let totalAnnualTax = 0
+      retirementProjections.forEach(proj => {
+        const taxableIncome = proj.taxable_income || 0
+        const taxOnConversion = calculateTaxOnConversion(taxableIncome, optimalAmount, settings.filing_status || 'Single')
+        totalAnnualTax += taxOnConversion
+      })
+      annualTaxCost = retirementProjections.length > 0 ? totalAnnualTax / retirementProjections.length : 0
+      totalConversionTaxes = annualTaxCost * conversionYears
+    } else {
+      // Fallback: use average taxable income from all retirement projections
+      const allRetirementProj = projections.filter(p => (p.age || 0) >= retirementAge)
+      if (allRetirementProj.length > 0) {
+        const avgTaxableIncome = allRetirementProj.reduce((sum, p) => sum + (p.taxable_income || 0), 0) / allRetirementProj.length
+        annualTaxCost = calculateTaxOnConversion(avgTaxableIncome, optimalAmount, settings.filing_status || 'Single')
+        totalConversionTaxes = annualTaxCost * conversionYears
+      } else {
+        // Last resort: use flat rate
+        const conversionTaxRate = settings.income_tax_rate_retirement || 0.25
+        annualTaxCost = optimalAmount * conversionTaxRate
+        totalConversionTaxes = annualTaxCost * conversionYears
+      }
+    }
+    
+    // Estimate future tax savings:
+    // The key benefit of Roth conversion isn't always net tax savings (if rates are the same),
+    // but rather: tax diversification, RMD reduction, and avoiding higher brackets later.
+    // However, we can estimate savings if:
+    // 1. RMDs might push you into a higher bracket (assume 2-5% higher rate)
+    // 2. Tax rates may increase in the future
+    // 3. Reduced RMDs mean less taxable income, potentially keeping you in lower brackets
+    
+    const avgRmdRate = 0.05 // Average RMD rate over 20 years
+    // Calculate average tax rate that would apply to RMDs
+    const rmdProjections = projections.filter(p => (p.age || 0) >= rmdAge)
+    let avgRmdTaxRate = 0.25 // Default
+    if (rmdProjections.length > 0) {
+      const avgRmdTaxableIncome = rmdProjections.reduce((sum, p) => sum + (p.taxable_income || 0), 0) / rmdProjections.length
+      // Estimate marginal rate for RMDs
+      const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
+        'Single': [
+          { min: 0, max: 11600, rate: 0.10 },
+          { min: 11600, max: 47150, rate: 0.12 },
+          { min: 47150, max: 100525, rate: 0.22 },
+          { min: 100525, max: 191950, rate: 0.24 },
+          { min: 191950, max: 243725, rate: 0.32 },
+          { min: 243725, max: 609350, rate: 0.35 },
+          { min: 609350, max: Infinity, rate: 0.37 }
+        ],
+        'Married Filing Jointly': [
+          { min: 0, max: 23200, rate: 0.10 },
+          { min: 23200, max: 94300, rate: 0.12 },
+          { min: 94300, max: 201050, rate: 0.22 },
+          { min: 201050, max: 383900, rate: 0.24 },
+          { min: 383900, max: 487450, rate: 0.32 },
+          { min: 487450, max: 731200, rate: 0.35 },
+          { min: 731200, max: Infinity, rate: 0.37 }
+        ],
+        'Married Filing Separately': [
+          { min: 0, max: 11600, rate: 0.10 },
+          { min: 11600, max: 47150, rate: 0.12 },
+          { min: 47150, max: 100525, rate: 0.22 },
+          { min: 100525, max: 191950, rate: 0.24 },
+          { min: 191950, max: 243725, rate: 0.32 },
+          { min: 243725, max: 365600, rate: 0.35 },
+          { min: 365600, max: Infinity, rate: 0.37 }
+        ],
+        'Head of Household': [
+          { min: 0, max: 16550, rate: 0.10 },
+          { min: 16550, max: 63100, rate: 0.12 },
+          { min: 63100, max: 100500, rate: 0.22 },
+          { min: 100500, max: 191950, rate: 0.24 },
+          { min: 191950, max: 243700, rate: 0.32 },
+          { min: 243700, max: 609350, rate: 0.35 },
+          { min: 609350, max: Infinity, rate: 0.37 }
+        ]
+      }
+      const status = settings.filing_status || 'Single'
+      const bracketList = brackets[status] || brackets['Single']
+      for (const bracket of bracketList) {
+        if (avgRmdTaxableIncome >= bracket.min && avgRmdTaxableIncome < bracket.max) {
+          avgRmdTaxRate = bracket.rate
+          break
+        }
+      }
+      // Add potential future tax rate increase
+      avgRmdTaxRate = Math.min(0.35, avgRmdTaxRate + 0.02)
+    }
+    
+    const annualRmdOnConverted = totalConverted * avgRmdRate
+    const annualTaxSavings = annualRmdOnConverted * avgRmdTaxRate
+    const futureSavings = annualTaxSavings * 20 // Over 20 years of RMDs
+    
+    // Estimate total taxes WITH Roth conversion:
+    // Current taxes + conversion taxes - future tax savings
+    // Note: This assumes some tax rate increase or bracket creep benefit
+    const totalTaxesWithRoth = totalTaxesWithoutRoth + totalConversionTaxes - futureSavings
+    const avgAnnualTaxWithRoth = totalTaxesWithRoth / projections.length
+    
+    // Calculate net benefit
+    const netTaxBenefit = totalTaxesWithoutRoth - totalTaxesWithRoth
+    
+    taxesWithRothConversion = {
+      totalTaxes: totalTaxesWithRoth,
+      avgAnnualTax: avgAnnualTaxWithRoth,
+      conversionTaxes: totalConversionTaxes,
+      estimatedSavings: futureSavings,
+      netBenefit: netTaxBenefit
+    }
+    
+    // Create recommendation based on whether there's a net tax benefit
+    let recommendation = ''
+    if (netTaxBenefit > 1000) {
+      recommendation = `Consider converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year to Roth accounts over ${conversionYears} years. This will cost a total of $${totalConversionTaxes.toLocaleString(undefined, { maximumFractionDigits: 0 })} in conversion taxes ($${annualTaxCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year) but could save approximately $${futureSavings.toLocaleString(undefined, { maximumFractionDigits: 0 })} in future taxes, with a net benefit of $${netTaxBenefit.toLocaleString(undefined, { maximumFractionDigits: 0 })}.`
+    } else if (netTaxBenefit > 0) {
+      recommendation = `Consider converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year to Roth accounts over ${conversionYears} years. While net tax savings may be modest ($${netTaxBenefit.toLocaleString(undefined, { maximumFractionDigits: 0 })}), Roth conversions provide tax diversification, reduce future RMDs, and offer estate planning benefits.`
+    } else {
+      recommendation = `Roth conversion may not provide significant net tax savings if tax rates remain similar. However, converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year over ${conversionYears} years could still be beneficial for tax diversification, RMD reduction, and estate planning. Consider if you expect tax rates to increase or if you want more flexibility in managing taxable income.`
+    }
     
     rothConversion = {
       optimalAmount,
-      taxCost,
+      taxCost: annualTaxCost,
       futureSavings,
-      recommendation: `Consider converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year to Roth accounts. This will cost $${taxCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} in taxes now but could save $${futureSavings.toLocaleString(undefined, { maximumFractionDigits: 0 })} in future taxes.`
+      totalConverted,
+      conversionYears,
+      conversionStartYear,
+      conversionEndYear,
+      netBenefit: netTaxBenefit,
+      recommendation
     }
   }
   
   return {
-    totalTaxes,
-    avgAnnualTax,
+    totalTaxes: totalTaxesWithoutRoth,
+    avgAnnualTax: avgAnnualTaxWithoutRoth,
     efficiencyScore: Math.round(efficiencyScore),
-    rothConversion
+    rothConversion,
+    taxesWithRothConversion
   }
 }

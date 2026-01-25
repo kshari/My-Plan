@@ -170,7 +170,7 @@ function AccountForm({ account, onSave, onCancel, saving }: any) {
             type="text"
             value={formData.account_name}
             onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
         <div>
@@ -179,7 +179,7 @@ function AccountForm({ account, onSave, onCancel, saving }: any) {
             type="text"
             value={formData.owner}
             onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
         <div>
@@ -189,7 +189,7 @@ function AccountForm({ account, onSave, onCancel, saving }: any) {
             step="0.01"
             value={formData.balance}
             onChange={(e) => setFormData({ ...formData, balance: parseFloat(e.target.value) || 0 })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
         <div>
@@ -197,7 +197,7 @@ function AccountForm({ account, onSave, onCancel, saving }: any) {
           <select
             value={formData.account_type || ''}
             onChange={(e) => setFormData({ ...formData, account_type: e.target.value })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           >
             <option value="">Select type</option>
             <option value="IRA">IRA</option>

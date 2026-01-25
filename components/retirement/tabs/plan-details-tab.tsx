@@ -856,7 +856,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             newAccounts[index].account_name = e.target.value
                             setAccounts(newAccounts)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
                           placeholder="Account Name"
                         />
                       </td>
@@ -869,7 +869,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             newAccounts[index].owner = e.target.value
                             setAccounts(newAccounts)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
                           placeholder="Owner"
                         />
                       </td>
@@ -883,7 +883,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             newAccounts[index].balance = parseFloat(e.target.value) || 0
                             setAccounts(newAccounts)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
                           placeholder="0"
                         />
                       </td>
@@ -895,7 +895,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             newAccounts[index].account_type = e.target.value
                             setAccounts(newAccounts)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
                         >
                           <option value="">Select type</option>
                           <option value="IRA">IRA</option>
@@ -917,7 +917,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             newAccounts[index].annual_contribution = parseFloat(e.target.value) || 0
                             setAccounts(newAccounts)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
                           placeholder="0"
                         />
                       </td>
@@ -1003,7 +1003,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             newExpenses[index].expense_name = e.target.value
                             setExpenses(newExpenses)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
                           placeholder="Expense Name"
                         />
                       </td>
@@ -1023,7 +1023,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             }
                             setExpenses(newExpenses)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
                           placeholder="0"
                         />
                       </td>
@@ -1043,7 +1043,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             }
                             setExpenses(newExpenses)
                           }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right"
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
                           placeholder="0"
                         />
                       </td>
@@ -1076,7 +1076,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               value={newScenarioName}
               onChange={(e) => setNewScenarioName(e.target.value)}
               placeholder={suggestScenarioName()}
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
               onKeyPress={(e) => e.key === 'Enter' && (newScenarioName.trim() || suggestScenarioName()) && handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())}
             />
             <button
@@ -1257,7 +1257,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                       retirement_age: age,
                     })
                   }}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
 
@@ -1270,7 +1270,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                     const age = parseInt(e.target.value) || 62
                     setScenarioVars({ ...scenarioVars, ssa_start_age: age })
                   }}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
                 <p className="mt-1 text-xs text-gray-500">Age when Social Security benefits begin (typically 62-70)</p>
               </div>
@@ -1282,7 +1282,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   step="0.1"
                   value={scenarioVars.growth_rate_before_retirement}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, growth_rate_before_retirement: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
 
@@ -1293,7 +1293,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   step="0.1"
                   value={scenarioVars.growth_rate_during_retirement}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, growth_rate_during_retirement: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
 
@@ -1304,7 +1304,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   step="0.1"
                   value={scenarioVars.capital_gains_tax_rate}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, capital_gains_tax_rate: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
 
@@ -1315,7 +1315,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   step="0.1"
                   value={scenarioVars.income_tax_rate_retirement}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, income_tax_rate_retirement: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
 
@@ -1326,7 +1326,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   step="0.1"
                   value={scenarioVars.inflation_rate}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, inflation_rate: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
             </div>

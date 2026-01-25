@@ -165,7 +165,7 @@ function IncomeForm({ income, onSave, onCancel, saving }: any) {
             value={formData.income_source}
             onChange={(e) => setFormData({ ...formData, income_source: e.target.value })}
             placeholder="Options Income, Rental, etc."
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
         <div>
@@ -175,7 +175,7 @@ function IncomeForm({ income, onSave, onCancel, saving }: any) {
             step="0.01"
             value={formData.annual_amount}
             onChange={(e) => setFormData({ ...formData, annual_amount: parseFloat(e.target.value) || 0 })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
       </div>

@@ -167,7 +167,7 @@ function ExpenseForm({ expense, onSave, onCancel, saving }: any) {
             type="text"
             value={formData.expense_name}
             onChange={(e) => setFormData({ ...formData, expense_name: e.target.value })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
         <div>
@@ -177,7 +177,7 @@ function ExpenseForm({ expense, onSave, onCancel, saving }: any) {
             step="0.01"
             value={formData.amount_after_65}
             onChange={(e) => setFormData({ ...formData, amount_after_65: parseFloat(e.target.value) || 0 })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
         <div>
@@ -187,7 +187,7 @@ function ExpenseForm({ expense, onSave, onCancel, saving }: any) {
             step="0.01"
             value={formData.amount_before_65}
             onChange={(e) => setFormData({ ...formData, amount_before_65: parseFloat(e.target.value) || 0 })}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
       </div>

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ScenarioProvider } from './scenario-context'
 import PlanDetailsTab from './tabs/plan-details-tab'
 import OtherIncomeTab from './tabs/other-income-tab'
 import CompoundingTab from './tabs/compounding-tab'
 import DetailsTab from './tabs/details-tab'
 import AnalysisTab from './tabs/analysis-tab'
+import TaxEfficiencyTab from './tabs/tax-efficiency-tab'
 
 interface RetirementPlanTabsProps {
   planId: number
@@ -16,12 +17,24 @@ const tabs = [
   { id: 'plan-details', label: 'Plan Summary', icon: '⚙️' },
   { id: 'compounding', label: 'Compounding', icon: '📈' },
   { id: 'details', label: 'Projections', icon: '📋' },
-  { id: 'analysis', label: 'Analysis', icon: '📊' },
+  { id: 'analysis', label: 'Risk Analysis', icon: '📊' },
+  { id: 'tax-efficiency', label: 'Tax Efficiency', icon: '💰' },
   { id: 'other-income', label: 'Other Income', icon: '📊', disabled: true },
 ]
 
 export default function RetirementPlanTabs({ planId }: RetirementPlanTabsProps) {
   const [activeTab, setActiveTab] = useState('plan-details')
+
+  // Listen for tab switch events from child components
+  useEffect(() => {
+    const handleSwitchTab = (e: CustomEvent) => {
+      setActiveTab(e.detail)
+    }
+    window.addEventListener('switchTab', handleSwitchTab as EventListener)
+    return () => {
+      window.removeEventListener('switchTab', handleSwitchTab as EventListener)
+    }
+  }, [])
 
   return (
     <ScenarioProvider planId={planId}>
@@ -58,6 +71,7 @@ export default function RetirementPlanTabs({ planId }: RetirementPlanTabsProps) 
           {activeTab === 'compounding' && <CompoundingTab planId={planId} />}
           {activeTab === 'details' && <DetailsTab planId={planId} />}
           {activeTab === 'analysis' && <AnalysisTab planId={planId} />}
+          {activeTab === 'tax-efficiency' && <TaxEfficiencyTab planId={planId} />}
           {activeTab === 'other-income' && <OtherIncomeTab planId={planId} />}
         </div>
       </div>

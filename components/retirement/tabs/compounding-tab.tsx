@@ -141,7 +141,7 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
               onChange={(e) => setStartAge(parseInt(e.target.value) || 50)}
               min={0}
               max={100}
-              className="w-full rounded-md border border-gray-300 px-3 py-2"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
             />
           </div>
           <div>
@@ -152,7 +152,7 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
               onChange={(e) => setEndAge(parseInt(e.target.value) || 70)}
               min={startAge}
               max={100}
-              className="w-full rounded-md border border-gray-300 px-3 py-2"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
             />
           </div>
           <div>
@@ -164,7 +164,7 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
               onChange={(e) => setAnnualGrowthRate((parseFloat(e.target.value) || 0) / 100)}
               min={0}
               max={100}
-              className="w-full rounded-md border border-gray-300 px-3 py-2"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
             />
           </div>
           <div>
@@ -175,7 +175,7 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
               value={annualContribution}
               onChange={(e) => setAnnualContribution(parseFloat(e.target.value) || 0)}
               min={0}
-              className="w-full rounded-md border border-gray-300 px-3 py-2"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
             />
           </div>
         </div>
