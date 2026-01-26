@@ -122,6 +122,13 @@ interface AccountBalances {
   [key: string]: number
 }
 
+// Track cost basis for taxable account to avoid double taxation
+// When excess after-tax income is added to taxable account, it has cost basis = value
+interface TaxableAccountBasis {
+  principal: number  // Amount that has already been taxed (cost basis)
+  total: number      // Total balance including gains
+}
+
 interface WithdrawalResult {
   distribution401k: number
   distributionRoth: number
@@ -286,6 +293,213 @@ function determineWithdrawalOrder(
   return order
 }
 
+// Calculate progressive income tax based on 2024 federal tax brackets
+function calculateProgressiveTax(taxableIncome: number, filingStatus: string): number {
+  if (taxableIncome <= 0) return 0
+  
+  // 2024 federal income tax brackets (after standard deduction)
+  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
+    'Single': [
+      { min: 0, max: 11600, rate: 0.10 },
+      { min: 11600, max: 47150, rate: 0.12 },
+      { min: 47150, max: 100525, rate: 0.22 },
+      { min: 100525, max: 191950, rate: 0.24 },
+      { min: 191950, max: 243725, rate: 0.32 },
+      { min: 243725, max: 609350, rate: 0.35 },
+      { min: 609350, max: Infinity, rate: 0.37 }
+    ],
+    'Married Filing Jointly': [
+      { min: 0, max: 23200, rate: 0.10 },
+      { min: 23200, max: 94300, rate: 0.12 },
+      { min: 94300, max: 201050, rate: 0.22 },
+      { min: 201050, max: 383900, rate: 0.24 },
+      { min: 383900, max: 487450, rate: 0.32 },
+      { min: 487450, max: 731200, rate: 0.35 },
+      { min: 731200, max: Infinity, rate: 0.37 }
+    ],
+    'Married Filing Separately': [
+      { min: 0, max: 11600, rate: 0.10 },
+      { min: 11600, max: 47150, rate: 0.12 },
+      { min: 47150, max: 100525, rate: 0.22 },
+      { min: 100525, max: 191950, rate: 0.24 },
+      { min: 191950, max: 243725, rate: 0.32 },
+      { min: 243725, max: 365600, rate: 0.35 },
+      { min: 365600, max: Infinity, rate: 0.37 }
+    ],
+    'Head of Household': [
+      { min: 0, max: 16550, rate: 0.10 },
+      { min: 16550, max: 63100, rate: 0.12 },
+      { min: 63100, max: 100500, rate: 0.22 },
+      { min: 100500, max: 191950, rate: 0.24 },
+      { min: 191950, max: 243700, rate: 0.32 },
+      { min: 243700, max: 609350, rate: 0.35 },
+      { min: 609350, max: Infinity, rate: 0.37 }
+    ]
+  }
+  
+  const status = filingStatus || 'Single'
+  const bracketList = brackets[status] || brackets['Single']
+  
+  let tax = 0
+  let remainingIncome = taxableIncome
+  
+  for (const bracket of bracketList) {
+    if (remainingIncome <= 0) break
+    
+    const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min)
+    tax += taxableInBracket * bracket.rate
+    remainingIncome -= taxableInBracket
+    
+    if (bracket.max === Infinity) break
+  }
+  
+  return tax
+}
+
+// Calculate long-term capital gains tax (2024 rates)
+function calculateCapitalGainsTax(capitalGains: number, filingStatus: string): number {
+  if (capitalGains <= 0) return 0
+  
+  // 2024 long-term capital gains brackets
+  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
+    'Single': [
+      { min: 0, max: 47025, rate: 0.00 }, // 0% for income up to $47,025
+      { min: 47025, max: 518900, rate: 0.15 }, // 15% for income $47,025 - $518,900
+      { min: 518900, max: Infinity, rate: 0.20 } // 20% for income above $518,900
+    ],
+    'Married Filing Jointly': [
+      { min: 0, max: 94350, rate: 0.00 }, // 0% for income up to $94,350
+      { min: 94350, max: 583750, rate: 0.15 }, // 15% for income $94,350 - $583,750
+      { min: 583750, max: Infinity, rate: 0.20 } // 20% for income above $583,750
+    ],
+    'Married Filing Separately': [
+      { min: 0, max: 47125, rate: 0.00 },
+      { min: 47125, max: 291850, rate: 0.15 },
+      { min: 291850, max: Infinity, rate: 0.20 }
+    ],
+    'Head of Household': [
+      { min: 0, max: 63100, rate: 0.00 },
+      { min: 63100, max: 523050, rate: 0.15 },
+      { min: 523050, max: Infinity, rate: 0.20 }
+    ]
+  }
+  
+  const status = filingStatus || 'Single'
+  const bracketList = brackets[status] || brackets['Single']
+  
+  let tax = 0
+  let remainingGains = capitalGains
+  
+  for (const bracket of bracketList) {
+    if (remainingGains <= 0) break
+    
+    const taxableInBracket = Math.min(remainingGains, bracket.max - bracket.min)
+    tax += taxableInBracket * bracket.rate
+    remainingGains -= taxableInBracket
+    
+    if (bracket.max === Infinity) break
+  }
+  
+  return tax
+}
+
+// Estimate marginal tax rate for additional income (simplified)
+function estimateMarginalTaxRate(currentTaxableIncome: number, filingStatus: string): number {
+  const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+  const adjustedIncome = Math.max(0, currentTaxableIncome - standardDeduction)
+  
+  // Use progressive brackets to find marginal rate
+  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
+    'Single': [
+      { min: 0, max: 11600, rate: 0.10 },
+      { min: 11600, max: 47150, rate: 0.12 },
+      { min: 47150, max: 100525, rate: 0.22 },
+      { min: 100525, max: 191950, rate: 0.24 },
+      { min: 191950, max: 243725, rate: 0.32 },
+      { min: 243725, max: 609350, rate: 0.35 },
+      { min: 609350, max: Infinity, rate: 0.37 }
+    ],
+    'Married Filing Jointly': [
+      { min: 0, max: 23200, rate: 0.10 },
+      { min: 23200, max: 94300, rate: 0.12 },
+      { min: 94300, max: 201050, rate: 0.22 },
+      { min: 201050, max: 383900, rate: 0.24 },
+      { min: 383900, max: 487450, rate: 0.32 },
+      { min: 487450, max: 731200, rate: 0.35 },
+      { min: 731200, max: Infinity, rate: 0.37 }
+    ],
+    'Married Filing Separately': [
+      { min: 0, max: 11600, rate: 0.10 },
+      { min: 11600, max: 47150, rate: 0.12 },
+      { min: 47150, max: 100525, rate: 0.22 },
+      { min: 100525, max: 191950, rate: 0.24 },
+      { min: 191950, max: 243725, rate: 0.32 },
+      { min: 243725, max: 365600, rate: 0.35 },
+      { min: 365600, max: Infinity, rate: 0.37 }
+    ],
+    'Head of Household': [
+      { min: 0, max: 16550, rate: 0.10 },
+      { min: 16550, max: 63100, rate: 0.12 },
+      { min: 63100, max: 100500, rate: 0.22 },
+      { min: 100500, max: 191950, rate: 0.24 },
+      { min: 191950, max: 243700, rate: 0.32 },
+      { min: 243700, max: 609350, rate: 0.35 },
+      { min: 609350, max: Infinity, rate: 0.37 }
+    ]
+  }
+  
+  const status = filingStatus || 'Single'
+  const bracketList = brackets[status] || brackets['Single']
+  
+  for (const bracket of bracketList) {
+    if (adjustedIncome >= bracket.min && adjustedIncome < bracket.max) {
+      return bracket.rate
+    }
+  }
+  
+  return 0.22 // Default to 22% if not found
+}
+
+// Estimate capital gains tax rate for additional gains
+function estimateCapitalGainsTaxRate(currentTaxableIncome: number, filingStatus: string): number {
+  const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+  const adjustedIncome = Math.max(0, currentTaxableIncome - standardDeduction)
+  
+  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
+    'Single': [
+      { min: 0, max: 47025, rate: 0.00 },
+      { min: 47025, max: 518900, rate: 0.15 },
+      { min: 518900, max: Infinity, rate: 0.20 }
+    ],
+    'Married Filing Jointly': [
+      { min: 0, max: 94350, rate: 0.00 },
+      { min: 94350, max: 583750, rate: 0.15 },
+      { min: 583750, max: Infinity, rate: 0.20 }
+    ],
+    'Married Filing Separately': [
+      { min: 0, max: 47125, rate: 0.00 },
+      { min: 47125, max: 291850, rate: 0.15 },
+      { min: 291850, max: Infinity, rate: 0.20 }
+    ],
+    'Head of Household': [
+      { min: 0, max: 63100, rate: 0.00 },
+      { min: 63100, max: 523050, rate: 0.15 },
+      { min: 523050, max: Infinity, rate: 0.20 }
+    ]
+  }
+  
+  const status = filingStatus || 'Single'
+  const bracketList = brackets[status] || brackets['Single']
+  
+  for (const bracket of bracketList) {
+    if (adjustedIncome >= bracket.min && adjustedIncome < bracket.max) {
+      return bracket.rate
+    }
+  }
+  
+  return 0.15 // Default to 15% if not found
+}
+
 export function calculateRetirementProjections(
   birthYear: number,
   accounts: Account[],
@@ -335,6 +549,13 @@ export function calculateRetirementProjections(
   let age = currentAge
   let initialRetirementPortfolioValue: number | null = null // Track initial portfolio value for 4% rule
   
+  // Track cost basis for taxable account to avoid double taxation
+  // Initialize with current taxable balance as principal (already taxed)
+  let taxableAccountBasis: TaxableAccountBasis = {
+    principal: accountBalances['Taxable'],
+    total: accountBalances['Taxable']
+  }
+  
   // Calculate base monthly expenses
   const baseMonthlyExpenses = expenses.reduce((sum, exp) => {
     const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
@@ -343,6 +564,15 @@ export function calculateRetirementProjections(
   
   // Calculate annual expenses for current year (before retirement)
   const baseAnnualExpenses = baseMonthlyExpenses * 12
+  
+  // Calculate expenses at retirement start year (inflated from current expenses)
+  // This ensures expenses at retirement start are properly adjusted for inflation
+  const yearsToRetirement = settings.years_to_retirement || (retirementStartYear - currentYear)
+  const retirementStartExpenses = baseAnnualExpenses * Math.pow(1 + settings.inflation_rate, Math.max(0, yearsToRetirement))
+  
+  // Use the calculated retirement start expenses (from current expenses inflated to retirement)
+  // This ensures continuity: pre-retirement expenses inflate to retirement start, then continue inflating
+  const annualRetirementExpensesAtStart = retirementStartExpenses
   
   while (age <= projectionEndAge) {
     const isRetired = age >= retirementAge
@@ -354,8 +584,10 @@ export function calculateRetirementProjections(
     let livingExpenses = 0
     
     if (isRetired) {
-      // Use retirement expenses adjusted for inflation
-      livingExpenses = settings.annual_retirement_expenses * Math.pow(1 + settings.inflation_rate, yearsSinceRetirement)
+      // Use retirement expenses adjusted for inflation from retirement start year
+      // annualRetirementExpensesAtStart is already inflated to retirement start, so we only need to
+      // inflate from retirement start year forward
+      livingExpenses = annualRetirementExpensesAtStart * Math.pow(1 + settings.inflation_rate, Math.max(0, yearsSinceRetirement))
     } else {
       // Use pre-retirement expenses adjusted for inflation
       livingExpenses = baseAnnualExpenses * inflationMultiplier
@@ -1053,55 +1285,227 @@ export function calculateRetirementProjections(
     // Removed per user request - only account for withdrawals, not passive income
     
     // Calculate total income (include all distributions)
-    const totalIncome = totalSsaIncome + distribution401k + distributionRoth + distributionTaxable + 
+    let totalIncome = totalSsaIncome + distribution401k + distributionRoth + distributionTaxable + 
                        distributionHsa + distributionIra + distributionOther + otherRecurringIncome
     
     // Calculate taxable income (401k, IRA, Taxable distributions, and other recurring income)
     const taxableIncome = distribution401k + distributionIra + distributionTaxable + otherRecurringIncome
     
-    // Calculate taxes
-    // Capital gains tax on taxable account distributions
-    const capitalGainsTax = distributionTaxable * settings.capital_gains_tax_rate
-    // Income tax on 401k/IRA distributions and other recurring income
-    const incomeTax = (distribution401k + distributionIra + otherRecurringIncome) * settings.income_tax_rate_retirement
-    let tax = capitalGainsTax + incomeTax
+    // Calculate taxes using progressive brackets and standard deductions
+    // Determine filing status: Married Filing Jointly if spouse SSA is included, otherwise Single
+    const filingStatus = includeSpouseSsa ? 'Married Filing Jointly' : (settings.filing_status || 'Single')
+    
+    // Calculate taxable income after standard deduction
+    // 2024 standard deductions: Single = $14,600, Married Filing Jointly = $29,200
+    const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+    
+    // Taxable income = distributions from traditional accounts + other recurring income - standard deduction
+    // Note: SSA income may be partially taxable, but for simplicity we'll exclude it from taxable income
+    // Capital gains from taxable accounts are taxed separately at capital gains rates
+    const ordinaryIncome = distribution401k + distributionIra + otherRecurringIncome
+    const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
+    
+    // Calculate income tax using progressive brackets (2024 rates)
+    const incomeTax = calculateProgressiveTax(taxableIncomeAfterDeduction, filingStatus)
+    
+    // Capital gains tax on taxable account distributions (long-term capital gains rates)
+    // 2024 long-term capital gains brackets (for taxable accounts)
+    const capitalGainsTax = calculateCapitalGainsTax(distributionTaxable, filingStatus)
+    
+    let tax = incomeTax + capitalGainsTax
     
     // If after-tax income doesn't cover expenses, withdraw more (prefer Roth since it's tax-free)
+    // This is critical: we must always cover expenses + taxes, but withdraw exactly enough
     if (isRetired) {
-      const afterTaxIncome = totalIncome - tax
-      const shortfall = livingExpenses - afterTaxIncome
+      let iterations = 0
+      const maxIterations = 10 // Allow more iterations for precision
       
-      if (shortfall > 0) {
-        // Need to withdraw more to cover the tax shortfall
+      while (iterations < maxIterations) {
+        // Recalculate taxes with current distributions
+        const currentOrdinaryIncome = distribution401k + distributionIra + otherRecurringIncome
+        const currentTaxableIncomeAfterDeduction = Math.max(0, currentOrdinaryIncome - standardDeduction)
+        const currentIncomeTax = calculateProgressiveTax(currentTaxableIncomeAfterDeduction, filingStatus)
+        const currentCapitalGainsTax = calculateCapitalGainsTax(distributionTaxable, filingStatus)
+        const currentTax = currentIncomeTax + currentCapitalGainsTax
+        
+        // Recalculate total income
+        const currentTotalIncome = totalSsaIncome + distribution401k + distributionRoth + distributionTaxable + 
+                                  distributionHsa + distributionIra + distributionOther + otherRecurringIncome
+        
+        const afterTaxIncome = currentTotalIncome - currentTax
+        const shortfall = livingExpenses - afterTaxIncome
+        
+        // If we're within $1 of covering expenses, we're done (allow small rounding)
+        if (shortfall <= 1) {
+          tax = currentTax
+          totalIncome = currentTotalIncome
+          break
+        }
+        
+        // If shortfall is negative (we have excess), we're done
+        if (shortfall < 0) {
+          tax = currentTax
+          totalIncome = currentTotalIncome
+          break
+        }
+        
+        // Need to withdraw more to cover the shortfall
         let additionalNeed = shortfall
-        // Withdraw additional from Roth (tax-free) first
+        
+        // Withdraw additional from Roth (tax-free) first - best option
         if (additionalNeed > 0 && accountBalances['Roth IRA'] > 0) {
           const additionalRoth = Math.min(additionalNeed, accountBalances['Roth IRA'])
           distributionRoth += additionalRoth
           accountBalances['Roth IRA'] -= additionalRoth
+          totalIncome += additionalRoth
+          // No tax on Roth, so additionalNeed is fully covered
           additionalNeed -= additionalRoth
         }
-        // If still needed, withdraw from taxable (will incur more tax, but we'll recalculate)
+        
+        // If still needed, withdraw from taxable (will incur capital gains tax)
         if (additionalNeed > 0 && accountBalances['Taxable'] > 0) {
-          const additionalTaxable = Math.min(additionalNeed, accountBalances['Taxable'])
-          distributionTaxable += additionalTaxable
-          accountBalances['Taxable'] -= additionalTaxable
-          // Recalculate tax on additional taxable withdrawal
-          const additionalCapitalGainsTax = additionalTaxable * settings.capital_gains_tax_rate
-          tax += additionalCapitalGainsTax
+          // Estimate capital gains tax rate based on current income
+          const currentTaxableIncome = distribution401k + distributionIra + otherRecurringIncome
+          const estimatedCapGainsRate = estimateCapitalGainsTaxRate(currentTaxableIncome, filingStatus)
+          
+          // Need to withdraw enough to cover the shortfall plus the tax on the withdrawal
+          // Net needed = gross * (1 - taxRate), so gross = net / (1 - taxRate)
+          const grossNeeded = additionalNeed / (1 - estimatedCapGainsRate)
+          const additionalTaxable = Math.min(grossNeeded, accountBalances['Taxable'])
+          
+          if (additionalTaxable > 0) {
+            distributionTaxable += additionalTaxable
+            accountBalances['Taxable'] -= additionalTaxable
+            totalIncome += additionalTaxable
+            // Tax will be recalculated in next iteration
+          }
+        }
+        
+        // If still needed, withdraw from traditional accounts (will incur income tax)
+        if (additionalNeed > 0) {
+          const currentTaxableIncome = distribution401k + distributionIra + otherRecurringIncome
+          const estimatedMarginalRate = estimateMarginalTaxRate(currentTaxableIncome, filingStatus)
+          
+          // Need to withdraw enough to cover the shortfall plus the tax on the withdrawal
+          const grossNeeded = additionalNeed / (1 - estimatedMarginalRate)
+          
+          if (accountBalances['401k'] > 0) {
+            const additional401k = Math.min(grossNeeded, accountBalances['401k'])
+            if (additional401k > 0) {
+              distribution401k += additional401k
+              accountBalances['401k'] -= additional401k
+              totalIncome += additional401k
+              // Tax will be recalculated in next iteration
+            }
+          }
+          
+          if (additionalNeed > 0 && accountBalances['IRA'] > 0) {
+            // Recalculate gross needed based on remaining need
+            const remainingTaxableIncome = distribution401k + distributionIra + otherRecurringIncome
+            const remainingMarginalRate = estimateMarginalTaxRate(remainingTaxableIncome, filingStatus)
+            const remainingGrossNeeded = additionalNeed / (1 - remainingMarginalRate)
+            
+            const additionalIRA = Math.min(remainingGrossNeeded, accountBalances['IRA'])
+            if (additionalIRA > 0) {
+              distributionIra += additionalIRA
+              accountBalances['IRA'] -= additionalIRA
+              totalIncome += additionalIRA
+              // Tax will be recalculated in next iteration
+            }
+          }
+        }
+        
+        // If still needed and we have HSA, use it (tax-free for qualified expenses)
+        if (additionalNeed > 0 && accountBalances['HSA'] > 0) {
+          const additionalHsa = Math.min(additionalNeed, accountBalances['HSA'])
+          if (additionalHsa > 0) {
+            distributionHsa += additionalHsa
+            accountBalances['HSA'] -= additionalHsa
+            totalIncome += additionalHsa
+            // No tax on HSA, so additionalNeed is fully covered
+            additionalNeed -= additionalHsa
+          }
+        }
+        
+        // If still needed, use Other accounts
+        if (additionalNeed > 0 && accountBalances['Other'] > 0) {
+          const additionalOther = Math.min(additionalNeed, accountBalances['Other'])
+          if (additionalOther > 0) {
+            distributionOther += additionalOther
+            accountBalances['Other'] -= additionalOther
+            totalIncome += additionalOther
+            // No tax on Other, so additionalNeed is fully covered
+            additionalNeed -= additionalOther
+          }
+        }
+        
+        // If we still have a shortfall and no more assets, break
+        const currentTotalNetworth = accountBalances['401k'] + accountBalances['IRA'] + accountBalances['Roth IRA'] + 
+                                    accountBalances['Taxable'] + accountBalances['HSA'] + accountBalances['Other']
+        if (additionalNeed > 0 && currentTotalNetworth <= 0) {
+          break
+        }
+        
+        iterations++
+      }
+      
+      // Final tax recalculation after all withdrawals
+      const finalOrdinaryIncome = distribution401k + distributionIra + otherRecurringIncome
+      const finalTaxableIncomeAfterDeduction = Math.max(0, finalOrdinaryIncome - standardDeduction)
+      const finalIncomeTax = calculateProgressiveTax(finalTaxableIncomeAfterDeduction, filingStatus)
+      
+      // Calculate capital gains tax on gains only (not principal)
+      let finalTaxableCapitalGains = 0
+      if (distributionTaxable > 0) {
+        const taxableBalance = accountBalances['Taxable'] + distributionTaxable // Balance before withdrawal
+        if (taxableBalance > 0) {
+          const withdrawalRatio = distributionTaxable / taxableBalance
+          const principalWithdrawn = taxableAccountBasis.principal * withdrawalRatio
+          const gainsWithdrawn = distributionTaxable - principalWithdrawn
+          finalTaxableCapitalGains = Math.max(0, gainsWithdrawn)
+        } else {
+          finalTaxableCapitalGains = distributionTaxable
         }
       }
+      const finalCapitalGainsTax = calculateCapitalGainsTax(finalTaxableCapitalGains, filingStatus)
+      tax = finalIncomeTax + finalCapitalGainsTax
+      
+      // Recalculate total income
+      totalIncome = totalSsaIncome + distribution401k + distributionRoth + distributionTaxable + 
+                   distributionHsa + distributionIra + distributionOther + otherRecurringIncome
     }
     
-    // Recalculate total income after additional withdrawals
-    const finalTotalIncome = totalSsaIncome + distribution401k + distributionRoth + distributionTaxable + 
-                            distributionHsa + distributionIra + distributionOther + otherRecurringIncome
+    // Calculate final taxable income for reporting (before deduction)
     const finalTaxableIncome = distribution401k + distributionIra + distributionTaxable + otherRecurringIncome
-    const finalCapitalGainsTax = distributionTaxable * settings.capital_gains_tax_rate
-    const finalIncomeTax = (distribution401k + distributionIra + otherRecurringIncome) * settings.income_tax_rate_retirement
-    const finalTax = finalCapitalGainsTax + finalIncomeTax
     
-    const afterTaxIncome = finalTotalIncome - finalTax
+    // Total income and tax are already calculated in the withdrawal loop above
+    // If not retired, calculate taxes normally
+    if (!isRetired) {
+      const finalOrdinaryIncome = distribution401k + distributionIra + otherRecurringIncome
+      const finalTaxableIncomeAfterDeduction = Math.max(0, finalOrdinaryIncome - standardDeduction)
+      const finalIncomeTax = calculateProgressiveTax(finalTaxableIncomeAfterDeduction, filingStatus)
+      
+      // Calculate capital gains tax on gains only (not principal)
+      let finalTaxableCapitalGains = 0
+      if (distributionTaxable > 0) {
+        const taxableBalance = accountBalances['Taxable'] + distributionTaxable // Balance before withdrawal
+        if (taxableBalance > 0) {
+          const withdrawalRatio = distributionTaxable / taxableBalance
+          const principalWithdrawn = taxableAccountBasis.principal * withdrawalRatio
+          const gainsWithdrawn = distributionTaxable - principalWithdrawn
+          finalTaxableCapitalGains = Math.max(0, gainsWithdrawn)
+        } else {
+          finalTaxableCapitalGains = distributionTaxable
+        }
+      }
+      const finalCapitalGainsTax = calculateCapitalGainsTax(finalTaxableCapitalGains, filingStatus)
+      tax = finalIncomeTax + finalCapitalGainsTax
+      
+      totalIncome = totalSsaIncome + distribution401k + distributionRoth + distributionTaxable + 
+                   distributionHsa + distributionIra + distributionOther + otherRecurringIncome
+    }
+    
+    const afterTaxIncome = totalIncome - tax
     
     // Calculate initial gap/excess (before debt payments)
     // Before retirement: expenses are 0, so gap/excess = income (all income is excess)
@@ -1171,6 +1575,15 @@ export function calculateRetirementProjections(
       }
     })
     
+    // Update taxable account basis after growth
+    // Only the gains portion should be subject to capital gains tax
+    if (accountBalances['Taxable'] > 0) {
+      // When account grows, the principal (cost basis) stays the same, but total increases
+      // This means gains = total - principal
+      taxableAccountBasis.total = accountBalances['Taxable']
+      // Principal remains the same (cost basis doesn't change with market growth)
+    }
+    
     // Add contributions if before retirement
     if (!isRetired) {
       accounts.forEach(acc => {
@@ -1182,6 +1595,13 @@ export function calculateRetirementProjections(
                     type === 'Taxable' ? 'Taxable' : 'Other'
         const contribution = acc.annual_contribution || 0
         accountBalances[key] = (accountBalances[key] || 0) + contribution
+        
+        // Track contributions to taxable account as principal (cost basis)
+        // Contributions are made with after-tax money, so they have cost basis = value
+        if (key === 'Taxable' && contribution > 0) {
+          taxableAccountBasis.principal += contribution
+          taxableAccountBasis.total += contribution
+        }
       })
     }
     
@@ -1235,7 +1655,7 @@ export function calculateRetirementProjections(
       distribution_other: distributionOther,
       investment_income: investmentIncome,
       other_recurring_income: otherRecurringIncome,
-      total_income: finalTotalIncome,
+      total_income: totalIncome,
       after_tax_income: afterTaxIncome,
       living_expenses: livingExpenses,
       special_expenses: 0, // Can be added later for one-time expenses
@@ -1254,7 +1674,7 @@ export function calculateRetirementProjections(
       balance_hsa: accountBalances['HSA'],
       balance_ira: accountBalances['IRA'],
       taxable_income: finalTaxableIncome,
-      tax: finalTax,
+      tax: tax,
     })
     
     year++
