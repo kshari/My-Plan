@@ -2177,9 +2177,9 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         width={70}
                       />
                       <RechartsTooltip 
-                        formatter={(value: number | undefined, name: string) => [
+                        formatter={(value: number | undefined, name: string | undefined) => [
                           `$${(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
-                          name
+                          name || ''
                         ]}
                         labelFormatter={(label) => `Age ${label}`}
                       />
@@ -2203,9 +2203,9 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         width={70}
                       />
                       <RechartsTooltip 
-                        formatter={(value: number | undefined, name: string) => [
+                        formatter={(value: number | undefined, name: string | undefined) => [
                           `$${(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
-                          name
+                          name || ''
                         ]}
                         labelFormatter={(label) => `Age ${label}`}
                       />
@@ -2230,9 +2230,9 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         width={70}
                       />
                       <RechartsTooltip 
-                        formatter={(value: number | undefined, name: string) => [
+                        formatter={(value: number | undefined, name: string | undefined) => [
                           `$${(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
-                          name
+                          name || ''
                         ]}
                         labelFormatter={(label) => `Age ${label}`}
                       />
