@@ -293,6 +293,32 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
       )
     }
 
+    const renderLegendContent = (props: any) => {
+      const { payload } = props
+      if (!payload) return null
+      
+      // Sort payload by growth rate ascending (3% to 15%)
+      const sortedPayload = [...payload].sort((a: any, b: any) => {
+        const rateA = parseInt(a.dataKey?.toString().replace(tooltipSortRegex, '') || '0')
+        const rateB = parseInt(b.dataKey?.toString().replace(tooltipSortRegex, '') || '0')
+        return rateA - rateB
+      })
+      
+      return (
+        <ul className="flex flex-wrap justify-center gap-4 mt-4">
+          {sortedPayload.map((entry: any, index: number) => (
+            <li key={`item-${index}`} className="flex items-center gap-2 text-sm">
+              <span 
+                className="inline-block w-3 h-3 rounded" 
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-gray-700">{entry.value || entry.name}</span>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+
     if (graphType === 'line') {
       return (
         <LineChart {...chartProps}>
@@ -309,12 +335,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
           />
           <RechartsTooltip content={renderTooltipContent} />
           <Legend 
-            wrapperStyle={{ paddingTop: 20 }}
-            payload={growthRates.map((rate, index) => ({
-              value: `${rate}%`,
-              type: 'line',
-              color: GROWTH_RATE_COLORS[index],
-            }))}
+            content={renderLegendContent}
           />
           {renderLines()}
         </LineChart>
@@ -335,12 +356,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
           />
           <RechartsTooltip content={renderTooltipContent} />
           <Legend 
-            wrapperStyle={{ paddingTop: 20 }}
-            payload={growthRates.map((rate, index) => ({
-              value: `${rate}%`,
-              type: 'line',
-              color: GROWTH_RATE_COLORS[index],
-            }))}
+            content={renderLegendContent}
           />
           {renderLines()}
         </AreaChart>
@@ -361,12 +377,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
           />
           <RechartsTooltip content={renderTooltipContent} />
           <Legend 
-            wrapperStyle={{ paddingTop: 20 }}
-            payload={growthRates.map((rate, index) => ({
-              value: `${rate}%`,
-              type: 'square',
-              color: GROWTH_RATE_COLORS[index],
-            }))}
+            content={renderLegendContent}
           />
           {renderLines()}
         </BarChart>
