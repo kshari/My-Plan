@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from './scenario-context'
+import { Plus, Trash2, Check, X, LineChart } from 'lucide-react'
 
 interface Scenario {
   id: number
@@ -19,15 +20,17 @@ interface ScenarioMetrics {
   riskLevel?: string
   startingNetworth?: number
   endingNetworth?: number
-  rmdRisk?: string
+  growthRateBefore?: number
+  growthRateDuring?: number
 }
 
 interface ScenariosTableProps {
   planId: number
   onAddScenario?: () => void
+  onModelScenarios?: () => void
 }
 
-export default function ScenariosTable({ planId, onAddScenario }: ScenariosTableProps) {
+export default function ScenariosTable({ planId, onAddScenario, onModelScenarios }: ScenariosTableProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [scenarios, setScenarios] = useState<Scenario[]>([])
@@ -75,10 +78,10 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
     
     for (const scenario of scenarios) {
       try {
-        // Load settings for retirement age
+        // Load settings for retirement age and growth rates
         const { data: settingsData } = await supabase
           .from('rp_calculator_settings')
-          .select('retirement_age, retirement_start_year')
+          .select('retirement_age, retirement_start_year, growth_rate_before_retirement, growth_rate_during_retirement')
           .eq('scenario_id', scenario.id)
           .maybeSingle()
 
@@ -94,7 +97,6 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
         let riskLevel: string | undefined
         let startingNetworth: number | undefined
         let endingNetworth: number | undefined
-        let rmdRisk: string | undefined
         
         if (projectionsData && projectionsData.length > 0) {
           // Calculate score based on projections
@@ -132,22 +134,6 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
             startingNetworth = initialNetworth
           }
           endingNetworth = finalNetworth
-          
-          // Calculate RMD risk
-          const rmdYears = projectionsData.filter((p: any) => p.age && p.age >= 73)
-          if (rmdYears.length > 0) {
-            const maxRmd = Math.max(...rmdYears.map((p: any) => p.distribution_401k || 0))
-            const avgIncome = projectionsData.reduce((sum: number, p: any) => sum + (p.total_income || 0), 0) / projectionsData.length
-            if (maxRmd > avgIncome * 0.5) {
-              rmdRisk = 'High'
-            } else if (maxRmd > avgIncome * 0.3) {
-              rmdRisk = 'Medium'
-            } else {
-              rmdRisk = 'Low'
-            }
-          } else {
-            rmdRisk = 'N/A'
-          }
         }
 
         metricsMap.set(scenario.id, {
@@ -158,7 +144,8 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
           riskLevel,
           startingNetworth,
           endingNetworth,
-          rmdRisk,
+          growthRateBefore: settingsData?.growth_rate_before_retirement,
+          growthRateDuring: settingsData?.growth_rate_during_retirement,
         })
       } catch (error) {
         console.error(`Error loading metrics for scenario ${scenario.id}:`, error)
@@ -251,19 +238,30 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
       <div className="mb-4 flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-900">Scenarios</h3>
         <div className="flex gap-2">
+          {onModelScenarios && (
+            <button
+              onClick={onModelScenarios}
+              className="flex items-center gap-2 rounded-md bg-purple-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-200"
+            >
+              <LineChart className="w-4 h-4" />
+              Scenario Modeling
+            </button>
+          )}
           {onAddScenario && (
             <button
               onClick={onAddScenario}
-              className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              className="flex items-center gap-2 rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200"
             >
+              <Plus className="w-4 h-4" />
               Add Scenario
             </button>
           )}
           {scenarios.length > 0 && (
             <button
               onClick={handleDeleteAllScenarios}
-              className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              className="flex items-center gap-2 rounded-md bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200"
             >
+              <Trash2 className="w-4 h-4" />
               Delete All Scenarios
             </button>
           )}
@@ -273,14 +271,14 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
         <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scenario</th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Retirement Age</th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Starting Networth</th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ending Networth</th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Score</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">RMD Risk</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+            <th className="px-2 md:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scenario</th>
+            <th className="px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Retirement Age</th>
+            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Growth Rates</th>
+            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Starting Networth</th>
+            <th className="px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ending Networth</th>
+            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Score</th>
+            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
+            <th className="px-2 md:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 bg-white">
@@ -296,7 +294,7 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
                 }`}
                 onClick={() => setSelectedScenarioId(scenario.id)}
               >
-                <td className="px-4 py-3">
+                <td className="px-2 md:px-3 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-900">
                       {scenario.scenario_name}
@@ -308,24 +306,33 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-right text-sm text-gray-900">
+                <td className="px-2 md:px-3 py-3 text-right text-sm text-gray-900">
                   {scenarioMetrics?.retirementAge || '-'}
                 </td>
-                <td className="px-4 py-3 text-right text-sm text-gray-900">
+                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-center text-sm text-gray-900">
+                  {scenarioMetrics?.growthRateBefore !== undefined && scenarioMetrics?.growthRateDuring !== undefined ? (
+                    <span>
+                      {(scenarioMetrics.growthRateBefore * 100).toFixed(2)}% / {(scenarioMetrics.growthRateDuring * 100).toFixed(2)}%
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
+                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-sm text-gray-900">
                   {scenarioMetrics?.startingNetworth !== undefined ? (
                     `$${scenarioMetrics.startingNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
                   ) : (
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right text-sm text-gray-900">
+                <td className="px-2 md:px-3 py-3 text-right text-sm text-gray-900">
                   {scenarioMetrics?.endingNetworth !== undefined ? (
                     `$${scenarioMetrics.endingNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
                   ) : (
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right text-sm">
+                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-sm">
                   {scenarioMetrics?.overallScore !== undefined ? (
                     <span className={`font-semibold ${
                       scenarioMetrics.overallScore >= 75 ? 'text-green-600' :
@@ -338,7 +345,7 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-center">
                   {scenarioMetrics?.riskLevel ? (
                     <span className={`text-xs px-2 py-1 rounded ${
                       scenarioMetrics.riskLevel === 'Low' ? 'bg-green-100 text-green-800' :
@@ -351,33 +358,22 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-center">
-                  {scenarioMetrics?.rmdRisk ? (
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      scenarioMetrics.rmdRisk === 'Low' || scenarioMetrics.rmdRisk === 'N/A' ? 'bg-green-100 text-green-800' :
-                      scenarioMetrics.rmdRisk === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {scenarioMetrics.rmdRisk}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-2 md:px-3 py-3 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         setSelectedScenarioId(scenario.id)
                       }}
-                      className={`text-sm px-3 py-1 rounded ${
+                      className={`flex items-center gap-1.5 text-sm px-2 md:px-3 py-1 rounded ${
                         isSelected
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-blue-100 text-blue-700'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
+                      title={isSelected ? 'Selected' : 'Select'}
                     >
-                      {isSelected ? 'Selected' : 'Select'}
+                      {isSelected && <Check className="w-3.5 h-3.5" />}
+                      <span className="hidden md:inline">{isSelected ? 'Selected' : 'Select'}</span>
                     </button>
                     <button
                       onClick={(e) => {
@@ -385,9 +381,11 @@ export default function ScenariosTable({ planId, onAddScenario }: ScenariosTable
                         handleDeleteScenario(scenario.id)
                       }}
                       disabled={deleting === scenario.id}
-                      className="text-sm px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                      className="flex items-center gap-1.5 text-sm px-2 md:px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                      title={deleting === scenario.id ? 'Deleting...' : 'Delete'}
                     >
-                      {deleting === scenario.id ? 'Deleting...' : 'Delete'}
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">{deleting === scenario.id ? 'Deleting...' : 'Delete'}</span>
                     </button>
                   </div>
                 </td>

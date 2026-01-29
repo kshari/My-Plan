@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import ScenariosTable from '../scenarios-table'
 import DefaultsPopup from '../defaults-popup'
-import { Copy } from 'lucide-react'
+import { Copy, Plus, Trash2, Save, Check, X } from 'lucide-react'
+import { calculateAndSaveProjectionsForScenario } from '@/lib/utils/calculate-projections'
 
 interface PlanDetailsTabProps {
   planId: number
@@ -94,8 +95,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
     retirement_age: 65,
     growth_rate_before_retirement: 10, // Percentage
     growth_rate_during_retirement: 5, // Percentage
-    capital_gains_tax_rate: 20, // Percentage
-    income_tax_rate_retirement: 25, // Percentage
     inflation_rate: 4, // Percentage
     enable_borrowing: false, // Enable borrowing to cover negative cashflow
     ssa_start_age: 62, // Age to start SSA income
@@ -227,8 +226,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           ssa_start_age: data.ssa_start_age || 62,
           growth_rate_before_retirement: parseFloat(data.growth_rate_before_retirement?.toString() || '0.1') * 100,
           growth_rate_during_retirement: parseFloat(data.growth_rate_during_retirement?.toString() || '0.05') * 100,
-          capital_gains_tax_rate: parseFloat(data.capital_gains_tax_rate?.toString() || '0.2') * 100,
-          income_tax_rate_retirement: parseFloat(data.income_tax_rate_retirement?.toString() || '0.25') * 100,
           inflation_rate: parseFloat(data.inflation_rate?.toString() || '0.04') * 100,
           enable_borrowing: data.enable_borrowing ?? false,
           planner_ssa_income: data.planner_ssa_income ?? true,
@@ -270,8 +267,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         retirement_age: 65,
         growth_rate_before_retirement: getDefault('Growth rate (return) before retirement', 10),
         growth_rate_during_retirement: getDefault('Growth rate (return) during retirement', 5),
-        capital_gains_tax_rate: getDefault('Capital gains & dividends blended tax rate', 20),
-        income_tax_rate_retirement: getDefault('Tax rate during retirement', 25),
         inflation_rate: getDefault('Inflation', 4),
         enable_borrowing: false,
         ssa_start_age: 62,
@@ -285,8 +280,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         retirement_age: 65,
         growth_rate_before_retirement: 10,
         growth_rate_during_retirement: 5,
-        capital_gains_tax_rate: 20,
-        income_tax_rate_retirement: 25,
         inflation_rate: 4,
         enable_borrowing: false,
         ssa_start_age: 62,
@@ -390,7 +383,34 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       
       await loadAccounts()
       await loadExpenses()
-      setMessage({ type: 'success', text: 'Plan basis saved successfully!' })
+      
+      // Recalculate projections for all scenarios
+      const { data: allScenarios } = await supabase
+        .from('rp_scenarios')
+        .select('id')
+        .eq('plan_id', planId)
+      
+      if (allScenarios && allScenarios.length > 0) {
+        const { data: planData } = await supabase
+          .from('rp_retirement_plans')
+          .select('life_expectancy')
+          .eq('id', planId)
+          .single()
+        
+        const lifeExpectancy = planData?.life_expectancy || 100
+        
+        // Recalculate projections for each scenario
+        for (const scenario of allScenarios) {
+          try {
+            await calculateAndSaveProjectionsForScenario(planId, scenario.id, lifeExpectancy)
+          } catch (error) {
+            console.error(`Error recalculating projections for scenario ${scenario.id}:`, error)
+            // Continue with other scenarios even if one fails
+          }
+        }
+      }
+      
+      setMessage({ type: 'success', text: 'Plan basis saved successfully! Projections updated for all scenarios.' })
       setTimeout(() => setMessage(null), 3000)
     } catch (error: any) {
       setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
@@ -518,13 +538,24 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         growth_rate_before_retirement: scenarioVars.growth_rate_before_retirement / 100,
         growth_rate_during_retirement: scenarioVars.growth_rate_during_retirement / 100,
         loan_rate: 0.1, // Keep for backward compatibility but not shown
-        capital_gains_tax_rate: scenarioVars.capital_gains_tax_rate / 100,
-        income_tax_rate_retirement: scenarioVars.income_tax_rate_retirement / 100,
         inflation_rate: scenarioVars.inflation_rate / 100,
         enable_borrowing: scenarioVars.enable_borrowing || false,
         ssa_start_age: scenarioVars.ssa_start_age || 62,
         planner_ssa_income: scenarioVars.planner_ssa_income !== undefined ? scenarioVars.planner_ssa_income : true,
         spouse_ssa_income: scenarioVars.spouse_ssa_income !== undefined ? scenarioVars.spouse_ssa_income : true,
+      }
+
+      // If spouse_ssa_income is true, ensure include_spouse is also true
+      if (settingsToSave.spouse_ssa_income) {
+        const { error: planUpdateError } = await supabase
+          .from('rp_retirement_plans')
+          .update({ include_spouse: true })
+          .eq('id', planId)
+        
+        if (planUpdateError) {
+          console.error('Error updating include_spouse:', planUpdateError)
+          // Don't throw - continue with settings save
+        }
       }
 
       const { error } = await supabase
@@ -538,9 +569,25 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       // Load scenario variables for the selected scenario
       await loadScenarioVars()
       
+      // Recalculate projections for this scenario
+      const { data: planData } = await supabase
+        .from('rp_retirement_plans')
+        .select('life_expectancy')
+        .eq('id', planId)
+        .single()
+      
+      const lifeExpectancy = planData?.life_expectancy || 100
+      
+      try {
+        await calculateAndSaveProjectionsForScenario(planId, targetScenarioId, lifeExpectancy)
+      } catch (calcError) {
+        console.error('Error recalculating projections:', calcError)
+        // Don't fail the save if calculation fails, but log it
+      }
+      
       setShowSaveDialog(false)
       setNewScenarioName('')
-      setMessage({ type: 'success', text: 'Scenario variables saved successfully!' })
+      setMessage({ type: 'success', text: 'Scenario variables saved successfully! Projections updated.' })
       setTimeout(() => setMessage(null), 3000)
     } catch (error: any) {
       setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
@@ -667,8 +714,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           <button
             onClick={handleSavePlanBasis}
             disabled={saving}
-            className="w-full sm:w-auto rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 active:bg-blue-800"
+            className="w-full sm:w-auto flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 active:bg-gray-800"
           >
+            <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Plan Basis'}
           </button>
         </div>
@@ -676,15 +724,16 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         {/* Plan Basis Collapsible Section */}
         <div>
           <div 
-            className="mb-3 flex items-center justify-between cursor-pointer"
+            className="mb-3 cursor-pointer"
             onClick={() => setPlanBasisExpanded(!planBasisExpanded)}
           >
-            <div className="flex items-center gap-2">
-              <h4 className="font-medium text-gray-900">Retirement Profile</h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-bold text-gray-900">Retirement Profile</h4>
+              <span className="text-gray-400">{planBasisExpanded ? '▼' : '▶'}</span>
             </div>
-            <div className="flex items-center gap-4">
+            {!planBasisExpanded && (
               <div className="text-sm text-gray-600">
-                {planBasisSummary}
+                <span className="font-bold">{planBasisSummary}</span>
                 {(estimatedPlannerSSA > 0 || estimatedSpouseSSA > 0) && (
                   <span className="ml-2">
                     | SSA: {estimatedPlannerSSA > 0 ? `$${estimatedPlannerSSA.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}
@@ -693,8 +742,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   </span>
                 )}
               </div>
-              <span className="text-gray-400">{planBasisExpanded ? '▼' : '▶'}</span>
-            </div>
+            )}
           </div>
 
           {planBasisExpanded && (
@@ -807,33 +855,36 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         {/* Accounts Section - Collapsible */}
         <div className="mb-6">
           <div 
-            className="mb-3 flex items-center justify-between cursor-pointer"
+            className="mb-3 cursor-pointer"
             onClick={() => setAccountsExpanded(!accountsExpanded)}
           >
-            <div className="flex items-center gap-2">
-              <h4 className="font-medium text-gray-900">Retirement Accounts</h4>
-              <span className="text-sm text-gray-500">({accounts.length} accounts)</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <h4 className="font-bold text-gray-900">Retirement Accounts</h4>
+                <span className="text-sm text-gray-500">({accounts.length} accounts)</span>
+              </div>
+              <span className="text-gray-400">{accountsExpanded ? '▼' : '▶'}</span>
             </div>
-            <div className="flex items-center gap-4">
+            {!accountsExpanded && (
               <div className="text-sm font-semibold text-gray-900">
                 Total Assets: ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleAddAccountRow()
-                }}
-                className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700"
-              >
-                + Add Row
-              </button>
-              <span className="text-gray-400">{accountsExpanded ? '▼' : '▶'}</span>
-            </div>
+            )}
           </div>
 
           {accountsExpanded && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 border">
+            <div>
+              <div className="mb-3 flex items-center justify-end">
+                <button
+                  onClick={handleAddAccountRow}
+                  className="flex items-center gap-1.5 rounded-md bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Row
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 border">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Account Name</th>
@@ -924,8 +975,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                       <td className="px-3 py-2 text-right">
                         <button
                           onClick={() => handleDeleteAccount(index)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="flex items-center gap-1.5 text-gray-600 hover:text-gray-800 text-sm"
                         >
+                          <Trash2 className="w-4 h-4" />
                           Delete
                         </button>
                       </td>
@@ -933,6 +985,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -940,48 +993,35 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         {/* Expenses Section - Collapsible */}
         <div>
           <div 
-            className="mb-3 flex items-center justify-between cursor-pointer"
+            className="mb-3 cursor-pointer"
             onClick={() => setExpensesExpanded(!expensesExpanded)}
           >
-            <div className="flex items-center gap-2">
-              <h4 className="font-medium text-gray-900">Monthly Expenses</h4>
-              <span className="text-sm text-gray-500">({expenses.length} expenses)</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                <div className="flex gap-4">
-                  <div>
-                    <span className="font-semibold text-gray-900">Essential:</span>
-                    <span className="ml-1">${essentialMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</span>
-                    <span className="ml-1">(${essentialAnnual.toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr)</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-900">Discretionary:</span>
-                    <span className="ml-1">${discretionaryMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</span>
-                    <span className="ml-1">(${discretionaryAnnual.toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr)</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-blue-600">Total:</span>
-                    <span className="ml-1">${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</span>
-                    <span className="ml-1">(${totalAnnualExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr)</span>
-                  </div>
-                </div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <h4 className="font-bold text-gray-900">Monthly Expenses</h4>
+                <span className="text-sm text-gray-500">({expenses.length} expenses)</span>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleAddExpenseRow()
-                }}
-                className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700"
-              >
-                + Add Row
-              </button>
               <span className="text-gray-400">{expensesExpanded ? '▼' : '▶'}</span>
             </div>
+            {!expensesExpanded && (
+              <div className="text-sm font-semibold text-gray-900">
+                Essential: ${essentialMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo | Discretionary: ${discretionaryMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo | Total: ${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+              </div>
+            )}
           </div>
 
           {expensesExpanded && (
-            <div className="overflow-x-auto">
+            <div>
+              <div className="mb-3 flex items-center justify-end">
+                <button
+                  onClick={handleAddExpenseRow}
+                  className="flex items-center gap-1.5 rounded-md bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Row
+                </button>
+              </div>
+              <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 border">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1050,8 +1090,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                       <td className="px-3 py-2 text-right">
                         <button
                           onClick={() => handleDeleteExpense(index)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="flex items-center gap-1.5 text-gray-600 hover:text-gray-800 text-sm"
                         >
+                          <Trash2 className="w-4 h-4" />
                           Delete
                         </button>
                       </td>
@@ -1059,13 +1100,21 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       {/* Scenarios Table */}
-      <ScenariosTable planId={planId} onAddScenario={handleAddScenario} />
+      <ScenariosTable 
+        planId={planId} 
+        onAddScenario={handleAddScenario}
+        onModelScenarios={() => {
+          // Navigate to Scenario Modeling tab using custom event
+          window.dispatchEvent(new CustomEvent('switchTab', { detail: 'scenario-modeling' }))
+        }}
+      />
 
       {showSaveDialog && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -1089,8 +1138,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
             <button
               onClick={() => handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())}
               disabled={saving || (!newScenarioName.trim() && !suggestScenarioName())}
-              className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
+              <Save className="w-4 h-4" />
               Save
             </button>
             <button
@@ -1113,8 +1163,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
             <button
               onClick={() => setShowSaveDialog(true)}
               disabled={saving}
-              className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
+              <Save className="w-4 h-4" />
               Save as New Scenario
             </button>
           </div>
@@ -1133,9 +1184,19 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
             <h4 className="font-medium text-gray-900">{scenarioName}</h4>
             <button
               onClick={() => setScenarioVarsExpanded(!scenarioVarsExpanded)}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
             >
-              {scenarioVarsExpanded ? 'Done' : 'Edit / Add'}
+              {scenarioVarsExpanded ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Done
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  Edit / Add
+                </>
+              )}
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
@@ -1190,14 +1251,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               <span className="ml-2 font-semibold text-gray-900">{scenarioVars.growth_rate_during_retirement}%</span>
             </div>
             <div>
-              <span className="text-gray-600">Capital Gains Tax Rate:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.capital_gains_tax_rate}%</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Income Tax Rate During Retirement:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.income_tax_rate_retirement}%</span>
-            </div>
-            <div>
               <span className="text-gray-600">Inflation Rate:</span>
               <span className="ml-2 font-semibold text-gray-900">{scenarioVars.inflation_rate}%</span>
             </div>
@@ -1221,24 +1274,27 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               </button>
               <button
                 onClick={handleResetToDefaults}
-                className="rounded-md bg-yellow-600 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-700"
+                className="flex items-center gap-2 rounded-md bg-yellow-100 px-4 py-2 text-sm font-medium text-yellow-700 hover:bg-yellow-200"
               >
+                <X className="w-4 h-4" />
                 Reset to Defaults
               </button>
               {selectedScenarioId && (
                 <button
                   onClick={() => handleSaveScenarioVars()}
                   disabled={saving}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
                 >
+                  <Save className="w-4 h-4" />
                   {saving ? 'Saving...' : 'Save to Current Scenario'}
                 </button>
               )}
               <button
                 onClick={() => setShowSaveDialog(true)}
                 disabled={saving}
-                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
               >
+                <Save className="w-4 h-4" />
                 Save as New Scenario
               </button>
             </div>
@@ -1293,28 +1349,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   step="0.1"
                   value={scenarioVars.growth_rate_during_retirement}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, growth_rate_during_retirement: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Capital Gains & Dividends Tax Rate (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={scenarioVars.capital_gains_tax_rate}
-                  onChange={(e) => setScenarioVars({ ...scenarioVars, capital_gains_tax_rate: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Income Tax Rate During Retirement (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={scenarioVars.income_tax_rate_retirement}
-                  onChange={(e) => setScenarioVars({ ...scenarioVars, income_tax_rate_retirement: parseFloat(e.target.value) || 0 })}
                   className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
                 />
               </div>

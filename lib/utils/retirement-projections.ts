@@ -56,8 +56,6 @@ export interface CalculatorSettings {
   annual_retirement_expenses: number
   growth_rate_before_retirement: number // decimal (e.g., 0.1 for 10%)
   growth_rate_during_retirement: number // decimal
-  capital_gains_tax_rate: number // decimal
-  income_tax_rate_retirement: number // decimal
   inflation_rate: number // decimal
   filing_status?: 'Single' | 'Married Filing Jointly' | 'Married Filing Separately' | 'Head of Household'
   debt_interest_rate?: number // decimal, default 0.06 (6%)
@@ -294,7 +292,7 @@ function determineWithdrawalOrder(
 }
 
 // Calculate progressive income tax based on 2024 federal tax brackets
-function calculateProgressiveTax(taxableIncome: number, filingStatus: string): number {
+export function calculateProgressiveTax(taxableIncome: number, filingStatus: string): number {
   if (taxableIncome <= 0) return 0
   
   // 2024 federal income tax brackets (after standard deduction)
@@ -356,8 +354,22 @@ function calculateProgressiveTax(taxableIncome: number, filingStatus: string): n
   return tax
 }
 
+/**
+ * Determines the filing status for tax calculations
+ * Primary logic: If includeSpouseSsa is true, use 'Married Filing Jointly', otherwise use settings.filing_status or default to 'Single'
+ */
+export function determineFilingStatus(
+  includeSpouseSsa: boolean | undefined,
+  settingsFilingStatus?: 'Single' | 'Married Filing Jointly' | 'Married Filing Separately' | 'Head of Household'
+): 'Single' | 'Married Filing Jointly' | 'Married Filing Separately' | 'Head of Household' {
+  if (includeSpouseSsa) {
+    return 'Married Filing Jointly'
+  }
+  return settingsFilingStatus || 'Single'
+}
+
 // Calculate long-term capital gains tax (2024 rates)
-function calculateCapitalGainsTax(capitalGains: number, filingStatus: string): number {
+export function calculateCapitalGainsTax(capitalGains: number, filingStatus: string): number {
   if (capitalGains <= 0) return 0
   
   // 2024 long-term capital gains brackets
@@ -500,6 +512,44 @@ function estimateCapitalGainsTaxRate(currentTaxableIncome: number, filingStatus:
   return 0.15 // Default to 15% if not found
 }
 
+/**
+ * Builds CalculatorSettings from database settings data
+ * Ensures consistent settings structure across snapshot and details tabs
+ */
+export function buildCalculatorSettings(
+  settingsData: any,
+  planData: any,
+  currentYear: number,
+  retirementAge: number,
+  yearsToRetirement: number,
+  annualExpenses: number
+): CalculatorSettings {
+  return {
+    current_year: settingsData?.current_year || currentYear,
+    retirement_age: retirementAge,
+    retirement_start_year: settingsData?.retirement_start_year || (currentYear + yearsToRetirement),
+    years_to_retirement: yearsToRetirement,
+    annual_retirement_expenses: settingsData?.annual_retirement_expenses || annualExpenses,
+    growth_rate_before_retirement: parseFloat(settingsData?.growth_rate_before_retirement?.toString() || '0.1'),
+    growth_rate_during_retirement: parseFloat(settingsData?.growth_rate_during_retirement?.toString() || '0.05'),
+    inflation_rate: parseFloat(settingsData?.inflation_rate?.toString() || '0.04'),
+    enable_borrowing: settingsData?.enable_borrowing || false,
+    ssa_start_age: settingsData?.ssa_start_age || 62,
+    // Filing status will be determined in calculateRetirementProjections based on includeSpouseSsa
+    // This is just a fallback value - the actual calculation uses: includeSpouseSsa ? 'Married Filing Jointly' : (settings.filing_status || 'Single')
+    // Set filing_status based on include_spouse to match snapshot logic
+    filing_status: (planData?.include_spouse ? 'Married Filing Jointly' : (planData?.filing_status as any)) || 'Single',
+    withdrawal_strategy_type: (settingsData?.withdrawal_strategy_type as any) || 'goal_based',
+    withdrawal_priority: settingsData?.withdrawal_priority || 'default',
+    withdrawal_secondary_priority: settingsData?.withdrawal_secondary_priority || 'tax_optimization',
+    fixed_percentage_rate: settingsData?.fixed_percentage_rate ? parseFloat(settingsData.fixed_percentage_rate.toString()) : undefined,
+    fixed_dollar_amount: settingsData?.fixed_dollar_amount ? parseFloat(settingsData.fixed_dollar_amount.toString()) : undefined,
+    guardrails_ceiling: settingsData?.guardrails_ceiling ? parseFloat(settingsData.guardrails_ceiling.toString()) : undefined,
+    guardrails_floor: settingsData?.guardrails_floor ? parseFloat(settingsData.guardrails_floor.toString()) : undefined,
+    bracket_topping_threshold: settingsData?.bracket_topping_threshold ? parseFloat(settingsData.bracket_topping_threshold.toString()) : undefined,
+  }
+}
+
 export function calculateRetirementProjections(
   birthYear: number,
   accounts: Account[],
@@ -517,6 +567,9 @@ export function calculateRetirementProjections(
   const retirementAge = settings.retirement_age
   const retirementStartYear = settings.retirement_start_year
   const debtInterestRate = settings.debt_interest_rate || 0.06 // Default 6% annual interest
+  
+  // Determine filing status early so it can be used throughout (for tax bracket estimation)
+  const filingStatus = determineFilingStatus(includeSpouseSsa, settings.filing_status)
   
   // Initialize account balances by type
   const accountBalances: AccountBalances = {
@@ -654,9 +707,10 @@ export function calculateRetirementProjections(
     // Taxes will be calculated on withdrawals, so we need to account for that
     const initialExpensesToCover = livingExpenses - totalSsaIncome - otherRecurringIncome
     
-    // Estimate taxes on initial withdrawal (simplified: assume all withdrawals are taxable at income tax rate)
-    // This is an approximation - actual taxes depend on withdrawal types
-    const estimatedTaxRate = settings.income_tax_rate_retirement
+    // Estimate taxes on initial withdrawal using IRS tax brackets
+    // Estimate based on expected income level (SSA + other income + initial withdrawal estimate)
+    const estimatedTotalIncome = totalSsaIncome + otherRecurringIncome + Math.max(0, initialExpensesToCover)
+    const estimatedTaxRate = estimateMarginalTaxRate(estimatedTotalIncome, filingStatus)
     const estimatedTaxOnWithdrawals = initialExpensesToCover > 0 ? initialExpensesToCover * estimatedTaxRate : 0
     
     // Total amount needed: expenses + estimated taxes
@@ -1292,8 +1346,7 @@ export function calculateRetirementProjections(
     const taxableIncome = distribution401k + distributionIra + distributionTaxable + otherRecurringIncome
     
     // Calculate taxes using progressive brackets and standard deductions
-    // Determine filing status: Married Filing Jointly if spouse SSA is included, otherwise Single
-    const filingStatus = includeSpouseSsa ? 'Married Filing Jointly' : (settings.filing_status || 'Single')
+    // Filing status was determined at function start
     
     // Calculate taxable income after standard deduction
     // 2024 standard deductions: Single = $14,600, Married Filing Jointly = $29,200
@@ -1565,7 +1618,10 @@ export function calculateRetirementProjections(
     // This applies both before and after retirement
     if (gapExcess > 0 && debtBalance <= 0) {
       // Add surplus to taxable account (simulating reinvestment)
+      // Excess after-tax income is treated as principal (cost basis) since it's already been taxed
       accountBalances['Taxable'] += gapExcess
+      taxableAccountBasis.principal += gapExcess
+      taxableAccountBasis.total += gapExcess
     }
     
     // Apply growth to account balances

@@ -1146,7 +1146,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     onChange={(e) => {
                       const newMin = parseFloat(e.target.value)
                       if (newMin <= maxIntRate) {
-                        setMinInterestRate(newMin.toFixed(1))
+                        setMinInterestRate(newMin.toFixed(2))
                       }
                     }}
                     className="w-full"
@@ -1160,7 +1160,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     onChange={(e) => {
                       const newMax = parseFloat(e.target.value)
                       if (newMax >= minIntRate) {
-                        setMaxInterestRate(newMax.toFixed(1))
+                        setMaxInterestRate(newMax.toFixed(2))
                       }
                     }}
                     className="w-full"
@@ -1323,7 +1323,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   step={0.5}
                   value={parseValue(closingCostPercent, 3)}
                   onChange={(e) => {
-                    setClosingCostPercent(parseFloat(e.target.value).toFixed(1))
+                    setClosingCostPercent(parseFloat(e.target.value).toFixed(2))
                   }}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
@@ -1343,7 +1343,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   <strong>Baseline Values:</strong> Purchase Price = ${askingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
                   Gross Income = ${baseGrossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
                   Operating Expenses = ${baseOperatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                  Interest Rate = {((minIntRate + maxIntRate) / 2).toFixed(1)}%, 
+                  Interest Rate = {((minIntRate + maxIntRate) / 2).toFixed(2)}%, 
                   Down Payment = {((minDownPaymentVal + maxDownPaymentVal) / 2).toFixed(0)}%, 
                   Loan Term = {(() => {
                     const terms: number[] = []
@@ -1443,9 +1443,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                         </div>
                         <div className={`text-sm mb-2 ${result.thresholdChange !== null && result.thresholdChange < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                           {result.variable === 'Interest Rate' || result.variable === 'Down Payment' ? (
-                            <>{result.thresholdChange.toFixed(1)}%</>
+                            <>{result.thresholdChange.toFixed(2)}%</>
                           ) : (
-                            <>{result.thresholdChange >= 0 ? '+' : ''}{result.thresholdChange.toFixed(1)}%</>
+                            <>{result.thresholdChange >= 0 ? '+' : ''}{result.thresholdChange.toFixed(2)}%</>
                           )}
                         </div>
                         {result.thresholdValue !== null && (
@@ -1455,7 +1455,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                             </div>
                             <div className={`text-sm ${result.thresholdValue < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                               {result.variable === 'Interest Rate' || result.variable === 'Down Payment' ? (
-                                <>{result.thresholdValue.toFixed(1)}%</>
+                                <>{result.thresholdValue.toFixed(2)}%</>
                               ) : (
                                 <>${result.thresholdValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>
                               )}
@@ -1760,15 +1760,15 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 <tr key={scenario.id} className="hover:bg-blue-50 transition-colors">
                   <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 border-r border-gray-200">
                     <div className="font-semibold">${scenario.purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${purchasePriceChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{purchasePriceChange >= 0 ? '+' : ''}{purchasePriceChange.toFixed(1)}%</div>
+                    <div className={`text-xs mt-0.5 ${purchasePriceChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{purchasePriceChange >= 0 ? '+' : ''}{purchasePriceChange.toFixed(2)}%</div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 border-r border-gray-200">
                     <div className="font-semibold">${scenario.grossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${incomeChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(1)}%</div>
+                    <div className={`text-xs mt-0.5 ${incomeChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(2)}%</div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 border-r border-gray-200">
                     <div className="font-semibold">${scenario.operatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${expensesChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(1)}%</div>
+                    <div className={`text-xs mt-0.5 ${expensesChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(2)}%</div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-gray-900 border-r border-gray-200">
                     {scenario.capRate.toFixed(2)}%

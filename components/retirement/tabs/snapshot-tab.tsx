@@ -4,15 +4,19 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import { 
-  calculateRetirementProjections, 
+  calculateRetirementProjections,
+  buildCalculatorSettings,
+  calculateProgressiveTax,
+  calculateCapitalGainsTax,
+  determineFilingStatus,
   type Account, 
   type Expense, 
   type OtherIncome,
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
-import { ChevronRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info } from 'lucide-react'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/property/ui/tooltip'
+import { ChevronRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info, Calculator, Edit2, Save, X, Plus, Trash2, Check } from 'lucide-react'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/property/ui/tooltip'
 
 interface SnapshotTabProps {
   planId: number
@@ -40,6 +44,19 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
   const [showQuickStart, setShowQuickStart] = useState(true)
   const [hasExistingData, setHasExistingData] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
+  const [planDataForTooltip, setPlanDataForTooltip] = useState<any>(null)
+  const [accountsForTooltip, setAccountsForTooltip] = useState<Account[]>([])
+  const [expensesForTooltip, setExpensesForTooltip] = useState<Expense[]>([])
+  const [otherIncomeForTooltip, setOtherIncomeForTooltip] = useState<OtherIncome[]>([])
+  const [settingsForTooltip, setSettingsForTooltip] = useState<CalculatorSettings | null>(null)
+  const [projectionsForTooltip, setProjectionsForTooltip] = useState<ProjectionDetail[]>([])
+  const [editingAssumptions, setEditingAssumptions] = useState(false)
+  const [editedAssumptions, setEditedAssumptions] = useState<{
+    growth_rate_before_retirement: number
+    growth_rate_during_retirement: number
+    inflation_rate: number
+    ssa_start_age: number
+  } | null>(null)
   
   // Quick Start inputs
   const [inputs, setInputs] = useState<QuickStartInputs>({
@@ -118,6 +135,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     lifeExpectancy: number
     legacyValue: number
     fundsRunOutAge: number | null
+    incomeCoverageAtFundsRunOut?: {
+      year: number
+      age: number
+      totalIncome: number
+      ssaIncome: number
+      otherIncome: number
+      expenses: number
+      coveragePercentage: number
+    }
     calculationDetails?: {
       monthlyIncomeCalculation: string
       confidenceScoreCalculation: string
@@ -193,11 +219,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     
     setCalculating(true)
     try {
-      const [planData, accountsData, expensesData, settingsData] = await Promise.all([
+      const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
         supabase.from('rp_retirement_plans').select('*').eq('id', planId).single(),
         supabase.from('rp_accounts').select('*').eq('plan_id', planId),
         supabase.from('rp_expenses').select('*').eq('plan_id', planId),
-        supabase.from('rp_calculator_settings').select('*').eq('scenario_id', selectedScenarioId).single(),
+        supabase.from('rp_other_income').select('*').eq('plan_id', planId),
+        supabase.from('rp_calculator_settings')
+          .select('*')
+          .eq('scenario_id', selectedScenarioId)
+          .single(),
       ])
 
       if (!planData.data || !settingsData.data) {
@@ -221,6 +251,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         amount_after_65: exp.amount_after_65 || 0,
       }))
 
+      const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({
+        id: inc.id,
+        income_name: inc.income_source || '',
+        amount: inc.annual_amount || 0,
+        start_year: inc.start_year || undefined,
+        end_year: inc.end_year || undefined,
+        inflation_adjusted: inc.inflation_adjusted || false,
+      }))
+
       const currentYear = new Date().getFullYear()
       const birthYear = planData.data.birth_year || (currentYear - 50)
       const retirementAge = settingsData.data.retirement_age || 65
@@ -233,20 +272,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       }, 0)
       const annualExpenses = monthlyExpenses * 12
 
-      // Calculate simple projection
-      const settings: CalculatorSettings = {
-        current_year: currentYear,
-        retirement_age: retirementAge,
-        retirement_start_year: settingsData.data.retirement_start_year || (currentYear + yearsToRetirement),
-        years_to_retirement: yearsToRetirement,
-        annual_retirement_expenses: annualExpenses,
-        growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || '0.1'),
-        growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || '0.05'),
-        capital_gains_tax_rate: parseFloat(settingsData.data?.capital_gains_tax_rate?.toString() || '0.2'),
-        income_tax_rate_retirement: parseFloat(settingsData.data?.income_tax_rate_retirement?.toString() || '0.25'),
-        inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || '0.04'),
-        filing_status: (planData.data.filing_status as any) || 'Single',
-      }
+      // Calculate simple projection - use common helper function to ensure consistency
+      const settings = buildCalculatorSettings(
+        settingsData.data,
+        planData.data,
+        currentYear,
+        retirementAge,
+        yearsToRetirement,
+        annualExpenses
+      )
 
       // Use provided SSA settings if available, otherwise use database values
       const includePlannerSsa = useSSASettings?.includeSsa ?? ((settingsData.data.planner_ssa_income as boolean) ?? true)
@@ -256,11 +290,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         birthYear,
         accounts,
         expenses,
-        [],
+        otherIncome,
         settings,
         planData.data.life_expectancy || 90,
-        undefined, // Spouse birth year
-        undefined, // Spouse life expectancy
+        planData.data.spouse_birth_year || undefined,
+        planData.data.spouse_life_expectancy || undefined,
         includePlannerSsa,
         includeSpouseSsa
       )
@@ -269,6 +303,14 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planData.data.life_expectancy || 90)
       setResults(snapshotResults)
       setProjections(projections) // Store projections for simplified view
+      
+      // Store data for tooltip
+      setPlanDataForTooltip(planData.data)
+      setAccountsForTooltip(accounts)
+      setExpensesForTooltip(expenses)
+      setOtherIncomeForTooltip(otherIncome)
+      setSettingsForTooltip(settings)
+      setProjectionsForTooltip(projections)
       
       // Update quick start inputs from existing data (only if not using custom SSA settings)
       if (!useSSASettings) {
@@ -342,6 +384,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         lifeExpectancy,
         legacyValue: 0,
         fundsRunOutAge: null,
+        incomeCoverageAtFundsRunOut: undefined,
         calculationDetails: {
           monthlyIncomeCalculation: 'No projections available. Please complete your plan details.',
           confidenceScoreCalculation: 'No projections available. Please complete your plan details.',
@@ -359,49 +402,110 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       ? earlyRetirementYears.reduce((sum, p) => sum + (p.after_tax_income || 0), 0) / earlyRetirementYears.length / 12
       : 0
 
-    // Find when money runs out - only count actual depletion (negative networth)
+    // Find when money runs out - first year with negative networth
     // Don't use gap_excess as it can have small negative values due to rounding
-    let yearsMoneyLasts = retirementProjections.length
-    let consecutiveNegativeNetworth = 0
+    const retirementAge = settings.retirement_age
+    let yearsMoneyLasts = 0
+    let fundsRunOutAge: number | null = null
     
     for (let i = 0; i < retirementProjections.length; i++) {
       const proj = retirementProjections[i]
       const networth = proj.networth || 0
+      const age = proj.age || (retirementAge + i)
       
-      // Only check if networth is actually negative (not just small)
-      if (networth < -100) { // Allow small negative due to rounding
-        consecutiveNegativeNetworth++
-        if (consecutiveNegativeNetworth >= 2) { // 2 consecutive years of negative networth
-          yearsMoneyLasts = i // Don't add 1, as i is already the year index
-          break
+      // If networth is negative, funds have run out
+      if (networth <= 0) {
+        // Money ran out - calculate years from retirement start
+        fundsRunOutAge = age
+        yearsMoneyLasts = i + 1 // Add 1 because i is 0-indexed, and we want years from retirement start
+        break
+      }
+    }
+    
+    // Calculate income coverage at funds run out
+    let incomeCoverageAtFundsRunOut: {
+      year: number
+      age: number
+      totalIncome: number
+      ssaIncome: number
+      otherIncome: number
+      expenses: number
+      coveragePercentage: number
+    } | undefined = undefined
+
+    if (fundsRunOutAge !== null) {
+      // Find the projection when funds run out
+      const projectionAtRunOut = retirementProjections.find(p => p.age === fundsRunOutAge)
+      if (projectionAtRunOut) {
+        const totalIncome = (projectionAtRunOut.ssa_income || 0) + (projectionAtRunOut.other_recurring_income || 0)
+        const ssaIncome = projectionAtRunOut.ssa_income || 0
+        const otherIncome = projectionAtRunOut.other_recurring_income || 0
+        const expenses = projectionAtRunOut.total_expenses || projectionAtRunOut.living_expenses || 0
+        const coveragePercentage = expenses > 0 ? (totalIncome / expenses) * 100 : 0
+
+        incomeCoverageAtFundsRunOut = {
+          year: projectionAtRunOut.year,
+          age: projectionAtRunOut.age || fundsRunOutAge,
+          totalIncome,
+          ssaIncome,
+          otherIncome,
+          expenses,
+          coveragePercentage,
         }
-      } else {
-        consecutiveNegativeNetworth = 0 // Reset counter if networth is positive
       }
-    }
-    
-    // If we never found a failure point, money lasts for the full retirement period
-    if (yearsMoneyLasts === retirementProjections.length && retirementProjections.length > 0) {
-      // Check the last projection to see if it's still positive
-      const lastProj = retirementProjections[retirementProjections.length - 1]
-      if ((lastProj.networth || 0) < -100) {
-        yearsMoneyLasts = retirementProjections.length
-      } else {
-        // Money lasts beyond projections - show the full projection period
-        yearsMoneyLasts = retirementProjections.length
-      }
-    }
-    
-    // Ensure minimum of 1 year if we have any projections
-    if (retirementProjections.length > 0 && yearsMoneyLasts === 0) {
-      yearsMoneyLasts = 1
     }
 
-    // Calculate when funds run out (age)
-    const retirementAge = settings.retirement_age
-    const fundsRunOutAge = yearsMoneyLasts < retirementProjections.length 
-      ? retirementAge + yearsMoneyLasts - 1 
-      : null
+    // Check if income (SSA + other) covers at least 60% of expenses throughout retirement
+    const lowIncomeCoverageYears = retirementProjections.filter(p => {
+      const totalIncome = (p.ssa_income || 0) + (p.other_recurring_income || 0)
+      const expenses = p.total_expenses || p.living_expenses || 0
+      const coveragePercentage = expenses > 0 ? (totalIncome / expenses) * 100 : 0
+      return coveragePercentage < 60
+    })
+
+    // If we never found a failure point, money lasts until life expectancy or beyond
+    if (fundsRunOutAge === null) {
+      // Count actual retirement projection years with positive networth
+      // This gives us the actual number of years money lasts from retirement start
+      let lastPositiveYearIndex = -1
+      for (let i = retirementProjections.length - 1; i >= 0; i--) {
+        const proj = retirementProjections[i]
+        if ((proj.networth || 0) >= -100) {
+          lastPositiveYearIndex = i
+          break
+        }
+      }
+      
+      if (lastPositiveYearIndex >= 0) {
+        const lastPositiveProj = retirementProjections[lastPositiveYearIndex]
+        const lastPositiveAge = lastPositiveProj.age || (retirementAge + lastPositiveYearIndex)
+        
+        // Check if we have projections up to life expectancy
+        const projectionAtLifeExpectancy = retirementProjections.find(p => p.age === lifeExpectancy)
+        if (projectionAtLifeExpectancy && lastPositiveAge >= lifeExpectancy) {
+          // Money lasts at least until life expectancy
+          fundsRunOutAge = null // null means it lasts beyond/until life expectancy
+          // Count years from retirement start (age) to life expectancy
+          // If retirement starts at age 54 and life expectancy is 90, that's 36 years (90 - 54)
+          // But we need to count the actual projection years, so use the index
+          const lifeExpectancyIndex = retirementProjections.findIndex(p => p.age === lifeExpectancy)
+          if (lifeExpectancyIndex >= 0) {
+            yearsMoneyLasts = lifeExpectancyIndex + 1 // +1 because index is 0-based
+          } else {
+            // If exact age not found, calculate from ages
+            yearsMoneyLasts = lifeExpectancy - retirementAge
+          }
+        } else {
+          // Money lasts until the last positive projection
+          fundsRunOutAge = null
+          yearsMoneyLasts = lastPositiveYearIndex + 1 // +1 because index is 0-based
+        }
+      } else {
+        // All projections are negative - money doesn't last
+        yearsMoneyLasts = 1
+        fundsRunOutAge = retirementAge
+      }
+    }
 
     // Calculate legacy value
     // If funds last until life expectancy or beyond, show networth at life expectancy
@@ -447,53 +551,170 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     let recommendation = ''
     const avgGap = retirementProjections.reduce((sum, p) => sum + (p.gap_excess || 0), 0) / retirementProjections.length
     if (avgGap > 10000) {
-      recommendation = "You're in great shape! Your plan looks solid. Consider maximizing tax-advantaged accounts if you haven't already."
+      recommendation = "You're in great shape! Your plan looks solid."
     } else if (avgGap > 0) {
       recommendation = "You're on track! Your plan is working well for you."
     } else if (avgGap > -5000) {
-      const monthlyShortfall = Math.abs(avgGap) / 12
-      recommendation = `You're close, but may face a shortfall. Consider increasing monthly contributions by $${Math.round(monthlyShortfall * 0.3)} or working 1-2 years longer.`
+      recommendation = "You're close, but may face a shortfall. See improvements below."
     } else {
-      const monthlyShortfall = Math.abs(avgGap) / 12
-      const yearsNeeded = Math.ceil(Math.abs(avgGap) / (currentSavings * 0.1))
-      recommendation = `Your plan needs adjustment. Consider increasing monthly contributions by $${Math.round(monthlyShortfall * 0.5)} or delaying retirement by ${Math.ceil(yearsNeeded / 2)} years.`
+      recommendation = "Your plan needs adjustment. See improvements below."
     }
 
-    // Identify biggest risks
+    // Identify biggest risks with actual numbers from plan data
     const risks: string[] = []
-    if (yearsMoneyLasts < retirementProjections.length * 0.8) {
-      risks.push('Money may run out before end of life')
+    
+    // Calculate key metrics for risk assessment
+    const firstYearExpenses = retirementProjections[0]?.total_expenses || retirementProjections[0]?.living_expenses || annualExpenses
+    const startingNetworth = retirementProjections[0]?.networth || currentSavings
+    const withdrawalRate = startingNetworth > 0 ? (firstYearExpenses / startingNetworth) * 100 : 0
+    const growthRateDuring = (settings.growth_rate_during_retirement || 0.05) * 100
+    const inflationRate = (settings.inflation_rate || 0.03) * 100
+    
+    // Calculate account balances at retirement
+    const firstYearProj = retirementProjections[0]
+    const balance401k = firstYearProj?.balance_401k || 0
+    const balanceRoth = firstYearProj?.balance_roth || 0
+    const balanceInvestment = firstYearProj?.balance_investment || 0
+    const totalBalance = balance401k + balanceRoth + balanceInvestment
+    const taxDeferredRatio = totalBalance > 0 ? (balance401k / totalBalance) * 100 : 0
+    
+    // Calculate total shortfall amount if applicable
+    const totalShortfall = retirementProjections.reduce((sum, p) => {
+      const gap = p.gap_excess || 0
+      return sum + (gap < 0 ? Math.abs(gap) : 0)
+    }, 0)
+    
+    // Calculate years of retirement
+    const retirementYears = lifeExpectancy - settings.retirement_age
+    
+    // Risk: Money runs out before life expectancy
+    if (fundsRunOutAge !== null && fundsRunOutAge < lifeExpectancy) {
+      const yearsShort = lifeExpectancy - fundsRunOutAge
+      risks.push(`Assets depleted ${yearsShort} years before life expectancy (age ${fundsRunOutAge})`)
+    } else if (yearsMoneyLasts < retirementYears * 0.8) {
+      risks.push(`Plan covers only ${yearsMoneyLasts} of ${retirementYears} retirement years`)
     }
-    if (shortfallRatio > 0.3) {
-      risks.push('Frequent income shortfalls in retirement')
+    
+    // Risk: High withdrawal rate
+    if (withdrawalRate > 5) {
+      risks.push(`High withdrawal rate of ${withdrawalRate.toFixed(1)}% (recommended: 4% or less)`)
+    } else if (withdrawalRate > 4) {
+      risks.push(`Withdrawal rate of ${withdrawalRate.toFixed(1)}% is above the recommended 4%`)
     }
+    
+    // Risk: Heavy reliance on tax-deferred accounts (RMD risk)
+    if (taxDeferredRatio > 70 && balance401k > 500000) {
+      risks.push(`${taxDeferredRatio.toFixed(0)}% of assets in tax-deferred accounts - RMD taxes may be significant`)
+    }
+    
+    // Risk: Frequent income shortfalls
+    if (shortfallRatio > 0.3 && totalShortfall > 0) {
+      const avgShortfallPerYear = totalShortfall / yearsWithShortfall
+      risks.push(`Income shortfall in ${yearsWithShortfall} years (avg $${avgShortfallPerYear.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year)`)
+    } else if (shortfallRatio > 0.15 && totalShortfall > 0) {
+      risks.push(`Moderate income gaps in ${yearsWithShortfall} of ${totalYears} retirement years`)
+    }
+    
+    // Risk: Low income coverage (SSA + other income vs expenses)
+    if (lowIncomeCoverageYears.length > 0) {
+      const avgCoverage = lowIncomeCoverageYears.reduce((sum, p) => {
+        const totalIncome = (p.ssa_income || 0) + (p.other_recurring_income || 0)
+        const expenses = p.total_expenses || p.living_expenses || 0
+        return sum + (expenses > 0 ? (totalIncome / expenses) * 100 : 0)
+      }, 0) / lowIncomeCoverageYears.length
+      if (avgCoverage < 40) {
+        risks.push(`Passive income covers only ${avgCoverage.toFixed(0)}% of expenses - heavy reliance on withdrawals`)
+      } else {
+        risks.push(`SSA + other income cover only ${avgCoverage.toFixed(0)}% of expenses in ${lowIncomeCoverageYears.length} year${lowIncomeCoverageYears.length > 1 ? 's' : ''}`)
+      }
+    }
+    
+    // Risk: Near-term retirement with insufficient savings
     if (yearsToRetirement < 10 && currentSavings < annualExpenses * 10) {
-      risks.push('Insufficient savings for near-term retirement')
+      const savingsYears = currentSavings / annualExpenses
+      risks.push(`Only ${savingsYears.toFixed(1)} years of expenses saved with ${yearsToRetirement} years to retirement`)
     }
+    
+    // Risk: Aggressive growth assumptions
+    if (growthRateDuring > 7) {
+      risks.push(`Aggressive growth assumption of ${growthRateDuring.toFixed(1)}% during retirement`)
+    }
+    
+    // Risk: Low growth vs inflation
+    if (growthRateDuring - inflationRate < 1) {
+      risks.push(`Real return of ${(growthRateDuring - inflationRate).toFixed(1)}% may not outpace inflation`)
+    }
+    
+    // Limit to top 3-4 most relevant risks
     if (risks.length === 0) {
-      risks.push('Market volatility could impact your plan')
+      // Provide context-aware low-risk messages
+      if (legacyValue > 1000000) {
+        risks.push(`Strong position with $${(legacyValue/1000000).toFixed(1)}M legacy value - consider Roth conversions for tax efficiency`)
+      } else {
+        risks.push('Market volatility could temporarily impact portfolio value')
+      }
     }
+    
+    // Keep only top 4 risks
+    const topRisks = risks.slice(0, 4)
 
-    // Suggest improvements
+    // Suggest improvements based on actual plan metrics
     const improvements: string[] = []
     
-    // Always suggest contribution increase when on track or doing well
-    if (avgGap > 0 || confidenceScore >= 80) {
-      improvements.push('Consider increasing your monthly contributions by 10-15% to build more cushion')
-    } else if (avgGap < 0) {
-      improvements.push(`Increase monthly savings by $${Math.round(Math.abs(avgGap) / 12 * 0.3)}`)
+    // Calculate specific improvement metrics
+    const monthlyContributionNeeded = avgGap < 0 ? Math.abs(avgGap) / 12 * 0.3 : 0
+    
+    // Primary improvement based on financial status
+    if (fundsRunOutAge !== null && fundsRunOutAge < lifeExpectancy) {
+      const yearsShort = lifeExpectancy - fundsRunOutAge
+      const additionalNeeded = yearsShort * firstYearExpenses * 0.5 // rough estimate accounting for returns
+      if (yearsToRetirement > 5) {
+        const monthlyExtra = additionalNeeded / (yearsToRetirement * 12)
+        improvements.push(`Increase monthly savings by $${monthlyExtra.toLocaleString(undefined, { maximumFractionDigits: 0 })} to close the ${yearsShort}-year gap`)
+      } else if (yearsToRetirement > 0) {
+        improvements.push(`Consider delaying retirement by ${Math.min(yearsShort, 5)} years to build sufficient savings`)
+      }
+    } else if (avgGap < 0 && monthlyContributionNeeded > 0) {
+      improvements.push(`Increase monthly savings by $${Math.round(monthlyContributionNeeded).toLocaleString(undefined, { maximumFractionDigits: 0 })} to eliminate income gaps`)
+    } else if (confidenceScore >= 80 && yearsToRetirement > 0) {
+      const extraMonthly = Math.round(currentSavings * 0.001) // 0.1% of savings as extra monthly
+      improvements.push(`You're on track! Consider $${extraMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/month extra for additional cushion`)
     }
     
-    // Always suggest tax optimization
-    improvements.push('Consider tax optimization strategies like Roth conversions or tax-efficient withdrawal planning')
+    // Tax optimization based on account distribution
+    if (taxDeferredRatio > 50 && yearsToRetirement > 5) {
+      improvements.push(`Consider Roth conversions - ${taxDeferredRatio.toFixed(0)}% of assets will face RMDs`)
+    } else if (balanceRoth < balance401k * 0.2 && yearsToRetirement > 10) {
+      improvements.push('Build Roth balance for tax-free retirement income flexibility')
+    } else {
+      improvements.push('Review withdrawal order strategy for tax efficiency')
+    }
+    
+    // Withdrawal rate improvement
+    if (withdrawalRate > 4.5) {
+      const expenseReduction = firstYearExpenses - (startingNetworth * 0.04)
+      if (expenseReduction > 0) {
+        improvements.push(`Reduce annual expenses by $${expenseReduction.toLocaleString(undefined, { maximumFractionDigits: 0 })} to reach 4% withdrawal rate`)
+      }
+    }
+    
+    // Growth rate adjustment if too aggressive
+    if (growthRateDuring > 7) {
+      improvements.push('Consider conservative growth assumptions (5-6%) for retirement projections')
+    }
+    
+    // SSA optimization
+    if (settings.ssa_start_age && settings.ssa_start_age < 67) {
+      improvements.push(`Delaying Social Security to age 67+ increases benefits by ~8% per year`)
+    }
     
     // Additional suggestions based on situation
     if (yearsToRetirement > 5 && currentSavings < annualExpenses * 15) {
       improvements.push('Maximize employer 401(k) match if available')
     }
-    if (confidenceScore < 80) {
-      improvements.push('Consider working 1-2 years longer to build more savings')
-    }
+    
+    // Keep only top 4 improvements
+    const topImprovements = improvements.slice(0, 4)
 
     // Build calculation details for tooltips
     const totalIncomeFirst10Years = earlyRetirementYears.reduce((sum, p) => sum + (p.after_tax_income || 0), 0)
@@ -501,31 +722,37 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     
     // Calculate expense details for tooltip
     const firstRetirementYear = retirementProjections[0]
-    const firstYearExpenses = firstRetirementYear?.total_expenses || 0
     const firstYearLivingExpenses = firstRetirementYear?.living_expenses || 0
     const currentYearExpenses = annualExpenses
-    const inflationRate = settings.inflation_rate || 0.04
-    const expensesAtRetirementStart = currentYearExpenses * Math.pow(1 + inflationRate, yearsToRetirement)
+    const inflationRateDecimal = settings.inflation_rate || 0.04
+    const expensesAtRetirementStart = currentYearExpenses * Math.pow(1 + inflationRateDecimal, yearsToRetirement)
     const legacyValueCalculation = (() => {
       if (fundsRunOutAge === null || fundsRunOutAge >= lifeExpectancy) {
         const projectionAtLifeExpectancy = retirementProjections.find(p => p.age === lifeExpectancy)
         const networthAtLifeExpectancy = projectionAtLifeExpectancy?.networth || 0
-        return `Legacy Value = Networth at Life Expectancy\n\nLife Expectancy: Age ${lifeExpectancy}\nNetworth at Age ${lifeExpectancy}: $${networthAtLifeExpectancy.toLocaleString()}\n\nThis is the estimated value of your remaining assets at your life expectancy.`
+        return `Legacy Value = Networth at Life Expectancy\n\nLife Expectancy: Age ${lifeExpectancy}\nNetworth at Age ${lifeExpectancy}: $${networthAtLifeExpectancy.toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nThis is the estimated value of your remaining assets at your life expectancy.`
       } else {
         return `Legacy Value = $0 (Funds exhausted before life expectancy)\n\nFunds run out at age: ${fundsRunOutAge}\nLife Expectancy: Age ${lifeExpectancy}\n\nSince funds are exhausted before life expectancy, there is no legacy value.`
       }
     })()
     
     const calculationDetails = {
-      monthlyIncomeCalculation: `Average monthly income = (Sum of after-tax income for first 10 retirement years) / 10 years / 12 months\n\nTotal income (10 years): $${totalIncomeFirst10Years.toLocaleString()}\nAverage annual income: $${avgAnnualIncome.toLocaleString()}\nAverage monthly income: $${Math.round(avgMonthlyIncome).toLocaleString()}\n\nThis represents your average monthly after-tax income during the first 10 years of retirement.`,
-      confidenceScoreCalculation: `Confidence Score = (1 - Shortfall Ratio) × 100\n\nTotal retirement years: ${totalYears}\nYears with shortfall (gap < -$1,000): ${yearsWithShortfall}\nShortfall ratio: ${(shortfallRatio * 100).toFixed(1)}%\n\nConfidence Score: ${confidenceScore}%\n\nThis score indicates the likelihood your plan will succeed based on how often you face income shortfalls.`,
+      monthlyIncomeCalculation: `Average monthly income = (Sum of after-tax income for first 10 retirement years) / 10 years / 12 months\n\nTotal income (10 years): $${totalIncomeFirst10Years.toLocaleString(undefined, { maximumFractionDigits: 0 })}\nAverage annual income: $${avgAnnualIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}\nAverage monthly income: $${Math.round(avgMonthlyIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nThis represents your average monthly after-tax income during the first 10 years of retirement.`,
+      confidenceScoreCalculation: `Confidence Score = (1 - Shortfall Ratio) × 100\n\nTotal retirement years: ${totalYears}\nYears with shortfall (gap < -$1,000): ${yearsWithShortfall}\nShortfall ratio: ${(shortfallRatio * 100).toFixed(2)}%\n\nConfidence Score: ${confidenceScore}%\n\nThis score indicates the likelihood your plan will succeed based on how often you face income shortfalls.`,
       yearsMoneyLastsCalculation: (() => {
-        const finalIndex = Math.min(Math.round(yearsMoneyLasts) - 1, retirementProjections.length - 1)
-        const finalNetworth = finalIndex >= 0 ? (retirementProjections[finalIndex]?.networth || 0) : 0
-        return `Years money lasts = Years until networth < $0 or gap_excess < -$5,000 for 3+ consecutive years\n\nProjected retirement years: ${retirementProjections.length}\nYears until shortfall: ${Math.round(yearsMoneyLasts)}\nAge when money runs out: ${settings.retirement_age + Math.round(yearsMoneyLasts) - 1}\nFinal networth at that point: $${finalNetworth.toLocaleString()}\n\nThis shows how long your savings will last based on current projections. If money lasts beyond the projection period, it means your plan is sustainable.`
+        const retirementAge = settings.retirement_age
+        if (fundsRunOutAge) {
+          const finalProj = retirementProjections.find(p => p.age === fundsRunOutAge)
+          const finalNetworth = finalProj?.networth || 0
+          return `Years money lasts = Number of retirement years until funds are exhausted\n\nRetirement Age: ${retirementAge}\nFunds Run Out Age: ${fundsRunOutAge}\nYears Money Lasts: ${yearsMoneyLasts} years (from age ${retirementAge} to age ${fundsRunOutAge})\nNetworth when funds run out: $${finalNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}\nLife Expectancy: Age ${lifeExpectancy}\n\nThis shows how long your savings will last from the start of retirement. If funds run out before life expectancy, you may face a shortfall.`
+        } else {
+          const projectionAtLifeExpectancy = retirementProjections.find(p => p.age === lifeExpectancy)
+          const networthAtLifeExpectancy = projectionAtLifeExpectancy?.networth || 0
+          return `Full Plan - Assets last beyond life expectancy\n\nRetirement Age: ${retirementAge}\nLife Expectancy: Age ${lifeExpectancy}\nNetworth at Life Expectancy: $${networthAtLifeExpectancy.toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nYour plan is fully funded. Assets will last beyond your life expectancy with an estimated $${networthAtLifeExpectancy.toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining at age ${lifeExpectancy}.`
+        }
       })(),
       statusCalculation: `Status is determined by Confidence Score:\n\n• On Track: Confidence Score ≥ 80%\n• Close: Confidence Score 60-79%\n• At Risk: Confidence Score < 60%\n\nYour score: ${confidenceScore}%\nYour status: ${status === 'on-track' ? 'On Track' : status === 'close' ? 'Close' : 'At Risk'}`,
-      expenseCalculation: `Expense Calculation at Retirement Start:\n\nCurrent Year Expenses: $${currentYearExpenses.toLocaleString()}/year\nYears to Retirement: ${yearsToRetirement}\nInflation Rate: ${(inflationRate * 100).toFixed(1)}%\n\nExpenses at Retirement Start = Current Expenses × (1 + Inflation Rate)^Years to Retirement\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString()} × (1 + ${(inflationRate * 100).toFixed(1)}%)^${yearsToRetirement}\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString()} × ${Math.pow(1 + inflationRate, yearsToRetirement).toFixed(4)}\nExpenses at Retirement Start = $${Math.round(expensesAtRetirementStart).toLocaleString()}/year\n\nFirst Year Retirement Expenses: $${Math.round(firstYearLivingExpenses).toLocaleString()}/year\n\nExpenses continue to inflate each year after retirement at ${(inflationRate * 100).toFixed(1)}% per year.`,
+      expenseCalculation: `Expense Calculation at Retirement Start:\n\nCurrent Year Expenses: $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\nYears to Retirement: ${yearsToRetirement}\nInflation Rate: ${(inflationRateDecimal * 100).toFixed(2)}%\n\nExpenses at Retirement Start = Current Expenses × (1 + Inflation Rate)^Years to Retirement\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} × (1 + ${(inflationRateDecimal * 100).toFixed(2)}%)^${yearsToRetirement}\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} × ${Math.pow(1 + inflationRateDecimal, yearsToRetirement).toFixed(4)}\nExpenses at Retirement Start = $${Math.round(expensesAtRetirementStart).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\n\nFirst Year Retirement Expenses: $${Math.round(firstYearLivingExpenses).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\n\nExpenses continue to inflate each year after retirement at ${(inflationRateDecimal * 100).toFixed(2)}% per year.`,
       legacyValueCalculation,
     }
 
@@ -536,11 +763,12 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       status,
       recommendation,
       yearsMoneyLasts: Math.round(yearsMoneyLasts),
-      biggestRisks: risks,
-      improvements,
+      biggestRisks: topRisks,
+      improvements: topImprovements,
       lifeExpectancy,
       legacyValue: Math.round(legacyValue),
       fundsRunOutAge,
+      incomeCoverageAtFundsRunOut,
       calculationDetails,
     }
   }
@@ -558,13 +786,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       // Estimate growth rate based on risk comfort (Conservative = 6%, Aggressive = 10%)
       const growthRate = 0.06 + (inputs.riskComfort / 100) * 0.04
       
-      // Save plan basis (birth year and filing status)
+      // Save plan basis (birth year, filing status, and include_spouse)
+      // If includeSpouseSsa is true (ssaForTwo), ensure include_spouse is also true
       const { error: planError } = await supabase
         .from('rp_retirement_plans')
         .update({
           birth_year: birthYear,
           life_expectancy: 90, // Default
           filing_status: inputs.ssaForTwo ? 'Married Filing Jointly' : 'Single', // Set filing status based on whether spouse is included
+          include_spouse: inputs.ssaForTwo, // If spouse SSA is included, spouse should be included in plan
         })
         .eq('id', planId)
       
@@ -648,8 +878,6 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         annual_retirement_expenses: retirementStartExpenses, // Expenses at retirement start (inflated from current)
         growth_rate_before_retirement: growthRate,
         growth_rate_during_retirement: growthRate * 0.7,
-        capital_gains_tax_rate: 0.2,
-        income_tax_rate_retirement: 0.25,
         inflation_rate: 0.04,
         planner_ssa_income: true, // Default to including SSA
         spouse_ssa_income: inputs.ssaForTwo, // Set based on whether spouse is included
@@ -711,18 +939,23 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         amount_after_65: estimatedMonthlyExpenses * 0.9,
       }]
 
+      // Get filing_status from plan basis (we just saved it)
+      const { data: planDataForFilingStatus } = await supabase
+        .from('rp_retirement_plans')
+        .select('filing_status')
+        .eq('id', planId)
+        .single()
+
       const settings: CalculatorSettings = {
         current_year: currentYear,
         retirement_age: inputs.retirementAge,
         retirement_start_year: currentYear + yearsToRetirement,
         years_to_retirement: yearsToRetirement,
-        annual_retirement_expenses: inputs.estimatedAnnualExpenses * 0.9, // Use provided expenses
+        annual_retirement_expenses: retirementStartExpenses, // Use inflated expenses at retirement start
         growth_rate_before_retirement: growthRate,
         growth_rate_during_retirement: growthRate * 0.7,
-        capital_gains_tax_rate: 0.2,
-        income_tax_rate_retirement: 0.25,
         inflation_rate: 0.04,
-        filing_status: 'Single',
+        filing_status: (planDataForFilingStatus?.filing_status as any) || (inputs.ssaForTwo ? 'Married Filing Jointly' : 'Single'),
         // Use goal-based strategy with default priority to ensure expenses are always covered
         withdrawal_strategy_type: 'goal_based',
         withdrawal_priority: 'default', // Tax-efficient strategy that covers expenses
@@ -730,13 +963,22 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         enable_borrowing: false, // Don't allow borrowing in Quick Start
       }
 
+      // Determine SSA inclusion based on inputs
+      // ssaForTwo defaults to true (not shown in quick form, but assumed for general estimate)
+      const includePlannerSsa = inputs.includeSsa ?? true
+      const includeSpouseSsa = inputs.ssaForTwo ?? true // Default to true for general estimate (two people)
+
       const projections = calculateRetirementProjections(
         birthYear,
         accounts,
         expenses,
         [],
         settings,
-        90
+        90,
+        undefined, // spouseBirthYear - not used in quick start
+        undefined, // spouseLifeExpectancy - not used in quick start
+        includePlannerSsa,
+        includeSpouseSsa
       )
 
       const snapshotResults = calculateSnapshotResults(
@@ -751,6 +993,18 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       setResults(snapshotResults)
       setProjections(projections) // Store projections for simplified view
       setHasExistingData(true)
+      
+      // Store data for tooltip
+      setPlanDataForTooltip({
+        birth_year: birthYear,
+        life_expectancy: 90,
+        include_spouse: inputs.ssaForTwo,
+        filing_status: inputs.ssaForTwo ? 'Married Filing Jointly' : 'Single',
+      })
+      setAccountsForTooltip(accounts)
+      setExpensesForTooltip(expenses)
+      setSettingsForTooltip(settings)
+      setProjectionsForTooltip(projections)
       // Keep showQuickStart as true to show results in Simple view, not Advanced
       setMessage({ type: 'success', text: 'Your plan has been saved! Results are shown below.' })
       setTimeout(() => setMessage(null), 5000)
@@ -943,7 +1197,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                 <button
                   onClick={handleQuickStartCalculate}
                   disabled={calculating || saving || !inputs.age || !inputs.retirementAge || inputs.currentSavings === 0 || !inputs.estimatedAnnualExpenses}
-                  className="w-full rounded-md bg-blue-600 px-6 py-3 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full rounded-md bg-blue-100 px-6 py-3 text-base font-medium text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {(calculating || saving) ? (
                     <>
@@ -966,6 +1220,295 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
             <>
               {/* Plan Health & Income */}
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-8">
+                {/* Calculator Icon with Tooltip */}
+                <div className="flex justify-end mb-4">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="cursor-help p-2 rounded-full hover:bg-blue-100 transition-colors">
+                          <Calculator className="h-8 w-8 text-blue-600" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-2xl bg-gray-900 text-gray-100 border border-gray-700 p-4">
+                        <div className="text-xs space-y-3">
+                          {(() => {
+                            const currentYear = new Date().getFullYear()
+                            const birthYear = planDataForTooltip?.birth_year || 0
+                            const currentAge = birthYear ? currentYear - birthYear : 0
+                            const retirementAge = settingsForTooltip?.retirement_age || 65
+                            const lifeExpectancy = planDataForTooltip?.life_expectancy || 90
+                            const finalProjection = projectionsForTooltip[projectionsForTooltip.length - 1]
+                            const finalAge = finalProjection?.age || 0
+                            const zeroNetworthYear = projectionsForTooltip.findIndex(p => (p.networth || 0) <= 0)
+                            const ageAtZeroNetworth = zeroNetworthYear >= 0 ? (projectionsForTooltip[zeroNetworthYear]?.age || 0) : finalAge
+                            
+                            const totalAccountBalance = accountsForTooltip.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+                            const totalMonthlyExpenses = expensesForTooltip.reduce((sum, exp) => {
+                              const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
+                              return sum + (amount || 0)
+                            }, 0)
+                            const totalAnnualExpenses = totalMonthlyExpenses * 12
+                            const totalOtherIncome = otherIncomeForTooltip.reduce((sum, inc) => sum + (inc.amount || 0), 0)
+                            
+                            return (
+                              <>
+                                <div>
+                                  <h4 className="font-semibold text-blue-400 mb-2 text-base">All Calculation Numbers</h4>
+                                </div>
+                                
+                                <div className="border-t border-gray-700 pt-2">
+                                  <h4 className="font-semibold text-green-400 mb-2">User-Entered Values</h4>
+                                  <div className="space-y-1 text-gray-300">
+                                    <p><span className="text-gray-500">Birth Year:</span> {birthYear || 'Not set'}</p>
+                                    <p><span className="text-gray-500">Current Age:</span> {currentAge} years</p>
+                                    <p><span className="text-gray-500">Retirement Age:</span> {retirementAge} years</p>
+                                    <p><span className="text-gray-500">Life Expectancy:</span> {lifeExpectancy} years</p>
+                                    {planDataForTooltip?.include_spouse && (
+                                      <>
+                                        <p><span className="text-gray-500">Spouse Included:</span> Yes</p>
+                                        {planDataForTooltip?.spouse_birth_year && (
+                                          <p><span className="text-gray-500">Spouse Birth Year:</span> {planDataForTooltip.spouse_birth_year}</p>
+                                        )}
+                                        {planDataForTooltip?.spouse_life_expectancy && (
+                                          <p><span className="text-gray-500">Spouse Life Expectancy:</span> {planDataForTooltip.spouse_life_expectancy} years</p>
+                                        )}
+                                      </>
+                                    )}
+                                    <p><span className="text-gray-500">Total Account Balance:</span> ${totalAccountBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                    <div className="ml-4 mt-1">
+                                      {accountsForTooltip.map(acc => (
+                                        <p key={acc.id} className="text-xs">
+                                          • {acc.account_name} ({acc.account_type}): ${(acc.balance || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                          {(acc.annual_contribution || 0) > 0 && `, Annual Contribution: $${(acc.annual_contribution || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                                        </p>
+                                      ))}
+                                    </div>
+                                    <p><span className="text-gray-500">Total Monthly Expenses:</span> ${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                    <p><span className="text-gray-500">Total Annual Expenses:</span> ${totalAnnualExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                    {expensesForTooltip.length > 0 && (
+                                      <div className="ml-4 mt-1">
+                                        {expensesForTooltip.map(exp => (
+                                          <p key={exp.id} className="text-xs">
+                                            • {exp.expense_name}: ${(retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65) || 0}/month
+                                          </p>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {totalOtherIncome > 0 && (
+                                      <>
+                                        <p><span className="text-gray-500">Other Income:</span> ${totalOtherIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
+                                        <div className="ml-4 mt-1">
+                                          {otherIncomeForTooltip.map(inc => (
+                                            <p key={inc.id} className="text-xs">
+                                              • {inc.income_name}: ${(inc.amount || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year
+                                              {inc.start_year && ` (${inc.start_year}-${inc.end_year || 'ongoing'})`}
+                                            </p>
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="border-t border-gray-700 pt-2">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h4 className="font-semibold text-yellow-400">Assumptions</h4>
+                                    {!editingAssumptions ? (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setEditingAssumptions(true)
+                                          setEditedAssumptions({
+                                            growth_rate_before_retirement: settingsForTooltip?.growth_rate_before_retirement || 0.1,
+                                            growth_rate_during_retirement: settingsForTooltip?.growth_rate_during_retirement || 0.05,
+                                            inflation_rate: settingsForTooltip?.inflation_rate || 0.04,
+                                            ssa_start_age: settingsForTooltip?.ssa_start_age || 62,
+                                          })
+                                        }}
+                                        className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded transition-colors"
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                        Edit
+                                      </button>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation()
+                                            if (editedAssumptions && selectedScenarioId) {
+                                              try {
+                                                // Save to database
+                                                const { error } = await supabase
+                                                  .from('rp_calculator_settings')
+                                                  .update({
+                                                    growth_rate_before_retirement: editedAssumptions.growth_rate_before_retirement,
+                                                    growth_rate_during_retirement: editedAssumptions.growth_rate_during_retirement,
+                                                    inflation_rate: editedAssumptions.inflation_rate,
+                                                    ssa_start_age: editedAssumptions.ssa_start_age,
+                                                  })
+                                                  .eq('scenario_id', selectedScenarioId)
+                                                
+                                                if (error) throw error
+                                                
+                                                // Update local state
+                                                setSettingsForTooltip({
+                                                  ...settingsForTooltip!,
+                                                  ...editedAssumptions,
+                                                })
+                                                
+                                                // Recalculate
+                                                await loadAndCalculateSnapshot()
+                                                
+                                                setEditingAssumptions(false)
+                                                setEditedAssumptions(null)
+                                                setMessage({ type: 'success', text: 'Assumptions updated and projections recalculated!' })
+                                                setTimeout(() => setMessage(null), 3000)
+                                              } catch (error: any) {
+                                                console.error('Error saving assumptions:', error)
+                                                setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
+                                              }
+                                            }
+                                          }}
+                                          className="flex items-center gap-1 px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
+                                        >
+                                          <Save className="h-3 w-3" />
+                                          Save
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setEditingAssumptions(false)
+                                            setEditedAssumptions(null)
+                                          }}
+                                          className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+                                        >
+                                          <X className="h-3 w-3" />
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="space-y-2 text-gray-300">
+                                    {editingAssumptions && editedAssumptions ? (
+                                      <>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-gray-500 text-xs">Growth Rate (Pre-Retirement):</span>
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="50"
+                                              value={((editedAssumptions.growth_rate_before_retirement || 0) * 100).toFixed(2)}
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value) || 0
+                                                setEditedAssumptions({
+                                                  ...editedAssumptions,
+                                                  growth_rate_before_retirement: value / 100,
+                                                })
+                                              }}
+                                              className="w-20 px-2 py-1 text-xs bg-gray-800 text-gray-100 border border-gray-600 rounded focus:outline-none focus:border-yellow-500"
+                                            />
+                                            <span className="text-xs">%</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-gray-500 text-xs">Growth Rate (During Retirement):</span>
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="50"
+                                              value={((editedAssumptions.growth_rate_during_retirement || 0) * 100).toFixed(2)}
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value) || 0
+                                                setEditedAssumptions({
+                                                  ...editedAssumptions,
+                                                  growth_rate_during_retirement: value / 100,
+                                                })
+                                              }}
+                                              className="w-20 px-2 py-1 text-xs bg-gray-800 text-gray-100 border border-gray-600 rounded focus:outline-none focus:border-yellow-500"
+                                            />
+                                            <span className="text-xs">%</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-gray-500 text-xs">Inflation Rate:</span>
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="20"
+                                              value={((editedAssumptions.inflation_rate || 0) * 100).toFixed(2)}
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value) || 0
+                                                setEditedAssumptions({
+                                                  ...editedAssumptions,
+                                                  inflation_rate: value / 100,
+                                                })
+                                              }}
+                                              className="w-20 px-2 py-1 text-xs bg-gray-800 text-gray-100 border border-gray-600 rounded focus:outline-none focus:border-yellow-500"
+                                            />
+                                            <span className="text-xs">%</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-gray-500 text-xs">SSA Start Age:</span>
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              step="1"
+                                              min="62"
+                                              max="70"
+                                              value={editedAssumptions.ssa_start_age || 62}
+                                              onChange={(e) => {
+                                                const value = parseInt(e.target.value) || 62
+                                                setEditedAssumptions({
+                                                  ...editedAssumptions,
+                                                  ssa_start_age: value,
+                                                })
+                                              }}
+                                              className="w-20 px-2 py-1 text-xs bg-gray-800 text-gray-100 border border-gray-600 rounded focus:outline-none focus:border-yellow-500"
+                                            />
+                                            <span className="text-xs">years</span>
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settingsForTooltip?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
+                                        <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
+                                        <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                        <p><span className="text-gray-500">Taxes:</span> Using IRS brackets</p>
+                                        <p><span className="text-gray-500">SSA Start Age:</span> {settingsForTooltip?.ssa_start_age || 62} years</p>
+                                      </>
+                                    )}
+                                    <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || 'Single'}</p>
+                                    <p><span className="text-gray-500">Borrowing Enabled:</span> {settingsForTooltip?.enable_borrowing ? 'Yes' : 'No'}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="border-t border-gray-700 pt-2">
+                                  <h4 className="font-semibold text-purple-400 mb-2">Projection Summary</h4>
+                                  <div className="space-y-1 text-gray-300">
+                                    <p><span className="text-gray-500">Projection Start Year:</span> {projectionsForTooltip[0]?.year || 'N/A'}</p>
+                                    <p><span className="text-gray-500">Projection End Year:</span> {finalProjection?.year || 'N/A'}</p>
+                                    <p><span className="text-gray-500">Final Age:</span> {finalAge} years</p>
+                                    <p><span className="text-gray-500">Age at Zero Networth:</span> {zeroNetworthYear >= 0 ? `${ageAtZeroNetworth} years` : 'Not reached'}</p>
+                                    <p><span className="text-gray-500">Total Retirement Years:</span> {projectionsForTooltip.filter(p => p.age >= retirementAge).length} years</p>
+                                  </div>
+                                </div>
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                
                 {/* Plan Health - Main Message */}
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-lg sm:text-xl font-bold mb-4
@@ -1071,14 +1614,14 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   <div className="flex items-baseline justify-center gap-4">
                     <div>
                       <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-                        ${(results.monthlyRetirementIncome || 0).toLocaleString()}
+                        ${(results.monthlyRetirementIncome || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </div>
                       <p className="text-xs text-gray-600 mt-1">per month</p>
                     </div>
                     <div className="text-gray-400">/</div>
                     <div>
                       <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-                        ${((results.annualRetirementIncome ?? results.monthlyRetirementIncome * 12) || 0).toLocaleString()}
+                        ${((results.annualRetirementIncome ?? results.monthlyRetirementIncome * 12) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </div>
                       <p className="text-xs text-gray-600 mt-1">per year</p>
                     </div>
@@ -1093,29 +1636,130 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="h-5 w-5 text-blue-600" />
                     <h3 className="font-semibold text-gray-900">How Long Your Money Lasts</h3>
-                    {results.calculationDetails && (
+                    <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button className="cursor-help">
                             <Info className="h-4 w-4 text-gray-500 hover:text-gray-700" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700 p-4">
-                          <div className="text-sm whitespace-pre-line">
-                            {results.calculationDetails.yearsMoneyLastsCalculation}
+                        <TooltipContent className="max-w-2xl bg-gray-900 text-gray-100 border border-gray-700 p-4">
+                          <div className="text-xs space-y-3">
+                            {results.calculationDetails && (
+                              <div>
+                                <h4 className="font-semibold text-green-400 mb-2">How Long Your Money Lasts Calculation</h4>
+                                <div className="text-sm whitespace-pre-line text-gray-300 mb-3">
+                                  {results.calculationDetails.yearsMoneyLastsCalculation}
+                                </div>
+                              </div>
+                            )}
+                            {(() => {
+                              const currentYear = new Date().getFullYear()
+                              const birthYear = planDataForTooltip?.birth_year || 0
+                              const currentAge = birthYear ? currentYear - birthYear : 0
+                              const retirementAge = settingsForTooltip?.retirement_age || 65
+                              const lifeExpectancy = planDataForTooltip?.life_expectancy || results.lifeExpectancy || 90
+                              const finalProjection = projectionsForTooltip[projectionsForTooltip.length - 1]
+                              const finalAge = finalProjection?.age || 0
+                              const zeroNetworthYear = projectionsForTooltip.findIndex(p => (p.networth || 0) <= 0)
+                              const ageAtZeroNetworth = zeroNetworthYear >= 0 ? (projectionsForTooltip[zeroNetworthYear]?.age || 0) : finalAge
+                              const longevityBeyondLifeExpectancy = zeroNetworthYear >= 0
+                                ? ageAtZeroNetworth - lifeExpectancy
+                                : finalAge - lifeExpectancy
+                              
+                              const totalAccountBalance = accountsForTooltip.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+                              const totalMonthlyExpenses = expensesForTooltip.reduce((sum, exp) => {
+                                const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
+                                return sum + (amount || 0)
+                              }, 0)
+                            const totalAnnualExpenses = totalMonthlyExpenses * 12
+                            const totalOtherIncome = otherIncomeForTooltip.reduce((sum, inc) => sum + (inc.amount || 0), 0)
+                            
+                            return (
+                                <>
+                                  <div className="border-t border-gray-700 pt-2">
+                                    <h4 className="font-semibold text-blue-400 mb-2">User-Entered Values</h4>
+                                    <div className="space-y-1 text-gray-300">
+                                      <p><span className="text-gray-500">Birth Year:</span> {birthYear || 'Not set'}</p>
+                                      <p><span className="text-gray-500">Current Age:</span> {currentAge} years</p>
+                                      <p><span className="text-gray-500">Retirement Age:</span> {retirementAge} years</p>
+                                      <p><span className="text-gray-500">Life Expectancy:</span> {lifeExpectancy} years</p>
+                                      <p><span className="text-gray-500">Total Account Balance:</span> ${totalAccountBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                      <p><span className="text-gray-500">Total Annual Expenses:</span> ${totalAnnualExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="border-t border-gray-700 pt-2">
+                                    <h4 className="font-semibold text-yellow-400 mb-2">Assumptions</h4>
+                                    <div className="space-y-1 text-gray-300">
+                                      <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settingsForTooltip?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="border-t border-gray-700 pt-2">
+                                    <h4 className="font-semibold text-purple-400 mb-2">Projection Details</h4>
+                                    <div className="space-y-1 text-gray-300">
+                                      <p><span className="text-gray-500">Age at Zero Networth:</span> {zeroNetworthYear >= 0 ? `${ageAtZeroNetworth} years` : 'Not reached'}</p>
+                                      <p><span className="text-gray-500">Longevity Beyond Life Expectancy:</span> {longevityBeyondLifeExpectancy.toFixed(2)} years</p>
+                                      <p><span className="text-gray-500">Total Retirement Years:</span> {projectionsForTooltip.filter(p => p.age >= retirementAge).length} years</p>
+                                    </div>
+                                  </div>
+                                </>
+                              )
+                            })()}
                           </div>
                         </TooltipContent>
                       </Tooltip>
-                    )}
+                    </TooltipProvider>
                   </div>
                   <div className="text-3xl font-bold text-gray-900 mb-2">
-                    {results.yearsMoneyLasts} years
+                    {results.fundsRunOutAge 
+                      ? `${results.yearsMoneyLasts} years`
+                      : `Full Plan`}
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mb-2">
                     {results.fundsRunOutAge 
                       ? `Funds run out at age ${results.fundsRunOutAge} (before life expectancy of ${results.lifeExpectancy})`
-                      : `Funds last beyond life expectancy (age ${results.lifeExpectancy})`}
+                      : `Assets last beyond life expectancy (age ${results.lifeExpectancy}) with $${results.legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining`}
                   </p>
+                  {results.incomeCoverageAtFundsRunOut && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-xs font-semibold text-yellow-900 mb-1">Income Coverage When Funds Run Out (Age {results.incomeCoverageAtFundsRunOut.age}):</p>
+                      <div className="text-xs text-yellow-800 space-y-1">
+                        <div className="flex justify-between">
+                          <span>SSA Income:</span>
+                          <span className="font-medium">${Math.round(results.incomeCoverageAtFundsRunOut.ssaIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span>
+                        </div>
+                        {results.incomeCoverageAtFundsRunOut.otherIncome > 0 && (
+                          <div className="flex justify-between">
+                            <span>Other Income:</span>
+                            <span className="font-medium">${Math.round(results.incomeCoverageAtFundsRunOut.otherIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span>Total Income:</span>
+                          <span className="font-medium">${Math.round(results.incomeCoverageAtFundsRunOut.totalIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Expenses:</span>
+                          <span className="font-medium">${Math.round(results.incomeCoverageAtFundsRunOut.expenses).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span>
+                        </div>
+                        <div className="border-t border-yellow-300 pt-1 mt-1 flex justify-between font-semibold">
+                          <span>Coverage:</span>
+                          <span className={results.incomeCoverageAtFundsRunOut.coveragePercentage < 60 ? 'text-red-600' : 'text-green-600'}>
+                            {results.incomeCoverageAtFundsRunOut.coveragePercentage.toFixed(2)}%
+                          </span>
+                        </div>
+                        {results.incomeCoverageAtFundsRunOut.coveragePercentage < 60 && (
+                          <p className="text-red-700 font-medium mt-1">
+                            ⚠️ Income covers less than 60% of expenses
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Legacy Value */}
@@ -1139,7 +1783,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                     )}
                   </div>
                   <div className="text-3xl font-bold text-gray-900 mb-2">
-                    ${results.legacyValue.toLocaleString()}
+                    ${results.legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </div>
                   <p className="text-sm text-gray-600">
                     {results.fundsRunOutAge 
@@ -1184,12 +1828,12 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                 </p>
                 {!showSsaCustomization && (
                   <div className="text-sm text-gray-600">
-                    <p>• Estimated total SSA: <span className="font-semibold text-gray-900">${Math.round(totalEstimatedSSA).toLocaleString()}/year</span></p>
+                    <p>• Estimated total SSA: <span className="font-semibold text-gray-900">${Math.round(totalEstimatedSSA).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
                     {estimatedPlannerSSA > 0 && (
-                      <p>• Your estimated benefit: ${Math.round(estimatedPlannerSSA).toLocaleString()}/year</p>
+                      <p>• Your estimated benefit: ${Math.round(estimatedPlannerSSA).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
                     )}
                     {estimatedSpouseSSA > 0 && (
-                      <p>• Spouse estimated benefit: ${Math.round(estimatedSpouseSSA).toLocaleString()}/year</p>
+                      <p>• Spouse estimated benefit: ${Math.round(estimatedSpouseSSA).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
                     )}
                   </div>
                 )}
@@ -1201,7 +1845,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                         <input
                           type="checkbox"
                           checked={ssaSettings.includeSsa ?? true}
-                          onChange={(e) => setSsaSettings({ ...ssaSettings, includeSsa: e.target.checked })}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked
+                            setSsaSettings({ 
+                              ...ssaSettings, 
+                              includeSsa: isChecked,
+                              // When unchecking, also clear spouse SSA
+                              ssaForTwo: isChecked ? ssaSettings.ssaForTwo : false
+                            })
+                          }}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                         <span className="text-sm font-medium text-gray-700">Include Social Security income in projections</span>
@@ -1254,68 +1906,87 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                           <p className="text-sm font-medium text-gray-900 mb-2">Updated Estimated Social Security Benefits:</p>
                           <div className="space-y-1 text-sm text-gray-700">
                             {ssaSettings.includeSsa && calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, true) > 0 && (
-                              <p>• Your estimated benefit: <span className="font-semibold">${Math.round(calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, true)).toLocaleString()}/year</span></p>
+                              <p>• Your estimated benefit: <span className="font-semibold">${Math.round(calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, true)).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
                             )}
                             {ssaSettings.includeSsa && ssaSettings.ssaForTwo && calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, false) > 0 && (
-                              <p>• Spouse estimated benefit: <span className="font-semibold">${Math.round(calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, false)).toLocaleString()}/year</span></p>
+                              <p>• Spouse estimated benefit: <span className="font-semibold">${Math.round(calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, false)).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
                             )}
                             <p className="pt-2 border-t border-green-200">
                               <strong>Total: ${Math.round(
                                 (ssaSettings.includeSsa ? calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, true) : 0) +
                                 (ssaSettings.includeSsa && ssaSettings.ssaForTwo ? calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, false) : 0)
-                              ).toLocaleString()}/year</strong>
+                              ).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</strong>
                             </p>
                           </div>
                         </div>
-
-                        <button
-                          onClick={async () => {
-                            // Save SSA settings to profile
-                            try {
-                              const { error: planError } = await supabase
-                                .from('rp_retirement_plans')
-                                .update({
-                                  // Store SSA income estimate in plan (we'll use this for display)
-                                })
-                                .eq('id', planId)
-                              
-                              if (planError) throw planError
-
-                              // Update scenario settings
-                              if (selectedScenarioId) {
-                                const { error: settingsError } = await supabase
-                                  .from('rp_calculator_settings')
-                                  .update({
-                                    planner_ssa_income: ssaSettings.includeSsa,
-                                    spouse_ssa_income: ssaSettings.includeSsa && ssaSettings.ssaForTwo,
-                                  })
-                                  .eq('scenario_id', selectedScenarioId)
-                                
-                                if (settingsError) throw settingsError
-                              }
-
-                              // Update inputs to match
-                              setInputs({ ...inputs, includeSsa: ssaSettings.includeSsa, ssaForTwo: ssaSettings.ssaForTwo, estimatedAnnualIncome: ssaSettings.estimatedAnnualIncome })
-                              
-                              setMessage({ type: 'success', text: 'SSA assumptions saved to your profile!' })
-                              setTimeout(() => setMessage(null), 5000)
-                              
-                              // Recalculate with new SSA settings (use current state values)
-                              await loadAndCalculateSnapshot({
-                                includeSsa: ssaSettings.includeSsa ?? true,
-                                ssaForTwo: ssaSettings.ssaForTwo ?? true,
-                              })
-                            } catch (error: any) {
-                              console.error('Error saving SSA settings:', error)
-                              setMessage({ type: 'error', text: error.message || 'Failed to save SSA settings. Please try again.' })
-                            }
-                          }}
-                          className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                        >
-                          Save to Profile & Recalculate
-                        </button>
                       </>
                     )}
+
+                    {/* Save button - always visible regardless of includeSsa setting */}
+                    <button
+                      onClick={async () => {
+                        // Save SSA settings to profile
+                        try {
+                          const { error: planError } = await supabase
+                            .from('rp_retirement_plans')
+                            .update({
+                              // Store SSA income estimate in plan (we'll use this for display)
+                            })
+                            .eq('id', planId)
+                          
+                          if (planError) throw planError
+
+                          // Update scenario settings
+                          if (selectedScenarioId) {
+                            // When includeSsa is false, clear both planner and spouse SSA
+                            const plannerSsaIncome = ssaSettings.includeSsa ? true : false
+                            const spouseSsaIncome = ssaSettings.includeSsa && ssaSettings.ssaForTwo ? true : false
+                            
+                            // If spouse_ssa_income is true, ensure include_spouse is also true
+                            if (spouseSsaIncome) {
+                              const { error: planUpdateError } = await supabase
+                                .from('rp_retirement_plans')
+                                .update({ include_spouse: true })
+                                .eq('id', planId)
+                              
+                              if (planUpdateError) {
+                                console.error('Error updating include_spouse:', planUpdateError)
+                                // Don't throw - continue with settings update
+                              }
+                            }
+                            
+                            const { error: settingsError } = await supabase
+                              .from('rp_calculator_settings')
+                              .update({
+                                planner_ssa_income: plannerSsaIncome,
+                                spouse_ssa_income: spouseSsaIncome,
+                              })
+                              .eq('scenario_id', selectedScenarioId)
+                            
+                            if (settingsError) throw settingsError
+                          }
+
+                          // Update inputs to match
+                          setInputs({ ...inputs, includeSsa: ssaSettings.includeSsa, ssaForTwo: ssaSettings.ssaForTwo, estimatedAnnualIncome: ssaSettings.estimatedAnnualIncome })
+                          
+                          setMessage({ type: 'success', text: 'SSA assumptions saved to your profile!' })
+                          setTimeout(() => setMessage(null), 5000)
+                          
+                          // Recalculate with new SSA settings (use current state values)
+                          await loadAndCalculateSnapshot({
+                            includeSsa: ssaSettings.includeSsa ?? true,
+                            ssaForTwo: ssaSettings.ssaForTwo ?? true,
+                          })
+                        } catch (error: any) {
+                          console.error('Error saving SSA settings:', error)
+                          setMessage({ type: 'error', text: error.message || 'Failed to save SSA settings. Please try again.' })
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save to Profile & Recalculate
+                    </button>
                   </div>
                 )}
               </div>
@@ -1375,10 +2046,10 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                         onSwitchToAdvanced()
                       }
                     }}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 flex items-center gap-2"
+                    className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 flex items-center gap-2"
                   >
-                    <span>See Advanced Planning</span>
                     <ChevronRight className="h-4 w-4" />
+                    <span>See Advanced Planning</span>
                   </button>
                 </div>
               </div>
@@ -1420,7 +2091,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                           const incomeChange = ((proj.after_tax_income || 0) - prevProj.after_tax_income) / prevProj.after_tax_income * 100
                                           return (
                                             <div className={`text-xs mt-0.5 ${incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                              {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(1)}%
+                                              {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(2)}%
                                             </div>
                                           )
                                         })()}
@@ -1489,13 +2160,130 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                           <span className="text-gray-300">Total Income:</span>
                                           <span className="text-white font-semibold">${((proj.total_income || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                         </div>
-                                        {(proj.tax || 0) > 0 && (
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-300">Tax:</span>
-                                            <span className="text-red-300 font-medium">-${((proj.tax || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      </div>
+
+                                      {/* Tax Calculation Breakdown */}
+                                      {(proj.tax || 0) > 0 && (
+                                        <div className="border-t border-gray-700 pt-3 mt-3">
+                                          <div className="font-semibold text-base mb-2 text-yellow-400">Tax Calculation</div>
+                                          <div className="space-y-1 text-xs">
+                                            {(() => {
+                                              // Use same calculation logic as retirement-projections.ts
+                                              // Determine filing status using the same logic as the main calculation
+                                              const includeSpouseSsa = planDataForTooltip?.include_spouse || false
+                                              const filingStatus = determineFilingStatus(includeSpouseSsa, planDataForTooltip?.filing_status)
+                                              const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+                                              const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
+                                              const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
+                                              
+                                              // Use actual IRS progressive tax brackets (same as projections)
+                                              const incomeTax = calculateProgressiveTax(taxableIncomeAfterDeduction, filingStatus)
+                                              
+                                              // Capital gains tax - use same calculation as projections
+                                              // Note: In projections, capital gains tax is calculated on distributionTaxable directly
+                                              // Capital gains brackets are based on total taxable income level
+                                              const distributionTaxable = proj.distribution_taxable || 0
+                                              const capitalGainsTax = calculateCapitalGainsTax(distributionTaxable, filingStatus)
+                                              
+                                              // Calculate effective rates for display
+                                              const effectiveIncomeTaxRate = taxableIncomeAfterDeduction > 0 
+                                                ? (incomeTax / taxableIncomeAfterDeduction) * 100 
+                                                : 0
+                                              const effectiveCapitalGainsTaxRate = distributionTaxable > 0
+                                                ? (capitalGainsTax / distributionTaxable) * 100
+                                                : 0
+                                              
+                                              return (
+                                                <>
+                                                  <div className="space-y-1">
+                                                    <div className="text-gray-400 font-semibold mb-1">Ordinary Income:</div>
+                                                    {(proj.distribution_401k || 0) > 0 && (
+                                                      <div className="ml-2 flex justify-between">
+                                                        <span className="text-gray-400">401(k) Withdrawals:</span>
+                                                        <span className="text-gray-300">${((proj.distribution_401k || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                      </div>
+                                                    )}
+                                                    {(proj.distribution_ira || 0) > 0 && (
+                                                      <div className="ml-2 flex justify-between">
+                                                        <span className="text-gray-400">IRA Withdrawals:</span>
+                                                        <span className="text-gray-300">${((proj.distribution_ira || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                      </div>
+                                                    )}
+                                                    {(proj.other_recurring_income || 0) > 0 && (
+                                                      <div className="ml-2 flex justify-between">
+                                                        <span className="text-gray-400">Other Income:</span>
+                                                        <span className="text-gray-300">${((proj.other_recurring_income || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                      </div>
+                                                    )}
+                                                    <div className="ml-2 flex justify-between border-t border-gray-600 pt-1 mt-1">
+                                                      <span className="text-gray-300">Total Ordinary Income:</span>
+                                                      <span className="text-white font-medium">${ordinaryIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                    </div>
+                                                    <div className="ml-2 flex justify-between">
+                                                      <span className="text-gray-400">Standard Deduction ({filingStatus}):</span>
+                                                      <span className="text-gray-300">-${standardDeduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                    </div>
+                                                    <div className="ml-2 flex justify-between border-t border-gray-600 pt-1 mt-1">
+                                                      <span className="text-gray-300">Taxable Income (after deduction):</span>
+                                                      <span className="text-white font-medium">${taxableIncomeAfterDeduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                    </div>
+                                                    {taxableIncomeAfterDeduction > 0 && (
+                                                      <div className="ml-2 flex justify-between">
+                                                        <span className="text-gray-400">Income Tax (IRS 2024 brackets):</span>
+                                                        <span className="text-red-300 font-medium">${incomeTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                      </div>
+                                                    )}
+                                                    {taxableIncomeAfterDeduction > 0 && effectiveIncomeTaxRate > 0 && (
+                                                      <div className="ml-2 flex justify-between text-xs text-gray-500">
+                                                        <span>Effective Rate:</span>
+                                                        <span>{effectiveIncomeTaxRate.toFixed(2)}%</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  
+                                                  {distributionTaxable > 0 && (
+                                                    <div className="space-y-1 mt-2">
+                                                      <div className="text-gray-400 font-semibold mb-1">Capital Gains:</div>
+                                                      <div className="ml-2 flex justify-between">
+                                                        <span className="text-gray-400">Taxable Account Withdrawals:</span>
+                                                        <span className="text-gray-300">${distributionTaxable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                      </div>
+                                                      {distributionTaxable > 0 && effectiveCapitalGainsTaxRate > 0 && (
+                                                        <div className="ml-2 flex justify-between">
+                                                          <span className="text-gray-400">Capital Gains Tax (IRS 2024 brackets):</span>
+                                                          <span className="text-red-300 font-medium">${capitalGainsTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                        </div>
+                                                      )}
+                                                      {distributionTaxable > 0 && effectiveCapitalGainsTaxRate > 0 && (
+                                                        <div className="ml-2 flex justify-between text-xs text-gray-500">
+                                                          <span>Effective Rate:</span>
+                                                          <span>{effectiveCapitalGainsTaxRate.toFixed(2)}%</span>
+                                                        </div>
+                                                      )}
+                                                      {distributionTaxable > 0 && capitalGainsTax === 0 && (
+                                                        <div className="ml-2 text-xs text-gray-500 italic">
+                                                          No tax (within 0% capital gains bracket)
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                  
+                                                  <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between">
+                                                    <span className="text-gray-200 font-semibold">Total Tax:</span>
+                                                    <span className="text-red-300 font-bold">${((proj.tax || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                  </div>
+                                                  <div className="text-gray-500 text-xs mt-1 italic">
+                                                    Note: Tax calculation uses 2024 federal tax brackets and standard deductions. Actual tax may vary based on specific bracket thresholds.
+                                                  </div>
+                                                </>
+                                              )
+                                            })()}
                                           </div>
-                                        )}
-                                        <div className="flex justify-between border-t border-gray-700 pt-2 mt-2">
+                                        </div>
+                                      )}
+
+                                      <div className="border-t border-gray-700 pt-2 mt-2">
+                                        <div className="flex justify-between">
                                           <span className="text-gray-200 font-semibold">After-Tax Income:</span>
                                           <span className="text-green-300 font-bold">${((proj.after_tax_income || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                         </div>
@@ -1509,7 +2297,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                               <div className="flex justify-between border-t border-gray-700 pt-2 mt-2">
                                                 <span className="text-gray-300">Change from Last Year:</span>
                                                 <span className={`font-semibold ${incomeChange >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                                                  {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(1)}%
+                                                  {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(2)}%
                                                 </span>
                                               </div>
                                             )
@@ -1543,7 +2331,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                           const networthChange = ((proj.networth || 0) - prevProj.networth) / prevProj.networth * 100
                                           return (
                                             <div className={`text-xs mt-0.5 ${networthChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                              {networthChange >= 0 ? '+' : ''}{networthChange.toFixed(1)}%
+                                              {networthChange >= 0 ? '+' : ''}{networthChange.toFixed(2)}%
                                             </div>
                                           )
                                         })()}
@@ -1642,7 +2430,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                                 <span className={`font-semibold ${
                                                   networthChangePercent >= 0 ? 'text-green-300' : 'text-red-300'
                                                 }`}>
-                                                  {networthChangePercent >= 0 ? '+' : ''}{networthChangePercent.toFixed(1)}%
+                                                  {networthChangePercent >= 0 ? '+' : ''}{networthChangePercent.toFixed(2)}%
                                                 </span>
                                               </div>
                                               <div className="flex justify-between mt-2 border-t border-gray-700 pt-2">

@@ -40,7 +40,7 @@ export default async function RetirementPlanDetailPage({ params }: RetirementPla
           <div className="flex h-16 items-center justify-between">
             <Link 
               href="/"
-              className="text-xl font-bold text-gray-900 hover:text-gray-700"
+              className="text-sm text-gray-900 hover:text-gray-700"
             >
               ← My Plan / Retirement Planner
             </Link>
@@ -66,25 +66,16 @@ export default async function RetirementPlanDetailPage({ params }: RetirementPla
       </nav>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Link 
-          href="/apps/retirement/dashboard"
-          className="mb-6 inline-block text-sm text-blue-600 hover:text-blue-800"
-        >
-          ← Back to Dashboard
-        </Link>
-
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">
+        <div className="mb-6 flex items-center justify-end gap-2">
+          <h1 className="text-sm font-semibold text-gray-900">
             {plan.plan_name}
           </h1>
-          <div className="flex gap-3">
-            <Link
-              href={`/apps/retirement/plans/${planId}/edit`}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Edit Plan Name
-            </Link>
-          </div>
+          <Link
+            href={`/apps/retirement/plans/${planId}/edit`}
+            className="text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            Edit
+          </Link>
         </div>
 
         <RetirementPlanTabs planId={planId} />

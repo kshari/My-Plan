@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
+import { Save, Edit, X, Check } from 'lucide-react'
 import {
   type Account,
   type Expense,
@@ -155,8 +156,8 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
         setCurrentTaxBracket(planDataForSettings.current_tax_bracket)
       }
       
-      // Use current tax bracket from profile if available, otherwise use retirement tax rate
-      const effectiveTaxRate = currentTaxBracket || planDataForSettings?.current_tax_bracket || parseFloat(settingsData.data?.income_tax_rate_retirement?.toString() || '0.25')
+      // Use current tax bracket from profile if available, otherwise use estimated 22% bracket
+      const effectiveTaxRate = currentTaxBracket || planDataForSettings?.current_tax_bracket || 0.22
 
       const settings: CalculatorSettings = {
         current_year: settingsData.data?.current_year || new Date().getFullYear(),
@@ -166,8 +167,6 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
         annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0,
         growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || '0.1'),
         growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || '0.05'),
-        capital_gains_tax_rate: parseFloat(settingsData.data?.capital_gains_tax_rate?.toString() || '0.2'),
-        income_tax_rate_retirement: effectiveTaxRate,
         inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || '0.04'),
         filing_status: (planDataForSettings?.filing_status as any) || 'Single',
       }
@@ -396,8 +395,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                 Current analysis uses the following assumptions:
               </p>
               <ul className="text-xs sm:text-sm text-gray-700 list-disc list-inside ml-2 space-y-1 mb-3">
-                <li><strong>Retirement Tax Rate:</strong> {((currentSettings?.income_tax_rate_retirement || 0.25) * 100).toFixed(0)}% (from scenario settings)</li>
-                <li><strong>Capital Gains Rate:</strong> {((currentSettings?.capital_gains_tax_rate || 0.20) * 100).toFixed(0)}% (from scenario settings)</li>
+                <li><strong>Tax Calculation:</strong> Using IRS tax brackets for each year</li>
                 <li><strong>Filing Status:</strong> {currentSettings?.filing_status || 'Single'}</li>
                 {currentGrossIncome && (
                   <li><strong>Current Gross Income:</strong> ${currentGrossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })} (from profile)</li>
@@ -415,7 +413,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                   </p>
                   <button
                     onClick={() => setShowTaxInputForm(!showTaxInputForm)}
-                    className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-xs sm:text-sm font-medium text-white hover:bg-blue-700"
+                    className="flex items-center gap-2 rounded-md bg-blue-100 px-3 py-2 text-xs sm:text-sm font-medium text-blue-700 hover:bg-blue-200"
                   >
                     {showTaxInputForm ? '▼' : '▶'} {showTaxInputForm ? 'Hide' : 'Enter Tax Information'}
                   </button>
@@ -455,7 +453,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                   </label>
                   <input
                     type="number"
-                    value={currentTaxBracket ? (currentTaxBracket * 100).toFixed(1) : ''}
+                    value={currentTaxBracket ? (currentTaxBracket * 100).toFixed(2) : ''}
                     onChange={(e) => setCurrentTaxBracket(e.target.value ? parseFloat(e.target.value) / 100 : null)}
                     placeholder="e.g., 22 (for 22%)"
                     min="0"
@@ -516,8 +514,9 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                       }
                     }}
                     disabled={savingTaxInfo || (!currentGrossIncome || !currentTaxBracket)}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-xs sm:text-sm font-medium text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
+                    <Save className="w-4 h-4" />
                     {savingTaxInfo ? 'Saving...' : 'Save & Update Analysis'}
                   </button>
                   <button

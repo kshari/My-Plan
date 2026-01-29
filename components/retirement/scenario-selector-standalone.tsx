@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from './scenario-context'
+import { Plus, X, Check, Trash2 } from 'lucide-react'
 
 interface Scenario {
   id: number
@@ -131,9 +132,19 @@ export function ScenarioSelectorWithContext() {
         <label className="text-sm font-medium text-gray-700">Scenario:</label>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+          className="flex items-center gap-1.5 rounded-md bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200"
         >
-          {showForm ? 'Cancel' : '+ New Scenario'}
+          {showForm ? (
+            <>
+              <X className="w-3.5 h-3.5" />
+              Cancel
+            </>
+          ) : (
+            <>
+              <Plus className="w-3.5 h-3.5" />
+              New Scenario
+            </>
+          )}
         </button>
       </div>
 
@@ -149,8 +160,9 @@ export function ScenarioSelectorWithContext() {
           />
           <button
             onClick={handleCreateScenario}
-            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="flex items-center gap-1.5 rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200"
           >
+            <Check className="w-4 h-4" />
             Create
           </button>
         </div>

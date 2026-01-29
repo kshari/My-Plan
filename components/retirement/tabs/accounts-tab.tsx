@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Plus, Save } from 'lucide-react'
 
 interface Account {
   id?: number
@@ -95,8 +96,9 @@ export default function AccountsTab({ planId }: AccountsTabProps) {
             setEditingAccount(null)
             setShowForm(true)
           }}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
         >
+          <Plus className="w-4 h-4" />
           Add Account
         </button>
       </div>
@@ -129,7 +131,7 @@ export default function AccountsTab({ planId }: AccountsTabProps) {
               <tr key={account.id}>
                 <td className="px-4 py-3 text-sm">{account.account_name}</td>
                 <td className="px-4 py-3 text-sm">{account.owner}</td>
-                <td className="px-4 py-3 text-sm text-right">${account.balance.toLocaleString()}</td>
+                <td className="px-4 py-3 text-sm text-right">${account.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                 <td className="px-4 py-3 text-sm">{account.account_type || '-'}</td>
                 <td className="px-4 py-3 text-sm text-right">
                   <button
@@ -213,8 +215,9 @@ function AccountForm({ account, onSave, onCancel, saving }: any) {
         <button
           onClick={() => onSave(formData)}
           disabled={saving}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
         >
+          <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save'}
         </button>
         <button

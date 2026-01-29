@@ -24,7 +24,7 @@ export default async function RetirementHomePage() {
         <div className="flex gap-4 justify-center">
           <Link 
             href="/login"
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
           >
             Login
           </Link>

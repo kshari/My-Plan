@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Plus, Save } from 'lucide-react'
 
 interface Expense {
   id?: number
@@ -94,7 +95,7 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
             setEditingExpense(null)
             setShowForm(true)
           }}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
         >
           Add Expense
         </button>
@@ -126,8 +127,8 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
             {expenses.map((expense) => (
               <tr key={expense.id}>
                 <td className="px-4 py-3 text-sm">{expense.expense_name}</td>
-                <td className="px-4 py-3 text-sm text-right">${expense.amount_after_65.toLocaleString()}</td>
-                <td className="px-4 py-3 text-sm text-right">${expense.amount_before_65.toLocaleString()}</td>
+                <td className="px-4 py-3 text-sm text-right">${expense.amount_after_65.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                <td className="px-4 py-3 text-sm text-right">${expense.amount_before_65.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                 <td className="px-4 py-3 text-sm text-right">
                   <button
                     onClick={() => {
@@ -195,8 +196,9 @@ function ExpenseForm({ expense, onSave, onCancel, saving }: any) {
         <button
           onClick={() => onSave(formData)}
           disabled={saving}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
         >
+          <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save'}
         </button>
         <button
