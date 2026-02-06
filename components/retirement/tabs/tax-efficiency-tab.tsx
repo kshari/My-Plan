@@ -34,6 +34,9 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
   const [showTaxSummaryDetails, setShowTaxSummaryDetails] = useState(false)
   const [showAdditionalStrategies, setShowAdditionalStrategies] = useState(false)
   const [showTaxAssumptions, setShowTaxAssumptions] = useState(false)
+  const [showContributionAnalysis, setShowContributionAnalysis] = useState(true)
+  const [contributionAnalysis, setContributionAnalysis] = useState<any>(null)
+  const [showRetirementBracketExplanation, setShowRetirementBracketExplanation] = useState(false)
 
   // Calculate tax bracket from income based on 2024 tax brackets
   const calculateTaxBracket = (income: number, filingStatus: string): number => {
@@ -87,6 +90,153 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
     }
     
     return 0.37 // Top bracket
+  }
+
+  // Analyze traditional vs Roth contribution strategy
+  const analyzeContributionStrategy = (
+    accounts: Account[],
+    settings: CalculatorSettings,
+    projections: ProjectionDetail[],
+    planData: any,
+    currentGrossIncome: number | null,
+    currentTaxBracket: number | null,
+    effectiveTaxRate: number
+  ): any => {
+    // Get current tax bracket
+    const currentBracket = currentTaxBracket || effectiveTaxRate || 0.22
+    const filingStatus = settings.filing_status || planData?.filing_status || 'Single'
+    
+    // Estimate retirement tax bracket from projections
+    // Look at average taxable income in retirement years
+    const retirementProjections = projections.filter(p => {
+      const age = p.age || 0
+      return age >= (settings.retirement_age || 65) && age < 80 // First 15 years of retirement
+    })
+    
+    let avgRetirementTaxableIncome = 0
+    if (retirementProjections.length > 0) {
+      const totalTaxableIncome = retirementProjections.reduce((sum, p) => sum + (p.taxable_income || 0), 0)
+      avgRetirementTaxableIncome = totalTaxableIncome / retirementProjections.length
+    } else {
+      // Fallback: estimate based on expenses and SSA
+      avgRetirementTaxableIncome = (settings.annual_retirement_expenses || 0) * 0.7 // Assume 70% from taxable sources
+    }
+    
+    // Calculate expected retirement tax bracket
+    const retirementTaxBracket = calculateTaxBracket(avgRetirementTaxableIncome, filingStatus)
+    
+    // Calculate years until retirement
+    const currentYear = settings.current_year || new Date().getFullYear()
+    const yearsToRetirement = settings.years_to_retirement || 0
+    
+    // Calculate tax savings and future tax for a $1,000 contribution
+    const contributionAmount = 1000
+    const traditionalTaxSavings = contributionAmount * currentBracket
+    const growthRate = settings.growth_rate_before_retirement || 0.1
+    const yearsOfGrowth = Math.max(1, yearsToRetirement)
+    const futureValue = contributionAmount * Math.pow(1 + growthRate, yearsOfGrowth)
+    const traditionalFutureTax = futureValue * retirementTaxBracket
+    
+    // Net benefit comparison
+    const traditionalNetBenefit = traditionalTaxSavings - traditionalFutureTax
+    const rothNetBenefit = 0 // Pay tax now, no tax later
+    
+    // Determine recommendation
+    let recommendation: 'Traditional' | 'Roth' | 'Both' = 'Both'
+    let recommendationText = ''
+    let considerations: string[] = []
+    let traditionalSplit = 50
+    let rothSplit = 50
+    
+    const bracketDifference = currentBracket - retirementTaxBracket
+    
+    if (bracketDifference > 0.05) {
+      // Current bracket is significantly higher - recommend Traditional
+      recommendation = 'Traditional'
+      recommendationText = `Your current tax bracket (${(currentBracket * 100).toFixed(0)}%) is significantly higher than your expected retirement bracket (${(retirementTaxBracket * 100).toFixed(0)}%). Contributing to traditional accounts now will give you an immediate tax deduction at a higher rate, and you'll pay taxes in retirement at a lower rate.`
+      traditionalSplit = 80
+      rothSplit = 20
+      considerations = [
+        `Save ${(currentBracket * 100).toFixed(0)}% in taxes now vs. paying ${(retirementTaxBracket * 100).toFixed(0)}% later`,
+        'Maximize employer match if available (usually goes to traditional 401k)',
+        'Consider Roth for tax diversification (20% of contributions)',
+        'Traditional contributions reduce current taxable income, potentially keeping you in a lower bracket'
+      ]
+    } else if (bracketDifference < -0.05) {
+      // Retirement bracket is higher - recommend Roth
+      recommendation = 'Roth'
+      recommendationText = `Your expected retirement tax bracket (${(retirementTaxBracket * 100).toFixed(0)}%) is higher than your current bracket (${(currentBracket * 100).toFixed(0)}%). Contributing to Roth accounts now means paying taxes at today's lower rate, and all future withdrawals will be tax-free.`
+      traditionalSplit = 20
+      rothSplit = 80
+      considerations = [
+        `Pay ${(currentBracket * 100).toFixed(0)}% tax now vs. avoiding ${(retirementTaxBracket * 100).toFixed(0)}% tax later`,
+        'Roth accounts have no Required Minimum Distributions (RMDs)',
+        'Tax-free growth and withdrawals in retirement',
+        'Better for estate planning - heirs receive tax-free distributions',
+        'Consider traditional for employer match if available'
+      ]
+    } else {
+      // Brackets are similar - recommend both for diversification
+      recommendation = 'Both'
+      recommendationText = `Your current tax bracket (${(currentBracket * 100).toFixed(0)}%) is similar to your expected retirement bracket (${(retirementTaxBracket * 100).toFixed(0)}%). A balanced approach provides tax diversification and flexibility in retirement.`
+      traditionalSplit = 50
+      rothSplit = 50
+      considerations = [
+        'Tax diversification gives you flexibility to manage taxable income in retirement',
+        'Traditional accounts provide immediate tax deduction',
+        'Roth accounts provide tax-free withdrawals and no RMDs',
+        'Having both account types helps optimize tax brackets year-by-year in retirement',
+        'Consider your time horizon - more years until retirement may favor Roth due to tax-free growth'
+      ]
+    }
+    
+    // Additional considerations based on account balances
+    const traditionalBalance = accounts
+      .filter(acc => {
+        const type = (acc.account_type || '').trim().toLowerCase()
+        return type === '401k' || type === 'ira' || type === 'traditional ira'
+      })
+      .reduce((sum, acc) => sum + (acc.balance || 0), 0)
+    
+    const rothBalance = accounts
+      .filter(acc => {
+        const type = (acc.account_type || '').trim().toLowerCase()
+        return type === 'roth' || type === 'roth ira'
+      })
+      .reduce((sum, acc) => sum + (acc.balance || 0), 0)
+    
+    const totalBalance = traditionalBalance + rothBalance
+    if (totalBalance > 0) {
+      const traditionalPercentage = (traditionalBalance / totalBalance) * 100
+      if (traditionalPercentage > 80) {
+        considerations.push('You have a high percentage in traditional accounts - consider increasing Roth contributions for better tax diversification')
+      } else if (traditionalPercentage < 20) {
+        considerations.push('You have mostly Roth accounts - consider traditional contributions to get current tax deductions')
+      }
+    }
+    
+    // Age-based considerations
+    if (yearsToRetirement > 20) {
+      considerations.push('With many years until retirement, Roth contributions benefit from decades of tax-free growth')
+    } else if (yearsToRetirement < 10) {
+      considerations.push('With retirement approaching, traditional contributions may provide more immediate tax benefits')
+    }
+    
+    return {
+      recommendation,
+      recommendationText,
+      currentTaxBracket: currentBracket,
+      retirementTaxBracket,
+      avgRetirementTaxableIncome: Math.round(avgRetirementTaxableIncome),
+      retirementProjectionsCount: retirementProjections.length,
+      traditionalTaxSavings: Math.round(traditionalTaxSavings),
+      traditionalFutureTax: Math.round(traditionalFutureTax),
+      traditionalNetBenefit: Math.round(traditionalNetBenefit),
+      rothNetBenefit: 0,
+      traditionalSplit,
+      rothSplit,
+      considerations
+    }
   }
 
   useEffect(() => {
@@ -199,6 +349,18 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
       // Calculate tax efficiency
       const calculatedTaxEfficiency = analyzeTaxEfficiency(projections, settings, accounts)
       setTaxEfficiency(calculatedTaxEfficiency)
+      
+      // Calculate traditional vs Roth contribution analysis
+      const contributionAnalysisResult = analyzeContributionStrategy(
+        accounts,
+        settings,
+        projections,
+        planDataForSettings,
+        currentGrossIncome,
+        currentTaxBracket,
+        effectiveTaxRate
+      )
+      setContributionAnalysis(contributionAnalysisResult)
     } catch (error) {
       console.error('Error calculating tax efficiency:', error)
     } finally {
@@ -570,7 +732,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
               </button>
             )}
           </div>
-          {taxEfficiency.rothConversion && (
+          {taxEfficiency.rothConversion ? (
             <>
               {/* Detailed Explanation */}
               {showRothExplanation && (
@@ -903,6 +1065,277 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                 </> 
               )}
             </>
+          ) : (
+            <div className="text-sm text-gray-700">
+              <p className="mb-3">
+                Roth conversion analysis is not available because you don't have sufficient traditional retirement account balances (401k, IRA, or Traditional IRA) to make conversions worthwhile.
+              </p>
+              <p className="text-xs text-gray-600">
+                Roth conversions are typically recommended when you have at least $50,000 in traditional retirement accounts. 
+                This allows for meaningful conversions that can reduce future RMDs and provide tax diversification.
+              </p>
+              <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+                <p className="text-xs font-medium text-blue-900 mb-1">Why Roth Conversions Matter:</p>
+                <ul className="text-xs text-blue-800 list-disc list-inside space-y-1">
+                  <li>Reduce Required Minimum Distributions (RMDs) starting at age 73</li>
+                  <li>Provide tax diversification in retirement</li>
+                  <li>Lock in current tax rates if you expect rates to increase</li>
+                  <li>Offer estate planning benefits</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Traditional vs Roth Contribution Analysis */}
+        <div className="mb-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-gray-900">Traditional vs Roth Contribution Analysis</h4>
+            <button
+              onClick={() => setShowContributionAnalysis(!showContributionAnalysis)}
+              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              {showContributionAnalysis ? 'Hide' : 'Show'} Details
+              <span className="ml-1 text-xs">{showContributionAnalysis ? '▼' : '▶'}</span>
+            </button>
+          </div>
+          
+          {showContributionAnalysis && contributionAnalysis && (
+            <div className="space-y-4">
+              {/* Recommendation Summary */}
+              <div className={`p-4 rounded-lg border-2 ${
+                contributionAnalysis.recommendation === 'Roth' 
+                  ? 'bg-green-50 border-green-300' 
+                  : contributionAnalysis.recommendation === 'Traditional'
+                  ? 'bg-blue-50 border-blue-300'
+                  : 'bg-yellow-50 border-yellow-300'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <span className="text-2xl">
+                      {contributionAnalysis.recommendation === 'Roth' ? '✓' : 
+                       contributionAnalysis.recommendation === 'Traditional' ? '✓' : '⚖️'}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-gray-900 mb-2">
+                      Recommendation: {contributionAnalysis.recommendation === 'Roth' ? 'Prioritize Roth Contributions' :
+                                      contributionAnalysis.recommendation === 'Traditional' ? 'Prioritize Traditional Contributions' :
+                                      'Consider Both (Tax Diversification)'}
+                    </h5>
+                    <p className="text-sm text-gray-700 mb-3">
+                      {contributionAnalysis.recommendationText}
+                    </p>
+                    {contributionAnalysis.recommendation === 'Both' && (
+                      <div className="mt-3 p-3 bg-white rounded border border-yellow-200">
+                        <p className="text-xs font-medium text-gray-900 mb-2">Suggested Split:</p>
+                        <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
+                          <li>Traditional: {contributionAnalysis.traditionalSplit}% - Take advantage of current tax deduction</li>
+                          <li>Roth: {contributionAnalysis.rothSplit}% - Build tax-free retirement income</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Comparison Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factor</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Traditional</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Roth</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Winner</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Current Tax Bracket</td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        {(contributionAnalysis.currentTaxBracket * 100).toFixed(0)}%
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        {(contributionAnalysis.currentTaxBracket * 100).toFixed(0)}%
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className="text-blue-600 font-semibold">Traditional</span>
+                        <p className="text-xs text-gray-500 mt-1">Tax deduction now</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <span>Expected Retirement Tax Bracket</span>
+                          <button
+                            onClick={() => setShowRetirementBracketExplanation(!showRetirementBracketExplanation)}
+                            className="text-blue-600 hover:text-blue-800 text-xs underline"
+                            title="How is this calculated?"
+                          >
+                            ?
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        {(contributionAnalysis.retirementTaxBracket * 100).toFixed(0)}%
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        0% (tax-free)
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className="text-green-600 font-semibold">Roth</span>
+                        <p className="text-xs text-gray-500 mt-1">No tax in retirement</p>
+                      </td>
+                    </tr>
+                    {showRetirementBracketExplanation && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 bg-blue-50 border-t border-blue-200">
+                          <div className="space-y-3">
+                            <h6 className="font-semibold text-gray-900 text-sm">How Expected Retirement Tax Bracket is Calculated:</h6>
+                            <div className="text-xs sm:text-sm text-gray-700 space-y-2">
+                              <div>
+                                <p className="font-medium text-gray-900 mb-1">Step 1: Analyze Retirement Projections</p>
+                                <p>
+                                  The system examines your retirement projections for the first 15 years of retirement (ages {currentSettings?.retirement_age || 65} to 80). 
+                                  {contributionAnalysis.retirementProjectionsCount > 0 ? (
+                                    <> It found <strong>{contributionAnalysis.retirementProjectionsCount} years</strong> of projection data in this range.</>
+                                  ) : (
+                                    <> No projection data was available in this range, so an estimate was used.</>
+                                  )}
+                                </p>
+                              </div>
+                              
+                              <div>
+                                <p className="font-medium text-gray-900 mb-1">Step 2: Calculate Average Taxable Income</p>
+                                {contributionAnalysis.retirementProjectionsCount > 0 ? (
+                                  <>
+                                    <p className="mb-1">
+                                      For each retirement year, the system looks at your <strong>taxable income</strong>, which includes:
+                                    </p>
+                                    <ul className="list-disc list-inside ml-2 space-y-1 mb-2">
+                                      <li>Distributions from traditional 401(k) and IRA accounts</li>
+                                      <li>Distributions from taxable investment accounts (capital gains)</li>
+                                      <li>Other recurring income (pensions, rental income, etc.)</li>
+                                      <li>Partially taxable Social Security income (if applicable)</li>
+                                    </ul>
+                                    <p>
+                                      The average taxable income across these {contributionAnalysis.retirementProjectionsCount} years is calculated: 
+                                      <strong> ${contributionAnalysis.avgRetirementTaxableIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="mb-1">
+                                      Since projection data wasn't available, the system estimates taxable income as:
+                                    </p>
+                                    <p className="font-mono text-xs bg-white p-2 rounded border border-gray-300 mb-2">
+                                      Estimated Taxable Income = Annual Retirement Expenses × 70%
+                                    </p>
+                                    <p>
+                                      This assumes that approximately 70% of your retirement expenses will come from taxable sources 
+                                      (traditional account distributions, taxable investments, etc.), while 30% comes from tax-free sources 
+                                      (Roth withdrawals, Social Security, etc.).
+                                    </p>
+                                    <p className="mt-2">
+                                      Estimated: <strong>${contributionAnalysis.avgRetirementTaxableIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                              
+                              <div>
+                                <p className="font-medium text-gray-900 mb-1">Step 3: Determine Tax Bracket</p>
+                                <p className="mb-1">
+                                  Using the calculated average taxable income and your filing status ({currentSettings?.filing_status || 'Single'}), 
+                                  the system applies the 2024 federal tax brackets to determine which marginal tax bracket 
+                                  this income level falls into.
+                                </p>
+                                <p>
+                                  The result: <strong>{(contributionAnalysis.retirementTaxBracket * 100).toFixed(0)}% marginal tax bracket</strong>
+                                </p>
+                              </div>
+                              
+                              <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
+                                <p className="text-xs font-medium text-yellow-900 mb-1">⚠️ Important Notes:</p>
+                                <ul className="text-xs text-yellow-800 list-disc list-inside space-y-1">
+                                  <li>This is an <strong>estimate</strong> based on your current plan assumptions and projections</li>
+                                  <li>Actual retirement tax bracket will depend on many factors: withdrawal strategy, RMDs, Social Security timing, other income sources, and future tax law changes</li>
+                                  <li>The calculation uses <strong>marginal tax bracket</strong> (the rate on your last dollar of income), not effective tax rate</li>
+                                  <li>State taxes are not included in this calculation</li>
+                                  <li>If your projections change or you update your retirement strategy, this bracket may change</li>
+                                </ul>
+                              </div>
+                              
+                              <div className="mt-2">
+                                <button
+                                  onClick={() => setShowRetirementBracketExplanation(false)}
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                >
+                                  Hide explanation
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Tax Savings (per $1,000 contribution)</td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        ${(contributionAnalysis.traditionalTaxSavings).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        $0 (pay tax now)
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className="text-blue-600 font-semibold">Traditional</span>
+                        <p className="text-xs text-gray-500 mt-1">Immediate savings</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Future Tax on Withdrawals</td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        ${(contributionAnalysis.traditionalFutureTax).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        $0 (tax-free)
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className="text-green-600 font-semibold">Roth</span>
+                        <p className="text-xs text-gray-500 mt-1">No future tax</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">RMD Impact</td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        Subject to RMDs at 73
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700">
+                        No RMDs required
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className="text-green-600 font-semibold">Roth</span>
+                        <p className="text-xs text-gray-500 mt-1">More flexibility</p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Key Considerations */}
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h5 className="font-semibold text-gray-900 mb-3">Key Considerations</h5>
+                <div className="space-y-2 text-sm text-gray-700">
+                  {contributionAnalysis.considerations.map((consideration: string, index: number) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <span className="text-blue-600 mt-1">•</span>
+                      <span>{consideration}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
         

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   calculateRetirementProjections,
   buildCalculatorSettings,
+  calculateEstimatedSSA,
   type Account,
   type Expense,
   type OtherIncome,
@@ -21,7 +22,7 @@ export async function calculateAndSaveProjectionsForScenario(
   try {
     // Load all necessary data
     const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
-      supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy').eq('id', planId).single(),
+      supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy, filing_status').eq('id', planId).single(),
       supabase.from('rp_accounts').select('*').eq('plan_id', planId),
       supabase.from('rp_expenses').select('*').eq('plan_id', planId),
       supabase.from('rp_other_income').select('*').eq('plan_id', planId),
@@ -92,6 +93,30 @@ export async function calculateAndSaveProjectionsForScenario(
     baseSettings.withdrawal_priority = 'default'
     baseSettings.withdrawal_secondary_priority = 'tax_optimization'
 
+    // Calculate estimated SSA amounts at start age
+    const includePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
+    
+    // Automatically include spouse SSA if:
+    // 1. User explicitly set it to true, OR
+    // 2. Plan includes spouse (include_spouse = true), OR
+    // 3. Filing status is "Married Filing Jointly"
+    // This ensures realistic projections for married couples
+    const explicitSpouseSsa = (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : false)
+    const hasSpouse = planData.data.include_spouse || false
+    const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+    const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
+    
+    const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
+    const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
+    
+    const ssaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || 65
+    const currentAge = currentYear - birthYear
+    const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
+    const inflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, yearsToSsaStart)
+    
+    const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
+    const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
+
     // Calculate projections using default strategy
     const projectionsForSaving = calculateRetirementProjections(
       planData.data.birth_year,
@@ -102,8 +127,10 @@ export async function calculateAndSaveProjectionsForScenario(
       lifeExpectancy,
       planData.data.spouse_birth_year || undefined,
       planData.data.spouse_life_expectancy || undefined,
-      settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true,
-      planData.data.include_spouse && (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : true) || false
+      includePlannerSsa,
+      includeSpouseSsa,
+      estimatedPlannerSsaAtStart,
+      estimatedSpouseSsaAtStart
     )
 
     // Delete existing projections for this scenario

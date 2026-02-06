@@ -30,6 +30,7 @@ import {
   calculateProgressiveTax,
   calculateCapitalGainsTax,
   determineFilingStatus,
+  calculateEstimatedSSA,
   type Account,
   type Expense,
   type OtherIncome,
@@ -64,7 +65,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   const [modelingWithdrawalPriority, setModelingWithdrawalPriority] = useState<'default' | 'longevity' | 'legacy' | 'tax_optimization' | 'stable_income' | 'sequence_risk' | 'liquidity'>('default')
   const [modelingWithdrawalSecondary, setModelingWithdrawalSecondary] = useState<'default' | 'longevity' | 'legacy' | 'tax_optimization' | 'stable_income' | 'sequence_risk' | 'liquidity'>('tax_optimization')
   const [strategyModelerExpanded, setStrategyModelerExpanded] = useState(false)
-  const [modelingStrategyType, setModelingStrategyType] = useState<'amount_based_4_percent' | 'amount_based_fixed_percentage' | 'amount_based_fixed_dollar' | 'amount_based_swp' | 'sequence_proportional' | 'sequence_bracket_topping' | 'market_bucket' | 'market_guardrails' | 'market_floor_upside' | 'tax_roth_conversion' | 'tax_qcd'>('amount_based_4_percent')
+  const [modelingStrategyType, setModelingStrategyType] = useState<'amount_based_expense_coverage' | 'amount_based_4_percent' | 'amount_based_fixed_percentage' | 'amount_based_fixed_dollar' | 'amount_based_swp' | 'sequence_proportional' | 'sequence_bracket_topping' | 'market_bucket' | 'market_guardrails' | 'market_floor_upside' | 'tax_roth_conversion' | 'tax_qcd'>('amount_based_expense_coverage')
   const [strategyParams, setStrategyParams] = useState({
     fixed_percentage_rate: 4, // 4%
     fixed_dollar_amount: 50000,
@@ -102,9 +103,9 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
     distIra: false,
     distOther: false,
     otherIncome: false,
-    totalIncome: true, // Shown by default
-    tax: true,
+    totalIncome: true, // Shown by default (will show after-tax income)
     expenses: true,
+    contribution: true, // Shown by default
     gapExcess: true,
     networth: true, // Shown by default
     balance401k: false, // Hidden by default, shown when balance group expanded
@@ -217,10 +218,33 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           growth_rate_during_retirement: parseFloat(settingsResult.data.growth_rate_during_retirement?.toString() || '0.05'),
           inflation_rate: parseFloat(settingsResult.data.inflation_rate?.toString() || '0.04'),
           enable_borrowing: settingsResult.data.enable_borrowing || false,
-          ssa_start_age: settingsResult.data.ssa_start_age || 62,
+          ssa_start_age: settingsResult.data.ssa_start_age || settingsResult.data.retirement_age || 65,
           withdrawal_priority: 'default',
           withdrawal_secondary_priority: 'tax_optimization',
         })
+        
+        // Sync modeling state with saved strategy from database
+        const savedStrategyType = settingsResult.data.withdrawal_strategy_type as any
+        if (savedStrategyType) {
+          setModelingStrategyType(savedStrategyType)
+        }
+        
+        // Load strategy-specific parameters from database
+        if (settingsResult.data.fixed_percentage_rate) {
+          setStrategyParams(prev => ({ ...prev, fixed_percentage_rate: parseFloat(settingsResult.data.fixed_percentage_rate.toString()) * 100 }))
+        }
+        if (settingsResult.data.fixed_dollar_amount) {
+          setStrategyParams(prev => ({ ...prev, fixed_dollar_amount: parseFloat(settingsResult.data.fixed_dollar_amount.toString()) }))
+        }
+        if (settingsResult.data.guardrails_ceiling) {
+          setStrategyParams(prev => ({ ...prev, guardrails_ceiling: parseFloat(settingsResult.data.guardrails_ceiling.toString()) * 100 }))
+        }
+        if (settingsResult.data.guardrails_floor) {
+          setStrategyParams(prev => ({ ...prev, guardrails_floor: parseFloat(settingsResult.data.guardrails_floor.toString()) * 100 }))
+        }
+        if (settingsResult.data.bracket_topping_threshold) {
+          setStrategyParams(prev => ({ ...prev, bracket_topping_threshold: parseFloat(settingsResult.data.bracket_topping_threshold.toString()) }))
+        }
       }
       
       if (!planResult.error && planResult.data) {
@@ -330,7 +354,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         growth_rate_during_retirement: parseFloat(settingsData.data.growth_rate_during_retirement?.toString() || '0.05'),
         inflation_rate: parseFloat(settingsData.data.inflation_rate?.toString() || '0.04'),
         enable_borrowing: settingsData.data.enable_borrowing || false,
-        ssa_start_age: settingsData.data.ssa_start_age || 62,
+        ssa_start_age: settingsData.data.ssa_start_age || settingsData.data.retirement_age || 65,
         withdrawal_priority: 'default',
         withdrawal_secondary_priority: 'tax_optimization',
       }
@@ -341,6 +365,11 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         type: typeof modelingStrategyType
         settings: CalculatorSettings
       }> = [
+        {
+          name: 'Expense Based - Cover Expenses and Tax',
+          type: 'amount_based_expense_coverage',
+          settings: { ...baseSettings, withdrawal_strategy_type: 'amount_based_expense_coverage' },
+        },
         {
           name: '4% Rule',
           type: 'amount_based_4_percent',
@@ -415,6 +444,29 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         },
       ]
 
+      // Calculate estimated SSA amounts at start age for strategy comparison
+      const compIncludePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
+      
+      // Automatically include spouse SSA if:
+      // 1. User explicitly set it to true, OR
+      // 2. Plan includes spouse (include_spouse = true), OR
+      // 3. Filing status is "Married Filing Jointly"
+      const compExplicitSpouseSsa = (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : false)
+      const compHasSpouse = planData.data.include_spouse || false
+      const compIsMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+      const compIncludeSpouseSsa = compExplicitSpouseSsa || compHasSpouse || compIsMarriedFilingJointly
+      
+      const compBaseEstimatedPlannerSsa = compIncludePlannerSsa ? calculateEstimatedSSA(0, true) : 0
+      const compBaseEstimatedSpouseSsa = compIncludeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
+      
+      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || 65
+      const compCurrentAge = new Date().getFullYear() - planData.data.birth_year
+      const compYearsToSsaStart = Math.max(0, compSsaStartAge - compCurrentAge)
+      const compInflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, compYearsToSsaStart)
+      
+      const compEstimatedPlannerSsaAtStart = compIncludePlannerSsa ? compBaseEstimatedPlannerSsa * compInflationToSsaStart : undefined
+      const compEstimatedSpouseSsaAtStart = compIncludeSpouseSsa ? compBaseEstimatedSpouseSsa * compInflationToSsaStart : undefined
+
       // Calculate projections for each strategy
       const comparisonResults = strategiesToCompare.map(strategy => {
         const calculatedProjections = calculateRetirementProjections(
@@ -426,8 +478,10 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           lifeExpectancy,
           planData.data.spouse_birth_year || undefined,
           planData.data.spouse_life_expectancy || undefined,
-          settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true,
-          planData.data.include_spouse && (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : true) || false
+          compIncludePlannerSsa,
+          compIncludeSpouseSsa,
+          compEstimatedPlannerSsaAtStart,
+          compEstimatedSpouseSsaAtStart
         )
 
         // Calculate metrics
@@ -506,6 +560,21 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         strategySettings.bracket_topping_threshold = strategyParams.bracket_topping_threshold
       }
 
+      // Clear strategy-specific parameters for other strategies to avoid conflicts
+      if (modelingStrategyType !== 'amount_based_fixed_percentage') {
+        strategySettings.fixed_percentage_rate = null
+      }
+      if (modelingStrategyType !== 'amount_based_fixed_dollar') {
+        strategySettings.fixed_dollar_amount = null
+      }
+      if (modelingStrategyType !== 'market_guardrails') {
+        strategySettings.guardrails_ceiling = null
+        strategySettings.guardrails_floor = null
+      }
+      if (modelingStrategyType !== 'sequence_bracket_topping') {
+        strategySettings.bracket_topping_threshold = null
+      }
+
       // Update the calculator settings with the selected strategy
       const { error } = await supabase
         .from('rp_calculator_settings')
@@ -514,14 +583,48 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
       if (error) throw error
 
+      // Reload settings to update state with saved strategy
+      const { data: updatedSettings } = await supabase
+        .from('rp_calculator_settings')
+        .select('*')
+        .eq('scenario_id', selectedScenarioId)
+        .single()
+
+      if (updatedSettings) {
+        // Update modeling state to match saved strategy
+        const savedStrategyType = updatedSettings.withdrawal_strategy_type as any
+        if (savedStrategyType) {
+          setModelingStrategyType(savedStrategyType)
+        }
+        
+        // Update strategy parameters
+        if (updatedSettings.fixed_percentage_rate) {
+          setStrategyParams(prev => ({ ...prev, fixed_percentage_rate: parseFloat(updatedSettings.fixed_percentage_rate.toString()) * 100 }))
+        }
+        if (updatedSettings.fixed_dollar_amount) {
+          setStrategyParams(prev => ({ ...prev, fixed_dollar_amount: parseFloat(updatedSettings.fixed_dollar_amount.toString()) }))
+        }
+        if (updatedSettings.guardrails_ceiling) {
+          setStrategyParams(prev => ({ ...prev, guardrails_ceiling: parseFloat(updatedSettings.guardrails_ceiling.toString()) * 100 }))
+        }
+        if (updatedSettings.guardrails_floor) {
+          setStrategyParams(prev => ({ ...prev, guardrails_floor: parseFloat(updatedSettings.guardrails_floor.toString()) * 100 }))
+        }
+        if (updatedSettings.bracket_topping_threshold) {
+          setStrategyParams(prev => ({ ...prev, bracket_topping_threshold: parseFloat(updatedSettings.bracket_topping_threshold.toString()) }))
+        }
+      }
+
       // Close popup and switch to projections tab
       setShowStrategyPopup(false)
       setActiveSubTab('projections')
 
       // Recalculate projections with the new strategy
+      // The calculateAndSaveProjections function will reload settings from the database
       await calculateAndSaveProjections()
     } catch (error) {
       console.error('Error saving strategy:', error)
+      alert('Failed to save strategy. Please try again.')
     } finally {
       setSavingStrategy(false)
     }
@@ -556,7 +659,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
     try {
       // Load all necessary data
       const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
-        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy').eq('id', planId).single(),
+        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy, filing_status').eq('id', planId).single(),
         supabase.from('rp_accounts').select('*').eq('plan_id', planId),
         supabase.from('rp_expenses').select('*').eq('plan_id', planId),
         supabase.from('rp_other_income').select('*').eq('plan_id', planId),
@@ -624,28 +727,12 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         annualExpenses
       )
       
-      // Override with default strategy for saved projections (modeling uses different strategy)
-      baseSettings.withdrawal_priority = 'default'
-      baseSettings.withdrawal_secondary_priority = 'tax_optimization'
-      
-      // For display only, use modeling strategy
-      // Note: This uses the current state values, which may not be updated yet if called synchronously
-      // We'll use the latest state by reading it directly
-      const currentStrategyType = modelingStrategyType
-      const currentPriority = modelingWithdrawalPriority
-      const currentSecondary = modelingWithdrawalSecondary
-      const currentParams = strategyParams
-      
+      // Use the strategy from the database (saved settings) for saved projections
+      // This ensures projections use the strategy that was saved, not the modeling state
       const settings: CalculatorSettings = {
         ...baseSettings,
-        withdrawal_priority: currentPriority, // Use modeling selection for display
-        withdrawal_secondary_priority: currentSecondary, // Use modeling selection for display
-        withdrawal_strategy_type: currentStrategyType, // Strategy type selection
-        fixed_percentage_rate: currentParams.fixed_percentage_rate ? currentParams.fixed_percentage_rate / 100 : undefined,
-        fixed_dollar_amount: currentParams.fixed_dollar_amount,
-        guardrails_ceiling: currentParams.guardrails_ceiling ? currentParams.guardrails_ceiling / 100 : undefined,
-        guardrails_floor: currentParams.guardrails_floor ? currentParams.guardrails_floor / 100 : undefined,
-        bracket_topping_threshold: currentParams.bracket_topping_threshold,
+        // Strategy type and parameters come from the database (baseSettings)
+        // which includes the saved withdrawal_strategy_type and strategy-specific parameters
       }
       
       // Set retirement age for display filtering
@@ -658,6 +745,33 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       }
       setSettings(settings)
 
+      // Calculate estimated SSA amounts at start age
+      const includePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
+      
+      // Automatically include spouse SSA if:
+      // 1. User explicitly set it to true, OR
+      // 2. Plan includes spouse (include_spouse = true), OR
+      // 3. Filing status is "Married Filing Jointly"
+      // This ensures realistic projections for married couples
+      const explicitSpouseSsa = (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : false)
+      const hasSpouse = planData.data.include_spouse || false
+      const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+      const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
+      
+      // Get base SSA estimates (using default income since advanced view doesn't have income input)
+      const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
+      const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
+      
+      // Adjust for inflation from current year to SSA start age
+      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+      const currentAge = currentYear - planData.data.birth_year
+      const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
+      const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
+      
+      // Estimated SSA at start age (inflation-adjusted from today to start age)
+      const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
+      const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
+
       // Calculate projections - use life expectancy parameter
       const calculatedProjections = calculateRetirementProjections(
         planData.data.birth_year,
@@ -668,8 +782,10 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         lifeExpectancy, // Project to life expectancy age
         planData.data.spouse_birth_year || undefined,
         planData.data.spouse_life_expectancy || undefined,
-        settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true,
-        planData.data.include_spouse && (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : true) || false
+        includePlannerSsa,
+        includeSpouseSsa,
+        estimatedPlannerSsaAtStart,
+        estimatedSpouseSsaAtStart
       )
       
       // For saving, recalculate with default strategy
@@ -682,8 +798,10 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         lifeExpectancy,
         planData.data.spouse_birth_year || undefined,
         planData.data.spouse_life_expectancy || undefined,
-        settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true,
-        planData.data.include_spouse && (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : true) || false
+        includePlannerSsa,
+        includeSpouseSsa,
+        estimatedPlannerSsaAtStart,
+        estimatedSpouseSsaAtStart
       )
 
       // Delete existing projections for this scenario
@@ -698,7 +816,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       }
 
       // Insert new projections (always use default strategy for saved data)
-      const projectionsToInsert = projectionsForSaving.map(proj => ({
+      // Try with annual_contribution first, fallback without it if column doesn't exist
+      let projectionsToInsert = projectionsForSaving.map(proj => ({
         plan_id: planId,
         scenario_id: scenarioId,
         year: proj.year,
@@ -718,6 +837,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         living_expenses: proj.living_expenses || 0,
         special_expenses: proj.special_expenses || 0,
         total_expenses: proj.total_expenses || 0,
+        annual_contribution: proj.annual_contribution || 0,
         gap_excess: proj.gap_excess || 0,
         cumulative_liability: proj.cumulative_liability || 0,
         debt_balance: proj.debt_balance || 0,
@@ -736,19 +856,99 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       }))
 
       // Use upsert to handle any remaining duplicates (in case delete didn't catch everything)
-      const { error: insertError } = await supabase
+      let { error: insertError } = await supabase
         .from('rp_projection_details')
         .upsert(projectionsToInsert, {
           onConflict: 'scenario_id,year',
           ignoreDuplicates: false
         })
 
-      if (insertError) throw insertError
+      // If insert fails and error suggests missing column, retry without annual_contribution
+      if (insertError) {
+        const errorMessage = insertError.message || ''
+        const errorCode = insertError.code || ''
+        // Check if error is about missing column (PostgreSQL error codes: 42703 = undefined column)
+        if (errorMessage.includes('annual_contribution') || errorCode === '42703' || (errorMessage.includes('column') && errorMessage.includes('does not exist'))) {
+          console.warn('annual_contribution column not found in database, retrying without it')
+          // Retry without annual_contribution
+          const projectionsToInsertWithoutContribution = projectionsForSaving.map(proj => {
+            const { annual_contribution, ...rest } = proj
+            return {
+              plan_id: planId,
+              scenario_id: scenarioId,
+              year: rest.year,
+              age: rest.age,
+              event: rest.event,
+              ssa_income: rest.ssa_income || 0,
+              distribution_401k: rest.distribution_401k || 0,
+              distribution_roth: rest.distribution_roth || 0,
+              distribution_taxable: rest.distribution_taxable || 0,
+              distribution_hsa: rest.distribution_hsa || 0,
+              distribution_ira: rest.distribution_ira || 0,
+              distribution_other: rest.distribution_other || 0,
+              investment_income: rest.investment_income || 0,
+              other_recurring_income: rest.other_recurring_income || 0,
+              total_income: rest.total_income || 0,
+              after_tax_income: rest.after_tax_income || 0,
+              living_expenses: rest.living_expenses || 0,
+              special_expenses: rest.special_expenses || 0,
+              total_expenses: rest.total_expenses || 0,
+              gap_excess: rest.gap_excess || 0,
+              cumulative_liability: rest.cumulative_liability || 0,
+              debt_balance: rest.debt_balance || 0,
+              debt_interest_paid: rest.debt_interest_paid || 0,
+              debt_principal_paid: rest.debt_principal_paid || 0,
+              assets_remaining: rest.assets_remaining || 0,
+              networth: rest.networth || 0,
+              balance_401k: rest.balance_401k || 0,
+              balance_roth: rest.balance_roth || 0,
+              balance_investment: rest.balance_investment || 0,
+              balance_other_investments: rest.balance_other_investments || 0,
+              balance_hsa: rest.balance_hsa || 0,
+              balance_ira: rest.balance_ira || 0,
+              taxable_income: rest.taxable_income || 0,
+              tax: rest.tax || 0,
+            } as any // Type assertion needed since database schema may not have annual_contribution
+          })
+          
+          const { error: retryError } = await supabase
+            .from('rp_projection_details')
+            .upsert(projectionsToInsertWithoutContribution, {
+              onConflict: 'scenario_id,year',
+              ignoreDuplicates: false
+            })
+          
+          if (retryError) {
+            console.error('Retry insert error details:', {
+              message: retryError.message,
+              details: retryError.details,
+              hint: retryError.hint,
+              code: retryError.code
+            })
+            throw retryError
+          }
+        } else {
+          console.error('Insert error details:', {
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+            code: insertError.code
+          })
+          throw insertError
+        }
+      }
 
       // Reload projections
       await loadProjections(scenarioId)
     } catch (error: any) {
-      console.error('Error calculating projections:', error)
+      console.error('Error calculating projections:', {
+        error,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+        stack: error?.stack
+      })
       throw error // Re-throw to let the UI handle it
     }
   }
@@ -905,6 +1105,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           
           // Helper function to get strategy name
           const getStrategyName = () => {
+            if (modelingStrategyType === 'amount_based_expense_coverage') return 'Expense Based - Cover Expenses and Tax'
             if (modelingStrategyType === 'amount_based_4_percent') return '4% Rule'
             if (modelingStrategyType === 'amount_based_fixed_percentage') return `Fixed Percentage (${strategyParams.fixed_percentage_rate}%)`
             if (modelingStrategyType === 'amount_based_fixed_dollar') return `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })})`
@@ -1041,9 +1242,14 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                                       <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settings?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
                                       <p><span className="text-gray-500">Inflation Rate:</span> {((settings?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
                                       <p><span className="text-gray-500">Taxes:</span> Using IRS brackets</p>
-                                      <p><span className="text-gray-500">SSA Start Age:</span> {settings?.ssa_start_age || 62} years</p>
+                                      <p><span className="text-gray-500">SSA Start Age:</span> {settings?.ssa_start_age || settings?.retirement_age || 65} years</p>
                                       <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || 'Single'}</p>
                                       <p><span className="text-gray-500">Borrowing Enabled:</span> {settings?.enable_borrowing ? 'Yes' : 'No'}</p>
+                                      {(planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly') && (
+                                        <p className="text-xs text-yellow-400 mt-2">
+                                          <span className="font-semibold">Note:</span> Spouse SSA income is automatically included in projections when plan includes spouse or filing status is "Married Filing Jointly", even if not explicitly selected.
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                   
@@ -1167,6 +1373,225 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
               />
               <span>Show Pre-Retirement Years</span>
             </label>
+            {projections.length > 0 && (
+              <button
+                onClick={() => {
+                  // Export projections to CSV
+                  const filteredProjs = projections.filter(p => {
+                    if (showPreRetirement) {
+                      return true // Show all projections
+                    } else {
+                      return retirementAge !== null && (p.age || 0) >= retirementAge
+                    }
+                  })
+                  
+                  // Define CSV headers with all fields
+                  const headers = [
+                    'Year',
+                    'Age',
+                    'Event',
+                    'SSA Income',
+                    '401k Withdrawal',
+                    'Roth Withdrawal',
+                    'Taxable Withdrawal',
+                    'HSA Withdrawal',
+                    'IRA Withdrawal',
+                    'Other Withdrawal',
+                    'Investment Income',
+                    'Other Investments Income',
+                    'Other Recurring Income',
+                    'Total Income',
+                    'After-Tax Income',
+                    'Living Expenses',
+                    'Special Expenses',
+                    'Total Expenses',
+                    'Annual Contribution',
+                    'Gap/Excess',
+                    'Cumulative Liability',
+                    'Debt Balance',
+                    'Debt Interest Paid',
+                    'Debt Principal Paid',
+                    'Assets Remaining',
+                    'Networth',
+                    '401k Balance',
+                    'Roth Balance',
+                    'Taxable Balance',
+                    'Other Investments Balance',
+                    'HSA Balance',
+                    'IRA Balance',
+                    'Taxable Income',
+                    'Tax'
+                  ]
+                  
+                  // Convert projections to CSV rows
+                  const rows = filteredProjs.map((proj, idx) => {
+                    // Calculate contributions if not present in projection data (same logic as table display)
+                    let contribution = proj.annual_contribution
+                    
+                    // If contribution is missing, calculate it from account balance changes
+                    if (contribution === undefined) {
+                      const isRetired = retirementAge !== null && (proj.age || 0) >= retirementAge
+                      if (!isRetired) {
+                        // Find previous projection
+                        const prevProj = idx > 0 ? filteredProjs[idx - 1] : null
+                        const growthRate = settings?.growth_rate_before_retirement || 0.1
+                        
+                        if (prevProj) {
+                          // Calculate from account balance changes (has previous year)
+                          const calculateAccountContributions = (current: number, previous: number | null, distribution: number): number => {
+                            if (previous === null) return 0
+                            const balanceAfterGrowth = previous * (1 + growthRate)
+                            const contributions = current + distribution - balanceAfterGrowth
+                            return Math.max(0, contributions)
+                          }
+                          
+                          contribution = 
+                            calculateAccountContributions(proj.balance_401k || 0, prevProj?.balance_401k || null, proj.distribution_401k || 0) +
+                            calculateAccountContributions(proj.balance_roth || 0, prevProj?.balance_roth || null, proj.distribution_roth || 0) +
+                            calculateAccountContributions(proj.balance_investment || 0, prevProj?.balance_investment || null, proj.distribution_taxable || 0) +
+                            calculateAccountContributions(proj.balance_hsa || 0, prevProj?.balance_hsa || null, proj.distribution_hsa || 0) +
+                            calculateAccountContributions(proj.balance_ira || 0, prevProj?.balance_ira || null, proj.distribution_ira || 0) +
+                            calculateAccountContributions(proj.balance_other_investments || 0, prevProj?.balance_other_investments || null, proj.distribution_other || 0)
+                        } else {
+                          // First year: calculate from initial account balances
+                          // Use accountsForTooltip to get initial balances
+                          const getInitialBalance = (accountType: string): number => {
+                            const type = (accountType || 'Other').trim()
+                            const key = type === 'Roth IRA' ? 'Roth IRA' : 
+                                        type === '401k' ? '401k' :
+                                        type === 'HSA' ? 'HSA' :
+                                        type === 'IRA' || type === 'Traditional IRA' ? 'IRA' :
+                                        type === 'Taxable' ? 'Taxable' : 'Other'
+                            
+                            const account = accountsForTooltip.find(acc => {
+                              const accType = (acc.account_type || 'Other').trim()
+                              const accKey = accType === 'Roth IRA' ? 'Roth IRA' : 
+                                           accType === '401k' ? '401k' :
+                                           accType === 'HSA' ? 'HSA' :
+                                           accType === 'IRA' || accType === 'Traditional IRA' ? 'IRA' :
+                                           accType === 'Taxable' ? 'Taxable' : 'Other'
+                              return accKey === key
+                            })
+                            return account?.balance || 0
+                          }
+                          
+                          const calculateFirstYearContributions = (currentBalance: number, accountType: string, distribution: number): number => {
+                            const initialBalance = getInitialBalance(accountType)
+                            if (initialBalance === 0) return 0
+                            const balanceAfterGrowth = initialBalance * (1 + growthRate)
+                            const contributions = currentBalance + distribution - balanceAfterGrowth
+                            return Math.max(0, contributions)
+                          }
+                          
+                          // Sum contributions from all accounts
+                          let totalContribution = 0
+                          accountsForTooltip.forEach(acc => {
+                            const type = acc.account_type || 'Other'
+                            let currentBalance = 0
+                            let distribution = 0
+                            
+                            if (type === '401k') {
+                              currentBalance = proj.balance_401k || 0
+                              distribution = proj.distribution_401k || 0
+                            } else if (type === 'Roth IRA' || type === 'Roth') {
+                              currentBalance = proj.balance_roth || 0
+                              distribution = proj.distribution_roth || 0
+                            } else if (type === 'Taxable') {
+                              currentBalance = proj.balance_investment || 0
+                              distribution = proj.distribution_taxable || 0
+                            } else if (type === 'HSA') {
+                              currentBalance = proj.balance_hsa || 0
+                              distribution = proj.distribution_hsa || 0
+                            } else if (type === 'IRA' || type === 'Traditional IRA') {
+                              currentBalance = proj.balance_ira || 0
+                              distribution = proj.distribution_ira || 0
+                            } else {
+                              currentBalance = proj.balance_other_investments || 0
+                              distribution = proj.distribution_other || 0
+                            }
+                            
+                            totalContribution += calculateFirstYearContributions(currentBalance, type, distribution)
+                          })
+                          
+                          contribution = totalContribution
+                        }
+                      } else {
+                        contribution = 0
+                      }
+                    }
+                    
+                    return [
+                      proj.year || '',
+                      proj.age || '',
+                      proj.event || '',
+                      (proj.ssa_income || 0).toFixed(2),
+                      (proj.distribution_401k || 0).toFixed(2),
+                      (proj.distribution_roth || 0).toFixed(2),
+                      (proj.distribution_taxable || 0).toFixed(2),
+                      (proj.distribution_hsa || 0).toFixed(2),
+                      (proj.distribution_ira || 0).toFixed(2),
+                      (proj.distribution_other || 0).toFixed(2),
+                      (proj.investment_income || 0).toFixed(2),
+                      (proj.other_investments_income || 0).toFixed(2),
+                      (proj.other_recurring_income || 0).toFixed(2),
+                      (proj.total_income || 0).toFixed(2),
+                      (proj.after_tax_income || 0).toFixed(2),
+                      (proj.living_expenses || 0).toFixed(2),
+                      (proj.special_expenses || 0).toFixed(2),
+                      (proj.total_expenses || 0).toFixed(2),
+                      (contribution || 0).toFixed(2),
+                      (proj.gap_excess || 0).toFixed(2),
+                    (proj.cumulative_liability || 0).toFixed(2),
+                    (proj.debt_balance || 0).toFixed(2),
+                    (proj.debt_interest_paid || 0).toFixed(2),
+                    (proj.debt_principal_paid || 0).toFixed(2),
+                    (proj.assets_remaining || 0).toFixed(2),
+                    (proj.networth || 0).toFixed(2),
+                    (proj.balance_401k || 0).toFixed(2),
+                    (proj.balance_roth || 0).toFixed(2),
+                    (proj.balance_investment || 0).toFixed(2),
+                    (proj.balance_other_investments || 0).toFixed(2),
+                    (proj.balance_hsa || 0).toFixed(2),
+                    (proj.balance_ira || 0).toFixed(2),
+                    (proj.taxable_income || 0).toFixed(2),
+                    (proj.tax || 0).toFixed(2)
+                    ]
+                  })
+                  
+                  // Escape CSV values (handle commas, quotes, newlines)
+                  const escapeCSV = (value: string | number): string => {
+                    const str = String(value)
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                      return `"${str.replace(/"/g, '""')}"`
+                    }
+                    return str
+                  }
+                  
+                  // Combine headers and rows
+                  const csvContent = [
+                    headers.map(escapeCSV).join(','),
+                    ...rows.map(row => row.map(escapeCSV).join(','))
+                  ].join('\n')
+                  
+                  // Create blob and download
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+                  const link = document.createElement('a')
+                  const url = URL.createObjectURL(blob)
+                  link.setAttribute('href', url)
+                  link.setAttribute('download', `retirement-projections-${new Date().toISOString().split('T')[0]}.csv`)
+                  link.style.visibility = 'hidden'
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                }}
+                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export to CSV
+              </button>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
                 <button
@@ -1256,8 +1681,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                               distOther: allVisible,
                               otherIncome: allVisible,
                               totalIncome: allVisible,
-                              tax: allVisible,
                               expenses: allVisible,
+                              contribution: allVisible,
                               gapExcess: allVisible,
                               networth: allVisible,
                               balance401k: allVisible,
@@ -1393,14 +1818,14 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         }}
                       >
                         <div className="flex items-center justify-end gap-2">
-                          <span>Total Income</span>
+                          <span>After-Tax Income</span>
                           <span className="text-gray-700">{incomeGroupExpanded ? '▼' : '▶'}</span>
                         </div>
                       </th>
                     )}
                     
-                    {visibleColumns.tax && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Tax</th>}
-                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Expenses</th>}
+                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Expenses (incl. tax)</th>}
+                    {visibleColumns.contribution && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Contributions</th>}
                     {visibleColumns.gapExcess && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Gap/Excess</th>}
                     
                     {/* Networth - Clickable to expand/collapse balance columns */}
@@ -1465,6 +1890,21 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     return ((current - previous) / previous) * 100
                   }
                   
+                  // Special calculation for networth to handle negative values correctly
+                  const calculateNetworthYoY = (current: number, previous: number | null): number | null => {
+                    if (previous === null || previous === 0) return null
+                    const change = current - previous
+                    // Handle negative networth: if both are negative and getting worse (more negative), show negative percentage
+                    if (previous < 0 && current < 0) {
+                      // Both negative: calculate percentage based on absolute value
+                      const percentChange = (change / Math.abs(previous)) * 100
+                      // If getting more negative (current < previous), make it negative
+                      return current < previous ? -Math.abs(percentChange) : Math.abs(percentChange)
+                    }
+                    // Standard calculation for positive or mixed cases
+                    return (change / previous) * 100
+                  }
+                  
                   const ssaIncome = proj.ssa_income || 0
                   const dist401k = proj.distribution_401k || 0
                   const distRoth = proj.distribution_roth || 0
@@ -1496,7 +1936,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   const balanceHsaYoY = calculateYoYChange(proj.balance_hsa || 0, prevProj?.balance_hsa || null)
                   const balanceIraYoY = calculateYoYChange(proj.balance_ira || 0, prevProj?.balance_ira || null)
                   const balanceOtherYoY = calculateYoYChange(proj.balance_other_investments || 0, prevProj?.balance_other_investments || null)
-                  const networthYoY = calculateYoYChange(proj.networth || 0, prevProj?.networth || null)
+                  const networthYoY = calculateNetworthYoY(proj.networth || 0, prevProj?.networth || null)
                   
                   // Calculate balance changes for tooltips
                   const calculateBalanceChange = (current: number, previous: number | null, distribution: number, accountType: string) => {
@@ -1781,122 +2221,205 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="cursor-help">
-                              <div>${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                              {totalIncomeYoY !== null && (
-                                <div className={`text-xs ${totalIncomeYoY >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {totalIncomeYoY >= 0 ? '+' : ''}{totalIncomeYoY.toFixed(2)}%
+                              <div>${(proj.after_tax_income || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                              {(() => {
+                                const afterTaxIncomeYoY = calculateYoYChange(proj.after_tax_income || 0, prevProj?.after_tax_income || null)
+                                return afterTaxIncomeYoY !== null ? (
+                                  <div className={`text-xs ${afterTaxIncomeYoY >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {afterTaxIncomeYoY >= 0 ? '+' : ''}{afterTaxIncomeYoY.toFixed(2)}%
+                                  </div>
+                                ) : null
+                              })()}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700 p-4">
+                            <div className="text-sm space-y-2">
+                              <div className="font-semibold text-base mb-3 text-white">Income Breakdown</div>
+                              
+                              {/* Income Sources */}
+                              <div className="space-y-1">
+                                {(proj.ssa_income || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">Social Security:</span>
+                                    <span className="text-white font-medium">${(proj.ssa_income || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                                {(proj.distribution_401k || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">401(k) Withdrawals:</span>
+                                    <span className="text-white font-medium">${(proj.distribution_401k || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                                {(proj.distribution_ira || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">IRA Withdrawals:</span>
+                                    <span className="text-white font-medium">${(proj.distribution_ira || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                                {(proj.distribution_roth || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">Roth Withdrawals:</span>
+                                    <span className="text-white font-medium">${(proj.distribution_roth || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                                {(proj.distribution_taxable || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">Taxable Account:</span>
+                                    <span className="text-white font-medium">${(proj.distribution_taxable || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                                {(proj.distribution_hsa || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">HSA Withdrawals:</span>
+                                    <span className="text-white font-medium">${(proj.distribution_hsa || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                                {(proj.distribution_other || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">Other Account:</span>
+                                    <span className="text-white font-medium">${(proj.distribution_other || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                                {(proj.other_recurring_income || 0) > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">Other Income:</span>
+                                    <span className="text-white font-medium">${(proj.other_recurring_income || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Totals */}
+                              <div className="border-t border-gray-700 pt-2 mt-2 space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-300">Total Income:</span>
+                                  <span className="text-white font-semibold">${(proj.total_income || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                </div>
+                              </div>
+
+                              {/* Tax Calculation Breakdown */}
+                              {(proj.tax || 0) > 0 && (
+                                <div className="border-t border-gray-700 pt-3 mt-3">
+                                  <div className="font-semibold text-base mb-2 text-yellow-400">Tax Calculation</div>
+                                  <div className="space-y-1 text-xs">
+                                    {(() => {
+                                      const includeSpouseSsa = planDataForTooltip?.include_spouse || false
+                                      const filingStatus = determineFilingStatus(includeSpouseSsa, settings?.filing_status)
+                                      const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+                                      const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
+                                      const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
+                                      const incomeTax = calculateProgressiveTax(taxableIncomeAfterDeduction, filingStatus)
+                                      const distributionTaxable = proj.distribution_taxable || 0
+                                      const capitalGainsTax = calculateCapitalGainsTax(distributionTaxable, filingStatus)
+                                      const effectiveIncomeTaxRate = taxableIncomeAfterDeduction > 0 
+                                        ? (incomeTax / taxableIncomeAfterDeduction) * 100 
+                                        : 0
+                                      const effectiveCapitalGainsTaxRate = distributionTaxable > 0
+                                        ? (capitalGainsTax / distributionTaxable) * 100
+                                        : 0
+                                      
+                                      return (
+                                        <>
+                                          <div className="space-y-1">
+                                            <div className="text-gray-400 font-semibold mb-1">Ordinary Income:</div>
+                                            {(proj.distribution_401k || 0) > 0 && (
+                                              <div className="ml-2 flex justify-between">
+                                                <span className="text-gray-400">401(k) Withdrawals:</span>
+                                                <span className="text-gray-300">${(proj.distribution_401k || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                              </div>
+                                            )}
+                                            {(proj.distribution_ira || 0) > 0 && (
+                                              <div className="ml-2 flex justify-between">
+                                                <span className="text-gray-400">IRA Withdrawals:</span>
+                                                <span className="text-gray-300">${(proj.distribution_ira || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                              </div>
+                                            )}
+                                            {(proj.other_recurring_income || 0) > 0 && (
+                                              <div className="ml-2 flex justify-between">
+                                                <span className="text-gray-400">Other Income:</span>
+                                                <span className="text-gray-300">${(proj.other_recurring_income || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                              </div>
+                                            )}
+                                            <div className="ml-2 flex justify-between border-t border-gray-600 pt-1 mt-1">
+                                              <span className="text-gray-300">Total Ordinary Income:</span>
+                                              <span className="text-white font-medium">${ordinaryIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                            </div>
+                                            <div className="ml-2 flex justify-between">
+                                              <span className="text-gray-400">Standard Deduction ({filingStatus}):</span>
+                                              <span className="text-gray-300">-${standardDeduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                            </div>
+                                            <div className="ml-2 flex justify-between border-t border-gray-600 pt-1 mt-1">
+                                              <span className="text-gray-300">Taxable Income (after deduction):</span>
+                                              <span className="text-white font-medium">${taxableIncomeAfterDeduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                            </div>
+                                            {taxableIncomeAfterDeduction > 0 && (
+                                              <div className="ml-2 flex justify-between">
+                                                <span className="text-gray-400">Income Tax (IRS 2024 brackets):</span>
+                                                <span className="text-red-300 font-medium">${incomeTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                              </div>
+                                            )}
+                                            {taxableIncomeAfterDeduction > 0 && effectiveIncomeTaxRate > 0 && (
+                                              <div className="ml-2 flex justify-between text-xs text-gray-500">
+                                                <span>Effective Rate:</span>
+                                                <span>{effectiveIncomeTaxRate.toFixed(2)}%</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                          
+                                          {distributionTaxable > 0 && (
+                                            <div className="space-y-1 mt-2">
+                                              <div className="text-gray-400 font-semibold mb-1">Capital Gains:</div>
+                                              <div className="ml-2 flex justify-between">
+                                                <span className="text-gray-400">Taxable Account Withdrawals:</span>
+                                                <span className="text-gray-300">${distributionTaxable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                              </div>
+                                              {distributionTaxable > 0 && effectiveCapitalGainsTaxRate > 0 && (
+                                                <div className="ml-2 flex justify-between">
+                                                  <span className="text-gray-400">Capital Gains Tax (IRS 2024 brackets):</span>
+                                                  <span className="text-red-300 font-medium">${capitalGainsTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                </div>
+                                              )}
+                                              {distributionTaxable > 0 && effectiveCapitalGainsTaxRate > 0 && (
+                                                <div className="ml-2 flex justify-between text-xs text-gray-500">
+                                                  <span>Effective Rate:</span>
+                                                  <span>{effectiveCapitalGainsTaxRate.toFixed(2)}%</span>
+                                                </div>
+                                              )}
+                                              {distributionTaxable > 0 && capitalGainsTax === 0 && (
+                                                <div className="ml-2 text-xs text-gray-500 italic">
+                                                  No tax (within 0% capital gains bracket)
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                          
+                                          <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between">
+                                            <span className="text-gray-200 font-semibold">Total Tax:</span>
+                                            <span className="text-red-300 font-bold">${(proj.tax || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                          </div>
+                                          <div className="text-gray-500 text-xs mt-1 italic">
+                                            Note: Tax calculation uses 2024 federal tax brackets and standard deductions. Actual tax may vary based on specific bracket thresholds.
+                                          </div>
+                                        </>
+                                      )
+                                    })()}
+                                  </div>
                                 </div>
                               )}
-                              {!totalIncomeMatch && (
-                                <div className="text-xs text-orange-600">⚠</div>
-                              )}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Total Income Breakdown</p>
-                            <p className="text-xs">SSA (Primary + Spouse): ${ssaIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs">401k Distribution: ${dist401k.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs">Roth Distribution: ${distRoth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs">Taxable Distribution: ${distTaxable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs">HSA Distribution: ${distHsa.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs">IRA Distribution: ${distIra.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs">Other Distribution: ${distOther.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs">Other Recurring Income: ${otherIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            <p className="text-xs font-semibold mt-1">Sum: ${calculatedTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            {!totalIncomeMatch && (
-                              <p className="text-xs text-orange-600 mt-1">⚠ Calculation mismatch detected</p>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : '-'}
-                    </td>}
-                    {visibleColumns.tax && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
-                      {isRetired ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help">
-                              <div>${(proj.tax || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-sm space-y-2">
-                              <p className="font-semibold mb-2">Tax Calculation (IRS 2024 Brackets)</p>
-                              
-                              {(() => {
-                                // Use same calculation logic as retirement-projections.ts
-                                // Determine filing status using the same helper function
-                                const includeSpouseSsa = planDataForTooltip?.include_spouse || false
-                                const filingStatus = determineFilingStatus(includeSpouseSsa, settings?.filing_status)
-                                const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
-                                const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
-                                const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
-                                
-                                // Use actual IRS progressive tax brackets (same as projections)
-                                const incomeTax = calculateProgressiveTax(taxableIncomeAfterDeduction, filingStatus)
-                                
-                                // Capital gains tax - use same calculation as projections
-                                const distributionTaxable = proj.distribution_taxable || 0
-                                const capitalGainsTax = calculateCapitalGainsTax(distributionTaxable, filingStatus)
-                                
-                                // Calculate effective rates for display
-                                const effectiveIncomeTaxRate = taxableIncomeAfterDeduction > 0 
-                                  ? (incomeTax / taxableIncomeAfterDeduction) * 100 
-                                  : 0
-                                const effectiveCapitalGainsTaxRate = distributionTaxable > 0
-                                  ? (capitalGainsTax / distributionTaxable) * 100
-                                  : 0
-                                
-                                return (
-                                  <>
-                                    <div className="space-y-1">
-                                      <p className="text-xs font-medium">Ordinary Income:</p>
-                                      {(proj.distribution_401k || 0) > 0 && (
-                                        <p className="text-xs ml-2">- 401k: ${(proj.distribution_401k || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      )}
-                                      {(proj.distribution_ira || 0) > 0 && (
-                                        <p className="text-xs ml-2">- IRA: ${(proj.distribution_ira || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      )}
-                                      {(proj.other_recurring_income || 0) > 0 && (
-                                        <p className="text-xs ml-2">- Other Income: ${(proj.other_recurring_income || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      )}
-                                      <p className="text-xs ml-2 border-t border-gray-600 pt-1 mt-1">Total: ${ordinaryIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      <p className="text-xs ml-2">Standard Deduction ({filingStatus}): -${standardDeduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      <p className="text-xs ml-2 border-t border-gray-600 pt-1 mt-1">Taxable Income: ${taxableIncomeAfterDeduction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      {taxableIncomeAfterDeduction > 0 && (
-                                        <>
-                                          <p className="text-xs ml-2">Income Tax (IRS brackets): ${incomeTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                          {effectiveIncomeTaxRate > 0 && (
-                                            <p className="text-xs ml-2 text-gray-400">Effective Rate: {effectiveIncomeTaxRate.toFixed(2)}%</p>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
-                                    
-                                    {distributionTaxable > 0 && (
-                                      <div className="space-y-1 border-t border-gray-600 pt-2 mt-2">
-                                        <p className="text-xs font-medium">Capital Gains:</p>
-                                        <p className="text-xs ml-2">Taxable Account: ${distributionTaxable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                        {capitalGainsTax > 0 && (
-                                          <>
-                                            <p className="text-xs ml-2">Capital Gains Tax (IRS brackets): ${capitalGainsTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                            {effectiveCapitalGainsTaxRate > 0 && (
-                                              <p className="text-xs ml-2 text-gray-400">Effective Rate: {effectiveCapitalGainsTaxRate.toFixed(2)}%</p>
-                                            )}
-                                          </>
-                                        )}
-                                        {capitalGainsTax === 0 && (
-                                          <p className="text-xs ml-2 text-gray-400 italic">No tax (within 0% capital gains bracket)</p>
-                                        )}
-                                      </div>
-                                    )}
-                                    
-                                    <div className="border-t border-gray-600 pt-2 mt-2">
-                                      <p className="text-xs font-semibold">Total Tax: ${(proj.tax || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                      <p className="text-xs text-gray-400 italic mt-1">Using IRS 2024 federal tax brackets and standard deductions</p>
-                                    </div>
-                                  </>
-                                )
-                              })()}
+
+                              <div className="border-t border-gray-700 pt-2 mt-2">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-200 font-semibold">After-Tax Income:</span>
+                                  <span className="text-green-300 font-bold">${(proj.after_tax_income || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                </div>
+                                {prevProj && prevProj.after_tax_income && prevProj.after_tax_income !== 0 && (
+                                  <div className="flex justify-between border-t border-gray-700 pt-2 mt-2">
+                                    <span className="text-gray-300">Change from Last Year:</span>
+                                    <span className={`font-semibold ${((proj.after_tax_income || 0) - prevProj.after_tax_income) / prevProj.after_tax_income * 100 >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                                      {((proj.after_tax_income || 0) - prevProj.after_tax_income) / prevProj.after_tax_income * 100 >= 0 ? '+' : ''}{(((proj.after_tax_income || 0) - prevProj.after_tax_income) / prevProj.after_tax_income * 100).toFixed(2)}%
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </TooltipContent>
                         </Tooltip>
@@ -1905,12 +2428,128 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     {visibleColumns.expenses && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
                       {isRetired ? `$${(proj.total_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
                     </td>}
-                    {visibleColumns.gapExcess && <td className={`px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold ${
-                      showIncome ? ((proj.gap_excess || 0) >= 0 ? 'text-green-700' : 'text-red-700') : 'text-gray-400'
+                    {visibleColumns.contribution && (() => {
+                      // Calculate contributions if not present in projection data
+                      // This handles cases where projections were loaded from database without annual_contribution
+                      let contribution = proj.annual_contribution
+                      
+                      // If contribution is missing and we're pre-retirement, try to calculate it
+                      if (contribution === undefined && !isRetired) {
+                        const growthRate = settings?.growth_rate_before_retirement || 0.1
+                        
+                        if (prevProj) {
+                          // Calculate from account balance changes (has previous year)
+                          const calculateAccountContributions = (current: number, previous: number | null, distribution: number): number => {
+                            if (previous === null) return 0
+                            const balanceAfterGrowth = previous * (1 + growthRate)
+                            const contributions = current + distribution - balanceAfterGrowth
+                            return Math.max(0, contributions)
+                          }
+                          
+                          contribution = 
+                            calculateAccountContributions(proj.balance_401k || 0, prevProj?.balance_401k || null, proj.distribution_401k || 0) +
+                            calculateAccountContributions(proj.balance_roth || 0, prevProj?.balance_roth || null, proj.distribution_roth || 0) +
+                            calculateAccountContributions(proj.balance_investment || 0, prevProj?.balance_investment || null, proj.distribution_taxable || 0) +
+                            calculateAccountContributions(proj.balance_hsa || 0, prevProj?.balance_hsa || null, proj.distribution_hsa || 0) +
+                            calculateAccountContributions(proj.balance_ira || 0, prevProj?.balance_ira || null, proj.distribution_ira || 0) +
+                            calculateAccountContributions(proj.balance_other_investments || 0, prevProj?.balance_other_investments || null, proj.distribution_other || 0)
+                        } else {
+                          // First year: calculate from initial account balances
+                          // Map account types to projection balance keys
+                          const getInitialBalance = (accountType: string): number => {
+                            const type = (accountType || 'Other').trim()
+                            const key = type === 'Roth IRA' ? 'Roth IRA' : 
+                                        type === '401k' ? '401k' :
+                                        type === 'HSA' ? 'HSA' :
+                                        type === 'IRA' || type === 'Traditional IRA' ? 'IRA' :
+                                        type === 'Taxable' ? 'Taxable' : 'Other'
+                            
+                            // Find matching account in accountsForTooltip
+                            const account = accountsForTooltip.find(acc => {
+                              const accType = (acc.account_type || 'Other').trim()
+                              const accKey = accType === 'Roth IRA' ? 'Roth IRA' : 
+                                           accType === '401k' ? '401k' :
+                                           accType === 'HSA' ? 'HSA' :
+                                           accType === 'IRA' || accType === 'Traditional IRA' ? 'IRA' :
+                                           accType === 'Taxable' ? 'Taxable' : 'Other'
+                              return accKey === key
+                            })
+                            return account?.balance || 0
+                          }
+                          
+                          const calculateFirstYearContributions = (currentBalance: number, accountType: string, distribution: number): number => {
+                            const initialBalance = getInitialBalance(accountType)
+                            if (initialBalance === 0) return 0
+                            const balanceAfterGrowth = initialBalance * (1 + growthRate)
+                            const contributions = currentBalance + distribution - balanceAfterGrowth
+                            return Math.max(0, contributions)
+                          }
+                          
+                          // Sum contributions from all accounts
+                          let totalContribution = 0
+                          accountsForTooltip.forEach(acc => {
+                            const type = acc.account_type || 'Other'
+                            let currentBalance = 0
+                            let distribution = 0
+                            
+                            if (type === '401k') {
+                              currentBalance = proj.balance_401k || 0
+                              distribution = proj.distribution_401k || 0
+                            } else if (type === 'Roth IRA' || type === 'Roth') {
+                              currentBalance = proj.balance_roth || 0
+                              distribution = proj.distribution_roth || 0
+                            } else if (type === 'Taxable') {
+                              currentBalance = proj.balance_investment || 0
+                              distribution = proj.distribution_taxable || 0
+                            } else if (type === 'HSA') {
+                              currentBalance = proj.balance_hsa || 0
+                              distribution = proj.distribution_hsa || 0
+                            } else if (type === 'IRA' || type === 'Traditional IRA') {
+                              currentBalance = proj.balance_ira || 0
+                              distribution = proj.distribution_ira || 0
+                            } else {
+                              currentBalance = proj.balance_other_investments || 0
+                              distribution = proj.distribution_other || 0
+                            }
+                            
+                            totalContribution += calculateFirstYearContributions(currentBalance, type, distribution)
+                          })
+                          
+                          contribution = totalContribution
+                        }
+                      }
+                      
+                      return (
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                          {!isRetired && (contribution || 0) > 0 
+                            ? `$${(contribution || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` 
+                            : !isRetired ? '$0' : '-'}
+                        </td>
+                      )
+                    })()}
+                    {visibleColumns.gapExcess && (() => {
+                      let gapExcess = proj.gap_excess || 0
+                      // Fix negative zero: ensure 0 is always displayed as 0, not -0
+                      // Use Math.abs to normalize -0 to 0, then check if result is 0
+                      const normalizedValue = Math.abs(gapExcess) < 0.0001 ? 0 : gapExcess
+                      // Determine color: green if >0, red if <0, black if =0
+                      const colorClass = showIncome 
+                        ? (normalizedValue > 0 ? 'text-green-700' : normalizedValue < 0 ? 'text-red-700' : 'text-gray-900')
+                        : 'text-gray-400'
+                      // Format the value - use explicit 0 to avoid -0 in formatting
+                      const displayValue = normalizedValue === 0 ? 0 : normalizedValue
+                      const formatted = displayValue.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                      // Final safety check: replace any "-0" in the formatted string
+                      const finalFormatted = formatted.replace(/^-0$/, '0')
+                      return (
+                        <td className={`px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold ${colorClass}`}>
+                          {showIncome ? `$${finalFormatted}` : '-'}
+                        </td>
+                      )
+                    })()}
+                    {visibleColumns.networth && <td className={`px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold ${
+                      (proj.networth || 0) < 0 ? 'text-red-600' : 'text-gray-900'
                     }`}>
-                      {showIncome ? `$${(proj.gap_excess || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
-                    </td>}
-                    {visibleColumns.networth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-semibold text-gray-900">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -1922,27 +2561,147 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                             )}
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-semibold mb-2">Networth Change Breakdown</p>
-                          {networthChange ? (
-                            <>
-                              <p className="text-xs">Previous Networth: ${(prevProj?.networth || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              <p className="text-xs font-medium mt-2">Changes:</p>
-                              <p className="text-xs">Total Assets Change: ${networthChange.assetsChange >= 0 ? '+' : ''}${networthChange.assetsChange.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              <p className="text-xs">- 401k: ${((proj.balance_401k || 0) - (prevProj?.balance_401k || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              <p className="text-xs">- Roth: ${((proj.balance_roth || 0) - (prevProj?.balance_roth || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              <p className="text-xs">- Taxable: ${((proj.balance_investment || 0) - (prevProj?.balance_investment || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              <p className="text-xs">- HSA: ${((proj.balance_hsa || 0) - (prevProj?.balance_hsa || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              <p className="text-xs">- IRA: ${((proj.balance_ira || 0) - (prevProj?.balance_ira || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              <p className="text-xs">- Other: ${((proj.balance_other_investments || 0) - (prevProj?.balance_other_investments || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              {(proj.debt_balance || 0) !== 0 && (
-                                <p className="text-xs">Debt Change: ${networthChange.debtChange >= 0 ? '+' : ''}${networthChange.debtChange.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                              )}
-                              <p className="text-xs font-semibold mt-2">Net Change: ${networthChange.change >= 0 ? '+' : ''}${networthChange.change.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            </>
-                          ) : (
-                            <p className="text-xs">No previous data available</p>
-                          )}
+                        <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700 p-4">
+                          <div className="text-sm space-y-2">
+                            <div className="font-semibold text-base mb-3 text-white">Remaining Funds Change Breakdown</div>
+                            
+                            {prevProj ? (() => {
+                              const prevNetworth = prevProj.networth || 0
+                              const currentNetworth = proj.networth || 0
+                              const networthChange = currentNetworth - prevNetworth
+                              // Fix percentage calculation for negative networth
+                              let networthChangePercent = 0
+                              if (prevNetworth !== 0) {
+                                if (prevNetworth < 0 && currentNetworth < 0) {
+                                  // Both negative: calculate percentage based on absolute value
+                                  const percentChange = (networthChange / Math.abs(prevNetworth)) * 100
+                                  // If getting more negative (current < previous), make it negative
+                                  networthChangePercent = currentNetworth < prevNetworth ? -Math.abs(percentChange) : Math.abs(percentChange)
+                                } else {
+                                  // Standard calculation for positive or mixed cases
+                                  networthChangePercent = (networthChange / prevNetworth) * 100
+                                }
+                              }
+                              
+                              // Calculate contributions from actual balance changes (same method as individual account tooltips)
+                              const isRetired = retirementAge !== null && (proj.age || 0) >= retirementAge
+                              const growthRate = isRetired 
+                                ? (settings?.growth_rate_during_retirement || 0.05)
+                                : (settings?.growth_rate_before_retirement || 0.1)
+                              
+                              // Calculate contributions for each account type from balance changes
+                              const calculateAccountContributions = (current: number, previous: number | null, distribution: number): number => {
+                                if (previous === null || isRetired) return 0
+                                const balanceAfterGrowth = previous * (1 + growthRate)
+                                // contributions = current + withdrawals - balanceAfterGrowth
+                                const contributions = current + distribution - balanceAfterGrowth
+                                return Math.max(0, contributions) // Can't have negative contributions
+                              }
+                              
+                              const contributions = 
+                                calculateAccountContributions(proj.balance_401k || 0, prevProj?.balance_401k || null, proj.distribution_401k || 0) +
+                                calculateAccountContributions(proj.balance_roth || 0, prevProj?.balance_roth || null, proj.distribution_roth || 0) +
+                                calculateAccountContributions(proj.balance_investment || 0, prevProj?.balance_investment || null, proj.distribution_taxable || 0) +
+                                calculateAccountContributions(proj.balance_hsa || 0, prevProj?.balance_hsa || null, proj.distribution_hsa || 0) +
+                                calculateAccountContributions(proj.balance_ira || 0, prevProj?.balance_ira || null, proj.distribution_ira || 0) +
+                                calculateAccountContributions(proj.balance_other_investments || 0, prevProj?.balance_other_investments || null, proj.distribution_other || 0)
+                              
+                              // Calculate total withdrawals
+                              const totalWithdrawals = 
+                                (proj.distribution_401k || 0) +
+                                (proj.distribution_ira || 0) +
+                                (proj.distribution_roth || 0) +
+                                (proj.distribution_taxable || 0) +
+                                (proj.distribution_hsa || 0) +
+                                (proj.distribution_other || 0)
+                              
+                              // Calculate total growth from all accounts
+                              const calculateAccountGrowth = (previous: number | null): number => {
+                                if (previous === null) return 0
+                                return previous * growthRate
+                              }
+                              
+                              const estimatedGrowth = 
+                                calculateAccountGrowth(prevProj?.balance_401k || null) +
+                                calculateAccountGrowth(prevProj?.balance_roth || null) +
+                                calculateAccountGrowth(prevProj?.balance_investment || null) +
+                                calculateAccountGrowth(prevProj?.balance_hsa || null) +
+                                calculateAccountGrowth(prevProj?.balance_ira || null) +
+                                calculateAccountGrowth(prevProj?.balance_other_investments || null)
+                              
+                              return (
+                                <>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-300">Previous Year Remaining Funds:</span>
+                                      <span className="text-white font-medium">${prevNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                    </div>
+                                    
+                                    {contributions > 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-300">Contributions:</span>
+                                        <span className="text-green-300 font-medium">+${contributions.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {estimatedGrowth > 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-300">Investment Growth:</span>
+                                        <span className="text-green-300 font-medium">+${estimatedGrowth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {estimatedGrowth < 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-300">Investment Loss:</span>
+                                        <span className="text-red-300 font-medium">${estimatedGrowth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {totalWithdrawals > 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-300">Withdrawals:</span>
+                                        <span className="text-red-300 font-medium">-${totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {(proj.tax || 0) > 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-300">Taxes Paid:</span>
+                                        <span className="text-red-300 font-medium">-${(proj.tax || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Net Change */}
+                                  <div className="border-t border-gray-700 pt-2 mt-2">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-200 font-semibold">Net Change:</span>
+                                      <span className={`font-bold ${
+                                        networthChange >= 0 ? 'text-green-300' : 'text-red-300'
+                                      }`}>
+                                        {networthChange >= 0 ? '+' : ''}${networthChange.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between mt-2">
+                                      <span className="text-gray-300">Change Percentage:</span>
+                                      <span className={`font-semibold ${
+                                        networthChangePercent >= 0 ? 'text-green-300' : 'text-red-300'
+                                      }`}>
+                                        {networthChangePercent >= 0 ? '+' : ''}{networthChangePercent.toFixed(2)}%
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between mt-2 border-t border-gray-700 pt-2">
+                                      <span className="text-gray-200 font-semibold">Current Remaining Funds:</span>
+                                      <span className="text-white font-bold">${currentNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                    </div>
+                                  </div>
+                                </>
+                              )
+                            })() : (
+                              <p className="text-xs text-gray-400">No previous data available</p>
+                            )}
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </td>}
@@ -2290,6 +3049,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     <optgroup label="Amount-Based Strategies">
+                      <option value="amount_based_expense_coverage">Expense Based - Cover Expenses and Tax</option>
                       <option value="amount_based_4_percent">4% Rule</option>
                       <option value="amount_based_fixed_percentage">Fixed Percentage</option>
                       <option value="amount_based_fixed_dollar">Fixed Dollar Amount</option>
@@ -2310,6 +3070,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     </optgroup>
                   </select>
                   <p className="mt-1 text-xs text-gray-500">
+                    {modelingStrategyType === 'amount_based_expense_coverage' && 'Withdraw enough to cover all expenses plus estimated tax on the withdrawal'}
                     {modelingStrategyType === 'amount_based_4_percent' && 'Withdraw 4% of portfolio in year 1, then adjust for inflation'}
                     {modelingStrategyType === 'amount_based_fixed_percentage' && 'Withdraw a fixed percentage of portfolio value each year'}
                     {modelingStrategyType === 'amount_based_fixed_dollar' && 'Withdraw a fixed dollar amount regardless of market performance'}

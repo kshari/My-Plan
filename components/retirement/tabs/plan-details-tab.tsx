@@ -97,7 +97,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
     growth_rate_during_retirement: 5, // Percentage
     inflation_rate: 4, // Percentage
     enable_borrowing: false, // Enable borrowing to cover negative cashflow
-    ssa_start_age: 62, // Age to start SSA income
+    ssa_start_age: 65, // Age to start SSA income (defaults to retirement age)
     planner_ssa_income: true, // Include planner SSA income
     spouse_ssa_income: true, // Include spouse SSA income
   })
@@ -133,7 +133,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           filing_status: data.filing_status || 'Married Filing Jointly',
           life_expectancy: data.life_expectancy || 90,
           include_spouse: data.include_spouse || false,
-          spouse_birth_year: data.spouse_birth_year || new Date().getFullYear() - 50,
+          spouse_birth_year: data.spouse_birth_year || data.birth_year, // Default to planner's birth year
           spouse_life_expectancy: data.spouse_life_expectancy || 90,
         })
       }
@@ -223,7 +223,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       if (data) {
         setScenarioVars({
           retirement_age: data.retirement_age || 65,
-          ssa_start_age: data.ssa_start_age || 62,
+          ssa_start_age: data.ssa_start_age || data.retirement_age || 65,
           growth_rate_before_retirement: parseFloat(data.growth_rate_before_retirement?.toString() || '0.1') * 100,
           growth_rate_during_retirement: parseFloat(data.growth_rate_during_retirement?.toString() || '0.05') * 100,
           inflation_rate: parseFloat(data.inflation_rate?.toString() || '0.04') * 100,
@@ -269,7 +269,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         growth_rate_during_retirement: getDefault('Growth rate (return) during retirement', 5),
         inflation_rate: getDefault('Inflation', 4),
         enable_borrowing: false,
-        ssa_start_age: 62,
+        ssa_start_age: scenarioVars.retirement_age || 65, // Default to retirement age
         planner_ssa_income: true,
         spouse_ssa_income: true,
       })
@@ -282,7 +282,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         growth_rate_during_retirement: 5,
         inflation_rate: 4,
         enable_borrowing: false,
-        ssa_start_age: 62,
+        ssa_start_age: scenarioVars.retirement_age || 65, // Default to retirement age
         planner_ssa_income: true,
         spouse_ssa_income: true,
       })
@@ -540,7 +540,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         loan_rate: 0.1, // Keep for backward compatibility but not shown
         inflation_rate: scenarioVars.inflation_rate / 100,
         enable_borrowing: scenarioVars.enable_borrowing || false,
-        ssa_start_age: scenarioVars.ssa_start_age || 62,
+        ssa_start_age: scenarioVars.ssa_start_age || scenarioVars.retirement_age || 65,
         planner_ssa_income: scenarioVars.planner_ssa_income !== undefined ? scenarioVars.planner_ssa_income : true,
         spouse_ssa_income: scenarioVars.spouse_ssa_income !== undefined ? scenarioVars.spouse_ssa_income : true,
       }
@@ -830,7 +830,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                         type="number"
                         value={planBasis.spouse_birth_year}
                         onChange={(e) => {
-                          const spouseBirthYear = parseInt(e.target.value) || new Date().getFullYear() - 50
+                          const spouseBirthYear = parseInt(e.target.value) || planBasis.birth_year // Default to planner's birth year
                           setPlanBasis({ ...planBasis, spouse_birth_year: spouseBirthYear })
                         }}
                         className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"

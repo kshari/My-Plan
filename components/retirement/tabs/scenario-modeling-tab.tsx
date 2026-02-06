@@ -20,6 +20,7 @@ import {
 import {
   calculateRetirementProjections,
   buildCalculatorSettings,
+  calculateEstimatedSSA,
   type Account,
   type Expense,
   type OtherIncome,
@@ -56,6 +57,8 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
   const [planData, setPlanData] = useState<any>(null)
   const [currentAge, setCurrentAge] = useState<number>(50)
   const [lifeExpectancy, setLifeExpectancy] = useState<number>(90)
+  const [settingsData, setSettingsData] = useState<any>(null)
+  const [estimatedSSAIncome, setEstimatedSSAIncome] = useState<number | null>(null)
   
   // Growth rate range
   const minGrowthRate = 3
@@ -68,6 +71,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
 
   const loadModelingData = async () => {
     setLoading(true)
+    setEstimatedSSAIncome(null) // Reset SSA income estimate
     try {
       // Load plan data
       const { data: plan } = await supabase
@@ -97,6 +101,9 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
           : Promise.resolve({ data: null }),
       ])
 
+      // Store settings for assumptions display
+      setSettingsData(settingsResult.data)
+
       const accounts: Account[] = (accountsResult.data || []).map(acc => ({
         id: acc.id,
         account_name: acc.account_name,
@@ -124,6 +131,31 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
 
       // Generate data for each retirement age and growth rate combination
       const data: any[] = []
+      let ssaIncomeCalculated = false // Track if we've calculated SSA income
+      
+      // Calculate estimated SSA amounts at start age
+      const includePlannerSsa = settingsResult.data?.planner_ssa_income !== undefined ? settingsResult.data.planner_ssa_income : true
+      
+      // Automatically include spouse SSA if:
+      // 1. User explicitly set it to true, OR
+      // 2. Plan includes spouse (include_spouse = true), OR
+      // 3. Filing status is "Married Filing Jointly"
+      // This ensures realistic projections for married couples
+      const explicitSpouseSsa = (settingsResult.data?.spouse_ssa_income !== undefined ? settingsResult.data.spouse_ssa_income : false)
+      const hasSpouse = plan.include_spouse || false
+      const isMarriedFilingJointly = plan.filing_status === 'Married Filing Jointly'
+      const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
+      
+      const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
+      const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
+      
+      const ssaStartAge = settingsResult.data?.ssa_start_age || settingsResult.data?.retirement_age || 65
+      const yearsToSsaStart = Math.max(0, ssaStartAge - calcCurrentAge)
+      const inflationRate = parseFloat(settingsResult.data?.inflation_rate?.toString() || '0.03')
+      const inflationToSsaStart = Math.pow(1 + inflationRate, yearsToSsaStart)
+      
+      const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
+      const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
       
       // X-axis: from current age + 1 to 65
       const maxRetirementAge = 65
@@ -143,7 +175,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
               ...settingsResult.data,
               retirement_age: retirementAge,
               growth_rate_before_retirement: growthRate / 100,
-              growth_rate_during_retirement: (growthRate * 0.7) / 100, // During retirement is typically lower
+              growth_rate_during_retirement: growthRate / 100, // Use same growth rate for before and during retirement
             },
             plan,
             currentYear,
@@ -154,7 +186,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
           settings.withdrawal_priority = 'default'
           settings.withdrawal_secondary_priority = 'tax_optimization'
 
-          try {
+            try {
             const projections = calculateRetirementProjections(
               plan.birth_year,
               accounts,
@@ -164,9 +196,21 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
               plan.life_expectancy || 90,
               plan.spouse_birth_year || undefined,
               plan.spouse_life_expectancy || undefined,
-              true,
-              plan.include_spouse || false
+              includePlannerSsa,
+              includeSpouseSsa,
+              estimatedPlannerSsaAtStart,
+              estimatedSpouseSsaAtStart
             )
+
+            // Calculate estimated SSA income from first projection (once)
+            if (!ssaIncomeCalculated && projections.length > 0) {
+              // Find first retirement year projection with SSA income
+              const retirementProjection = projections.find(p => p.age >= retirementAge && p.ssa_income)
+              if (retirementProjection?.ssa_income) {
+                setEstimatedSSAIncome(retirementProjection.ssa_income)
+                ssaIncomeCalculated = true
+              }
+            }
 
             // Get ending networth (networth at life expectancy)
             const endingNetworth = projections[projections.length - 1]?.networth || 0
@@ -174,8 +218,8 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
             
             // Calculate monthly income using 4% withdrawal strategy
             // Get networth at retirement age
-            const retirementProjection = projections.find(p => p.age === retirementAge)
-            const networthAtRetirement = retirementProjection?.networth || 0
+            const retirementProj = projections.find(p => p.age === retirementAge)
+            const networthAtRetirement = retirementProj?.networth || 0
             // 4% annual withdrawal divided by 12 months
             const monthlyIncome = (networthAtRetirement * 0.04) / 12
             dataPoint[`income_${growthRate}`] = Math.max(0, monthlyIncome)
@@ -251,7 +295,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
               dataKey={`${dataKeyPrefix}_${rate}`}
               name={`${rate}%`}
               fill={GROWTH_RATE_COLORS[index]}
-              stackId="growth"
+              // Removed stackId to show bars side-by-side, each starting from 0
             />
           )
         }
@@ -532,6 +576,66 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
             <li>• <strong>Planning Tip:</strong> Compare these values against your expected monthly expenses to ensure retirement sustainability</li>
           </ul>
         )}
+      </div>
+
+      {/* Assumptions */}
+      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="text-sm font-medium text-gray-900 mb-3">Key Assumptions</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div>
+            <span className="font-medium text-gray-700">Inflation Rate:</span>{' '}
+            <span className="text-gray-600">
+              {settingsData?.inflation_rate ? `${(parseFloat(settingsData.inflation_rate.toString()) * 100).toFixed(2)}%` : '4.00% (default)'}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Growth Rate (Before Retirement):</span>{' '}
+            <span className="text-gray-600">3% to 15% (varies by line)</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Growth Rate (During Retirement):</span>{' '}
+            <span className="text-gray-600">Same as before-retirement rate (3% to 15%, varies by line)</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Social Security Income:</span>{' '}
+            <span className="text-gray-600">
+              {settingsData?.planner_ssa_income !== false ? 'Included' : 'Not included'}
+              {planData?.include_spouse && settingsData?.spouse_ssa_income !== false ? ' (Planner + Spouse)' : ''}
+              {settingsData?.ssa_start_age ? ` starting at age ${settingsData.ssa_start_age}` : ` starting at retirement age ${settingsData?.retirement_age || 65} (default)`}
+              {estimatedSSAIncome !== null && estimatedSSAIncome > 0 && (
+                <> - Estimated: ${estimatedSSAIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</>
+              )}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Filing Status:</span>{' '}
+            <span className="text-gray-600">
+              {planData?.filing_status || (planData?.include_spouse ? 'Married Filing Jointly' : 'Single')}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Life Expectancy:</span>{' '}
+            <span className="text-gray-600">{lifeExpectancy} years</span>
+          </div>
+          {modelType === 'monthly_income' && (
+            <div className="md:col-span-2">
+              <span className="font-medium text-gray-700">Withdrawal Strategy:</span>{' '}
+              <span className="text-gray-600">4% Rule - Annual withdrawal of 4% of portfolio value at retirement</span>
+            </div>
+          )}
+          <div className="md:col-span-2">
+            <span className="font-medium text-gray-700">Tax Calculation:</span>{' '}
+            <span className="text-gray-600">Uses progressive IRS tax brackets (2024 rates) for income tax and capital gains tax</span>
+          </div>
+          <div className="md:col-span-2">
+            <span className="font-medium text-gray-700">Expenses:</span>{' '}
+            <span className="text-gray-600">Based on your configured expenses, adjusted for inflation each year</span>
+          </div>
+          <div className="md:col-span-2">
+            <span className="font-medium text-gray-700">Accounts:</span>{' '}
+            <span className="text-gray-600">Uses your current account balances and contributions</span>
+          </div>
+        </div>
       </div>
 
     </div>

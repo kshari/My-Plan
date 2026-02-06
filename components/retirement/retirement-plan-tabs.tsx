@@ -5,11 +5,11 @@ import { ScenarioProvider } from './scenario-context'
 import SnapshotTab from './tabs/snapshot-tab'
 import PlanDetailsTab from './tabs/plan-details-tab'
 import OtherIncomeTab from './tabs/other-income-tab'
-import CompoundingTab from './tabs/compounding-tab'
 import DetailsTab from './tabs/details-tab'
 import AnalysisTab from './tabs/analysis-tab'
 import TaxEfficiencyTab from './tabs/tax-efficiency-tab'
 import ScenarioModelingTab from './tabs/scenario-modeling-tab'
+import OtherToolsTab from './tabs/other-tools-tab'
 
 interface RetirementPlanTabsProps {
   planId: number
@@ -22,10 +22,10 @@ const simpleTabs = [
 const advancedTabs = [
   { id: 'plan-details', label: 'Plan Summary', icon: '⚙️', description: 'Your retirement profile and assumptions' },
   { id: 'scenario-modeling', label: 'Scenario Modeling', icon: '📉', description: 'Model different retirement scenarios' },
-  { id: 'compounding', label: 'Compounding', icon: '📈', description: 'See how your savings grow over time' },
   { id: 'details', label: 'Projections', icon: '📋', description: 'Year-by-year retirement projections' },
   { id: 'analysis', label: 'Risk Analysis', icon: '📊', description: 'Understand risks and opportunities' },
   { id: 'tax-efficiency', label: 'Tax Efficiency', icon: '💰', description: 'Optimize your tax strategy' },
+  { id: 'other-tools', label: 'Other Tools', icon: '🛠️', description: 'Additional retirement planning tools' },
   { id: 'other-income', label: 'Other Income', icon: '📊', description: 'Additional income sources', disabled: true },
 ]
 
@@ -106,7 +106,7 @@ export default function RetirementPlanTabs({ planId }: RetirementPlanTabsProps) 
           <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-700">
-                <strong>Quick Summary:</strong> Full control over all assumptions and detailed modeling.{' '}
+                <strong>Quick Summary:</strong> Quick overview with key retirement metrics and projections.{' '}
                 <button
                   onClick={handleSwitchToAdvanced}
                   className="text-blue-600 hover:text-blue-800 underline font-medium"
@@ -123,10 +123,10 @@ export default function RetirementPlanTabs({ planId }: RetirementPlanTabsProps) 
           {activeTab === 'snapshot' && <SnapshotTab planId={planId} onSwitchToAdvanced={handleSwitchToAdvanced} />}
           {activeTab === 'plan-details' && <PlanDetailsTab planId={planId} />}
           {activeTab === 'scenario-modeling' && <ScenarioModelingTab planId={planId} />}
-          {activeTab === 'compounding' && <CompoundingTab planId={planId} />}
           {activeTab === 'details' && <DetailsTab planId={planId} />}
           {activeTab === 'analysis' && <AnalysisTab planId={planId} />}
           {activeTab === 'tax-efficiency' && <TaxEfficiencyTab planId={planId} />}
+          {activeTab === 'other-tools' && <OtherToolsTab planId={planId} />}
           {activeTab === 'other-income' && <OtherIncomeTab planId={planId} />}
         </div>
       </div>
