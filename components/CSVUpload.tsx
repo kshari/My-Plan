@@ -454,10 +454,11 @@ export default function CSVUpload({ portfolioId, onUploadSuccess }: CSVUploadPro
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700">
+        <label htmlFor="csv-file-input" className="block text-sm font-medium text-gray-700">
           Select CSV File
         </label>
         <input
+          id="csv-file-input"
           type="file"
           accept=".csv"
           onChange={handleFileSelect}

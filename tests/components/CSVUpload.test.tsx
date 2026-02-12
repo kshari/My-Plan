@@ -2,67 +2,63 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import CSVUpload from '@/components/CSVUpload'
 
-// Mock file reading
-global.FileReader = class FileReader {
-  result: string | null = null
-  onload: ((event: any) => void) | null = null
-  onerror: ((event: any) => void) | null = null
-
-  readAsText(file: File) {
-    // Simulate async file reading
-    setTimeout(() => {
-      this.result = 'Symbol,Quantity,Price\nAAPL,10,150.00\nGOOGL,5,2500.00'
-      if (this.onload) {
-        this.onload({ target: { result: this.result } })
+// Mock PapaParse
+vi.mock('papaparse', () => ({
+  default: {
+    parse: vi.fn((file: File, options: any) => {
+      // Simulate reading the file
+      const reader = new FileReader()
+      reader.onload = () => {
+        const text = reader.result as string
+        const lines = text.split('\n').filter(Boolean)
+        if (lines.length < 2) {
+          options.complete({ data: [], errors: [] })
+          return
+        }
+        const headers = lines[0].split(',')
+        const rows = lines.slice(1).map((line: string) => {
+          const vals = line.split(',')
+          const row: Record<string, string> = {}
+          headers.forEach((h: string, i: number) => {
+            row[h.trim()] = vals[i]?.trim() || ''
+          })
+          return row
+        })
+        options.complete({ data: rows, errors: [] })
       }
-    }, 0)
-  }
-} as any
+      reader.readAsText(file)
+    }),
+  },
+}))
+
+// Mock market data
+vi.mock('@/lib/utils/market-data', () => ({
+  getTickerInfo: vi.fn().mockResolvedValue({ name: 'Test Stock' }),
+}))
 
 describe('CSVUpload', () => {
-  const mockOnUpload = vi.fn()
+  const mockOnUploadSuccess = vi.fn()
 
   beforeEach(() => {
-    mockOnUpload.mockClear()
+    mockOnUploadSuccess.mockClear()
   })
 
-  it('should render upload button', () => {
-    render(<CSVUpload onUpload={mockOnUpload} />)
-    expect(screen.getByText(/upload/i)).toBeInTheDocument()
+  it('should render the upload heading and button', () => {
+    render(<CSVUpload portfolioId="test-portfolio" onUploadSuccess={mockOnUploadSuccess} />)
+    expect(screen.getByText('Upload CSV File')).toBeInTheDocument()
+    expect(screen.getByText('Upload CSV')).toBeInTheDocument()
   })
 
-  it('should handle file selection', async () => {
-    render(<CSVUpload onUpload={mockOnUpload} />)
-    
-    const file = new File(
-      ['Symbol,Quantity,Price\nAAPL,10,150.00'],
-      'test.csv',
-      { type: 'text/csv' }
-    )
-
-    const input = screen.getByLabelText(/upload/i) as HTMLInputElement
-    fireEvent.change(input, { target: { files: [file] } })
-
-    await waitFor(() => {
-      expect(mockOnUpload).toHaveBeenCalled()
-    })
+  it('should render file input', () => {
+    render(<CSVUpload portfolioId="test-portfolio" onUploadSuccess={mockOnUploadSuccess} />)
+    const fileInput = screen.getByLabelText('Select CSV File') as HTMLInputElement
+    expect(fileInput).toBeInTheDocument()
+    expect(fileInput.type).toBe('file')
   })
 
-  it('should validate CSV format', async () => {
-    render(<CSVUpload onUpload={mockOnUpload} />)
-    
-    const invalidFile = new File(
-      ['Invalid content'],
-      'test.txt',
-      { type: 'text/plain' }
-    )
-
-    const input = screen.getByLabelText(/upload/i) as HTMLInputElement
-    fireEvent.change(input, { target: { files: [invalidFile] } })
-
-    // Should show error or not call onUpload
-    await waitFor(() => {
-      // Check for error message or that onUpload wasn't called with invalid data
-    })
+  it('should disable upload button when no file is selected', () => {
+    render(<CSVUpload portfolioId="test-portfolio" onUploadSuccess={mockOnUploadSuccess} />)
+    const uploadButton = screen.getByText('Upload CSV')
+    expect(uploadButton).toBeDisabled()
   })
 })

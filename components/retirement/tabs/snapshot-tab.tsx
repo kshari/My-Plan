@@ -1132,10 +1132,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="snapshot-your-age" className="block text-sm font-medium text-gray-700 mb-2">
                       Your Age
                     </label>
                     <input
+                      id="snapshot-your-age"
                       type="number"
                       value={inputs.age || ''}
                       onChange={(e) => setInputs({ ...inputs, age: parseInt(e.target.value) || 0 })}
@@ -1146,10 +1147,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="snapshot-retirement-age" className="block text-sm font-medium text-gray-700 mb-2">
                       Planned Retirement Age
                     </label>
                     <input
+                      id="snapshot-retirement-age"
                       type="number"
                       value={inputs.retirementAge || ''}
                       onChange={(e) => setInputs({ ...inputs, retirementAge: parseInt(e.target.value) || 0 })}
@@ -1160,12 +1162,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="snapshot-current-savings" className="block text-sm font-medium text-gray-700 mb-2">
                       Current Savings
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-2.5 text-gray-500">$</span>
                       <input
+                        id="snapshot-current-savings"
                         type="number"
                         value={inputs.currentSavings || ''}
                         onChange={(e) => setInputs({ ...inputs, currentSavings: parseFloat(e.target.value) || 0 })}
@@ -1177,12 +1180,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="snapshot-annual-contribution" className="block text-sm font-medium text-gray-700 mb-2">
                       Annual Contribution
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-2.5 text-gray-500">$</span>
                       <input
+                        id="snapshot-annual-contribution"
                         type="number"
                         value={inputs.annualContribution || ''}
                         onChange={(e) => setInputs({ ...inputs, annualContribution: parseFloat(e.target.value) || 0 })}
@@ -1194,12 +1198,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="snapshot-annual-expenses" className="block text-sm font-medium text-gray-700 mb-2">
                       Estimated Annual Expenses
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-2.5 text-gray-500">$</span>
                       <input
+                        id="snapshot-annual-expenses"
                         type="number"
                         value={inputs.estimatedAnnualExpenses || ''}
                         onChange={(e) => setInputs({ ...inputs, estimatedAnnualExpenses: parseFloat(e.target.value) || 0 })}

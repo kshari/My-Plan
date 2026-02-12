@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import CompoundingTab from './compounding-tab'
+import SSAWithdrawalAnalysisTab from './ssa-withdrawal-analysis-tab'
 
 interface OtherToolsTabProps {
   planId: number
@@ -9,6 +10,7 @@ interface OtherToolsTabProps {
 
 const subTabs = [
   { id: 'compounding', label: 'Compounding', icon: '📈', description: 'See how your savings grow over time' },
+  { id: 'ssa-analysis', label: 'Social Security Withdrawal', icon: '💼', description: 'Analyze impact of starting SSA at different ages' },
 ]
 
 export default function OtherToolsTab({ planId }: OtherToolsTabProps) {
@@ -39,6 +41,7 @@ export default function OtherToolsTab({ planId }: OtherToolsTabProps) {
       {/* Sub-tab Content */}
       <div>
         {activeSubTab === 'compounding' && <CompoundingTab planId={planId} />}
+        {activeSubTab === 'ssa-analysis' && <SSAWithdrawalAnalysisTab planId={planId} />}
       </div>
     </div>
   )
