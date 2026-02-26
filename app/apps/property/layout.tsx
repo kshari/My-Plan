@@ -1,12 +1,22 @@
-// Property app layout - uses root layout for HTML/body structure
-// This layout only provides property-specific metadata if needed
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { AppShell } from "@/components/layout/app-shell"
 
-export default function PropertyLayout({
+export default async function PropertyLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  // No HTML/body tags here - they're handled by root layout
-  // This is just a wrapper for property app routes
-  return <>{children}</>
+}: {
+  children: React.ReactNode
+}) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) redirect("/login")
+
+  return (
+    <AppShell userEmail={user.email ?? ""}>
+      {children}
+    </AppShell>
+  )
 }

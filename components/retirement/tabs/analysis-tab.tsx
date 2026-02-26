@@ -22,7 +22,11 @@ import {
   analyzeSequenceOfReturnsRisk,
   type MonteCarloSummary 
 } from '@/lib/utils/monte-carlo'
-import { Calculator, Play, Save } from 'lucide-react'
+import { Calculator, Play, Save, TrendingDown, TrendingUp, Activity, Info } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface AnalysisTabProps {
   planId: number
@@ -314,31 +318,25 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
   return (
     <div className="space-y-6">
       {/* Scenario Selector */}
-      <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Scenario:</label>
-          <select
-            value={selectedScenarioId || ''}
-            onChange={(e) => setSelectedScenarioId(parseInt(e.target.value))}
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      <div className="flex items-center justify-between rounded-xl border bg-card p-4">
+        <div className="flex items-center gap-2.5">
+          <label className="text-sm font-medium text-muted-foreground">Scenario</label>
+          <Select
+            value={selectedScenarioId?.toString() || ''}
+            onValueChange={(v) => setSelectedScenarioId(parseInt(v))}
           >
-            {scenarios.length === 0 ? (
-              <option value="">No scenarios available</option>
-            ) : (
-              scenarios.map((scenario) => (
-                <option key={scenario.id} value={scenario.id}>
-                  {scenario.scenario_name}
-                  {scenario.is_default ? ' (Default)' : ''}
-                </option>
-              ))
-            )}
-          </select>
+            <SelectTrigger className="h-8 text-sm w-auto min-w-[160px]">
+              <SelectValue placeholder="No scenarios available" />
+            </SelectTrigger>
+            <SelectContent>
+              {scenarios.map((scenario) => (
+                <SelectItem key={scenario.id} value={scenario.id.toString()}>
+                  {scenario.scenario_name}{scenario.is_default ? ' (Default)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        {selectedScenario && (
-          <div className="text-sm text-gray-600">
-            Viewing analysis for: <span className="font-medium text-gray-900">{selectedScenario.scenario_name}</span>
-          </div>
-        )}
       </div>
 
       {/* Retirement Score */}
@@ -553,14 +551,21 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
       </div>
 
       {/* Market Risks & Monte Carlo */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Market Risk Analysis</h3>
-          <button
+      <div className="rounded-xl border bg-card p-6">
+        {/* Section header */}
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold">Market Risk Analysis</h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Stress-test your plan against real-world market volatility and uncertainty.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={async () => {
               setRunningMonteCarlo(true)
               try {
-                // Load data for Monte Carlo
                 const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
                   supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, filing_status').eq('id', planId).single(),
                   supabase.from('rp_accounts').select('*').eq('plan_id', planId),
@@ -568,70 +573,13 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                   supabase.from('rp_other_income').select('*').eq('plan_id', planId),
                   supabase.from('rp_calculator_settings').select('*').eq('scenario_id', selectedScenarioId).single(),
                 ])
-
-                if (planData.error) {
-                  console.error('Error loading plan data:', planData.error)
-                  alert(`Failed to load plan data: ${planData.error.message}`)
-                  return
-                }
-                
-                if (!planData.data) {
-                  alert('Plan data not found')
-                  return
-                }
-                
-                if (!planData.data.birth_year) {
-                  alert('Please set birth year in Plan Details before running Monte Carlo simulation')
-                  return
-                }
-
-                const accounts: Account[] = (accountsData.data || []).map(acc => ({
-                  id: acc.id,
-                  account_name: acc.account_name,
-                  owner: acc.owner || '',
-                  balance: acc.balance || 0,
-                  account_type: acc.account_type,
-                  annual_contribution: acc.annual_contribution || 0,
-                }))
-
-                const expenses: Expense[] = (expensesData.data || []).map(exp => ({
-                  id: exp.id,
-                  expense_name: exp.expense_name,
-                  amount_after_65: exp.amount_after_65 || 0,
-                  amount_before_65: exp.amount_before_65 || 0,
-                }))
-
-                const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({
-                  id: inc.id,
-                  income_name: inc.income_source || '',
-                  amount: inc.annual_amount || 0,
-                  start_year: inc.start_year || undefined,
-                  end_year: inc.end_year || undefined,
-                  inflation_adjusted: inc.inflation_adjusted || false,
-                }))
-
-                const settings: CalculatorSettings = {
-                  current_year: settingsData.data?.current_year || new Date().getFullYear(),
-                  retirement_age: settingsData.data?.retirement_age || 65,
-                  retirement_start_year: settingsData.data?.retirement_start_year || 0,
-                  years_to_retirement: settingsData.data?.years_to_retirement || 0,
-                  annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0,
-                  growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || '0.1'),
-                  growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || '0.05'),
-                  inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || '0.04'),
-                  filing_status: (planData.data.filing_status as any) || 'Single',
-                }
-
-                const { summary } = runMonteCarloSimulation(
-                  planData.data.birth_year,
-                  accounts,
-                  expenses,
-                  otherIncome,
-                  settings,
-                  planData.data.life_expectancy || 90,
-                  1000 // Run 1000 simulations
-                )
-
+                if (planData.error) { alert(`Failed to load plan data: ${planData.error.message}`); return }
+                if (!planData.data?.birth_year) { alert('Please set birth year in Plan Details first'); return }
+                const accounts: Account[] = (accountsData.data || []).map(acc => ({ id: acc.id, account_name: acc.account_name, owner: acc.owner || '', balance: acc.balance || 0, account_type: acc.account_type, annual_contribution: acc.annual_contribution || 0 }))
+                const expenses: Expense[] = (expensesData.data || []).map(exp => ({ id: exp.id, expense_name: exp.expense_name, amount_after_65: exp.amount_after_65 || 0, amount_before_65: exp.amount_before_65 || 0 }))
+                const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({ id: inc.id, income_name: inc.income_source || '', amount: inc.annual_amount || 0, start_year: inc.start_year || undefined, end_year: inc.end_year || undefined, inflation_adjusted: inc.inflation_adjusted || false }))
+                const settings: CalculatorSettings = { current_year: settingsData.data?.current_year || new Date().getFullYear(), retirement_age: settingsData.data?.retirement_age || 65, retirement_start_year: settingsData.data?.retirement_start_year || 0, years_to_retirement: settingsData.data?.years_to_retirement || 0, annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0, growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || '0.1'), growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || '0.05'), inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || '0.04'), filing_status: (planData.data.filing_status as any) || 'Single' }
+                const { summary } = runMonteCarloSimulation(planData.data.birth_year, accounts, expenses, otherIncome, settings, planData.data.life_expectancy || 90, 1000)
                 setMonteCarloSummary(summary)
               } catch (error) {
                 console.error('Error running Monte Carlo:', error)
@@ -641,116 +589,226 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
               }
             }}
             disabled={runningMonteCarlo || !selectedScenarioId}
-            className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 disabled:opacity-50"
+            className="shrink-0"
           >
-            <Play className="w-4 h-4" />
-            {runningMonteCarlo ? 'Running Simulation...' : 'Run Monte Carlo Simulation'}
-          </button>
+            <Activity className="h-3.5 w-3.5" />
+            {runningMonteCarlo ? 'Running…' : 'Run Monte Carlo'}
+          </Button>
         </div>
 
-        {sequenceRisk && (
-          <div className="mb-4 p-4 rounded-lg border-l-4 bg-gray-50" style={{
-            borderLeftColor: sequenceRisk.riskLevel === 'High' ? '#ef4444' : 
-                            sequenceRisk.riskLevel === 'Medium' ? '#f59e0b' : '#10b981'
-          }}>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="font-semibold text-gray-900 mb-1">Sequence of Returns Risk</div>
-                <div className="text-sm text-gray-700 mb-2">{sequenceRisk.description}</div>
-                <div className="text-xs text-gray-600 mb-2">
-                  <strong>Worst case:</strong> {sequenceRisk.worstCaseSequence.toFixed(2)}% | 
-                  <strong> Best case:</strong> {sequenceRisk.bestCaseSequence.toFixed(2)}% | 
-                  <strong> Average:</strong> {sequenceRisk.averageSequence.toFixed(2)}%
+        {/* ── Sequence of Returns Risk ── */}
+        {sequenceRisk && (() => {
+          const rl = sequenceRisk.riskLevel as 'Low' | 'Medium' | 'High'
+          const headerBg = rl === 'High' ? 'bg-destructive/8 border-destructive/20' : rl === 'Medium' ? 'bg-amber-500/8 border-amber-500/20' : 'bg-emerald-500/8 border-emerald-500/20'
+          const iconColor = rl === 'High' ? 'text-destructive' : rl === 'Medium' ? 'text-amber-600' : 'text-emerald-600'
+          const badgeVariant = rl === 'High' ? 'destructive' : 'secondary' as const
+          const badgeClass = rl === 'Medium' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200' : rl === 'Low' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200' : ''
+          const worst = sequenceRisk.worstCaseSequence
+          const best = sequenceRisk.bestCaseSequence
+          const avg = sequenceRisk.averageSequence
+          return (
+            <div className={`mb-6 rounded-xl border overflow-hidden ${headerBg}`}>
+              {/* Card header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-inherit">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className={`h-4 w-4 shrink-0 ${iconColor}`} />
+                  <span className="font-semibold text-sm">Sequence of Returns Risk</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-2 p-2 bg-white rounded border border-gray-200">
-                  <strong>What these percentages mean:</strong> These represent the annual returns during the first 10 years of retirement. 
-                  A negative worst case (e.g., -20%) means your portfolio could lose 20% in a bad year early in retirement, which is particularly 
-                  dangerous because you're withdrawing money at the same time. This "sequence risk" can deplete your savings faster than average 
-                  returns would suggest, even if your long-term average return is positive.
-                </div>
+                <Badge variant={badgeVariant} className={badgeClass}>{rl} Risk</Badge>
               </div>
-              <span className={`ml-4 px-2 py-1 rounded text-xs font-medium ${
-                sequenceRisk.riskLevel === 'High' ? 'bg-red-200 text-red-800' :
-                sequenceRisk.riskLevel === 'Medium' ? 'bg-yellow-200 text-yellow-800' :
-                'bg-green-200 text-green-800'
-              }`}>
-                {sequenceRisk.riskLevel} Risk
-              </span>
-            </div>
-          </div>
-        )}
 
-        {monteCarloSummary && (
-          <div className="mt-4 p-4 rounded-lg border border-blue-200 bg-blue-50">
-            <h4 className="font-semibold text-gray-900 mb-3">Monte Carlo Simulation Results (1,000 runs)</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <div className="text-gray-600">Success Rate</div>
-                <div className={`text-lg font-semibold ${
-                  monteCarloSummary.successRate >= 80 ? 'text-green-600' :
-                  monteCarloSummary.successRate >= 60 ? 'text-yellow-600' :
-                  'text-red-600'
-                }`}>
-                  {monteCarloSummary.successRate.toFixed(2)}%
+              {/* Body */}
+              <div className="px-5 py-4 bg-card space-y-4">
+                <p className="text-sm text-muted-foreground">{sequenceRisk.description}</p>
+
+                {/* Stat chips — worst / avg / best */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Worst year', value: worst, positive: worst >= 0, chipBg: worst < 0 ? 'bg-destructive/10 border-destructive/20' : 'bg-emerald-500/10 border-emerald-500/20', textColor: worst < 0 ? 'text-destructive' : 'text-emerald-600' },
+                    { label: 'Average year', value: avg,   positive: avg >= 0,   chipBg: avg < 0   ? 'bg-amber-500/10 border-amber-500/20'    : 'bg-muted/60 border-border',               textColor: avg < 0   ? 'text-amber-600'  : 'text-foreground'   },
+                    { label: 'Best year',  value: best, positive: best >= 0, chipBg: 'bg-emerald-500/10 border-emerald-500/20', textColor: 'text-emerald-600' },
+                  ].map(chip => (
+                    <div key={chip.label} className={`rounded-lg border px-4 py-3 text-center ${chip.chipBg}`}>
+                      <div className={`text-xl font-bold tabular-nums ${chip.textColor}`}>
+                        {chip.value >= 0 ? '+' : ''}{chip.value.toFixed(1)}%
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">{chip.label}</div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div>
-                <div className="text-gray-600">Avg Final Net Worth</div>
-                <div className="text-lg font-semibold text-gray-900">
-                  ${monteCarloSummary.averageFinalNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-600">Median Final Net Worth</div>
-                <div className="text-lg font-semibold text-gray-900">
-                  ${monteCarloSummary.medianFinalNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-600">Worst Case (5th percentile)</div>
-                <div className="text-lg font-semibold text-red-600">
-                  ${monteCarloSummary.percentile95.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <div className="text-gray-600">25th Percentile</div>
-                <div className="text-base font-medium text-gray-900">
-                  ${monteCarloSummary.percentile25.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-600">75th Percentile</div>
-                <div className="text-base font-medium text-gray-900">
-                  ${monteCarloSummary.percentile75.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-600">90th Percentile</div>
-                <div className="text-base font-medium text-gray-900">
-                  ${monteCarloSummary.percentile90.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-600">Avg Years with Negative Cash Flow</div>
-                <div className="text-base font-medium text-gray-900">
-                  {monteCarloSummary.averageYearsWithNegativeCashFlow.toFixed(2)}
+
+                {/* Plain-English explanation */}
+                <div className="rounded-lg bg-muted/40 px-4 py-3 flex gap-2.5">
+                  <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground mt-0.5" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    These figures are derived from your plan's <strong>fixed growth-rate assumption</strong> applied to the first 10 years of retirement.
+                    Because your plan uses a constant rate, worst ≈ best ≈ average — this reflects steady projected growth, not real market swings.
+                    For a true stress-test of how bad markets could affect your plan, run the <strong>Monte Carlo simulation</strong> below, which randomises returns across 1,000 scenarios.
+                  </p>
                 </div>
               </div>
             </div>
-            <p className="mt-4 text-xs text-gray-600">
-              <strong>Note:</strong> Monte Carlo simulation models market volatility by varying returns using normal distribution 
-              (15% std dev before retirement, 12% during retirement). Success rate indicates percentage of simulations where 
-              plan remains sustainable (final net worth &gt; 0 and &lt; 20% of years with negative cash flow).
+          )
+        })()}
+
+        {/* ── Monte Carlo Results ── */}
+        {monteCarloSummary && (() => {
+          const sr = monteCarloSummary.successRate
+          const srColor = sr >= 80 ? 'text-emerald-600 dark:text-emerald-400' : sr >= 65 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'
+          const srBarColor = sr >= 80 ? 'bg-emerald-500' : sr >= 65 ? 'bg-amber-500' : 'bg-destructive'
+          const srLabel = sr >= 90 ? 'Excellent — very resilient plan' : sr >= 80 ? 'Good — strong foundation' : sr >= 70 ? 'Fair — consider reducing withdrawals' : sr >= 60 ? 'Marginal — plan needs attention' : 'Poor — high risk of shortfall'
+          const median = monteCarloSummary.medianFinalNetworth
+          const mean   = monteCarloSummary.averageFinalNetworth
+          const p90    = monteCarloSummary.percentile90
+          const negCF  = monteCarloSummary.averageYearsWithNegativeCashFlow
+          const fmt = (n: number) => n < 0 ? `-$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+          const medianMeanGap = Math.abs(mean - median) > Math.abs(median) * 0.3
+          return (
+            <div className="rounded-xl border overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 bg-muted/30 border-b">
+                <span className="font-semibold text-sm">Monte Carlo Simulation Results</span>
+                <span className="text-xs text-muted-foreground">1,000 randomised market scenarios</span>
+              </div>
+
+              <div className="p-5 space-y-6">
+
+                {/* ── Hero: Success Rate ── */}
+                <div className="flex items-start gap-6">
+                  {/* Big number */}
+                  <div className="text-center shrink-0 min-w-[80px]">
+                    <div className={`text-5xl font-bold tabular-nums leading-none ${srColor}`}>
+                      {sr.toFixed(0)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1.5 font-medium">Success rate</div>
+                  </div>
+
+                  {/* Context */}
+                  <div className="flex-1 min-w-0 pt-1 space-y-2">
+                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${srBarColor}`} style={{ width: `${Math.min(100, sr)}%` }} />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      In <strong className="text-foreground">{sr.toFixed(0)} out of 100</strong> simulated markets your retirement plan stays financially sustainable through your life expectancy.
+                    </p>
+                    <p className={`text-xs font-semibold ${srColor}`}>{srLabel}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* ── Outcomes distribution ── */}
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+                    Final Net Worth at Life Expectancy — Outcome Distribution
+                  </p>
+
+                  {/* Column headers */}
+                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 px-4 pb-1">
+                    <div />
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right w-28">Final net worth</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right w-28 hidden sm:block">Gross growth rate ①</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right w-24 hidden sm:block">Net CAGR ②</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {[
+                      { label: 'Worst 5% of markets',     sub: 'Only 1 in 20 scenarios are this bad',       detail: monteCarloSummary.detail.p5,      color: 'text-destructive',                        bg: 'bg-destructive/8 border-destructive/20' },
+                      { label: '25th percentile',         sub: '1 in 4 scenarios end at or below this',     detail: monteCarloSummary.detail.p25,     color: 'text-amber-600 dark:text-amber-400',      bg: 'bg-amber-500/8 border-amber-500/20' },
+                      { label: 'Median — most likely',    sub: 'Half of scenarios end above, half below',   detail: monteCarloSummary.detail.median,  color: 'text-foreground',                         bg: 'bg-primary/8 border-primary/20', highlight: true },
+                      { label: '75th percentile',         sub: '3 in 4 scenarios end at or below this',     detail: monteCarloSummary.detail.p75,     color: 'text-emerald-600 dark:text-emerald-400',  bg: 'bg-emerald-500/8 border-emerald-500/20' },
+                      { label: 'Average across all runs', sub: 'Skewed up by a few very strong scenarios',  detail: monteCarloSummary.detail.average, color: 'text-muted-foreground',                   bg: 'bg-muted/40 border-border' },
+                    ].map(row => (
+                      <div key={row.label} className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-4 rounded-lg border px-4 py-2.5 ${row.bg} ${row.highlight ? 'ring-1 ring-primary/30' : ''}`}>
+                        {/* Label */}
+                        <div className="min-w-0">
+                          <p className={`text-xs font-medium ${row.highlight ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{row.label}</p>
+                          <p className="text-[11px] text-muted-foreground/60 mt-0.5 hidden sm:block">{row.sub}</p>
+                        </div>
+                        {/* Final net worth */}
+                        <div className={`text-sm tabular-nums shrink-0 text-right w-28 ${row.color}`}>
+                          {fmt(row.detail.finalNetworth)}
+                        </div>
+                        {/* Gross growth rate */}
+                        <div className="text-sm tabular-nums text-right w-28 text-muted-foreground hidden sm:block">
+                          {(row.detail.avgAnnualReturn * 100).toFixed(2)}%
+                        </div>
+                        {/* Net CAGR */}
+                        <div className="text-sm tabular-nums text-right w-24 text-muted-foreground hidden sm:block">
+                          {row.detail.cagr !== null ? `${(row.detail.cagr * 100).toFixed(2)}%` : 'N/A'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Column footnotes */}
+                  <div className="mt-2 space-y-0.5 px-1">
+                    <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+                      <strong className="text-muted-foreground/80">① Gross growth rate</strong> — the randomised annual return applied to portfolio assets in this scenario, <em>before</em> any withdrawals, expenses, or taxes.
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+                      <strong className="text-muted-foreground/80">② Net CAGR</strong> — annualised change from starting portfolio to final net worth <em>after</em> all withdrawals, expenses, and taxes over the full plan. Shows "N/A" when the plan ends in deficit.
+                    </p>
+                  </div>
+
+                  {/* Median vs Mean note */}
+                  {medianMeanGap && (
+                    <div className="mt-3 flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/50 px-4 py-3">
+                      <Info className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                        <strong>Why is the average so much higher than the median?</strong>{' '}
+                        A small number of exceptionally favourable market runs produce very large net-worth outcomes that pull the average upward.
+                        The <strong>median is the more realistic estimate</strong> of what you should expect.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* ── Secondary stats ── */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Years with negative cash flow */}
+                  <div className="rounded-xl border bg-card p-4">
+                    <p className="text-xs text-muted-foreground mb-2">Avg years with cash shortfall</p>
+                    <div className={`text-2xl font-bold tabular-nums ${negCF <= 3 ? 'text-foreground' : negCF <= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'}`}>
+                      {negCF.toFixed(1)}
+                      <span className="text-sm font-normal text-muted-foreground ml-1">yrs</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      {negCF <= 2 ? 'Minimal shortfall exposure' : negCF <= 5 ? 'Some lean years expected' : 'Significant cash-flow risk'}
+                    </p>
+                  </div>
+
+                  {/* Best-case upside */}
+                  <div className="rounded-xl border bg-card p-4">
+                    <p className="text-xs text-muted-foreground mb-2">Upside — top 10% of markets</p>
+                    <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {fmt(p90)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">Your outcome if markets outperform</p>
+                  </div>
+                </div>
+
+                {/* Methodology footnote */}
+                <p className="text-xs text-muted-foreground/60 border-t pt-3 leading-relaxed">
+                  Returns modelled using normal distribution (σ = 15% before retirement, 12% during retirement).
+                  "Success" = positive final net worth <em>and</em> fewer than 20% of retirement years with negative cash flow.
+                </p>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Empty state */}
+        {!sequenceRisk && !monteCarloSummary && (
+          <div className="rounded-xl border border-dashed px-6 py-12 text-center">
+            <Activity className="h-9 w-9 mx-auto mb-3 text-muted-foreground/30" />
+            <p className="text-sm font-medium text-muted-foreground mb-1">No simulation data yet</p>
+            <p className="text-xs text-muted-foreground/70 max-w-sm mx-auto">
+              Click <strong>Run Monte Carlo</strong> above to stress-test your plan across 1,000 randomised market
+              scenarios and see how likely your retirement is to succeed in good and bad markets alike.
             </p>
           </div>
-        )}
-
-        {!sequenceRisk && !monteCarloSummary && (
-          <p className="text-gray-600 text-sm">
-            Click "Run Monte Carlo Simulation" to analyze market risks and sequence of returns risk for this scenario.
-          </p>
         )}
       </div>
 

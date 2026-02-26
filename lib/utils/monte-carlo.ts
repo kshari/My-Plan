@@ -10,7 +10,17 @@ export interface MonteCarloResult {
   minNetworth: number
   yearsWithNegativeCashFlow: number
   totalTaxes: number
+  /** Weighted average of the two growth rates used in this simulation run */
+  avgAnnualReturn: number
   projections: ProjectionDetail[]
+}
+
+export interface PercentileDetail {
+  finalNetworth: number
+  /** CAGR from initial portfolio total to finalNetworth over the full projection span */
+  cagr: number | null   // null when finalNetworth ≤ 0 (can't log a negative)
+  /** Weighted-average growth rate used in this simulation run */
+  avgAnnualReturn: number
 }
 
 export interface MonteCarloSummary {
@@ -22,14 +32,30 @@ export interface MonteCarloSummary {
   averageMinNetworth: number
   averageYearsWithNegativeCashFlow: number
   averageTotalTaxes: number
+  /** 5th percentile — worst 5% of scenarios (low value = bad) */
+  percentile5: number
   percentile25: number
   percentile75: number
   percentile90: number
+  /** 95th percentile — best 5% of scenarios (high value = good) */
   percentile95: number
+  /** Per-percentile CAGR and average-return details */
+  detail: {
+    p5:     PercentileDetail
+    p25:    PercentileDetail
+    median: PercentileDetail
+    p75:    PercentileDetail
+    p90:    PercentileDetail
+    average: PercentileDetail
+  }
+  /** Starting portfolio balance (sum of all accounts) */
+  initialNetworth: number
+  /** Total projection years (same for every run) */
+  projectionYears: number
 }
 
 /**
- * Run Monte Carlo simulation with variable market returns
+ * Run Monte Carlo simulation with variable market returns.
  */
 export function runMonteCarloSimulation(
   birthYear: number,
@@ -41,6 +67,8 @@ export function runMonteCarloSimulation(
   numSimulations: number = 1000
 ): { results: MonteCarloResult[], summary: MonteCarloSummary } {
   const results: MonteCarloResult[] = []
+  const retirementAge = baseSettings.retirement_age || 65
+  const initialNetworth = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
 
   for (let sim = 0; sim < numSimulations; sim++) {
     // Generate random market returns using normal distribution
@@ -48,21 +76,19 @@ export function runMonteCarloSimulation(
     // During retirement: mean = base rate, std dev = 12%
     const beforeRetirementReturn = generateNormalRandom(
       baseSettings.growth_rate_before_retirement,
-      0.15 // 15% standard deviation
+      0.15
     )
     const duringRetirementReturn = generateNormalRandom(
       baseSettings.growth_rate_during_retirement,
-      0.12 // 12% standard deviation
+      0.12
     )
 
-    // Create modified settings with random returns
     const modifiedSettings: CalculatorSettings = {
       ...baseSettings,
-      growth_rate_before_retirement: Math.max(0, beforeRetirementReturn), // Ensure non-negative
+      growth_rate_before_retirement: Math.max(0, beforeRetirementReturn),
       growth_rate_during_retirement: Math.max(0, duringRetirementReturn),
     }
 
-    // Calculate projections with modified returns
     const projections = calculateRetirementProjections(
       birthYear,
       accounts,
@@ -72,12 +98,20 @@ export function runMonteCarloSimulation(
       lifeExpectancy
     )
 
-    // Analyze results
-    const finalNetworth = projections[projections.length - 1]?.networth || 0
-    const minNetworth = Math.min(...projections.map(p => p.networth || 0))
-    const yearsWithNegativeCashFlow = projections.filter(p => (p.gap_excess || 0) < 0).length
-    const totalTaxes = projections.reduce((sum, p) => sum + (p.tax || 0), 0)
+    const finalNetworth = projections[projections.length - 1]?.networth ?? 0
+    const minNetworth = Math.min(...projections.map(p => p.networth ?? 0))
+    const yearsWithNegativeCashFlow = projections.filter(p => (p.gap_excess ?? 0) < 0).length
+    const totalTaxes = projections.reduce((sum, p) => sum + (p.tax ?? 0), 0)
     const success = finalNetworth > 0 && yearsWithNegativeCashFlow < projections.length * 0.2
+
+    // Weighted-average annual return across both phases
+    const yearsBeforeRetirement = projections.filter(p => (p.age ?? 0) < retirementAge).length
+    const yearsDuringRetirement  = projections.filter(p => (p.age ?? 0) >= retirementAge).length
+    const totalYears = projections.length
+    const avgAnnualReturn = totalYears > 0
+      ? (Math.max(0, beforeRetirementReturn) * yearsBeforeRetirement +
+         Math.max(0, duringRetirementReturn)  * yearsDuringRetirement) / totalYears
+      : Math.max(0, beforeRetirementReturn)
 
     results.push({
       simulation: sim + 1,
@@ -86,35 +120,76 @@ export function runMonteCarloSimulation(
       minNetworth,
       yearsWithNegativeCashFlow,
       totalTaxes,
+      avgAnnualReturn,
       projections,
     })
   }
 
-  // Calculate summary statistics
+  // Sort ascending by finalNetworth for percentile indexing
+  const sorted = [...results].sort((a, b) => a.finalNetworth - b.finalNetworth)
+  const n = sorted.length
+  const finalNetworths = sorted.map(r => r.finalNetworth)
+
+  const projectionYears = results[0]?.projections.length ?? 0
+
+  /** Build a PercentileDetail from a specific sorted result */
+  const makeDetail = (result: MonteCarloResult): PercentileDetail => {
+    const fn = result.finalNetworth
+    const years = result.projections.length
+    const cagr = fn > 0 && initialNetworth > 0 && years > 0
+      ? Math.pow(fn / initialNetworth, 1 / years) - 1
+      : null
+    return { finalNetworth: fn, cagr, avgAnnualReturn: result.avgAnnualReturn }
+  }
+
+  /** Build an "average" PercentileDetail across all runs */
+  const avgFinalNetworth = finalNetworths.reduce((a, b) => a + b, 0) / n
+  const avgAnnualReturnAll = results.reduce((a, b) => a + b.avgAnnualReturn, 0) / results.length
+  const avgCagr = avgFinalNetworth > 0 && initialNetworth > 0 && projectionYears > 0
+    ? Math.pow(avgFinalNetworth / initialNetworth, 1 / projectionYears) - 1
+    : null
+  const averageDetail: PercentileDetail = {
+    finalNetworth: avgFinalNetworth,
+    cagr: avgCagr,
+    avgAnnualReturn: avgAnnualReturnAll,
+  }
+
   const successful = results.filter(r => r.success).length
-  const finalNetworths = results.map(r => r.finalNetworth).sort((a, b) => a - b)
   const minNetworths = results.map(r => r.minNetworth)
-  
+
   const summary: MonteCarloSummary = {
-    successRate: (successful / numSimulations) * 100,
-    averageFinalNetworth: finalNetworths.reduce((a, b) => a + b, 0) / finalNetworths.length,
-    medianFinalNetworth: finalNetworths[Math.floor(finalNetworths.length / 2)],
-    minFinalNetworth: Math.min(...finalNetworths),
-    maxFinalNetworth: Math.max(...finalNetworths),
-    averageMinNetworth: minNetworths.reduce((a, b) => a + b, 0) / minNetworths.length,
-    averageYearsWithNegativeCashFlow: results.reduce((sum, r) => sum + r.yearsWithNegativeCashFlow, 0) / results.length,
-    averageTotalTaxes: results.reduce((sum, r) => sum + r.totalTaxes, 0) / results.length,
-    percentile25: finalNetworths[Math.floor(finalNetworths.length * 0.25)],
-    percentile75: finalNetworths[Math.floor(finalNetworths.length * 0.75)],
-    percentile90: finalNetworths[Math.floor(finalNetworths.length * 0.90)],
-    percentile95: finalNetworths[Math.floor(finalNetworths.length * 0.95)],
+    successRate:    (successful / numSimulations) * 100,
+    averageFinalNetworth: avgFinalNetworth,
+    medianFinalNetworth:  finalNetworths[Math.floor(n / 2)],
+    minFinalNetworth:     finalNetworths[0],
+    maxFinalNetworth:     finalNetworths[n - 1],
+    averageMinNetworth:   minNetworths.reduce((a, b) => a + b, 0) / minNetworths.length,
+    averageYearsWithNegativeCashFlow:
+      results.reduce((sum, r) => sum + r.yearsWithNegativeCashFlow, 0) / results.length,
+    averageTotalTaxes:
+      results.reduce((sum, r) => sum + r.totalTaxes, 0) / results.length,
+    percentile5:  finalNetworths[Math.floor(n * 0.05)],
+    percentile25: finalNetworths[Math.floor(n * 0.25)],
+    percentile75: finalNetworths[Math.floor(n * 0.75)],
+    percentile90: finalNetworths[Math.floor(n * 0.90)],
+    percentile95: finalNetworths[Math.floor(n * 0.95)],
+    detail: {
+      p5:     makeDetail(sorted[Math.floor(n * 0.05)]),
+      p25:    makeDetail(sorted[Math.floor(n * 0.25)]),
+      median: makeDetail(sorted[Math.floor(n / 2)]),
+      p75:    makeDetail(sorted[Math.floor(n * 0.75)]),
+      p90:    makeDetail(sorted[Math.floor(n * 0.90)]),
+      average: averageDetail,
+    },
+    initialNetworth,
+    projectionYears,
   }
 
   return { results, summary }
 }
 
 /**
- * Generate random number from normal distribution using Box-Muller transform
+ * Generate random number from normal distribution using Box-Muller transform.
  */
 function generateNormalRandom(mean: number, stdDev: number): number {
   const u1 = Math.random()
@@ -124,7 +199,9 @@ function generateNormalRandom(mean: number, stdDev: number): number {
 }
 
 /**
- * Analyze sequence of returns risk
+ * Analyze sequence of returns risk based on the plan's deterministic projections.
+ * Note: because projections use a fixed growth rate, worst ≈ best ≈ average ≈ the assumed rate.
+ * Run Monte Carlo for a true market-volatility stress test.
  */
 export function analyzeSequenceOfReturnsRisk(
   projections: ProjectionDetail[],
@@ -137,49 +214,30 @@ export function analyzeSequenceOfReturnsRisk(
   description: string
 } {
   if (projections.length === 0) {
-    return {
-      worstCaseSequence: 0,
-      bestCaseSequence: 0,
-      averageSequence: 0,
-      riskLevel: 'Low',
-      description: 'No projections available'
-    }
+    return { worstCaseSequence: 0, bestCaseSequence: 0, averageSequence: 0, riskLevel: 'Low', description: 'No projections available' }
   }
 
-  // Find retirement start index
   const retirementStartIndex = projections.findIndex(p => p.age && p.age >= retirementAge)
-  
   if (retirementStartIndex === -1) {
-    return {
-      worstCaseSequence: 0,
-      bestCaseSequence: 0,
-      averageSequence: 0,
-      riskLevel: 'Low',
-      description: 'Retirement not yet reached'
-    }
+    return { worstCaseSequence: 0, bestCaseSequence: 0, averageSequence: 0, riskLevel: 'Low', description: 'Retirement not yet reached' }
   }
 
-  // Analyze first 10 years of retirement (critical period)
   const retirementYears = projections.slice(retirementStartIndex, retirementStartIndex + 10)
-  const initialBalance = projections[retirementStartIndex]?.networth || 0
-  const finalBalance = retirementYears[retirementYears.length - 1]?.networth || 0
-  
-  // Calculate returns for each year
+
   const returns = retirementYears.map((proj, index) => {
     if (index === 0) return 0
-    const prevBalance = retirementYears[index - 1]?.networth || 0
-    const currentBalance = proj.networth || 0
-    const withdrawals = (proj.distribution_401k || 0) + (proj.distribution_roth || 0) + 
-                       (proj.distribution_taxable || 0) + (proj.distribution_other || 0)
-    // Approximate return: (current - prev + withdrawals) / prev
+    const prevBalance = retirementYears[index - 1]?.networth ?? 0
+    const currentBalance = proj.networth ?? 0
+    const withdrawals = (proj.distribution_401k ?? 0) + (proj.distribution_roth ?? 0) +
+                       (proj.distribution_taxable ?? 0) + (proj.distribution_other ?? 0)
     return prevBalance > 0 ? ((currentBalance - prevBalance + withdrawals) / prevBalance) : 0
   })
 
-  const worstCaseSequence = Math.min(...returns.filter(r => r !== 0))
-  const bestCaseSequence = Math.max(...returns.filter(r => r !== 0))
-  const averageSequence = returns.filter(r => r !== 0).reduce((a, b) => a + b, 0) / returns.filter(r => r !== 0).length
+  const nonZero = returns.filter(r => r !== 0)
+  const worstCaseSequence = nonZero.length > 0 ? Math.min(...nonZero) : 0
+  const bestCaseSequence  = nonZero.length > 0 ? Math.max(...nonZero) : 0
+  const averageSequence   = nonZero.length > 0 ? nonZero.reduce((a, b) => a + b, 0) / nonZero.length : 0
 
-  // Assess risk based on worst case
   let riskLevel: 'Low' | 'Medium' | 'High' = 'Low'
   let description = ''
 
@@ -195,9 +253,9 @@ export function analyzeSequenceOfReturnsRisk(
   }
 
   return {
-    worstCaseSequence: worstCaseSequence * 100, // Convert to percentage
-    bestCaseSequence: bestCaseSequence * 100,
-    averageSequence: averageSequence * 100,
+    worstCaseSequence: worstCaseSequence * 100,
+    bestCaseSequence:  bestCaseSequence  * 100,
+    averageSequence:   averageSequence   * 100,
     riskLevel,
     description,
   }

@@ -5,8 +5,15 @@ import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import ScenariosTable from '../scenarios-table'
 import DefaultsPopup from '../defaults-popup'
-import { Copy, Plus, Trash2, Save, Check, X } from 'lucide-react'
+import { Copy, Plus, Trash2, Save, Check, X, User, Wallet, ShoppingCart, Pencil, ChevronUp } from 'lucide-react'
 import { calculateAndSaveProjectionsForScenario } from '@/lib/utils/calculate-projections'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface PlanDetailsTabProps {
   planId: number
@@ -606,812 +613,725 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-600">Loading...</div>
+    return <div className="text-center py-8 text-muted-foreground">Loading…</div>
   }
 
   const currentYear = new Date().getFullYear()
   const calculatedAge = planBasis.birth_year ? currentYear - planBasis.birth_year : planBasis.age
   const yearsToRetirement = scenarioVars.retirement_age - calculatedAge
   const retirementStartYear = currentYear + yearsToRetirement
+  const spouseAge = planBasis.include_spouse ? currentYear - planBasis.spouse_birth_year : null
 
-  // Calculate totals
   const totalAssets = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
-  
-  // Calculate expenses by category
-  const essentialExpenses = expenses.filter(exp => isEssentialExpense(exp.expense_name))
-  const discretionaryExpenses = expenses.filter(exp => !isEssentialExpense(exp.expense_name))
-  
-  const essentialMonthly = essentialExpenses.reduce((sum, exp) => {
-    const amount = scenarioVars.retirement_age >= 65 ? exp.amount_after_65 : exp.amount_before_65
-    return sum + (amount || 0)
-  }, 0)
-  
-  const discretionaryMonthly = discretionaryExpenses.reduce((sum, exp) => {
-    const amount = scenarioVars.retirement_age >= 65 ? exp.amount_after_65 : exp.amount_before_65
-    return sum + (amount || 0)
-  }, 0)
-  
-  const totalMonthlyExpenses = essentialMonthly + discretionaryMonthly
-  const totalAnnualExpenses = totalMonthlyExpenses * 12
-  const essentialAnnual = essentialMonthly * 12
-  const discretionaryAnnual = discretionaryMonthly * 12
 
-  // Calculate annual retirement expenses with inflation adjustment
-  const inflationMultiplier = yearsToRetirement > 0 ? Math.pow(1 + (scenarioVars.inflation_rate / 100), yearsToRetirement) : 1
+  const essentialMonthly = expenses.filter(e => isEssentialExpense(e.expense_name))
+    .reduce((s, e) => s + ((scenarioVars.retirement_age >= 65 ? e.amount_after_65 : e.amount_before_65) || 0), 0)
+  const discretionaryMonthly = expenses.filter(e => !isEssentialExpense(e.expense_name))
+    .reduce((s, e) => s + ((scenarioVars.retirement_age >= 65 ? e.amount_after_65 : e.amount_before_65) || 0), 0)
+  const totalMonthlyExpenses = essentialMonthly + discretionaryMonthly
+  const totalAnnualExpenses  = totalMonthlyExpenses * 12
+
+  const inflationMultiplier = yearsToRetirement > 0
+    ? Math.pow(1 + scenarioVars.inflation_rate / 100, yearsToRetirement) : 1
   const annualRetirementExpensesAdjusted = totalAnnualExpenses * inflationMultiplier
 
-  // Calculate estimated SSA income
-  const calculateEstimatedSSA = (birthYear: number, ssaStartAge: number, isPlanner: boolean = true) => {
-    const age = currentYear - birthYear
-    if (age < ssaStartAge) return 0
-    const ssaMultiplier = age < 67 ? Math.max(0.7, 1.0 - (67 - age) * 0.05) : 1.0
-    const baseAmount = isPlanner ? 20000 : 15000
-    return baseAmount * ssaMultiplier
+  const selectedScenario = scenarios.find(s => s.id === selectedScenarioId)
+
+  // Color dot per account type
+  const accountTypeDot = (type?: string) => {
+    switch (type) {
+      case '401k': case 'IRA': case 'Traditional IRA': return 'bg-blue-400'
+      case 'Roth IRA':  return 'bg-emerald-400'
+      case 'HSA':       return 'bg-teal-400'
+      case 'Taxable':   return 'bg-amber-400'
+      case 'ESPP':      return 'bg-violet-400'
+      default:          return 'bg-muted-foreground/30'
+    }
   }
 
-  const estimatedPlannerSSA = scenarioVars.planner_ssa_income 
-    ? calculateEstimatedSSA(planBasis.birth_year, scenarioVars.ssa_start_age, true)
-    : 0
-  const estimatedSpouseSSA = planBasis.include_spouse && scenarioVars.spouse_ssa_income
-    ? calculateEstimatedSSA(planBasis.spouse_birth_year, scenarioVars.ssa_start_age, false)
-    : 0
-
-  // Calculate summary for plan basis
-  const spouseAge = planBasis.include_spouse ? currentYear - planBasis.spouse_birth_year : null
-  const planBasisSummary = planBasis.include_spouse
-    ? `Age: ${calculatedAge} | Spouse Age: ${spouseAge} | Filing: ${planBasis.filing_status} | Life Expectancy: ${planBasis.life_expectancy} | Spouse Life Expectancy: ${planBasis.spouse_life_expectancy}`
-    : `Age: ${calculatedAge} | Filing: ${planBasis.filing_status} | Life Expectancy: ${planBasis.life_expectancy}`
-
-  // Get selected scenario name
-  const selectedScenario = scenarios.find(s => s.id === selectedScenarioId)
-  const scenarioName = selectedScenario?.scenario_name || 'No scenario selected'
-
   return (
-    <div className="space-y-8">
-      {/* Inline Message Display */}
+    <div className="space-y-6">
+      {/* ── Inline message ── */}
       {message && (
-        <div className={`rounded-lg border p-4 ${
-          message.type === 'success' 
-            ? 'border-green-200 bg-green-50 text-green-800' 
+        <div className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-sm ${
+          message.type === 'success'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300'
             : message.type === 'error'
-            ? 'border-red-200 bg-red-50 text-red-800'
-            : 'border-blue-200 bg-blue-50 text-blue-800'
+            ? 'border-destructive/30 bg-destructive/10 text-destructive'
+            : 'border-primary/20 bg-primary/5 text-primary'
         }`}>
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex-1">{message.text}</span>
-            <div className="flex items-center gap-2">
-              {message.type === 'error' && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(message.text)
-                      // Show brief feedback (optional)
-                    } catch (err) {
-                      console.error('Failed to copy:', err)
-                    }
-                  }}
-                  className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                  title="Copy error message"
-                >
-                  <Copy className="h-4 w-4" />
-                </button>
-              )}
+          <span className="flex-1">{message.text}</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {message.type === 'error' && (
               <button
-                onClick={() => setMessage(null)}
-                className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                title="Dismiss"
+                onClick={async () => { try { await navigator.clipboard.writeText(message.text) } catch {} }}
+                className="text-muted-foreground hover:text-foreground"
+                title="Copy error"
               >
-                ×
+                <Copy className="h-4 w-4" />
               </button>
-            </div>
+            )}
+            <button onClick={() => setMessage(null)} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}
-      {/* Section 1: Plan Basis - Expandable Card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
-        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">Plan Basis</h3>
-          <button
-            onClick={handleSavePlanBasis}
-            disabled={saving}
-            className="w-full sm:w-auto flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 active:bg-gray-800"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save Plan Basis'}
-          </button>
-        </div>
 
-        {/* Plan Basis Collapsible Section */}
-        <div>
-          <div 
-            className="mb-3 cursor-pointer"
-            onClick={() => setPlanBasisExpanded(!planBasisExpanded)}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-bold text-gray-900">Retirement Profile</h4>
-              <span className="text-gray-400">{planBasisExpanded ? '▼' : '▶'}</span>
-            </div>
-            {!planBasisExpanded && (
-              <div className="text-sm text-gray-600">
-                <span className="font-bold">{planBasisSummary}</span>
-                {(estimatedPlannerSSA > 0 || estimatedSpouseSSA > 0) && (
-                  <span className="ml-2">
-                    | SSA: {estimatedPlannerSSA > 0 ? `$${estimatedPlannerSSA.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}
-                    {estimatedPlannerSSA > 0 && estimatedSpouseSSA > 0 ? ' / ' : ''}
-                    {estimatedSpouseSSA > 0 ? `$${estimatedSpouseSSA.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}
-                  </span>
-                )}
-              </div>
-            )}
+      {/* ── Plan at a glance (scenario-agnostic) ── */}
+      <div className="rounded-xl border bg-muted/30 px-5 py-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <div>
+            <span className="text-muted-foreground">Age</span>
+            <span className="ml-2 font-semibold">{calculatedAge}</span>
           </div>
-
-          {planBasisExpanded && (
-            <div className="space-y-4">
-              {/* Filing Status and Include Spouse - Same Line */}
-              <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-                <div className="flex-1 sm:max-w-xs">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Filing Status</label>
-                  <select
-                    value={planBasis.filing_status}
-                    onChange={(e) => setPlanBasis({ ...planBasis, filing_status: e.target.value as any })}
-                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                  >
-                    <option value="Single">Single</option>
-                    <option value="Married Filing Jointly">Married Filing Jointly</option>
-                    <option value="Married Filing Separately">Married Filing Separately</option>
-                    <option value="Head of Household">Head of Household</option>
-                  </select>
-                </div>
-                <div className="pb-0.5">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={planBasis.include_spouse}
-                      onChange={(e) => setPlanBasis({ ...planBasis, include_spouse: e.target.checked })}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Include Spouse in Plan</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Planner Section - Sub Card */}
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                <h5 className="mb-3 text-sm font-semibold text-gray-900">Planner</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Birth Year
-                      {planBasis.birth_year && (
-                        <span className="ml-2 text-sm font-normal text-gray-500">
-                          (Age: {calculatedAge})
-                        </span>
-                      )}
-                    </label>
-                    <input
-                      type="number"
-                      value={planBasis.birth_year}
-                      onChange={(e) => {
-                        const birthYear = parseInt(e.target.value) || new Date().getFullYear() - 50
-                        const age = currentYear - birthYear
-                        setPlanBasis({ ...planBasis, birth_year: birthYear, age })
-                      }}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Life Expectancy (Age)</label>
-                    <input
-                      type="number"
-                      value={planBasis.life_expectancy}
-                      onChange={(e) => setPlanBasis({ ...planBasis, life_expectancy: parseInt(e.target.value) || 90 })}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">Projections will run until this age</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Spouse Section - Sub Card (only shown if include_spouse is true) */}
-              {planBasis.include_spouse && (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h5 className="mb-3 text-sm font-semibold text-gray-900">Spouse</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Spouse Birth Year
-                        {planBasis.spouse_birth_year && spouseAge !== null && (
-                          <span className="ml-2 text-sm font-normal text-gray-500">
-                            (Age: {spouseAge})
-                          </span>
-                        )}
-                      </label>
-                      <input
-                        type="number"
-                        value={planBasis.spouse_birth_year}
-                        onChange={(e) => {
-                          const spouseBirthYear = parseInt(e.target.value) || planBasis.birth_year // Default to planner's birth year
-                          setPlanBasis({ ...planBasis, spouse_birth_year: spouseBirthYear })
-                        }}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Spouse Life Expectancy (Age)</label>
-                      <input
-                        type="number"
-                        value={planBasis.spouse_life_expectancy}
-                        onChange={(e) => setPlanBasis({ ...planBasis, spouse_life_expectancy: parseInt(e.target.value) || 90 })}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Accounts Section - Collapsible */}
-        <div className="mb-6">
-          <div 
-            className="mb-3 cursor-pointer"
-            onClick={() => setAccountsExpanded(!accountsExpanded)}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 whitespace-nowrap">
-                <h4 className="font-bold text-gray-900">Retirement Accounts</h4>
-                <span className="text-sm text-gray-500">({accounts.length} accounts)</span>
-              </div>
-              <span className="text-gray-400">{accountsExpanded ? '▼' : '▶'}</span>
-            </div>
-            {!accountsExpanded && (
-              <div className="text-sm font-semibold text-gray-900">
-                Total Assets: ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
-            )}
-          </div>
-
-          {accountsExpanded && (
+          {planBasis.include_spouse && spouseAge !== null && (
             <div>
-              <div className="mb-3 flex items-center justify-end">
-                <button
-                  onClick={handleAddAccountRow}
-                  className="flex items-center gap-1.5 rounded-md bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Row
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 border">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Account Name</th>
-                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Owner</th>
-                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Balance</th>
-                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Type</th>
-                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Annual Contribution</th>
-                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {accounts.map((account, index) => (
-                    <tr key={account.id || index}>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={account.account_name}
-                          onChange={(e) => {
-                            const newAccounts = [...accounts]
-                            newAccounts[index].account_name = e.target.value
-                            setAccounts(newAccounts)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
-                          placeholder="Account Name"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={account.owner}
-                          onChange={(e) => {
-                            const newAccounts = [...accounts]
-                            newAccounts[index].owner = e.target.value
-                            setAccounts(newAccounts)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
-                          placeholder="Owner"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={account.balance}
-                          onChange={(e) => {
-                            const newAccounts = [...accounts]
-                            newAccounts[index].balance = parseFloat(e.target.value) || 0
-                            setAccounts(newAccounts)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <select
-                          value={account.account_type || ''}
-                          onChange={(e) => {
-                            const newAccounts = [...accounts]
-                            newAccounts[index].account_type = e.target.value
-                            setAccounts(newAccounts)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
-                        >
-                          <option value="">Select type</option>
-                          <option value="IRA">IRA</option>
-                          <option value="401k">401k</option>
-                          <option value="Roth IRA">Roth IRA</option>
-                          <option value="HSA">HSA</option>
-                          <option value="Taxable">Taxable</option>
-                          <option value="ESPP">ESPP</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={account.annual_contribution || 0}
-                          onChange={(e) => {
-                            const newAccounts = [...accounts]
-                            newAccounts[index].annual_contribution = parseFloat(e.target.value) || 0
-                            setAccounts(newAccounts)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => handleDeleteAccount(index)}
-                          className="flex items-center gap-1.5 text-gray-600 hover:text-gray-800 text-sm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
+              <span className="text-muted-foreground">Spouse age</span>
+              <span className="ml-2 font-semibold">{spouseAge}</span>
             </div>
           )}
-        </div>
-
-        {/* Expenses Section - Collapsible */}
-        <div>
-          <div 
-            className="mb-3 cursor-pointer"
-            onClick={() => setExpensesExpanded(!expensesExpanded)}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 whitespace-nowrap">
-                <h4 className="font-bold text-gray-900">Monthly Expenses</h4>
-                <span className="text-sm text-gray-500">({expenses.length} expenses)</span>
-              </div>
-              <span className="text-gray-400">{expensesExpanded ? '▼' : '▶'}</span>
-            </div>
-            {!expensesExpanded && (
-              <div className="text-sm font-semibold text-gray-900">
-                Essential: ${essentialMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo | Discretionary: ${discretionaryMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo | Total: ${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
-              </div>
-            )}
+          <div>
+            <span className="text-muted-foreground">Filing</span>
+            <span className="ml-2 font-semibold">{planBasis.filing_status}</span>
           </div>
-
-          {expensesExpanded && (
-            <div>
-              <div className="mb-3 flex items-center justify-end">
-                <button
-                  onClick={handleAddExpenseRow}
-                  className="flex items-center gap-1.5 rounded-md bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Row
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 border">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Expense</th>
-                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">After 65</th>
-                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Before 65</th>
-                    <th className="px-3 py-2 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {expenses.map((expense, index) => (
-                    <tr key={expense.id || index}>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={expense.expense_name}
-                          onChange={(e) => {
-                            const newExpenses = [...expenses]
-                            newExpenses[index].expense_name = e.target.value
-                            setExpenses(newExpenses)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
-                          placeholder="Expense Name"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={expense.amount_after_65}
-                          onChange={(e) => {
-                            const newExpenses = [...expenses]
-                            const value = parseFloat(e.target.value) || 0
-                            newExpenses[index].amount_after_65 = value
-                            // Auto-copy to before_65 if it's currently 0 or same value
-                            if (newExpenses[index].amount_before_65 === 0 || 
-                                newExpenses[index].amount_before_65 === expense.amount_after_65) {
-                              newExpenses[index].amount_before_65 = value
-                            }
-                            setExpenses(newExpenses)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={expense.amount_before_65}
-                          onChange={(e) => {
-                            const newExpenses = [...expenses]
-                            const value = parseFloat(e.target.value) || 0
-                            newExpenses[index].amount_before_65 = value
-                            // Auto-copy to after_65 if it's currently 0 or same value
-                            if (newExpenses[index].amount_after_65 === 0 || 
-                                newExpenses[index].amount_after_65 === expense.amount_before_65) {
-                              newExpenses[index].amount_after_65 = value
-                            }
-                            setExpenses(newExpenses)
-                          }}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm text-right text-gray-900"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => handleDeleteExpense(index)}
-                          className="flex items-center gap-1.5 text-gray-600 hover:text-gray-800 text-sm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Scenarios Table */}
-      <ScenariosTable 
-        planId={planId} 
-        onAddScenario={handleAddScenario}
-        onModelScenarios={() => {
-          // Navigate to Scenario Modeling tab using custom event
-          window.dispatchEvent(new CustomEvent('switchTab', { detail: 'scenario-modeling' }))
-        }}
-      />
-
-      {showSaveDialog && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <h4 className="font-medium text-gray-900 mb-3">Save as New Scenario</h4>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newScenarioName}
-              onChange={(e) => setNewScenarioName(e.target.value)}
-              placeholder={suggestScenarioName()}
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-              onKeyPress={(e) => e.key === 'Enter' && (newScenarioName.trim() || suggestScenarioName()) && handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())}
-            />
-            <button
-              onClick={() => setNewScenarioName(suggestScenarioName())}
-              className="rounded-md bg-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-300"
-              title="Use suggested name"
-            >
-              Suggest
-            </button>
-            <button
-              onClick={() => handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())}
-              disabled={saving || (!newScenarioName.trim() && !suggestScenarioName())}
-              className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              Save
-            </button>
-            <button
-              onClick={() => {
-                setShowSaveDialog(false)
-                setNewScenarioName('')
-              }}
-              className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-            >
-              Cancel
-            </button>
+          <div>
+            <span className="text-muted-foreground">Total saved</span>
+            <span className="ml-2 font-semibold">${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>
-        </div>
-      )}
-
-      {scenarios.length === 0 && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">No scenarios yet. Configure your scenario variables and save as your first scenario.</p>
-            <button
-              onClick={() => setShowSaveDialog(true)}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              Save as New Scenario
-            </button>
+          <div>
+            <span className="text-muted-foreground">Monthly spend</span>
+            <span className="ml-2 font-semibold">${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</span>
           </div>
-        </div>
-      )}
-
-      {/* Section 2: Scenario Variables - Expandable */}
-      <div id="scenario-variables-section" className="rounded-lg border border-gray-200 bg-white p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Scenario Variables</h3>
-        </div>
-
-        {/* Summary Card - Always Visible */}
-        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="font-medium text-gray-900">{scenarioName}</h4>
-            <button
-              onClick={() => setScenarioVarsExpanded(!scenarioVarsExpanded)}
-              className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          <div>
+            <span className="text-muted-foreground">Plan through age</span>
+            <span className="ml-2 font-semibold">{planBasis.life_expectancy}</span>
+          </div>
+          <div className="ml-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPlanBasisExpanded(!planBasisExpanded)}
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
             >
-              {scenarioVarsExpanded ? (
+              {planBasisExpanded ? (
                 <>
-                  <Check className="w-4 h-4" />
-                  Done
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  Collapse
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4" />
-                  Edit / Add
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit plan basis
                 </>
               )}
-            </button>
+            </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-            {(estimatedPlannerSSA > 0 || estimatedSpouseSSA > 0) && (
-              <>
-                {estimatedPlannerSSA > 0 && (
-                  <div>
-                    <span className="text-gray-600">Estimated Planner SSA Income:</span>
-                    <span className="ml-2 font-semibold text-gray-900">
-                      ${estimatedPlannerSSA.toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr
-                    </span>
-                  </div>
-                )}
-                {estimatedSpouseSSA > 0 && (
-                  <div>
-                    <span className="text-gray-600">Estimated Spouse SSA Income:</span>
-                    <span className="ml-2 font-semibold text-gray-900">
-                      ${estimatedSpouseSSA.toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-            <div>
-              <span className="text-gray-600">Years to Retirement:</span>
-              <span className="ml-2 font-semibold text-gray-900">{yearsToRetirement}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Retirement Start Year:</span>
-              <span className="ml-2 font-semibold text-gray-900">{retirementStartYear}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Annual Retirement Expenses (adjusted for inflation):</span>
-              <span className="ml-2 font-semibold text-gray-900">
-                ${annualRetirementExpensesAdjusted.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-600">Retirement Age:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.retirement_age}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">SSA Income Start Age:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.ssa_start_age}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Growth Rate Before Retirement:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.growth_rate_before_retirement}%</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Growth Rate During Retirement:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.growth_rate_during_retirement}%</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Inflation Rate:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.inflation_rate}%</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Enable Borrowing:</span>
-              <span className="ml-2 font-semibold text-gray-900">{scenarioVars.enable_borrowing ? 'Yes' : 'No'}</span>
-            </div>
+        </div>
+      </div>
+
+      {/* ── PLAN BASIS CARD (collapsible) ── */}
+      {planBasisExpanded && (
+      <div className="rounded-xl border bg-card overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h3 className="text-base font-semibold">Plan Basis</h3>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleSavePlanBasis} disabled={saving} size="sm">
+              <Save className="h-3.5 w-3.5" />
+              {saving ? 'Saving…' : 'Save Plan Basis'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setPlanBasisExpanded(false)} className="text-muted-foreground">
+              <ChevronUp className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
-        {/* Scenario Variables Collapsible Section - Editable Fields and Buttons */}
-        {scenarioVarsExpanded && (
-          <div className="space-y-4">
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setShowDefaultsPopup(true)}
-                className="rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+        {/* ── Who You Are ── */}
+        <div className="px-6 py-5">
+          <div className="flex items-center gap-2 mb-4">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold">Who You Are</h4>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Filing Status</Label>
+              <Select
+                value={planBasis.filing_status}
+                onValueChange={(v) => setPlanBasis({ ...planBasis, filing_status: v as any })}
               >
-                Defaults
-              </button>
-              <button
-                onClick={handleResetToDefaults}
-                className="flex items-center gap-2 rounded-md bg-yellow-100 px-4 py-2 text-sm font-medium text-yellow-700 hover:bg-yellow-200"
-              >
-                <X className="w-4 h-4" />
-                Reset to Defaults
-              </button>
-              {selectedScenarioId && (
-                <button
-                  onClick={() => handleSaveScenarioVars()}
-                  disabled={saving}
-                  className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save to Current Scenario'}
-                </button>
-              )}
-              <button
-                onClick={() => setShowSaveDialog(true)}
-                disabled={saving}
-                className="flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                Save as New Scenario
-              </button>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Single">Single</SelectItem>
+                  <SelectItem value="Married Filing Jointly">Married Filing Jointly</SelectItem>
+                  <SelectItem value="Married Filing Separately">Married Filing Separately</SelectItem>
+                  <SelectItem value="Head of Household">Head of Household</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end pb-1.5">
+              <div className="flex items-center gap-2.5">
+                <Checkbox
+                  id="include-spouse"
+                  checked={planBasis.include_spouse}
+                  onCheckedChange={(v) => setPlanBasis({ ...planBasis, include_spouse: !!v })}
+                />
+                <Label htmlFor="include-spouse" className="text-sm font-medium cursor-pointer">
+                  Include spouse in plan
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          <div className={`grid gap-4 ${planBasis.include_spouse ? 'md:grid-cols-2' : 'sm:grid-cols-2'}`}>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Planner</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Birth Year</Label>
+                  <Input
+                    type="number"
+                    value={planBasis.birth_year}
+                    onChange={(e) => {
+                      const birthYear = parseInt(e.target.value) || new Date().getFullYear() - 50
+                      setPlanBasis({ ...planBasis, birth_year: birthYear, age: currentYear - birthYear })
+                    }}
+                    className="h-9 text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground">Age: {calculatedAge}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Life Expectancy</Label>
+                  <Input
+                    type="number"
+                    value={planBasis.life_expectancy}
+                    onChange={(e) => setPlanBasis({ ...planBasis, life_expectancy: parseInt(e.target.value) || 90 })}
+                    className="h-9 text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground">Plan ends at {planBasis.life_expectancy}</p>
+                </div>
+              </div>
             </div>
 
-            {/* Editable Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Retirement Age</label>
-                <input
-                  type="number"
-                  value={scenarioVars.retirement_age}
-                  onChange={(e) => {
-                    const age = parseInt(e.target.value) || 65
-                    setScenarioVars({ 
-                      ...scenarioVars, 
-                      retirement_age: age,
-                    })
-                  }}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                />
+            {planBasis.include_spouse && (
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Spouse</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Birth Year</Label>
+                    <Input
+                      type="number"
+                      value={planBasis.spouse_birth_year}
+                      onChange={(e) => setPlanBasis({ ...planBasis, spouse_birth_year: parseInt(e.target.value) || planBasis.birth_year })}
+                      className="h-9 text-sm"
+                    />
+                    <p className="text-[11px] text-muted-foreground">Age: {spouseAge ?? '—'}</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Life Expectancy</Label>
+                    <Input
+                      type="number"
+                      value={planBasis.spouse_life_expectancy}
+                      onChange={(e) => setPlanBasis({ ...planBasis, spouse_life_expectancy: parseInt(e.target.value) || 90 })}
+                      className="h-9 text-sm"
+                    />
+                    <p className="text-[11px] text-muted-foreground">Plan ends at {planBasis.spouse_life_expectancy}</p>
+                  </div>
+                </div>
               </div>
+            )}
+          </div>
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">SSA Income Start Age</label>
-                <input
-                  type="number"
-                  value={scenarioVars.ssa_start_age}
-                  onChange={(e) => {
-                    const age = parseInt(e.target.value) || 62
-                    setScenarioVars({ ...scenarioVars, ssa_start_age: age })
-                  }}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-                />
-                <p className="mt-1 text-xs text-gray-500">Age when Social Security benefits begin (typically 62-70)</p>
-              </div>
+        <Separator />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Growth Rate Before Retirement (%)</label>
-                <input
+        {/* ── What You Have ── */}
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <h4 className="text-sm font-semibold">What You Have</h4>
+              <Badge variant="outline" className="text-xs">
+                ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })} total
+              </Badge>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleAddAccountRow}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Account
+            </Button>
+          </div>
+
+          <div className="rounded-xl border overflow-hidden">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40 border-b">
+                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Account Name</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Owner</th>
+                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Balance</th>
+                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Annual Contribution</th>
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {accounts.map((account, index) => (
+                  <tr key={account.id || index} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${accountTypeDot(account.account_type)}`} />
+                        <Select
+                          value={account.account_type || ''}
+                          onValueChange={(v) => {
+                            const n = [...accounts]; n[index].account_type = v; setAccounts(n)
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-28 px-2">
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="IRA">IRA</SelectItem>
+                            <SelectItem value="401k">401k</SelectItem>
+                            <SelectItem value="Roth IRA">Roth IRA</SelectItem>
+                            <SelectItem value="HSA">HSA</SelectItem>
+                            <SelectItem value="Taxable">Taxable</SelectItem>
+                            <SelectItem value="ESPP">ESPP</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input
+                        type="text"
+                        value={account.account_name}
+                        onChange={(e) => {
+                          const n = [...accounts]; n[index].account_name = e.target.value; setAccounts(n)
+                        }}
+                        className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 min-w-[120px]"
+                        placeholder="Account name"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input
+                        type="text"
+                        value={account.owner}
+                        onChange={(e) => {
+                          const n = [...accounts]; n[index].owner = e.target.value; setAccounts(n)
+                        }}
+                        className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 w-24"
+                        placeholder="Owner"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input
+                        type="number"
+                        value={account.balance}
+                        onChange={(e) => {
+                          const n = [...accounts]; n[index].balance = parseFloat(e.target.value) || 0; setAccounts(n)
+                        }}
+                        className="h-8 text-sm text-right w-32"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input
+                        type="number"
+                        value={account.annual_contribution || 0}
+                        onChange={(e) => {
+                          const n = [...accounts]; n[index].annual_contribution = parseFloat(e.target.value) || 0; setAccounts(n)
+                        }}
+                        className="h-8 text-sm text-right w-32"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteAccount(index)}
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {accounts.length > 0 && (
+                <tfoot>
+                  <tr className="bg-muted/20 border-t">
+                    <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Total
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-sm font-bold">
+                      ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* ── What You Spend ── */}
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+              <h4 className="text-sm font-semibold">What You Spend</h4>
+              <Badge variant="outline" className="text-xs">
+                ${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+              </Badge>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleAddExpenseRow}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Expense
+            </Button>
+          </div>
+
+          <div className="rounded-xl border overflow-hidden">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40 border-b">
+                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Expense
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Working years <span className="font-normal normal-case text-muted-foreground/60">(before 65)</span>
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Retirement years <span className="font-normal normal-case text-muted-foreground/60">(after 65)</span>
+                  </th>
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {expenses.map((expense, index) => {
+                  const essential = isEssentialExpense(expense.expense_name)
+                  return (
+                    <tr key={expense.id || index} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${essential ? 'bg-blue-400' : 'bg-amber-400'}`} />
+                          <Input
+                            type="text"
+                            value={expense.expense_name}
+                            onChange={(e) => {
+                              const n = [...expenses]; n[index].expense_name = e.target.value; setExpenses(n)
+                            }}
+                            className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 min-w-[160px]"
+                            placeholder="Expense name"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Input
+                          type="number"
+                          value={expense.amount_before_65}
+                          onChange={(e) => {
+                            const n = [...expenses]
+                            const v = parseFloat(e.target.value) || 0
+                            n[index].amount_before_65 = v
+                            if (n[index].amount_after_65 === 0 || n[index].amount_after_65 === expense.amount_before_65) {
+                              n[index].amount_after_65 = v
+                            }
+                            setExpenses(n)
+                          }}
+                          className="h-8 text-sm text-right w-32 ml-auto block"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Input
+                          type="number"
+                          value={expense.amount_after_65}
+                          onChange={(e) => {
+                            const n = [...expenses]
+                            const v = parseFloat(e.target.value) || 0
+                            n[index].amount_after_65 = v
+                            if (n[index].amount_before_65 === 0 || n[index].amount_before_65 === expense.amount_after_65) {
+                              n[index].amount_before_65 = v
+                            }
+                            setExpenses(n)
+                          }}
+                          className="h-8 text-sm text-right w-32 ml-auto block"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteExpense(index)}
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              {expenses.length > 0 && (
+                <tfoot className="border-t bg-muted/20">
+                  <tr>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />Essential
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Discretionary
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-xs">
+                      <div className="font-semibold">
+                        ${expenses.reduce((s, e) => s + (e.amount_before_65 || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-xs">
+                      <div className="font-semibold">
+                        ${expenses.reduce((s, e) => s + (e.amount_after_65 || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+                      </div>
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* ── SCENARIOS TABLE ── */}
+      <ScenariosTable
+        planId={planId}
+        onAddScenario={handleAddScenario}
+        onModelScenarios={() => window.dispatchEvent(new CustomEvent('switchTab', { detail: 'scenario-modeling' }))}
+      />
+
+      {/* ── SCENARIO ASSUMPTIONS ── */}
+      <div id="scenario-variables-section" className="rounded-xl border bg-card overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-3">
+            <h3 className="text-base font-semibold">Scenario Assumptions</h3>
+            {selectedScenario && (
+              <Badge variant="secondary" className="text-xs">{selectedScenario.scenario_name}</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={selectedScenarioId?.toString() || ''}
+              onValueChange={(v) => setSelectedScenarioId(parseInt(v))}
+            >
+              <SelectTrigger className="h-8 text-sm w-44">
+                <SelectValue placeholder="Select scenario" />
+              </SelectTrigger>
+              <SelectContent>
+                {scenarios.map((s) => (
+                  <SelectItem key={s.id} value={s.id.toString()}>
+                    {s.scenario_name}{s.is_default ? ' (Default)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={handleAddScenario}>
+              <Plus className="h-3.5 w-3.5" />
+              New
+            </Button>
+          </div>
+        </div>
+
+        {/* Fields */}
+        <div className="px-6 py-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Retirement Age</Label>
+              <Input
+                type="number"
+                value={scenarioVars.retirement_age}
+                onChange={(e) => setScenarioVars({ ...scenarioVars, retirement_age: parseInt(e.target.value) || 65 })}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">SSA Income Start Age</Label>
+              <Input
+                type="number"
+                value={scenarioVars.ssa_start_age}
+                onChange={(e) => setScenarioVars({ ...scenarioVars, ssa_start_age: parseInt(e.target.value) || 62 })}
+                className="h-9 text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">Typically 62–70</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Growth Rate — Pre-retirement</Label>
+              <div className="relative">
+                <Input
                   type="number"
                   step="0.1"
                   value={scenarioVars.growth_rate_before_retirement}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, growth_rate_before_retirement: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                  className="h-9 text-sm pr-7"
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Growth Rate During Retirement (%)</label>
-                <input
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Growth Rate — In retirement</Label>
+              <div className="relative">
+                <Input
                   type="number"
                   step="0.1"
                   value={scenarioVars.growth_rate_during_retirement}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, growth_rate_during_retirement: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                  className="h-9 text-sm pr-7"
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Inflation Rate (%)</label>
-                <input
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Inflation Rate</Label>
+              <div className="relative">
+                <Input
                   type="number"
                   step="0.1"
                   value={scenarioVars.inflation_rate}
                   onChange={(e) => setScenarioVars({ ...scenarioVars, inflation_rate: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                  className="h-9 text-sm pr-7"
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
               </div>
             </div>
+          </div>
 
-            <div className="mt-4 space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={scenarioVars.enable_borrowing}
-                      onChange={(e) => setScenarioVars({ ...scenarioVars, enable_borrowing: e.target.checked })}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Enable Borrowing to Cover Negative Cashflow</span>
-                  </label>
-                  <p className="text-xs text-gray-600 mt-1 ml-6">
-                    When enabled, the plan will borrow money to cover shortfalls and pay down debt when surplus income is available.
-                  </p>
-                </div>
-                
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h6 className="text-sm font-semibold text-gray-900 mb-3">SSA Income Settings</h6>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={scenarioVars.planner_ssa_income ?? true}
-                        onChange={(e) => setScenarioVars({ ...scenarioVars, planner_ssa_income: e.target.checked })}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Include Planner SSA Income</span>
-                    </label>
-                    {planBasis.include_spouse && (
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={scenarioVars.spouse_ssa_income ?? true}
-                          onChange={(e) => setScenarioVars({ ...scenarioVars, spouse_ssa_income: e.target.checked })}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Include Spouse SSA Income</span>
-                      </label>
-                    )}
-                  </div>
-                </div>
+          {/* Computed summary chips */}
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Years to retirement', value: yearsToRetirement.toString() },
+              { label: 'Retirement year',     value: retirementStartYear.toString() },
+              { label: 'Expenses at retirement (inflation-adj.)', value: `$${Math.round(annualRetirementExpensesAdjusted).toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr` },
+              { label: 'Plan ends (age)',     value: planBasis.life_expectancy.toString() },
+            ].map(item => (
+              <div key={item.label} className="rounded-lg bg-muted/40 px-3 py-2.5">
+                <p className="text-[11px] text-muted-foreground">{item.label}</p>
+                <p className="text-sm font-semibold mt-0.5">{item.value}</p>
               </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Toggles */}
+        <div className="px-6 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-lg border bg-muted/20 px-4 py-3">
+            <div className="flex items-center gap-2.5 mb-1">
+              <Checkbox
+                id="enable-borrowing"
+                checked={scenarioVars.enable_borrowing}
+                onCheckedChange={(v) => setScenarioVars({ ...scenarioVars, enable_borrowing: !!v })}
+              />
+              <Label htmlFor="enable-borrowing" className="text-sm font-medium cursor-pointer">
+                Enable borrowing to cover shortfalls
+              </Label>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground ml-6">
+              Borrows to cover negative cash flow; repays when surplus is available.
+            </p>
+          </div>
+
+          <div className="rounded-lg border bg-muted/20 px-4 py-3">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">SSA Income</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <Checkbox
+                  id="planner-ssa"
+                  checked={scenarioVars.planner_ssa_income ?? true}
+                  onCheckedChange={(v) => setScenarioVars({ ...scenarioVars, planner_ssa_income: !!v })}
+                />
+                <Label htmlFor="planner-ssa" className="text-sm cursor-pointer">Include planner SSA</Label>
+              </div>
+              {planBasis.include_spouse && (
+                <div className="flex items-center gap-2.5">
+                  <Checkbox
+                    id="spouse-ssa"
+                    checked={scenarioVars.spouse_ssa_income ?? true}
+                    onCheckedChange={(v) => setScenarioVars({ ...scenarioVars, spouse_ssa_income: !!v })}
+                  />
+                  <Label htmlFor="spouse-ssa" className="text-sm cursor-pointer">Include spouse SSA</Label>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Save actions */}
+        <div className="flex flex-wrap items-center gap-2 border-t px-6 py-4 bg-muted/10">
+          <Button variant="ghost" size="sm" onClick={() => setShowDefaultsPopup(true)} className="text-muted-foreground">
+            View Defaults
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleResetToDefaults} className="text-muted-foreground">
+            <X className="h-3.5 w-3.5" />
+            Reset to Defaults
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)} disabled={saving}>
+              <Plus className="h-3.5 w-3.5" />
+              Save as New Scenario
+            </Button>
+            {selectedScenarioId && (
+              <Button size="sm" onClick={() => handleSaveScenarioVars()} disabled={saving}>
+                <Save className="h-3.5 w-3.5" />
+                {saving ? 'Saving…' : 'Save to Current Scenario'}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Defaults Popup */}
+      {/* ── Save as New Scenario inline form ── */}
+      {showSaveDialog && (
+        <div className="rounded-xl border bg-card px-5 py-4">
+          <h4 className="text-sm font-semibold mb-3">Save as New Scenario</h4>
+          <div className="flex gap-2">
+            <Input
+              value={newScenarioName}
+              onChange={(e) => setNewScenarioName(e.target.value)}
+              placeholder={suggestScenarioName()}
+              className="flex-1 h-9 text-sm"
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())}
+            />
+            <Button variant="outline" size="sm" onClick={() => setNewScenarioName(suggestScenarioName())}>
+              Suggest
+            </Button>
+            <Button size="sm" onClick={() => handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())} disabled={saving}>
+              <Save className="h-3.5 w-3.5" />
+              Save
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setShowSaveDialog(false); setNewScenarioName('') }}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Empty scenarios nudge ── */}
+      {scenarios.length === 0 && !showSaveDialog && (
+        <div className="rounded-xl border border-dashed p-5 text-center">
+          <p className="text-sm text-muted-foreground mb-3">
+            No scenarios yet. Configure your assumptions above and save your first scenario.
+          </p>
+          <Button size="sm" onClick={() => setShowSaveDialog(true)} disabled={saving}>
+            <Save className="h-3.5 w-3.5" />
+            Save as New Scenario
+          </Button>
+        </div>
+      )}
+
       <DefaultsPopup
         planId={planId}
         isOpen={showDefaultsPopup}

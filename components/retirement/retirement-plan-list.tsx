@@ -2,6 +2,21 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { toast } from 'sonner'
+import { ArrowRight, Calendar, Target, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 interface RetirementPlan {
   id: number
@@ -18,66 +33,91 @@ export default function RetirementPlanList({ plans }: RetirementPlanListProps) {
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const handleDelete = async (planId: number, planName: string) => {
-    if (!confirm(`Are you sure you want to delete "${planName}"? This will delete all associated data.`)) {
-      return
-    }
-
     setDeletingId(planId)
     try {
-      const response = await fetch(`/apps/retirement/plans/${planId}/delete`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete plan')
-      }
-
+      const response = await fetch(`/apps/retirement/plans/${planId}/delete`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Failed to delete plan')
+      toast.success(`"${planName}" deleted`)
       window.location.reload()
     } catch (error) {
-      alert('Failed to delete plan')
+      toast.error('Failed to delete plan')
       setDeletingId(null)
     }
   }
 
   if (plans.length === 0) {
     return (
-      <div className="rounded-lg bg-white p-8 text-center shadow">
-        <p className="text-gray-600">No retirement plans yet. Create your first plan to get started.</p>
+      <div className="rounded-xl border bg-muted/20 py-16 text-center">
+        <Target className="mx-auto h-10 w-10 text-muted-foreground/40" />
+        <p className="mt-3 text-sm text-muted-foreground">No retirement plans yet.</p>
+        <p className="text-xs text-muted-foreground/70 mt-1">Create your first plan to get started.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {plans.map((plan) => (
-        <div key={plan.id} className="rounded-lg bg-white p-6 shadow hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <Link
-                href={`/apps/retirement/plans/${plan.id}`}
-                className="text-xl font-semibold text-gray-900 hover:text-blue-600"
-              >
-                {plan.plan_name}
-              </Link>
-              <p className="mt-1 text-sm text-gray-500">
-                Created: {new Date(plan.created_at).toLocaleDateString()}
-              </p>
+        <div
+          key={plan.id}
+          className="group relative rounded-xl border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/30"
+        >
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+              <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div className="flex items-center gap-3">
-              <Link
-                href={`/apps/retirement/plans/${plan.id}`}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                View Plan
-              </Link>
-              <button
-                onClick={() => handleDelete(plan.id, plan.plan_name)}
-                disabled={deletingId === plan.id}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {deletingId === plan.id ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
+            <Badge variant="secondary" className="text-[10px]">Retirement Plan</Badge>
+          </div>
+
+          <Link
+            href={`/apps/retirement/plans/${plan.id}`}
+            className="block font-semibold text-base group-hover:text-primary transition-colors"
+          >
+            {plan.plan_name}
+          </Link>
+
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground/70">
+            <Calendar className="h-3 w-3" />
+            Created {new Date(plan.created_at).toLocaleDateString()}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <Link
+              href={`/apps/retirement/plans/${plan.id}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            >
+              View Plan <ArrowRight className="h-3 w-3" />
+            </Link>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  disabled={deletingId === plan.id}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete plan?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <strong>{plan.plan_name}</strong> and all associated scenarios, settings, and projections.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => handleDelete(plan.id, plan.plan_name)}
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                  >
+                    {deletingId === plan.id ? 'Deleting…' : 'Delete'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       ))}

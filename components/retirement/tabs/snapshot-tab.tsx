@@ -16,7 +16,8 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
-import { ChevronRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info, Calculator, Edit2, Save, X, Plus, Trash2, Check } from 'lucide-react'
+import { ChevronRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info, Calculator, Edit2, Save, X, Plus, Trash2, Check, SlidersHorizontal } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/property/ui/tooltip'
 import {
   LineChart,
@@ -1116,6 +1117,94 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
           </div>
         </div>
       )}
+
+      {/* ── Plan Inputs Banner ── */}
+      {(() => {
+        const currentYear = new Date().getFullYear()
+        const age = planDataForTooltip?.birth_year
+          ? currentYear - planDataForTooltip.birth_year
+          : inputs.age
+        const retireAt = settingsForTooltip?.retirement_age ?? inputs.retirementAge
+        const totalSaved = inputs.currentSavings
+        const annualContrib = inputs.annualContribution
+        const annualSpend = inputs.estimatedAnnualExpenses
+        const filing = planDataForTooltip?.filing_status as string | undefined
+        const growthPre  = settingsForTooltip ? +(settingsForTooltip.growth_rate_before_retirement * 100).toFixed(1) : null
+        const growthPost = settingsForTooltip ? +(settingsForTooltip.growth_rate_during_retirement * 100).toFixed(1) : null
+        const inflation  = settingsForTooltip ? +(settingsForTooltip.inflation_rate * 100).toFixed(1) : null
+
+        const fmt = (n: number) =>
+          n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M`
+          : n >= 1_000   ? `$${Math.round(n / 1_000)}k`
+          : `$${n}`
+
+        return (
+          <div className="rounded-xl border bg-muted/30 px-5 py-3">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+              {/* Plan basis group */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                <div>
+                  <span className="text-muted-foreground">Age</span>
+                  <span className="ml-1.5 font-semibold">{age}</span>
+                </div>
+                {filing && (
+                  <div>
+                    <span className="text-muted-foreground">Filing</span>
+                    <span className="ml-1.5 font-semibold">{filing}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Saved</span>
+                  <span className="ml-1.5 font-semibold">{fmt(totalSaved)}</span>
+                </div>
+                {annualContrib > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Contributing</span>
+                    <span className="ml-1.5 font-semibold">{fmt(annualContrib)}/yr</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Annual spend</span>
+                  <span className="ml-1.5 font-semibold">{fmt(annualSpend)}/yr</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Retire at</span>
+                  <span className="ml-1.5 font-semibold">{retireAt}</span>
+                </div>
+              </div>
+
+              {/* Scenario assumptions group */}
+              {growthPre !== null && (
+                <>
+                  <span className="hidden sm:block h-4 w-px bg-border" />
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                      <span className="text-muted-foreground">Pre-ret.</span>
+                      <span className="font-semibold">{growthPre}%</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">In-ret.</span>
+                      <span className="ml-1.5 font-semibold">{growthPost}%</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Inflation</span>
+                      <span className="ml-1.5 font-semibold">{inflation}%</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Quick-start badge when no full plan data */}
+              {!planDataForTooltip && (
+                <div className="ml-auto">
+                  <Badge variant="outline" className="text-[11px] text-muted-foreground">Quick estimate</Badge>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {showQuickStart ? (
         <>
@@ -3044,7 +3133,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                           <ResponsiveContainer width="100%" height="100%">
                             {graphType === 'line' ? (
                               <LineChart data={filteredProjs}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                                 <XAxis 
                                   dataKey="age" 
                                   label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -3069,7 +3158,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                               </LineChart>
                             ) : graphType === 'area' ? (
                               <AreaChart data={filteredProjs}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                                 <XAxis 
                                   dataKey="age" 
                                   label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -3095,7 +3184,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                               </AreaChart>
                             ) : (
                               <BarChart data={filteredProjs}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                                 <XAxis 
                                   dataKey="age" 
                                   label={{ value: 'Age', position: 'insideBottom', offset: -5 }}

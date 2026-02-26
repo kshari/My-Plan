@@ -1024,7 +1024,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
             <div className="h-[600px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis
                     dataKey="age"
                     label={{ value: 'Age', position: 'insideBottom', offset: -10 }}

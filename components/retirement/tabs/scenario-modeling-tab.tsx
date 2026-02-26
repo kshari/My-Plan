@@ -366,7 +366,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     if (graphType === 'line') {
       return (
         <LineChart {...chartProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="retirementAge"
             label={{ value: 'Retirement Start Age', position: 'insideBottom', offset: -10, fontSize: 12, fontWeight: 'bold' }}
@@ -387,7 +387,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     } else if (graphType === 'area') {
       return (
         <AreaChart {...chartProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="retirementAge"
             label={{ value: 'Retirement Start Age', position: 'insideBottom', offset: -10, fontSize: 12, fontWeight: 'bold' }}
@@ -408,7 +408,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     } else {
       return (
         <BarChart {...chartProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="retirementAge"
             label={{ value: 'Retirement Start Age', position: 'insideBottom', offset: -10, fontSize: 12, fontWeight: 'bold' }}
@@ -441,7 +441,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
   if (!planData?.birth_year) {
     return (
       <div className="text-center py-8 text-gray-500">
-        Please set your birth year in Plan Summary to use Scenario Modeling.
+        Please set your birth year in Plan Data to use Scenario Modeling.
       </div>
     )
   }

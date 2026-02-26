@@ -3,7 +3,26 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
-import { Calculator, Settings, Save, Plus, Trash2, Check } from 'lucide-react'
+import { Calculator, Settings, Save, Plus, Trash2, Check, Download, Table2, BarChart as BarChartIcon, TrendingUp, Columns3 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
@@ -954,7 +973,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   }
 
   if (loading && projections.length === 0) {
-    return <div className="p-6 text-center text-gray-600">Loading projections...</div>
+    return <div className="p-6 text-center text-sm text-muted-foreground">Loading projections…</div>
   }
 
   // Filter projections based on toggle
@@ -964,72 +983,70 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Projections</h2>
+      {/* Header row */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">Projections</h2>
           {/* Scenario Selector */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Scenario:</label>
-            <select
-              value={selectedScenarioId || ''}
-              onChange={(e) => setSelectedScenarioId(parseInt(e.target.value))}
-              className="flex-1 sm:flex-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Scenario:</span>
+            <Select
+              value={selectedScenarioId ? String(selectedScenarioId) : ''}
+              onValueChange={(v) => setSelectedScenarioId(parseInt(v))}
+              disabled={scenarios.length === 0}
             >
-              {scenarios.length === 0 ? (
-                <option value="">No scenarios available</option>
-              ) : (
-                scenarios.map((scenario) => (
-                  <option key={scenario.id} value={scenario.id}>
-                    {scenario.scenario_name}
-                    {scenario.is_default ? ' (Default)' : ''}
-                  </option>
-                ))
-              )}
-            </select>
+              <SelectTrigger className="h-8 min-w-40 text-sm">
+                <SelectValue placeholder="No scenarios" />
+              </SelectTrigger>
+              <SelectContent>
+                {scenarios.map((scenario) => (
+                  <SelectItem key={scenario.id} value={String(scenario.id)}>
+                    {scenario.scenario_name}{scenario.is_default ? ' (Default)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-          <button
+        <div className="flex items-center gap-2">
+          <Button
             onClick={calculateAndSaveProjections}
             disabled={calculating || !selectedScenarioId}
-            className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 disabled:opacity-50"
+            size="sm"
           >
-            <Calculator className="w-4 h-4" />
-            {calculating ? 'Calculating...' : 'Calculate Projections'}
-          </button>
-          <button
+            <Calculator className="h-3.5 w-3.5" />
+            {calculating ? 'Calculating…' : 'Calculate Projections'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setActiveSubTab('strategy-modeling')}
-            className="flex items-center gap-2 rounded-md bg-purple-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-200"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="h-3.5 w-3.5" />
             Strategy Modeling
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Sub-tabs */}
-      <div className="mb-4 border-b border-gray-200 overflow-x-auto overflow-y-hidden">
-        <nav className="-mb-px flex space-x-4 sm:space-x-8">
-          <button
-            onClick={() => setActiveSubTab('projections')}
-            className={`whitespace-nowrap border-b-2 px-2 sm:px-1 py-3 sm:py-4 text-sm font-medium ${
-              activeSubTab === 'projections'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
-            }`}
-          >
-            Projections
-          </button>
-          <button
-            onClick={() => setActiveSubTab('strategy-modeling')}
-            className={`whitespace-nowrap border-b-2 px-2 sm:px-1 py-3 sm:py-4 text-sm font-medium ${
-              activeSubTab === 'strategy-modeling'
-                ? 'border-purple-500 text-purple-600'
-                : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
-            }`}
-          >
-            Strategy Modeling
-          </button>
+      <div className="mb-4 border-b overflow-x-auto overflow-y-hidden">
+        <nav className="-mb-px flex gap-6">
+          {([
+            { id: 'projections' as const, label: 'Projections' },
+            { id: 'strategy-modeling' as const, label: 'Strategy Modeling' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`whitespace-nowrap border-b-2 pb-3 pt-1 text-sm font-medium transition-colors ${
+                activeSubTab === tab.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </nav>
       </div>
 
@@ -1121,29 +1138,36 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           }
 
           return (
-            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                Withdrawal Strategy: {getStrategyName()}{' '}
-                <button
+            <div className="mb-6 rounded-xl border bg-card p-4 shadow-sm">
+              {/* Strategy pill header */}
+              <div className="flex items-center gap-3 mb-5">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Strategy</span>
+                <Badge variant="outline" className="font-medium text-sm px-3 py-0.5">
+                  {getStrategyName()}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-7 text-xs"
                   onClick={() => setShowStrategyPopup(true)}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
                 >
                   Change
-                </button>
-              </h3>
+                </Button>
+              </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                  <p className="text-xs font-medium text-blue-900 mb-1">Legacy Value</p>
-                  <p className="text-lg font-semibold text-blue-900">
+              {/* Primary metrics row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="rounded-xl border bg-card p-3 border-l-4 border-l-primary">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Legacy Value</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums">
                     ${legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-xs text-blue-700 mt-1">Final net worth</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Final net worth</p>
                 </div>
                 
-                <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs font-medium text-green-900">Longevity</p>
+                <div className={`rounded-xl border bg-card p-3 border-l-4 ${zeroNetworthYear >= 0 ? 'border-l-destructive' : 'border-l-emerald-500'}`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Longevity</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1271,110 +1295,105 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <p className="text-lg font-semibold text-green-900">
+                  <p className={`mt-1 text-lg font-bold ${zeroNetworthYear >= 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {longevityDisplay}
                   </p>
                 </div>
                 
-                <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                  <p className="text-xs font-medium text-red-900 mb-1">Total Tax</p>
-                  <p className="text-lg font-semibold text-red-900">
+                <div className="rounded-xl border bg-card p-3 border-l-4 border-l-destructive">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Tax</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums text-destructive">
                     ${totalTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-xs text-red-700 mt-1">Lifetime taxes paid</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Lifetime taxes paid</p>
                 </div>
                 
-                <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                  <p className="text-xs font-medium text-purple-900 mb-1">Avg Annual Tax</p>
-                  <p className="text-lg font-semibold text-purple-900">
+                <div className="rounded-xl border bg-card p-3 border-l-4 border-l-amber-500">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg Annual Tax</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums">
                     ${avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-xs text-purple-700 mt-1">Per year average</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Per year average</p>
                 </div>
                 
-                <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                  <p className="text-xs font-medium text-yellow-900 mb-1">Tax Efficiency</p>
-                  <p className="text-lg font-semibold text-yellow-900">
+                <div className={`rounded-xl border bg-card p-3 border-l-4 ${taxEfficiency < 15 ? 'border-l-emerald-500' : taxEfficiency < 25 ? 'border-l-amber-500' : 'border-l-destructive'}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tax Efficiency</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums">
                     {taxEfficiency.toFixed(2)}%
                   </p>
-                  <p className="text-xs text-yellow-700 mt-1">Tax as % of income</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Tax as % of income</p>
                 </div>
                 
-                <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
-                  <p className="text-xs font-medium text-orange-900 mb-1">Negative Years</p>
-                  <p className="text-lg font-semibold text-orange-900">
-                    {negativeYears} ({negativeYearsPercentage.toFixed(2)}%)
+                <div className={`rounded-xl border bg-card p-3 border-l-4 ${negativeYears === 0 ? 'border-l-emerald-500' : 'border-l-destructive'}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Negative Years</p>
+                  <p className={`mt-1 text-lg font-bold tabular-nums ${negativeYears > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {negativeYears} ({negativeYearsPercentage.toFixed(1)}%)
                   </p>
-                  <p className="text-xs text-orange-700 mt-1">Years with shortfall</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Years with shortfall</p>
                 </div>
               </div>
               
-              {/* Lifetime Income, Expenses, Remaining Balances, and Total Withdrawals */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-200">
-                    <p className="text-xs font-medium text-indigo-900 mb-1">Lifetime Income</p>
-                    <p className="text-lg font-semibold text-indigo-900">
-                      ${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-indigo-700 mt-1">Total income during retirement</p>
-                  </div>
-                  
-                  <div className="bg-pink-50 rounded-lg p-3 border border-pink-200">
-                    <p className="text-xs font-medium text-pink-900 mb-1">Lifetime Expenses</p>
-                    <p className="text-lg font-semibold text-pink-900">
-                      ${lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-pink-700 mt-1">Total expenses during retirement</p>
-                  </div>
-                  
-                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
-                    <p className="text-xs font-medium text-emerald-900 mb-1">Remaining Account Balances</p>
-                    <p className="text-lg font-semibold text-emerald-900">
-                      ${totalRemainingBalances.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-emerald-700 mt-1">
-                      401k: ${remaining401k.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      IRA: ${remainingIra.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Roth: ${remainingRoth.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Taxable: ${remainingTaxable.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      HSA: ${remainingHsa.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Other: ${remainingOther.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                  
-                  <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-                    <p className="text-xs font-medium text-amber-900 mb-1">Total Withdrawals</p>
-                    <p className="text-lg font-semibold text-amber-900">
-                      ${totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      401k: ${total401kWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      IRA: ${totalIraWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Roth: ${totalRothWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Taxable: ${totalTaxableWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      HSA: ${totalHsaWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
+              {/* Secondary flow metrics */}
+              <div className="mt-3 pt-3 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lifetime Income</p>
+                  <p className="mt-1 text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    ${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Total income during retirement</p>
+                </div>
+                
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lifetime Expenses</p>
+                  <p className="mt-1 text-base font-bold tabular-nums text-destructive">
+                    ${lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Total expenses during retirement</p>
+                </div>
+                
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remaining Balances</p>
+                  <p className="mt-1 text-base font-bold tabular-nums">
+                    ${totalRemainingBalances.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    401k: ${remaining401k.toLocaleString(undefined, { maximumFractionDigits: 0 })} · IRA: ${remainingIra.toLocaleString(undefined, { maximumFractionDigits: 0 })} · Roth: ${remainingRoth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Withdrawals</p>
+                  <p className="mt-1 text-base font-bold tabular-nums">
+                    ${totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    401k: ${total401kWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })} · IRA: ${totalIraWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })} · Roth: ${totalRothWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
                 </div>
               </div>
             </div>
           )
         })()}
 
-          {/* Controls for view mode, graph type, and column visibility */}
-          <div className="mb-4 flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
+          {/* Controls toolbar */}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            {/* Pre-retirement toggle */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="pre-retirement"
                 checked={showPreRetirement}
-                onChange={(e) => setShowPreRetirement(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                onCheckedChange={(v) => setShowPreRetirement(!!v)}
               />
-              <span>Show Pre-Retirement Years</span>
-            </label>
+              <Label htmlFor="pre-retirement" className="text-sm font-normal cursor-pointer">
+                Show Pre-Retirement Years
+              </Label>
+            </div>
+
+            <div className="ml-auto flex items-center gap-2 flex-wrap">
             {projections.length > 0 && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   // Export projections to CSV
                   const filteredProjs = projections.filter(p => {
@@ -1584,290 +1603,195 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   link.click()
                   document.body.removeChild(link)
                 }}
-                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                className="h-8"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export to CSV
-              </button>
+                <Download className="h-3.5 w-3.5" />
+                Export CSV
+              </Button>
             )}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 text-sm rounded-l-md ${
-                    viewMode === 'table'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Table
-                </button>
-                <button
-                  onClick={() => setViewMode('graph')}
-                  className={`px-3 py-1 text-sm rounded-r-md ${
-                    (viewMode as 'table' | 'graph') === 'graph'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Graph
-                </button>
+
+            {/* Table / Graph segmented control */}
+            <div className="flex items-center rounded-lg border p-0.5 gap-0.5">
+              <Button
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5"
+                onClick={() => setViewMode('table')}
+              >
+                <Table2 className="h-3.5 w-3.5" />
+                Table
+              </Button>
+              <Button
+                variant={(viewMode as string) === 'graph' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5"
+                onClick={() => setViewMode('graph')}
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                Graph
+              </Button>
+            </div>
+
+            {/* Graph type picker (only when graph selected) */}
+            {(viewMode as string) === 'graph' && (
+              <div className="flex items-center rounded-lg border p-0.5 gap-0.5">
+                {(['line', 'area', 'bar'] as const).map((t) => (
+                  <Button
+                    key={t}
+                    variant={graphType === t ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-7 px-2.5 capitalize"
+                    onClick={() => setGraphType(t)}
+                  >
+                    {t}
+                  </Button>
+                ))}
               </div>
-              {(viewMode as 'table' | 'graph') === 'graph' && (
-                <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
-                  <button
-                    onClick={() => setGraphType('line')}
-                    className={`px-3 py-1 text-sm rounded-l-md ${
-                      graphType === 'line'
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Line
-                  </button>
-                  <button
-                    onClick={() => setGraphType('area')}
-                    className={`px-3 py-1 text-sm ${
-                      graphType === 'area'
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Area
-                  </button>
-                  <button
-                    onClick={() => setGraphType('bar')}
-                    className={`px-3 py-1 text-sm rounded-r-md ${
-                      graphType === 'bar'
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Bar
-                  </button>
-                </div>
-              )}
-              <div className="relative">
-                <button
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  onClick={(e) => {
-                    const menu = e.currentTarget.nextElementSibling as HTMLElement
-                    menu?.classList.toggle('hidden')
+            )}
+
+            {/* Column visibility dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8">
+                  <Columns3 className="h-3.5 w-3.5" />
+                  Columns
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto">
+                <DropdownMenuLabel className="text-xs">Groups</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={Object.values(visibleColumns).every(v => v)}
+                  onCheckedChange={(allVisible) => {
+                    setVisibleColumns({
+                      year: allVisible, age: allVisible, event: allVisible,
+                      ssa: allVisible, dist401k: allVisible, distRoth: allVisible,
+                      distTaxable: allVisible, distHsa: allVisible, distIra: allVisible,
+                      distOther: allVisible, otherIncome: allVisible, totalIncome: allVisible,
+                      expenses: allVisible, contribution: allVisible, gapExcess: allVisible,
+                      networth: allVisible, balance401k: allVisible, balanceRoth: allVisible,
+                      balanceTaxable: allVisible, balanceHsa: allVisible, balanceIra: allVisible,
+                      balanceOther: allVisible,
+                    })
                   }}
                 >
-                  Show/Hide Columns
-                </button>
-                <div className="absolute right-0 mt-1 hidden w-64 rounded-md border border-gray-200 bg-white shadow-lg z-20 max-h-96 overflow-y-auto">
-                  <div className="p-2">
-                    <div className="mb-2 border-b pb-2">
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={Object.values(visibleColumns).every(v => v)}
-                          onChange={(e) => {
-                            const allVisible = e.target.checked
-                            setVisibleColumns({
-                              year: allVisible,
-                              age: allVisible,
-                              event: allVisible,
-                              ssa: allVisible,
-                              dist401k: allVisible,
-                              distRoth: allVisible,
-                              distTaxable: allVisible,
-                              distHsa: allVisible,
-                              distIra: allVisible,
-                              distOther: allVisible,
-                              otherIncome: allVisible,
-                              totalIncome: allVisible,
-                              expenses: allVisible,
-                              contribution: allVisible,
-                              gapExcess: allVisible,
-                              networth: allVisible,
-                              balance401k: allVisible,
-                              balanceRoth: allVisible,
-                              balanceTaxable: allVisible,
-                              balanceHsa: allVisible,
-                              balanceIra: allVisible,
-                              balanceOther: allVisible,
-                            })
-                          }}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span>Select All</span>
-                      </label>
-                    </div>
-                    <div className="mb-2 border-b pb-2 space-y-1">
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={incomeGroupExpanded}
-                          onChange={(e) => {
-                            const expanded = e.target.checked
-                            setIncomeGroupExpanded(expanded)
-                            if (expanded) {
-                              setVisibleColumns({
-                                ...visibleColumns,
-                                ssa: visibleColumns.ssa || true,
-                                dist401k: visibleColumns.dist401k || true,
-                                distRoth: visibleColumns.distRoth || true,
-                                distTaxable: visibleColumns.distTaxable || true,
-                                distHsa: visibleColumns.distHsa || true,
-                                distIra: visibleColumns.distIra || true,
-                                distOther: visibleColumns.distOther || true,
-                                otherIncome: visibleColumns.otherIncome || true,
-                              })
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span>Expand Income Group</span>
-                      </label>
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={balanceGroupExpanded}
-                          onChange={(e) => {
-                            const expanded = e.target.checked
-                            setBalanceGroupExpanded(expanded)
-                            if (expanded) {
-                              setVisibleColumns({
-                                ...visibleColumns,
-                                balance401k: visibleColumns.balance401k || true,
-                                balanceRoth: visibleColumns.balanceRoth || true,
-                                balanceTaxable: visibleColumns.balanceTaxable || true,
-                                balanceHsa: visibleColumns.balanceHsa || true,
-                                balanceIra: visibleColumns.balanceIra || true,
-                                balanceOther: visibleColumns.balanceOther || true,
-                              })
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span>Expand Balance Group</span>
-                      </label>
-                    </div>
-                    <div className="space-y-1">
-                      {Object.entries(visibleColumns).map(([key, value]) => {
-                        const isIncomeColumn = ['ssa', 'dist401k', 'distRoth', 'distTaxable', 'distHsa', 'distIra', 'distOther', 'otherIncome'].includes(key)
-                        const isBalanceColumn = ['balance401k', 'balanceRoth', 'balanceTaxable', 'balanceHsa', 'balanceIra', 'balanceOther'].includes(key)
-                        const shouldShow = key === 'event' || !((isIncomeColumn && !incomeGroupExpanded) || (isBalanceColumn && !balanceGroupExpanded))
-                        
-                        return (
-                          <label key={key} className={`flex items-center gap-2 text-xs text-gray-700 hover:bg-gray-50 px-2 py-1 rounded ${!shouldShow ? 'opacity-50' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={value}
-                              disabled={!shouldShow}
-                              onChange={(e) => setVisibleColumns({ ...visibleColumns, [key]: e.target.checked })}
-                              className="rounded border-gray-300 text-blue-600"
-                            />
-                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  Select All
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={incomeGroupExpanded}
+                  onCheckedChange={(expanded) => {
+                    setIncomeGroupExpanded(expanded)
+                    if (expanded) setVisibleColumns({ ...visibleColumns, ssa: true, dist401k: true, distRoth: true, distTaxable: true, distHsa: true, distIra: true, distOther: true, otherIncome: true })
+                  }}
+                >
+                  Expand Income Group
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={balanceGroupExpanded}
+                  onCheckedChange={(expanded) => {
+                    setBalanceGroupExpanded(expanded)
+                    if (expanded) setVisibleColumns({ ...visibleColumns, balance401k: true, balanceRoth: true, balanceTaxable: true, balanceHsa: true, balanceIra: true, balanceOther: true })
+                  }}
+                >
+                  Expand Balance Group
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Columns</DropdownMenuLabel>
+                {Object.entries(visibleColumns).map(([key, value]) => {
+                  const isIncomeColumn = ['ssa', 'dist401k', 'distRoth', 'distTaxable', 'distHsa', 'distIra', 'distOther', 'otherIncome'].includes(key)
+                  const isBalanceColumn = ['balance401k', 'balanceRoth', 'balanceTaxable', 'balanceHsa', 'balanceIra', 'balanceOther'].includes(key)
+                  const shouldShow = key === 'event' || !((isIncomeColumn && !incomeGroupExpanded) || (isBalanceColumn && !balanceGroupExpanded))
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={key}
+                      checked={value}
+                      disabled={!shouldShow}
+                      className={!shouldShow ? 'opacity-40' : ''}
+                      onCheckedChange={(v) => setVisibleColumns({ ...visibleColumns, [key]: v })}
+                    >
+                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    </DropdownMenuCheckboxItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
             </div>
           </div>
 
           {/* Table or Graph View */}
           {viewMode === 'table' && (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border">
               <div className="inline-block min-w-full align-middle">
-                <table className="min-w-full divide-y divide-gray-200 border text-xs sm:text-sm">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
+                <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
+                  <thead className="bg-muted/40 sticky top-0 z-10">
                     <tr>
-                      {visibleColumns.year && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Year</th>}
-                      {visibleColumns.age && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Age</th>}
-                      {visibleColumns.event && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Event</th>}
+                      {visibleColumns.year && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Year</th>}
+                      {visibleColumns.age && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Age</th>}
+                      {visibleColumns.event && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Event</th>}
                     
                     {/* Individual Income Columns (shown when expanded) */}
-                    {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">SSA</th>}
-                    {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">401k Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Roth Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Taxable Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">HSA Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">IRA Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Income</th>}
+                    {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">SSA</th>}
+                    {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">401k Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roth Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Taxable Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">HSA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">IRA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Other Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Other Income</th>}
                     
                     {/* Total Income - Clickable to expand/collapse income columns */}
                     {visibleColumns.totalIncome && (
                       <th 
-                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase bg-blue-50 cursor-pointer hover:bg-blue-100 active:bg-blue-200"
+                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-primary/8 cursor-pointer hover:bg-primary/12 active:bg-primary/16 transition-colors"
                         onClick={() => {
                           setIncomeGroupExpanded(!incomeGroupExpanded)
                           if (!incomeGroupExpanded) {
-                            // When expanding, enable all income columns
-                            setVisibleColumns({
-                              ...visibleColumns,
-                              ssa: true,
-                              dist401k: true,
-                              distRoth: true,
-                              distTaxable: true,
-                              distHsa: true,
-                              distIra: true,
-                              distOther: true,
-                              otherIncome: true,
-                            })
+                            setVisibleColumns({ ...visibleColumns, ssa: true, dist401k: true, distRoth: true, distTaxable: true, distHsa: true, distIra: true, distOther: true, otherIncome: true })
                           }
                         }}
                       >
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <span>After-Tax Income</span>
-                          <span className="text-gray-700">{incomeGroupExpanded ? '▼' : '▶'}</span>
+                          <span className="text-muted-foreground text-[10px]">{incomeGroupExpanded ? '▼' : '▶'}</span>
                         </div>
                       </th>
                     )}
                     
-                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Expenses (incl. tax)</th>}
-                    {visibleColumns.contribution && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Contributions</th>}
-                    {visibleColumns.gapExcess && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Gap/Excess</th>}
+                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expenses (incl. tax)</th>}
+                    {visibleColumns.contribution && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contributions</th>}
+                    {visibleColumns.gapExcess && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Gap/Excess</th>}
                     
                     {/* Networth - Clickable to expand/collapse balance columns */}
                     {visibleColumns.networth && (
                       <th 
-                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 active:bg-gray-200"
+                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:bg-muted/60 active:bg-muted transition-colors"
                         onClick={() => {
                           setBalanceGroupExpanded(!balanceGroupExpanded)
                           if (!balanceGroupExpanded) {
-                            // When expanding, enable all balance columns
-                            setVisibleColumns({
-                              ...visibleColumns,
-                              balance401k: true,
-                              balanceRoth: true,
-                              balanceTaxable: true,
-                              balanceHsa: true,
-                              balanceIra: true,
-                              balanceOther: true,
-                            })
+                            setVisibleColumns({ ...visibleColumns, balance401k: true, balanceRoth: true, balanceTaxable: true, balanceHsa: true, balanceIra: true, balanceOther: true })
                           }
                         }}
                       >
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <span>Networth</span>
-                          <span className="text-gray-700">{balanceGroupExpanded ? '▼' : '▶'}</span>
+                          <span className="text-muted-foreground text-[10px]">{balanceGroupExpanded ? '▼' : '▶'}</span>
                         </div>
                       </th>
                     )}
                     
-                    {/* Individual Balance Columns (shown when expanded, to the right of Networth) */}
-                    {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">401k Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Roth Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Taxable Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">HSA Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">IRA Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Bal</th>}
+                    {/* Individual Balance Columns */}
+                    {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">401k Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roth Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Taxable Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">HSA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">IRA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Other Bal</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-border bg-card">
                   {filteredProjections.length === 0 ? (
                     <tr>
-                      <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-sm sm:text-base text-gray-700">
+                      <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-sm text-muted-foreground">
                         {projections.length === 0 
                           ? 'No projections yet. Configure your calculator settings, accounts, expenses, and income sources, then generate projections.'
                           : 'No projections match the current filter. Try enabling "Show Pre-Retirement Years".'}
@@ -2046,13 +1970,13 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   const networthChange = calculateNetworthChange()
                   
                   return (
-                  <tr key={`${proj.year}-${proj.age}`} className="hover:bg-gray-50">
-                    {visibleColumns.year && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.year}</td>}
-                    {visibleColumns.age && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.age || '-'}</td>}
-                    {visibleColumns.event && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.event || '-'}</td>}
+                  <tr key={`${proj.year}-${proj.age}`} className="hover:bg-muted/30 transition-colors">
+                    {visibleColumns.year && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-foreground">{proj.year}</td>}
+                    {visibleColumns.age && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-foreground">{proj.age || '-'}</td>}
+                    {visibleColumns.event && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-foreground">{proj.event || '-'}</td>}
                     
                     {/* Individual Income Columns (shown when expanded) */}
-                    {incomeGroupExpanded && visibleColumns.ssa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.ssa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {showIncome && ssaIncome > 0 ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2076,7 +2000,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.dist401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.dist401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2096,7 +2020,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2116,7 +2040,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2136,7 +2060,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2156,7 +2080,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2176,7 +2100,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2196,7 +2120,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.otherIncome && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.otherIncome && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2425,7 +2349,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {visibleColumns.expenses && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {visibleColumns.expenses && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? `$${(proj.total_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
                     </td>}
                     {visibleColumns.contribution && (() => {
@@ -2520,7 +2444,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       }
                       
                       return (
-                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                           {!isRetired && (contribution || 0) > 0 
                             ? `$${(contribution || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` 
                             : !isRetired ? '$0' : '-'}
@@ -2705,7 +2629,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balance401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balance401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2738,7 +2662,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2771,7 +2695,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2807,7 +2731,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2840,7 +2764,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2873,7 +2797,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2924,7 +2848,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   {graphType === 'line' ? (
                     <LineChart data={filteredProjections}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis 
                         dataKey="age" 
                         label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -2950,7 +2874,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     </LineChart>
                   ) : graphType === 'area' ? (
                     <AreaChart data={filteredProjections}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis 
                         dataKey="age" 
                         label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -2976,7 +2900,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     </AreaChart>
                   ) : (
                     <BarChart data={filteredProjections}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis 
                         dataKey="age" 
                         label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
