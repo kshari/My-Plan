@@ -56,6 +56,19 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
+import { getStandardDeduction } from '@/lib/constants/tax-brackets'
+import {
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_FILING_STATUS,
+  DEFAULT_MAX_PROJECTION_AGE,
+  SAFE_WITHDRAWAL_RATE,
+  DEFAULT_FIXED_DOLLAR_WITHDRAWAL,
+} from '@/lib/constants/retirement-defaults'
+import { DEBOUNCE_SAVE_MS } from '@/lib/constants/timing'
 
 interface DetailsTabProps {
   planId: number
@@ -86,8 +99,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   const [strategyModelerExpanded, setStrategyModelerExpanded] = useState(false)
   const [modelingStrategyType, setModelingStrategyType] = useState<'amount_based_expense_coverage' | 'amount_based_4_percent' | 'amount_based_fixed_percentage' | 'amount_based_fixed_dollar' | 'amount_based_swp' | 'sequence_proportional' | 'sequence_bracket_topping' | 'market_bucket' | 'market_guardrails' | 'market_floor_upside' | 'tax_roth_conversion' | 'tax_qcd'>('amount_based_expense_coverage')
   const [strategyParams, setStrategyParams] = useState({
-    fixed_percentage_rate: 4, // 4%
-    fixed_dollar_amount: 50000,
+    fixed_percentage_rate: SAFE_WITHDRAWAL_RATE * 100, // 4% rule
+    fixed_dollar_amount: DEFAULT_FIXED_DOLLAR_WITHDRAWAL,
     guardrails_ceiling: 6, // 6%
     guardrails_floor: 3, // 3%
     bracket_topping_threshold: 12, // 12% tax bracket
@@ -178,7 +191,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       // Debounce to avoid too many recalculations
       const timeoutId = setTimeout(() => {
         calculateAndSaveProjections()
-      }, 300)
+      }, DEBOUNCE_SAVE_MS)
       return () => clearTimeout(timeoutId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,15 +242,15 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         setRetirementAge(settingsResult.data.retirement_age)
         setSettings({
           current_year: settingsResult.data.current_year || new Date().getFullYear(),
-          retirement_age: settingsResult.data.retirement_age || 65,
+          retirement_age: settingsResult.data.retirement_age || DEFAULT_RETIREMENT_AGE,
           retirement_start_year: settingsResult.data.retirement_start_year || 0,
           years_to_retirement: settingsResult.data.years_to_retirement || 0,
           annual_retirement_expenses: settingsResult.data.annual_retirement_expenses || 0,
-          growth_rate_before_retirement: parseFloat(settingsResult.data.growth_rate_before_retirement?.toString() || '0.1'),
-          growth_rate_during_retirement: parseFloat(settingsResult.data.growth_rate_during_retirement?.toString() || '0.05'),
-          inflation_rate: parseFloat(settingsResult.data.inflation_rate?.toString() || '0.04'),
+          growth_rate_before_retirement: parseFloat(settingsResult.data.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+          growth_rate_during_retirement: parseFloat(settingsResult.data.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+          inflation_rate: parseFloat(settingsResult.data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
           enable_borrowing: settingsResult.data.enable_borrowing || false,
-          ssa_start_age: settingsResult.data.ssa_start_age || settingsResult.data.retirement_age || 65,
+          ssa_start_age: settingsResult.data.ssa_start_age || settingsResult.data.retirement_age || DEFAULT_RETIREMENT_AGE,
           withdrawal_priority: 'default',
           withdrawal_secondary_priority: 'tax_optimization',
         })
@@ -360,20 +373,20 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         inflation_adjusted: inc.inflation_adjusted || false,
       }))
 
-      const lifeExpectancy = planData.data?.life_expectancy || 90
+      const lifeExpectancy = planData.data?.life_expectancy || DEFAULT_LIFE_EXPECTANCY
 
       // Base settings
       const baseSettings: CalculatorSettings = {
         current_year: settingsData.data.current_year || new Date().getFullYear(),
-        retirement_age: settingsData.data.retirement_age || 65,
+        retirement_age: settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE,
         retirement_start_year: settingsData.data.retirement_start_year || 0,
         years_to_retirement: settingsData.data.years_to_retirement || 0,
         annual_retirement_expenses: settingsData.data.annual_retirement_expenses || 0,
-        growth_rate_before_retirement: parseFloat(settingsData.data.growth_rate_before_retirement?.toString() || '0.1'),
-        growth_rate_during_retirement: parseFloat(settingsData.data.growth_rate_during_retirement?.toString() || '0.05'),
-        inflation_rate: parseFloat(settingsData.data.inflation_rate?.toString() || '0.04'),
+        growth_rate_before_retirement: parseFloat(settingsData.data.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+        growth_rate_during_retirement: parseFloat(settingsData.data.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+        inflation_rate: parseFloat(settingsData.data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
         enable_borrowing: settingsData.data.enable_borrowing || false,
-        ssa_start_age: settingsData.data.ssa_start_age || settingsData.data.retirement_age || 65,
+        ssa_start_age: settingsData.data.ssa_start_age || settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE,
         withdrawal_priority: 'default',
         withdrawal_secondary_priority: 'tax_optimization',
       }
@@ -478,7 +491,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       const compBaseEstimatedPlannerSsa = compIncludePlannerSsa ? calculateEstimatedSSA(0, true) : 0
       const compBaseEstimatedSpouseSsa = compIncludeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
       
-      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || 65
+      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || DEFAULT_RETIREMENT_AGE
       const compCurrentAge = new Date().getFullYear() - planData.data.birth_year
       const compYearsToSsaStart = Math.max(0, compSsaStartAge - compCurrentAge)
       const compInflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, compYearsToSsaStart)
@@ -504,7 +517,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         )
 
         // Calculate metrics
-        const retirementAge = strategy.settings.retirement_age || 65
+        const retirementAge = strategy.settings.retirement_age || DEFAULT_RETIREMENT_AGE
         const retirementProjections = calculatedProjections.filter(p => {
           const age = p.age || 0
           return age >= retirementAge
@@ -664,7 +677,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         .eq('id', planId)
         .single()
 
-      const lifeExpectancy = planData?.life_expectancy || 100
+      const lifeExpectancy = planData?.life_expectancy || DEFAULT_MAX_PROJECTION_AGE
       await calculateAndSaveProjectionsInternal(selectedScenarioId, lifeExpectancy)
     } catch (error: any) {
       console.error('Error in calculateAndSaveProjections:', error)
@@ -674,7 +687,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
     }
   }
 
-  const calculateAndSaveProjectionsInternal = async (scenarioId: number, lifeExpectancy: number = 100) => {
+  const calculateAndSaveProjectionsInternal = async (scenarioId: number, lifeExpectancy: number = DEFAULT_MAX_PROJECTION_AGE) => {
     try {
       // Load all necessary data
       const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
@@ -730,7 +743,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       // Calculate years to retirement
       const currentYear = new Date().getFullYear()
       const birthYear = planData.data.birth_year
-      const retirementAge = settingsData.data.retirement_age || 65
+      const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
       const yearsToRetirement = retirementAge - (currentYear - birthYear)
       const annualExpenses = expenses.reduce((sum, exp) => {
         const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
@@ -782,7 +795,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
       
       // Adjust for inflation from current year to SSA start age
-      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
       const currentAge = currentYear - planData.data.birth_year
       const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
       const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
@@ -1190,7 +1203,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                               
                               const totalAccountBalance = accountsForTooltip.reduce((sum, acc) => sum + (acc.balance || 0), 0)
                               const totalMonthlyExpenses = expensesForTooltip.reduce((sum, exp) => {
-                                const amount = (retirementAge || 65) >= 65 ? exp.amount_after_65 : exp.amount_before_65
+                                const amount = (retirementAge || DEFAULT_RETIREMENT_AGE) >= 65 ? exp.amount_after_65 : exp.amount_before_65
                                 return sum + (amount || 0)
                               }, 0)
                               const totalAnnualExpenses = totalMonthlyExpenses * 12
@@ -1238,7 +1251,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                                         <div className="ml-4 mt-1">
                                           {expensesForTooltip.map(exp => (
                                             <p key={exp.id} className="text-xs">
-                                              • {exp.expense_name}: ${((retirementAge || 65) >= 65 ? exp.amount_after_65 : exp.amount_before_65) || 0}/month
+                                              • {exp.expense_name}: ${((retirementAge || DEFAULT_RETIREMENT_AGE) >= 65 ? exp.amount_after_65 : exp.amount_before_65) || 0}/month
                                             </p>
                                           ))}
                                         </div>
@@ -1263,11 +1276,11 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                                     <h4 className="font-semibold text-yellow-400 mb-2">Assumptions</h4>
                                     <div className="space-y-1 text-gray-300">
                                       <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settings?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settings?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settings?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settings?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settings?.inflation_rate || DEFAULT_INFLATION_RATE) * 100).toFixed(2)}%</p>
                                       <p><span className="text-gray-500">Taxes:</span> Using IRS brackets</p>
-                                      <p><span className="text-gray-500">SSA Start Age:</span> {settings?.ssa_start_age || settings?.retirement_age || 65} years</p>
-                                      <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || 'Single'}</p>
+                                      <p><span className="text-gray-500">SSA Start Age:</span> {settings?.ssa_start_age || settings?.retirement_age || DEFAULT_RETIREMENT_AGE} years</p>
+                                      <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || DEFAULT_FILING_STATUS}</p>
                                       <p><span className="text-gray-500">Borrowing Enabled:</span> {settings?.enable_borrowing ? 'Yes' : 'No'}</p>
                                       {(planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly') && (
                                         <p className="text-xs text-yellow-400 mt-2">
@@ -1867,7 +1880,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     if (previous === null) return null
                     const change = current - previous
                     const growthRate = isRetired 
-                      ? (settings?.growth_rate_during_retirement || 0.05)
+                      ? (settings?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
                       : (settings?.growth_rate_before_retirement || 0.1)
                     
                     // Growth: previous balance * growth rate (applied first)
@@ -2228,7 +2241,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                                     {(() => {
                                       const includeSpouseSsa = planDataForTooltip?.include_spouse || false
                                       const filingStatus = determineFilingStatus(includeSpouseSsa, settings?.filing_status)
-                                      const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+                                      const standardDeduction = getStandardDeduction(filingStatus)
                                       const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
                                       const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
                                       const incomeTax = calculateProgressiveTax(taxableIncomeAfterDeduction, filingStatus)
@@ -2510,7 +2523,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                               // Calculate contributions from actual balance changes (same method as individual account tooltips)
                               const isRetired = retirementAge !== null && (proj.age || 0) >= retirementAge
                               const growthRate = isRetired 
-                                ? (settings?.growth_rate_during_retirement || 0.05)
+                                ? (settings?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
                                 : (settings?.growth_rate_before_retirement || 0.1)
                               
                               // Calculate contributions for each account type from balance changes
@@ -3034,7 +3047,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       step="1000"
                       min="0"
                       value={strategyParams.fixed_dollar_amount}
-                      onChange={(e) => setStrategyParams({ ...strategyParams, fixed_dollar_amount: parseFloat(e.target.value) || 50000 })}
+                      onChange={(e) => setStrategyParams({ ...strategyParams, fixed_dollar_amount: parseFloat(e.target.value) || DEFAULT_FIXED_DOLLAR_WITHDRAWAL })}
                       className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                     />
                     <p className="mt-1 text-xs text-gray-500">Fixed dollar amount to withdraw each year</p>

@@ -27,6 +27,37 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  INCOME_TAX_BRACKETS,
+  CAPITAL_GAINS_BRACKETS,
+  getStandardDeduction,
+  DEFAULT_MARGINAL_TAX_RATE,
+  SSA_TAXABLE_PORTION,
+  TOP_MARGINAL_RATE,
+  type FilingStatus,
+} from '@/lib/constants/tax-brackets'
+import {
+  SSA_FULL_RETIREMENT_AGE,
+  ssaClaimingMultiplier,
+} from '@/lib/constants/ssa-constants'
+import {
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_FILING_STATUS,
+  RMD_START_AGE,
+  SAFE_WITHDRAWAL_RATE,
+  SCORE_ON_TRACK_THRESHOLD,
+  SCORE_CLOSE_THRESHOLD,
+  SCORE_MEDIUM_RISK_THRESHOLD,
+  SCORE_AT_RISK_THRESHOLD,
+  SCORE_WEIGHT_LONGEVITY,
+  SCORE_WEIGHT_TAX_EFFICIENCY,
+  SCORE_WEIGHT_INFLATION_MEDICAL,
+  SCORE_WEIGHT_CASHFLOW,
+} from '@/lib/constants/retirement-defaults'
 
 interface AnalysisTabProps {
   planId: number
@@ -81,48 +112,8 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
 
   // Calculate tax bracket from income based on 2024 tax brackets
   const calculateTaxBracket = (income: number, filingStatus: string): number => {
-    // 2024 tax brackets (marginal rates)
-    const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-      'Single': [
-        { min: 0, max: 11600, rate: 0.10 },
-        { min: 11600, max: 47150, rate: 0.12 },
-        { min: 47150, max: 100525, rate: 0.22 },
-        { min: 100525, max: 191950, rate: 0.24 },
-        { min: 191950, max: 243725, rate: 0.32 },
-        { min: 243725, max: 609350, rate: 0.35 },
-        { min: 609350, max: Infinity, rate: 0.37 }
-      ],
-      'Married Filing Jointly': [
-        { min: 0, max: 23200, rate: 0.10 },
-        { min: 23200, max: 94300, rate: 0.12 },
-        { min: 94300, max: 201050, rate: 0.22 },
-        { min: 201050, max: 383900, rate: 0.24 },
-        { min: 383900, max: 487450, rate: 0.32 },
-        { min: 487450, max: 731200, rate: 0.35 },
-        { min: 731200, max: Infinity, rate: 0.37 }
-      ],
-      'Married Filing Separately': [
-        { min: 0, max: 11600, rate: 0.10 },
-        { min: 11600, max: 47150, rate: 0.12 },
-        { min: 47150, max: 100525, rate: 0.22 },
-        { min: 100525, max: 191950, rate: 0.24 },
-        { min: 191950, max: 243725, rate: 0.32 },
-        { min: 243725, max: 365600, rate: 0.35 },
-        { min: 365600, max: Infinity, rate: 0.37 }
-      ],
-      'Head of Household': [
-        { min: 0, max: 16550, rate: 0.10 },
-        { min: 16550, max: 63100, rate: 0.12 },
-        { min: 63100, max: 100500, rate: 0.22 },
-        { min: 100500, max: 191950, rate: 0.24 },
-        { min: 191950, max: 243700, rate: 0.32 },
-        { min: 243700, max: 609350, rate: 0.35 },
-        { min: 609350, max: Infinity, rate: 0.37 }
-      ]
-    }
-    
-    const status = filingStatus || 'Single'
-    const bracketList = brackets[status] || brackets['Single']
+    const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
+    const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
     
     for (const bracket of bracketList) {
       if (income >= bracket.min && income < bracket.max) {
@@ -130,7 +121,7 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
       }
     }
     
-    return 0.37 // Top bracket
+    return TOP_MARGINAL_RATE
   }
 
   useEffect(() => {
@@ -225,14 +216,14 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
 
       const settings: CalculatorSettings = {
         current_year: settingsData.data?.current_year || new Date().getFullYear(),
-        retirement_age: settingsData.data?.retirement_age || 65,
+        retirement_age: settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE,
         retirement_start_year: settingsData.data?.retirement_start_year || 0,
         years_to_retirement: settingsData.data?.years_to_retirement || 0,
         annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0,
-        growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || '0.1'),
-        growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || '0.05'),
-        inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || '0.04'),
-        filing_status: (planDataForSettings?.filing_status as any) || 'Single',
+        growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+        growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+        inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
+        filing_status: (planDataForSettings?.filing_status as any) || DEFAULT_FILING_STATUS,
       }
 
       const projections: ProjectionDetail[] = (projectionsData.data || []).map((p: any) => ({
@@ -345,11 +336,11 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Retirement Score</h3>
           <p className="text-sm text-gray-600 mb-4">
             The retirement score (0-100) evaluates your plan across multiple dimensions. 
-            <strong> Longevity (60% weight)</strong> assesses asset preservation - maintaining net worth over time. 
-            <strong> Tax Efficiency (15% weight)</strong> evaluates how well you minimize taxes over retirement. 
-            <strong> Cashflow (5% weight)</strong> measures cash flow consistency - fewer negative years = higher score. 
-            <strong> Inflation (10% weight)</strong> evaluates how well income keeps up with expense growth. 
-            <strong> Medical (10% weight)</strong> assesses health care expense risk in later years.
+            <strong> Longevity ({(SCORE_WEIGHT_LONGEVITY * 100).toFixed(0)}% weight)</strong> assesses asset preservation - maintaining net worth over time. 
+            <strong> Tax Efficiency ({(SCORE_WEIGHT_TAX_EFFICIENCY * 100).toFixed(0)}% weight)</strong> evaluates how well you minimize taxes over retirement. 
+            <strong> Cashflow ({(SCORE_WEIGHT_CASHFLOW * 100).toFixed(0)}% weight)</strong> measures cash flow consistency - fewer negative years = higher score. 
+            <strong> Inflation ({(SCORE_WEIGHT_INFLATION_MEDICAL * 100).toFixed(0)}% weight)</strong> evaluates how well income keeps up with expense growth. 
+            <strong> Medical ({(SCORE_WEIGHT_INFLATION_MEDICAL * 100).toFixed(0)}% weight)</strong> assesses health care expense risk in later years.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
@@ -371,7 +362,7 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                   <div className="cursor-help">
                     <div className="text-3xl font-semibold text-gray-900">{score.longevity}</div>
                     <div className="text-sm text-gray-600 mt-1">Longevity</div>
-                    <div className="text-xs text-gray-500 mt-1">(60% weight)</div>
+                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_LONGEVITY * 100).toFixed(0)}% weight)</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
@@ -405,7 +396,7 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                   <div className="cursor-help">
                     <div className="text-3xl font-semibold text-gray-900">{score.taxEfficiency}</div>
                     <div className="text-sm text-gray-600 mt-1">Tax Efficiency</div>
-                    <div className="text-xs text-gray-500 mt-1">(15% weight)</div>
+                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_TAX_EFFICIENCY * 100).toFixed(0)}% weight)</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
@@ -440,7 +431,7 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                   <div className="cursor-help">
                     <div className="text-3xl font-semibold text-gray-900">{score.sustainability}</div>
                     <div className="text-sm text-gray-600 mt-1">Cashflow</div>
-                    <div className="text-xs text-gray-500 mt-1">(5% weight)</div>
+                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_CASHFLOW * 100).toFixed(0)}% weight)</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
@@ -475,7 +466,7 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                   <div className="cursor-help">
                     <div className="text-3xl font-semibold text-gray-900">{score.inflation}</div>
                     <div className="text-sm text-gray-600 mt-1">Inflation</div>
-                    <div className="text-xs text-gray-500 mt-1">(10% weight)</div>
+                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_INFLATION_MEDICAL * 100).toFixed(0)}% weight)</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
@@ -514,7 +505,7 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                   <div className="cursor-help">
                     <div className="text-3xl font-semibold text-gray-900">{score.medical}</div>
                     <div className="text-sm text-gray-600 mt-1">Medical</div>
-                    <div className="text-xs text-gray-500 mt-1">(10% weight)</div>
+                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_INFLATION_MEDICAL * 100).toFixed(0)}% weight)</div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
@@ -578,8 +569,8 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
                 const accounts: Account[] = (accountsData.data || []).map(acc => ({ id: acc.id, account_name: acc.account_name, owner: acc.owner || '', balance: acc.balance || 0, account_type: acc.account_type, annual_contribution: acc.annual_contribution || 0 }))
                 const expenses: Expense[] = (expensesData.data || []).map(exp => ({ id: exp.id, expense_name: exp.expense_name, amount_after_65: exp.amount_after_65 || 0, amount_before_65: exp.amount_before_65 || 0 }))
                 const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({ id: inc.id, income_name: inc.income_source || '', amount: inc.annual_amount || 0, start_year: inc.start_year || undefined, end_year: inc.end_year || undefined, inflation_adjusted: inc.inflation_adjusted || false }))
-                const settings: CalculatorSettings = { current_year: settingsData.data?.current_year || new Date().getFullYear(), retirement_age: settingsData.data?.retirement_age || 65, retirement_start_year: settingsData.data?.retirement_start_year || 0, years_to_retirement: settingsData.data?.years_to_retirement || 0, annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0, growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || '0.1'), growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || '0.05'), inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || '0.04'), filing_status: (planData.data.filing_status as any) || 'Single' }
-                const { summary } = runMonteCarloSimulation(planData.data.birth_year, accounts, expenses, otherIncome, settings, planData.data.life_expectancy || 90, 1000)
+                const settings: CalculatorSettings = { current_year: settingsData.data?.current_year || new Date().getFullYear(), retirement_age: settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE, retirement_start_year: settingsData.data?.retirement_start_year || 0, years_to_retirement: settingsData.data?.years_to_retirement || 0, annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0, growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)), growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)), inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)), filing_status: (planData.data.filing_status as any) || DEFAULT_FILING_STATUS }
+                const { summary } = runMonteCarloSimulation(planData.data.birth_year, accounts, expenses, otherIncome, settings, planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY, 1000)
                 setMonteCarloSummary(summary)
               } catch (error) {
                 console.error('Error running Monte Carlo:', error)
@@ -654,9 +645,9 @@ export default function AnalysisTab({ planId }: AnalysisTabProps) {
         {/* ── Monte Carlo Results ── */}
         {monteCarloSummary && (() => {
           const sr = monteCarloSummary.successRate
-          const srColor = sr >= 80 ? 'text-emerald-600 dark:text-emerald-400' : sr >= 65 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'
-          const srBarColor = sr >= 80 ? 'bg-emerald-500' : sr >= 65 ? 'bg-amber-500' : 'bg-destructive'
-          const srLabel = sr >= 90 ? 'Excellent — very resilient plan' : sr >= 80 ? 'Good — strong foundation' : sr >= 70 ? 'Fair — consider reducing withdrawals' : sr >= 60 ? 'Marginal — plan needs attention' : 'Poor — high risk of shortfall'
+          const srColor = sr >= SCORE_ON_TRACK_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : sr >= 65 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'
+          const srBarColor = sr >= SCORE_ON_TRACK_THRESHOLD ? 'bg-emerald-500' : sr >= 65 ? 'bg-amber-500' : 'bg-destructive'
+          const srLabel = sr >= 90 ? 'Excellent — very resilient plan' : sr >= SCORE_ON_TRACK_THRESHOLD ? 'Good — strong foundation' : sr >= 70 ? 'Fair — consider reducing withdrawals' : sr >= SCORE_CLOSE_THRESHOLD ? 'Marginal — plan needs attention' : 'Poor — high risk of shortfall'
           const median = monteCarloSummary.medianFinalNetworth
           const mean   = monteCarloSummary.averageFinalNetworth
           const p90    = monteCarloSummary.percentile90
@@ -969,7 +960,7 @@ function calculateRetirementScore(
   
   // Inflation Score (0-100): Based on how well expenses are covered despite inflation
   // Compare early retirement expenses vs late retirement expenses to see inflation impact
-  const retirementProjections = projections.filter(p => p.age && p.age >= (settings.retirement_age || 65))
+  const retirementProjections = projections.filter(p => p.age && p.age >= (settings.retirement_age || DEFAULT_RETIREMENT_AGE))
   let inflationScore = 50 // Default score
   if (retirementProjections.length > 0) {
     const earlyPeriod = retirementProjections.slice(0, Math.floor(retirementProjections.length / 3))
@@ -1002,7 +993,7 @@ function calculateRetirementScore(
     }
   } else {
     // Simplified: Check if inflation rate assumption is reasonable
-    const inflationRate = settings.inflation_rate || 0.04
+    const inflationRate = settings.inflation_rate || DEFAULT_INFLATION_RATE
     // Higher inflation rate = lower score (more risk)
     inflationScore = Math.max(0, 100 - (inflationRate * 1000)) // Penalize high inflation assumptions
   }
@@ -1021,19 +1012,18 @@ function calculateRetirementScore(
   const medicalScore = Math.max(0, 100 - (medicalExpenseRatio * 200))
   
   // Overall Score: Weighted average
-  // Longevity: 60%, Tax Efficiency: 15%, Cashflow: 5%, Inflation: 10%, Medical: 10%
   const overallScore = Math.round(
-    longevityScore * 0.60 + 
-    taxEfficiencyScore * 0.15 + 
-    cashflowScore * 0.05 + 
-    inflationScore * 0.10 + 
-    medicalScore * 0.10
+    longevityScore * SCORE_WEIGHT_LONGEVITY + 
+    taxEfficiencyScore * SCORE_WEIGHT_TAX_EFFICIENCY + 
+    cashflowScore * SCORE_WEIGHT_CASHFLOW + 
+    inflationScore * SCORE_WEIGHT_INFLATION_MEDICAL + 
+    medicalScore * SCORE_WEIGHT_INFLATION_MEDICAL
   )
   
   // Risk Level
   let riskLevel: 'Low' | 'Medium' | 'High' = 'Low'
-  if (overallScore < 50) riskLevel = 'High'
-  else if (overallScore < 75) riskLevel = 'Medium'
+  if (overallScore < SCORE_AT_RISK_THRESHOLD) riskLevel = 'High'
+  else if (overallScore < SCORE_MEDIUM_RISK_THRESHOLD) riskLevel = 'Medium'
   
   return {
     overall: overallScore,
@@ -1079,7 +1069,7 @@ function identifyRisks(
   }
   
   // Check for high RMDs
-  const rmdYears = projections.filter(p => p.age && p.age >= 73)
+  const rmdYears = projections.filter(p => p.age && p.age >= RMD_START_AGE)
   if (rmdYears.length > 0) {
     const maxRmd = Math.max(...rmdYears.map(p => p.distribution_401k || 0))
     const avgIncome = projections.reduce((sum, p) => sum + (p.total_income || 0), 0) / projections.length
@@ -1087,8 +1077,8 @@ function identifyRisks(
       risks.push({
         type: 'High RMD Risk',
         severity: 'Medium',
-        description: `RMDs may push you into higher tax brackets after age 73.`,
-        recommendation: 'Consider Roth conversions before age 73 to reduce future RMDs and tax burden.'
+        description: `RMDs may push you into higher tax brackets after age ${RMD_START_AGE}.`,
+        recommendation: `Consider Roth conversions before age ${RMD_START_AGE} to reduce future RMDs and tax burden.`
       })
     }
   }
@@ -1108,7 +1098,7 @@ function identifyRisks(
   }
   
   // Check for inflation risk
-  const retirementProjections = projections.filter(p => p.age && p.age >= (settings.retirement_age || 65))
+  const retirementProjections = projections.filter(p => p.age && p.age >= (settings.retirement_age || DEFAULT_RETIREMENT_AGE))
   if (retirementProjections.length > 0) {
     const earlyPeriod = retirementProjections.slice(0, Math.floor(retirementProjections.length / 3))
     const latePeriod = retirementProjections.slice(-Math.floor(retirementProjections.length / 3))
@@ -1223,7 +1213,7 @@ function analyzeRMDs(
   settings: CalculatorSettings,
   accounts: Account[]
 ): any {
-  const rmdProjections = projections.filter(p => p.age && p.age >= 73)
+  const rmdProjections = projections.filter(p => p.age && p.age >= RMD_START_AGE)
   
   if (rmdProjections.length === 0) {
     return {
@@ -1232,7 +1222,7 @@ function analyzeRMDs(
       peakRmdYear: 'N/A',
       peakRmdAmount: 0,
       totalRmds: 0,
-      recommendation: 'RMDs will begin at age 73. Consider Roth conversions before then to reduce future RMDs.'
+      recommendation: `RMDs will begin at age ${RMD_START_AGE}. Consider Roth conversions before then to reduce future RMDs.`
     }
   }
   
@@ -1245,7 +1235,7 @@ function analyzeRMDs(
   
   let recommendation = ''
   if (peakRmd.distribution_401k && peakRmd.distribution_401k > 100000) {
-    recommendation = 'High RMDs detected. Consider Roth conversions before age 73 to reduce future tax burden.'
+    recommendation = `High RMDs detected. Consider Roth conversions before age ${RMD_START_AGE} to reduce future tax burden.`
   } else {
     recommendation = 'RMDs are manageable. Continue monitoring as account balances grow.'
   }
@@ -1297,8 +1287,7 @@ export function analyzeTaxEfficiency(
     
     // Calculate estimated taxes WITH Roth conversion
     // This is a simplified estimate: assume conversions reduce RMDs and future taxable distributions
-    const retirementAge = settings.retirement_age || 65
-    const rmdAge = 73
+    const retirementAge = settings.retirement_age || DEFAULT_RETIREMENT_AGE
     const currentYear = settings.current_year || new Date().getFullYear()
     
     // Use retirement_start_year from scenario settings to determine conversion start year
@@ -1307,8 +1296,8 @@ export function analyzeTaxEfficiency(
       ? settings.retirement_start_year
       : (currentYear + (settings.years_to_retirement || 0))
     
-    // Calculate the year when RMDs start (retirement start year + years until age 73)
-    const yearsUntilRmd = Math.max(0, rmdAge - retirementAge)
+    // Calculate the year when RMDs start (retirement start year + years until RMD_START_AGE)
+    const yearsUntilRmd = Math.max(0, RMD_START_AGE - retirementAge)
     const rmdStartYear = retirementStartYear + yearsUntilRmd
     
     // Conversion window: from retirement start year to year before RMD starts
@@ -1327,48 +1316,8 @@ export function analyzeTaxEfficiency(
     // Calculate actual tax on conversion amount for each year based on taxable income
     // Use tax bracket calculation to determine incremental tax
     const calculateTaxOnConversion = (taxableIncome: number, conversionAmount: number, filingStatus: string): number => {
-      // Calculate tax brackets (2024 rates)
-      const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-        'Single': [
-          { min: 0, max: 11600, rate: 0.10 },
-          { min: 11600, max: 47150, rate: 0.12 },
-          { min: 47150, max: 100525, rate: 0.22 },
-          { min: 100525, max: 191950, rate: 0.24 },
-          { min: 191950, max: 243725, rate: 0.32 },
-          { min: 243725, max: 609350, rate: 0.35 },
-          { min: 609350, max: Infinity, rate: 0.37 }
-        ],
-        'Married Filing Jointly': [
-          { min: 0, max: 23200, rate: 0.10 },
-          { min: 23200, max: 94300, rate: 0.12 },
-          { min: 94300, max: 201050, rate: 0.22 },
-          { min: 201050, max: 383900, rate: 0.24 },
-          { min: 383900, max: 487450, rate: 0.32 },
-          { min: 487450, max: 731200, rate: 0.35 },
-          { min: 731200, max: Infinity, rate: 0.37 }
-        ],
-        'Married Filing Separately': [
-          { min: 0, max: 11600, rate: 0.10 },
-          { min: 11600, max: 47150, rate: 0.12 },
-          { min: 47150, max: 100525, rate: 0.22 },
-          { min: 100525, max: 191950, rate: 0.24 },
-          { min: 191950, max: 243725, rate: 0.32 },
-          { min: 243725, max: 365600, rate: 0.35 },
-          { min: 365600, max: Infinity, rate: 0.37 }
-        ],
-        'Head of Household': [
-          { min: 0, max: 16550, rate: 0.10 },
-          { min: 16550, max: 63100, rate: 0.12 },
-          { min: 63100, max: 100500, rate: 0.22 },
-          { min: 100500, max: 191950, rate: 0.24 },
-          { min: 191950, max: 243700, rate: 0.32 },
-          { min: 243700, max: 609350, rate: 0.35 },
-          { min: 609350, max: Infinity, rate: 0.37 }
-        ]
-      }
-      
-      const status = filingStatus || 'Single'
-      const bracketList = brackets[status] || brackets['Single']
+      const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
+      const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
       
       // Calculate tax on income without conversion
       let taxWithoutConversion = 0
@@ -1403,7 +1352,7 @@ export function analyzeTaxEfficiency(
       let totalAnnualTax = 0
       retirementProjections.forEach(proj => {
         const taxableIncome = proj.taxable_income || 0
-        const taxOnConversion = calculateTaxOnConversion(taxableIncome, optimalAmount, settings.filing_status || 'Single')
+        const taxOnConversion = calculateTaxOnConversion(taxableIncome, optimalAmount, settings.filing_status || DEFAULT_FILING_STATUS)
         totalAnnualTax += taxOnConversion
       })
       annualTaxCost = retirementProjections.length > 0 ? totalAnnualTax / retirementProjections.length : 0
@@ -1413,12 +1362,11 @@ export function analyzeTaxEfficiency(
       const allRetirementProj = projections.filter(p => (p.age || 0) >= retirementAge)
       if (allRetirementProj.length > 0) {
         const avgTaxableIncome = allRetirementProj.reduce((sum, p) => sum + (p.taxable_income || 0), 0) / allRetirementProj.length
-        annualTaxCost = calculateTaxOnConversion(avgTaxableIncome, optimalAmount, settings.filing_status || 'Single')
+        annualTaxCost = calculateTaxOnConversion(avgTaxableIncome, optimalAmount, settings.filing_status || DEFAULT_FILING_STATUS)
         totalConversionTaxes = annualTaxCost * conversionYears
       } else {
-        // Last resort: use estimated 22% marginal rate (common middle bracket)
-        const conversionTaxRate = 0.22
-        annualTaxCost = optimalAmount * conversionTaxRate
+        // Last resort: use estimated marginal rate (common middle bracket)
+        annualTaxCost = optimalAmount * DEFAULT_MARGINAL_TAX_RATE
         totalConversionTaxes = annualTaxCost * conversionYears
       }
     }
@@ -1431,53 +1379,15 @@ export function analyzeTaxEfficiency(
     // 2. Tax rates may increase in the future
     // 3. Reduced RMDs mean less taxable income, potentially keeping you in lower brackets
     
-    const avgRmdRate = 0.05 // Average RMD rate over 20 years
+    // Average RMD rate estimate: ~5% over typical retirement (1/life-expectancy factor at 73 ≈ 3.65%, increases with age)
+    const avgRmdRate = 0.05
     // Calculate average tax rate that would apply to RMDs
-    const rmdProjections = projections.filter(p => (p.age || 0) >= rmdAge)
+    const rmdProjections = projections.filter(p => (p.age || 0) >= RMD_START_AGE)
     let avgRmdTaxRate = 0.25 // Default
     if (rmdProjections.length > 0) {
       const avgRmdTaxableIncome = rmdProjections.reduce((sum, p) => sum + (p.taxable_income || 0), 0) / rmdProjections.length
-      // Estimate marginal rate for RMDs
-      const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-        'Single': [
-          { min: 0, max: 11600, rate: 0.10 },
-          { min: 11600, max: 47150, rate: 0.12 },
-          { min: 47150, max: 100525, rate: 0.22 },
-          { min: 100525, max: 191950, rate: 0.24 },
-          { min: 191950, max: 243725, rate: 0.32 },
-          { min: 243725, max: 609350, rate: 0.35 },
-          { min: 609350, max: Infinity, rate: 0.37 }
-        ],
-        'Married Filing Jointly': [
-          { min: 0, max: 23200, rate: 0.10 },
-          { min: 23200, max: 94300, rate: 0.12 },
-          { min: 94300, max: 201050, rate: 0.22 },
-          { min: 201050, max: 383900, rate: 0.24 },
-          { min: 383900, max: 487450, rate: 0.32 },
-          { min: 487450, max: 731200, rate: 0.35 },
-          { min: 731200, max: Infinity, rate: 0.37 }
-        ],
-        'Married Filing Separately': [
-          { min: 0, max: 11600, rate: 0.10 },
-          { min: 11600, max: 47150, rate: 0.12 },
-          { min: 47150, max: 100525, rate: 0.22 },
-          { min: 100525, max: 191950, rate: 0.24 },
-          { min: 191950, max: 243725, rate: 0.32 },
-          { min: 243725, max: 365600, rate: 0.35 },
-          { min: 365600, max: Infinity, rate: 0.37 }
-        ],
-        'Head of Household': [
-          { min: 0, max: 16550, rate: 0.10 },
-          { min: 16550, max: 63100, rate: 0.12 },
-          { min: 63100, max: 100500, rate: 0.22 },
-          { min: 100500, max: 191950, rate: 0.24 },
-          { min: 191950, max: 243700, rate: 0.32 },
-          { min: 243700, max: 609350, rate: 0.35 },
-          { min: 609350, max: Infinity, rate: 0.37 }
-        ]
-      }
-      const status = settings.filing_status || 'Single'
-      const bracketList = brackets[status] || brackets['Single']
+      const status = (settings.filing_status || DEFAULT_FILING_STATUS) as FilingStatus
+      const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
       for (const bracket of bracketList) {
         if (avgRmdTaxableIncome >= bracket.min && avgRmdTaxableIncome < bracket.max) {
           avgRmdTaxRate = bracket.rate
@@ -1485,7 +1395,7 @@ export function analyzeTaxEfficiency(
         }
       }
       // Add potential future tax rate increase
-      avgRmdTaxRate = Math.min(0.35, avgRmdTaxRate + 0.02)
+      avgRmdTaxRate = Math.min(TOP_MARGINAL_RATE, avgRmdTaxRate + 0.02)
     }
     
     const annualRmdOnConverted = totalConverted * avgRmdRate

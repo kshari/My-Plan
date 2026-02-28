@@ -4,6 +4,16 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import { calculateEstimatedSSA } from '@/lib/utils/retirement-projections'
+import { DEFAULT_GROWTH_RATE_DURING_RETIREMENT } from '@/lib/constants/retirement-defaults'
+import {
+  SSA_FULL_RETIREMENT_AGE,
+  SSA_EARLY_CLAIMING_REDUCTION_PER_YEAR,
+  SSA_MAX_EARLY_REDUCTION,
+  SSA_MIN_CLAIMING_MULTIPLIER,
+  SSA_DELAYED_CREDIT_PER_YEAR,
+  SSA_MAX_DELAYED_BONUS,
+  ssaClaimingMultiplier,
+} from '@/lib/constants/ssa-constants'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Info, TrendingUp, TrendingDown, Calculator, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/property/ui/tooltip'
@@ -117,7 +127,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
   const [baseLifeExpectancy, setBaseLifeExpectancy] = useState(85)
   const [useCustomLifeExpectancy, setUseCustomLifeExpectancy] = useState(false)
   const [demographics, setDemographics] = useState<Demographics>({})
-  const [investmentReturns, setInvestmentReturns] = useState(0.05) // Default 5%
+  const [investmentReturns, setInvestmentReturns] = useState(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
   const [analysisResults, setAnalysisResults] = useState<SSAAnalysisResult[]>([])
   const [chartData, setChartData] = useState<any[]>([])
 
@@ -182,7 +192,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
 
     const currentYear = new Date().getFullYear()
     const birthYear = planData.birth_year
-    const fullRetirementAge = 67 // Full retirement age for most people
+    const fullRetirementAge = SSA_FULL_RETIREMENT_AGE
     const inflationRate = 0.03 // 3% annual inflation
     const investmentReturnRate = investmentReturns // Use user-specified investment returns
 
@@ -204,15 +214,12 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
       let annualBenefit = baseSSA
 
       if (startAge < fullRetirementAge) {
-        // Early retirement reduction: ~6.67% per year early (max 30% at age 62)
-        const yearsEarly = fullRetirementAge - startAge
-        const reduction = Math.min(0.30, yearsEarly * 0.0667)
-        monthlyBenefit = baseMonthlySSA * (1 - reduction)
-        annualBenefit = baseSSA * (1 - reduction)
+        const multiplier = ssaClaimingMultiplier(startAge)
+        monthlyBenefit = baseMonthlySSA * multiplier
+        annualBenefit = baseSSA * multiplier
       } else if (startAge > fullRetirementAge) {
-        // Delayed retirement credit: ~8% per year delayed (max 24% at age 70)
         const yearsDelayed = startAge - fullRetirementAge
-        const increase = Math.min(0.24, yearsDelayed * 0.08)
+        const increase = Math.min(SSA_MAX_DELAYED_BONUS, yearsDelayed * SSA_DELAYED_CREDIT_PER_YEAR)
         monthlyBenefit = baseMonthlySSA * (1 + increase)
         annualBenefit = baseSSA * (1 + increase)
       }
@@ -344,7 +351,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
         }
         
         // Calculate FRA lifetime total (from FRA to life expectancy, not from startAge)
-        // FRA benefits start at age 67 and go to life expectancy
+        // FRA benefits start at SSA_FULL_RETIREMENT_AGE and go to life expectancy
         const fraYearsOfBenefits = Math.max(0, lifeExpectancy - fullRetirementAge + 1)
         const fraBenefitsBreakdown: Array<{ year: number; benefit: number }> = []
         let fraLifetimeTotal = 0
@@ -832,13 +839,13 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
                               <div className="text-xs space-y-2">
                                 <p className="font-semibold text-sm mb-2">What is Benefits Gain/Loss?</p>
                                 <p>
-                                  Benefits Gain/Loss represents the difference between your strategy and starting at full retirement age (67), accounting for investment returns.
+                                  Benefits Gain/Loss represents the difference between your strategy and starting at full retirement age ({SSA_FULL_RETIREMENT_AGE}), accounting for investment returns.
                                 </p>
                                 <p>
-                                  <strong>For early start (before age 67):</strong> If lifetime total plus investment returns on early benefits exceeds FRA lifetime total, it's a gain (positive). Otherwise, it's a loss (negative).
+                                  <strong>For early start (before age {SSA_FULL_RETIREMENT_AGE}):</strong> If lifetime total plus investment returns on early benefits exceeds FRA lifetime total, it's a gain (positive). Otherwise, it's a loss (negative).
                                 </p>
                                 <p>
-                                  <strong>For delayed start (after age 67):</strong> The lost benefits you could have received and invested are a loss (negative value).
+                                  <strong>For delayed start (after age {SSA_FULL_RETIREMENT_AGE}):</strong> The lost benefits you could have received and invested are a loss (negative value).
                                 </p>
                                 <p className="text-gray-300 mt-2">
                                   A positive value means you're gaining compared to FRA, while a negative value means you're losing compared to FRA.
@@ -864,13 +871,13 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
                               <div className="text-xs space-y-2">
                                 <p className="font-semibold text-sm mb-2">What is Break-Even Age?</p>
                                 <p>
-                                  Break-even age is the age at which the cumulative benefits from starting at a different age equal the cumulative benefits from starting at full retirement age (67).
+                                  Break-even age is the age at which the cumulative benefits from starting at a different age equal the cumulative benefits from starting at full retirement age ({SSA_FULL_RETIREMENT_AGE}).
                                 </p>
                                 <p>
-                                  <strong>For early start (before age 67):</strong> This is the age when starting at full retirement age would have caught up to the total benefits you received by starting early. If you live past this age, starting at full retirement age would have been better.
+                                  <strong>For early start (before age {SSA_FULL_RETIREMENT_AGE}):</strong> This is the age when starting at full retirement age would have caught up to the total benefits you received by starting early. If you live past this age, starting at full retirement age would have been better.
                                 </p>
                                 <p>
-                                  <strong>For delayed start (after age 67):</strong> This is the age when the higher benefits from delaying catch up to what you would have received by starting at full retirement age. If you live past this age, delaying was the better choice.
+                                  <strong>For delayed start (after age {SSA_FULL_RETIREMENT_AGE}):</strong> This is the age when the higher benefits from delaying catch up to what you would have received by starting at full retirement age. If you live past this age, delaying was the better choice.
                                 </p>
                                 <p className="text-gray-300 mt-2">
                                   The break-even age helps you understand when one strategy becomes more beneficial than another based on your life expectancy.
@@ -955,7 +962,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
                                         <p>• Years delayed after FRA: {result.benefitsGainLossCalculation.yearsDelayed}</p>
                                         
                                         <div className="mt-2">
-                                          <p className="font-semibold text-gray-200 mb-1">Lost FRA Benefits (could have been invested, Age 67 to {result.startAge - 1}):</p>
+                                          <p className="font-semibold text-gray-200 mb-1">Lost FRA Benefits (could have been invested, Age {SSA_FULL_RETIREMENT_AGE} to {result.startAge - 1}):</p>
                                           <div className="text-xs space-y-0.5 max-h-32 overflow-y-auto bg-gray-800 p-2 rounded">
                                             {result.benefitsGainLossCalculation.lostBenefitsBreakdown?.map((item, idx) => (
                                               <div key={idx} className="flex justify-between gap-2">
@@ -986,7 +993,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
                                     </>
                                   ) : (
                                     <p className="text-gray-300">
-                                      Starting at full retirement age (67) has no benefits gain/loss - this is the baseline.
+                                      Starting at full retirement age ({SSA_FULL_RETIREMENT_AGE}) has no benefits gain/loss - this is the baseline.
                                     </p>
                                   )}
                                 </div>
@@ -1078,7 +1085,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
                   <Legend />
                   {analysisResults.map((result) => {
                     const lineColor = result.startAge === 62 ? '#ef4444' :
-                                     result.startAge === 67 ? '#22c55e' :
+                                     result.startAge === SSA_FULL_RETIREMENT_AGE ? '#22c55e' :
                                      result.startAge === 70 ? '#3b82f6' :
                                      '#6b7280'
                     
@@ -1162,13 +1169,13 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Insights</h3>
             <div className="space-y-2 text-sm text-gray-700">
               <p>
-                <strong>Full Retirement Age (FRA):</strong> Age 67 is the standard full retirement age for most people born after 1960.
+                <strong>Full Retirement Age (FRA):</strong> Age {SSA_FULL_RETIREMENT_AGE} is the standard full retirement age for most people born after 1960.
               </p>
               <p>
-                <strong>Early Retirement (62-66):</strong> Benefits are reduced by ~6.67% per year before FRA, up to 30% reduction at age 62.
+                <strong>Early Retirement (62-66):</strong> Benefits are reduced by ~{(SSA_EARLY_CLAIMING_REDUCTION_PER_YEAR * 100).toFixed(2)}% per year before FRA, up to {(SSA_MAX_EARLY_REDUCTION * 100)}% reduction at age 62.
               </p>
               <p>
-                <strong>Delayed Retirement (68-70):</strong> Benefits increase by ~8% per year after FRA, up to 24% increase at age 70.
+                <strong>Delayed Retirement (68-70):</strong> Benefits increase by ~{(SSA_DELAYED_CREDIT_PER_YEAR * 100)}% per year after FRA, up to {(SSA_MAX_DELAYED_BONUS * 100)}% increase at age 70.
               </p>
               <p>
                 <strong>Break-Even Analysis:</strong> Starting early provides more money initially, but delaying provides more if you live past the break-even age.

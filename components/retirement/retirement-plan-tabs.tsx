@@ -26,6 +26,7 @@ import OtherToolsTab from './tabs/other-tools-tab'
 
 interface RetirementPlanTabsProps {
   planId: number
+  initialTab?: string
 }
 
 const planNavSections: ContextNavSection[] = [
@@ -65,17 +66,17 @@ type TabId =
   | 'tax-efficiency'
   | 'other-tools'
 
-export default function RetirementPlanTabs({ planId }: RetirementPlanTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
+export default function RetirementPlanTabs({ planId, initialTab }: RetirementPlanTabsProps) {
+  const [activeTab, setActiveTab] = useState<TabId>((initialTab as TabId) || 'overview')
   const { setNav, updateActiveId } = useSidebarNav()
 
   // Register plan nav in the main sidebar on mount, clean up on unmount
   useEffect(() => {
     setNav({
       title: 'Retirement Plan',
-      backHref: '/apps/retirement',
+      backHref: '/apps/retirement/dashboard',
       sections: planNavSections,
-      activeId: activeTab,
+      activeId: (initialTab as TabId) || 'overview',
       onNavigate: (id) => setActiveTab(id as TabId),
     })
     return () => setNav(null)

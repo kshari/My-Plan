@@ -1,5 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 import {
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_SSA_START_AGE,
+  DEFAULT_MAX_PROJECTION_AGE,
+} from '@/lib/constants/retirement-defaults'
+import {
   calculateRetirementProjections,
   buildCalculatorSettings,
   calculateEstimatedSSA,
@@ -15,7 +20,7 @@ import {
 export async function calculateAndSaveProjectionsForScenario(
   planId: number,
   scenarioId: number,
-  lifeExpectancy: number = 100
+  lifeExpectancy: number = DEFAULT_MAX_PROJECTION_AGE
 ): Promise<void> {
   const supabase = createClient()
   
@@ -73,7 +78,7 @@ export async function calculateAndSaveProjectionsForScenario(
     // Calculate years to retirement
     const currentYear = new Date().getFullYear()
     const birthYear = planData.data.birth_year
-    const retirementAge = settingsData.data.retirement_age || 65
+    const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
     const yearsToRetirement = retirementAge - (currentYear - birthYear)
     const annualExpenses = expenses.reduce((sum, exp) => {
       const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
@@ -109,7 +114,7 @@ export async function calculateAndSaveProjectionsForScenario(
     const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
     const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
     
-    const ssaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || 65
+    const ssaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || DEFAULT_SSA_START_AGE
     const currentAge = currentYear - birthYear
     const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
     const inflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, yearsToSsaStart)

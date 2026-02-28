@@ -2,6 +2,18 @@
 
 import type { Account, Expense, OtherIncome, CalculatorSettings, ProjectionDetail } from './retirement-projections'
 import { calculateRetirementProjections } from './retirement-projections'
+import { DEFAULT_RETIREMENT_AGE } from '@/lib/constants/retirement-defaults'
+import {
+  MC_DEFAULT_NUM_SIMULATIONS,
+  MC_STD_DEV_PRE_RETIREMENT,
+  MC_STD_DEV_DURING_RETIREMENT,
+  MC_NEGATIVE_CASHFLOW_FAILURE_THRESHOLD,
+  MC_PERCENTILE_P5,
+  MC_PERCENTILE_P25,
+  MC_PERCENTILE_P75,
+  MC_PERCENTILE_P90,
+  MC_PERCENTILE_P95,
+} from '@/lib/constants/monte-carlo'
 
 export interface MonteCarloResult {
   simulation: number
@@ -64,10 +76,10 @@ export function runMonteCarloSimulation(
   otherIncome: OtherIncome[],
   baseSettings: CalculatorSettings,
   lifeExpectancy: number,
-  numSimulations: number = 1000
+  numSimulations: number = MC_DEFAULT_NUM_SIMULATIONS
 ): { results: MonteCarloResult[], summary: MonteCarloSummary } {
   const results: MonteCarloResult[] = []
-  const retirementAge = baseSettings.retirement_age || 65
+  const retirementAge = baseSettings.retirement_age || DEFAULT_RETIREMENT_AGE
   const initialNetworth = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
 
   for (let sim = 0; sim < numSimulations; sim++) {
@@ -76,11 +88,11 @@ export function runMonteCarloSimulation(
     // During retirement: mean = base rate, std dev = 12%
     const beforeRetirementReturn = generateNormalRandom(
       baseSettings.growth_rate_before_retirement,
-      0.15
+      MC_STD_DEV_PRE_RETIREMENT
     )
     const duringRetirementReturn = generateNormalRandom(
       baseSettings.growth_rate_during_retirement,
-      0.12
+      MC_STD_DEV_DURING_RETIREMENT
     )
 
     const modifiedSettings: CalculatorSettings = {
@@ -102,7 +114,7 @@ export function runMonteCarloSimulation(
     const minNetworth = Math.min(...projections.map(p => p.networth ?? 0))
     const yearsWithNegativeCashFlow = projections.filter(p => (p.gap_excess ?? 0) < 0).length
     const totalTaxes = projections.reduce((sum, p) => sum + (p.tax ?? 0), 0)
-    const success = finalNetworth > 0 && yearsWithNegativeCashFlow < projections.length * 0.2
+    const success = finalNetworth > 0 && yearsWithNegativeCashFlow < projections.length * MC_NEGATIVE_CASHFLOW_FAILURE_THRESHOLD
 
     // Weighted-average annual return across both phases
     const yearsBeforeRetirement = projections.filter(p => (p.age ?? 0) < retirementAge).length
@@ -168,17 +180,17 @@ export function runMonteCarloSimulation(
       results.reduce((sum, r) => sum + r.yearsWithNegativeCashFlow, 0) / results.length,
     averageTotalTaxes:
       results.reduce((sum, r) => sum + r.totalTaxes, 0) / results.length,
-    percentile5:  finalNetworths[Math.floor(n * 0.05)],
-    percentile25: finalNetworths[Math.floor(n * 0.25)],
-    percentile75: finalNetworths[Math.floor(n * 0.75)],
-    percentile90: finalNetworths[Math.floor(n * 0.90)],
-    percentile95: finalNetworths[Math.floor(n * 0.95)],
+    percentile5:  finalNetworths[Math.floor(n * MC_PERCENTILE_P5)],
+    percentile25: finalNetworths[Math.floor(n * MC_PERCENTILE_P25)],
+    percentile75: finalNetworths[Math.floor(n * MC_PERCENTILE_P75)],
+    percentile90: finalNetworths[Math.floor(n * MC_PERCENTILE_P90)],
+    percentile95: finalNetworths[Math.floor(n * MC_PERCENTILE_P95)],
     detail: {
-      p5:     makeDetail(sorted[Math.floor(n * 0.05)]),
-      p25:    makeDetail(sorted[Math.floor(n * 0.25)]),
+      p5:     makeDetail(sorted[Math.floor(n * MC_PERCENTILE_P5)]),
+      p25:    makeDetail(sorted[Math.floor(n * MC_PERCENTILE_P25)]),
       median: makeDetail(sorted[Math.floor(n / 2)]),
-      p75:    makeDetail(sorted[Math.floor(n * 0.75)]),
-      p90:    makeDetail(sorted[Math.floor(n * 0.90)]),
+      p75:    makeDetail(sorted[Math.floor(n * MC_PERCENTILE_P75)]),
+      p90:    makeDetail(sorted[Math.floor(n * MC_PERCENTILE_P90)]),
       average: averageDetail,
     },
     initialNetworth,

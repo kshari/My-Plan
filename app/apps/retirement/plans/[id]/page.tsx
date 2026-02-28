@@ -5,10 +5,12 @@ import RetirementPlanTabs from '@/components/retirement/retirement-plan-tabs'
 
 interface RetirementPlanDetailPageProps {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
-export default async function RetirementPlanDetailPage({ params }: RetirementPlanDetailPageProps) {
+export default async function RetirementPlanDetailPage({ params, searchParams }: RetirementPlanDetailPageProps) {
   const { id } = await params
+  const { tab } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -46,7 +48,7 @@ export default async function RetirementPlanDetailPage({ params }: RetirementPla
         </Link>
       </div>
 
-      <RetirementPlanTabs planId={planId} />
+      <RetirementPlanTabs planId={planId} initialTab={tab} />
     </div>
   )
 }

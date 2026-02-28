@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { DEFAULT_SETTINGS_LIST } from '@/lib/constants/retirement-defaults'
 import { Save } from 'lucide-react'
 
 interface DefaultSetting {
@@ -14,14 +15,7 @@ interface DefaultsTabProps {
   planId: number
 }
 
-const defaultSettings = [
-  { name: 'Growth rate (return) before retirement', default: 0.1 },
-  { name: 'Loan rate (if borrowed for expenses)', default: 0.1 },
-  { name: 'Growth rate (return) during retirement', default: 0.05 },
-  { name: 'Capital gains & dividends blended tax rate', default: 0.2 },
-  { name: 'Tax rate during retirement', default: 0.25 },
-  { name: 'Inflation', default: 0.04 },
-]
+const defaultSettings = DEFAULT_SETTINGS_LIST.map(s => ({ name: s.name, default: s.default }))
 
 export default function DefaultsTab({ planId }: DefaultsTabProps) {
   const supabase = createClient()

@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
+import {
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_RETIREMENT_AGE,
+} from '@/lib/constants/retirement-defaults'
 
 interface CompoundingTabProps {
   planId: number
@@ -32,11 +38,11 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
   
   // Input parameters
   const [startAge, setStartAge] = useState(50)
-  const [retirementAge, setRetirementAge] = useState(65) // Changed from endAge
-  const [annualGrowthRate, setAnnualGrowthRate] = useState(0.1)
+  const [retirementAge, setRetirementAge] = useState(DEFAULT_RETIREMENT_AGE) // Changed from endAge
+  const [annualGrowthRate, setAnnualGrowthRate] = useState(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)
   const [annualContribution, setAnnualContribution] = useState(0)
   const [currentSavings, setCurrentSavings] = useState(0) // New field for current savings
-  const [inflationRate, setInflationRate] = useState(0.04) // Inflation rate (default 4%)
+  const [inflationRate, setInflationRate] = useState(DEFAULT_INFLATION_RATE) // Inflation rate (default 3%)
   const [increaseContributionsForInflation, setIncreaseContributionsForInflation] = useState(false) // Checkbox for inflation adjustment
 
   useEffect(() => {
@@ -109,7 +115,7 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
       } else {
         // If no scenario selected, try to get default retirement age from plan basis
         // Default to 65 if not available
-        setRetirementAge(65)
+        setRetirementAge(DEFAULT_RETIREMENT_AGE)
       }
     } catch (error) {
       console.error('Error loading plan and accounts:', error)
@@ -231,7 +237,7 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
             <input
               type="number"
               value={retirementAge}
-              onChange={(e) => setRetirementAge(parseInt(e.target.value) || 65)}
+              onChange={(e) => setRetirementAge(parseInt(e.target.value) || DEFAULT_RETIREMENT_AGE)}
               min={startAge}
               max={100}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"

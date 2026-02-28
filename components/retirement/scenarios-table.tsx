@@ -20,6 +20,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  SCORE_AT_RISK_THRESHOLD,
+  SCORE_MEDIUM_RISK_THRESHOLD,
+  SCORE_WEIGHT_SCENARIO_LONGEVITY,
+  SCORE_WEIGHT_SCENARIO_SCORE,
+} from '@/lib/constants/retirement-defaults'
 
 interface Scenario {
   id: number
@@ -115,8 +121,8 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
           const finalNW = projections[projections.length - 1]?.networth || 0
           const initNW = projections[0]?.networth || 0
           const lonScore = initNW > 0 ? Math.min(100, (finalNW / initNW) * 50 + 50) : 0
-          overallScore = Math.round(sustScore * 0.5 + taxScore * 0.25 + lonScore * 0.25)
-          riskLevel = overallScore < 50 ? 'High' : overallScore < 75 ? 'Medium' : 'Low'
+          overallScore = Math.round(sustScore * SCORE_WEIGHT_SCENARIO_LONGEVITY + taxScore * SCORE_WEIGHT_SCENARIO_SCORE + lonScore * SCORE_WEIGHT_SCENARIO_SCORE)
+          riskLevel = overallScore < SCORE_AT_RISK_THRESHOLD ? 'High' : overallScore < SCORE_MEDIUM_RISK_THRESHOLD ? 'Medium' : 'Low'
           const retireProjn = settings?.retirement_age
             ? projections.find((p: any) => p.age === settings.retirement_age)
             : null
@@ -245,7 +251,7 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
       cell: ({ row }) => {
         const score = row.original.metrics?.overallScore
         if (score == null) return <span className="text-muted-foreground">—</span>
-        const color = score >= 75 ? 'text-emerald-600 dark:text-emerald-400' : score >= 50 ? 'text-amber-600' : 'text-destructive'
+        const color = score >= SCORE_MEDIUM_RISK_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : score >= SCORE_AT_RISK_THRESHOLD ? 'text-amber-600' : 'text-destructive'
         return <span className={`font-bold tabular-nums ${color}`}>{score}</span>
       },
     },

@@ -14,6 +14,22 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT,
+  DEFAULT_INFLATION_RATE_PCT,
+  DEFAULT_ENABLE_BORROWING,
+  DEFAULT_SSA_START_AGE,
+  DEFAULT_PLANNER_SSA_INCOME,
+  DEFAULT_SPOUSE_SSA_INCOME,
+} from '@/lib/constants/retirement-defaults'
+import { DEFAULT_PLAN_ACCOUNTS, DEFAULT_EXPENSE_CATEGORIES, ACCOUNT_TYPES } from '@/lib/constants/account-types'
+import { TOAST_DURATION_SHORT } from '@/lib/constants/timing'
 
 interface PlanDetailsTabProps {
   planId: number
@@ -41,26 +57,15 @@ interface Expense {
   amount_before_65: number
 }
 
-// Default accounts from Excel
-const DEFAULT_ACCOUNTS: Omit<Account, 'id'>[] = [
-  { account_name: 'IRA', owner: '', balance: 0, account_type: 'IRA', annual_contribution: 0 },
-  { account_name: '401k', owner: '', balance: 0, account_type: '401k', annual_contribution: 0 },
-  { account_name: 'Roth IRA', owner: '', balance: 0, account_type: 'Roth IRA', annual_contribution: 0 },
-  { account_name: 'HSA', owner: '', balance: 0, account_type: 'HSA', annual_contribution: 0 },
-  { account_name: 'Taxable', owner: '', balance: 0, account_type: 'Taxable', annual_contribution: 0 },
-]
+// Default accounts from centralized constants (clone to avoid mutation)
+const getDefaultAccounts = () => DEFAULT_PLAN_ACCOUNTS.map(a => ({ ...a, owner: '', annual_contribution: 0 }))
 
-// Default expenses from Excel
-const DEFAULT_EXPENSES: Omit<Expense, 'id'>[] = [
-  { expense_name: 'Rent / Taxes-Maint', amount_after_65: 3000, amount_before_65: 4000 },
-  { expense_name: 'Groceries', amount_after_65: 800, amount_before_65: 1000 },
-  { expense_name: 'Dining out / Entertainment', amount_after_65: 500, amount_before_65: 500 },
-  { expense_name: 'Utilities', amount_after_65: 500, amount_before_65: 500 },
-  { expense_name: 'Medical', amount_after_65: 2500, amount_before_65: 2500 },
-  { expense_name: 'Other Essential Expenses', amount_after_65: 0, amount_before_65: 0 },
-  { expense_name: 'Travel', amount_after_65: 0, amount_before_65: 0 },
-  { expense_name: 'Other Discretionary Expenses', amount_after_65: 0, amount_before_65: 0 },
-]
+// Default expenses from centralized constants (clone to avoid mutation)
+const getDefaultExpenses = () => DEFAULT_EXPENSE_CATEGORIES.map(e => ({
+  expense_name: e.expense_name,
+  amount_after_65: e.annual_amount / 12,
+  amount_before_65: e.annual_amount / 12,
+}))
 
 // Categorize expenses as essential or discretionary
 const isEssentialExpense = (expenseName: string): boolean => {
@@ -99,14 +104,14 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   
   // Scenario Variables (scenario-level)
   const [scenarioVars, setScenarioVars] = useState({
-    retirement_age: 65,
-    growth_rate_before_retirement: 10, // Percentage
-    growth_rate_during_retirement: 5, // Percentage
-    inflation_rate: 4, // Percentage
-    enable_borrowing: false, // Enable borrowing to cover negative cashflow
-    ssa_start_age: 65, // Age to start SSA income (defaults to retirement age)
-    planner_ssa_income: true, // Include planner SSA income
-    spouse_ssa_income: true, // Include spouse SSA income
+    retirement_age: DEFAULT_RETIREMENT_AGE,
+    growth_rate_before_retirement: DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT,
+    growth_rate_during_retirement: DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT,
+    inflation_rate: DEFAULT_INFLATION_RATE_PCT,
+    enable_borrowing: DEFAULT_ENABLE_BORROWING,
+    ssa_start_age: DEFAULT_SSA_START_AGE,
+    planner_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
+    spouse_ssa_income: DEFAULT_SPOUSE_SSA_INCOME,
   })
 
   useEffect(() => {
@@ -138,10 +143,10 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           birth_year: data.birth_year,
           age: age,
           filing_status: data.filing_status || 'Married Filing Jointly',
-          life_expectancy: data.life_expectancy || 90,
+          life_expectancy: data.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
           include_spouse: data.include_spouse || false,
           spouse_birth_year: data.spouse_birth_year || data.birth_year, // Default to planner's birth year
-          spouse_life_expectancy: data.spouse_life_expectancy || 90,
+          spouse_life_expectancy: data.spouse_life_expectancy || DEFAULT_LIFE_EXPECTANCY,
         })
       }
     } catch (error) {
@@ -161,7 +166,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       
       // If no accounts exist, initialize with defaults
       if (!data || data.length === 0) {
-        setAccounts(DEFAULT_ACCOUNTS.map(acc => ({ ...acc })))
+        setAccounts(getDefaultAccounts())
       } else {
         setAccounts(data.map(acc => ({
           ...acc,
@@ -185,7 +190,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       
       // If no expenses exist, initialize with defaults
       if (!data || data.length === 0) {
-        setExpenses(DEFAULT_EXPENSES.map(exp => ({ ...exp })))
+        setExpenses(getDefaultExpenses())
       } else {
         setExpenses(data)
       }
@@ -229,14 +234,14 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
       if (data) {
         setScenarioVars({
-          retirement_age: data.retirement_age || 65,
-          ssa_start_age: data.ssa_start_age || data.retirement_age || 65,
-          growth_rate_before_retirement: parseFloat(data.growth_rate_before_retirement?.toString() || '0.1') * 100,
-          growth_rate_during_retirement: parseFloat(data.growth_rate_during_retirement?.toString() || '0.05') * 100,
-          inflation_rate: parseFloat(data.inflation_rate?.toString() || '0.04') * 100,
-          enable_borrowing: data.enable_borrowing ?? false,
-          planner_ssa_income: data.planner_ssa_income ?? true,
-          spouse_ssa_income: data.spouse_ssa_income ?? true,
+          retirement_age: data.retirement_age || DEFAULT_RETIREMENT_AGE,
+          ssa_start_age: data.ssa_start_age || data.retirement_age || DEFAULT_SSA_START_AGE,
+          growth_rate_before_retirement: parseFloat(data.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)) * 100,
+          growth_rate_during_retirement: parseFloat(data.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)) * 100,
+          inflation_rate: parseFloat(data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)) * 100,
+          enable_borrowing: data.enable_borrowing ?? DEFAULT_ENABLE_BORROWING,
+          planner_ssa_income: data.planner_ssa_income ?? DEFAULT_PLANNER_SSA_INCOME,
+          spouse_ssa_income: data.spouse_ssa_income ?? DEFAULT_PLANNER_SSA_INCOME,
         })
       } else {
         // If no data, ensure we still have default values for SSA income flags
@@ -271,27 +276,26 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       }
 
       setScenarioVars({
-        retirement_age: 65,
-        growth_rate_before_retirement: getDefault('Growth rate (return) before retirement', 10),
-        growth_rate_during_retirement: getDefault('Growth rate (return) during retirement', 5),
-        inflation_rate: getDefault('Inflation', 4),
-        enable_borrowing: false,
-        ssa_start_age: scenarioVars.retirement_age || 65, // Default to retirement age
-        planner_ssa_income: true,
-        spouse_ssa_income: true,
+        retirement_age: DEFAULT_RETIREMENT_AGE,
+        growth_rate_before_retirement: getDefault('Growth rate (return) before retirement', DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT),
+        growth_rate_during_retirement: getDefault('Growth rate (return) during retirement', DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT),
+        inflation_rate: getDefault('Inflation', DEFAULT_INFLATION_RATE_PCT),
+        enable_borrowing: DEFAULT_ENABLE_BORROWING,
+        ssa_start_age: scenarioVars.retirement_age || DEFAULT_SSA_START_AGE,
+        planner_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
+        spouse_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
       })
     } catch (error) {
       console.error('Error loading defaults:', error)
-      // Fallback to hardcoded defaults
       setScenarioVars({
-        retirement_age: 65,
-        growth_rate_before_retirement: 10,
-        growth_rate_during_retirement: 5,
-        inflation_rate: 4,
-        enable_borrowing: false,
-        ssa_start_age: scenarioVars.retirement_age || 65, // Default to retirement age
-        planner_ssa_income: true,
-        spouse_ssa_income: true,
+        retirement_age: DEFAULT_RETIREMENT_AGE,
+        growth_rate_before_retirement: DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT,
+        growth_rate_during_retirement: DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT,
+        inflation_rate: DEFAULT_INFLATION_RATE_PCT,
+        enable_borrowing: DEFAULT_ENABLE_BORROWING,
+        ssa_start_age: scenarioVars.retirement_age || DEFAULT_SSA_START_AGE,
+        planner_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
+        spouse_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
       })
     }
   }
@@ -418,7 +422,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       }
       
       setMessage({ type: 'success', text: 'Plan basis saved successfully! Projections updated for all scenarios.' })
-      setTimeout(() => setMessage(null), 3000)
+      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
     } catch (error: any) {
       setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
       // Don't auto-close error messages
@@ -442,7 +446,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         if (error) throw error
         await loadAccounts()
         setMessage({ type: 'success', text: 'Account deleted successfully' })
-        setTimeout(() => setMessage(null), 3000)
+        setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
       } catch (error: any) {
         setMessage({ type: 'error', text: `Failed to delete account: ${error.message}` })
         // Don't auto-close error messages
@@ -450,7 +454,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
     } else {
       setAccounts(accounts.filter((_, i) => i !== index))
       setMessage({ type: 'success', text: 'Account removed' })
-      setTimeout(() => setMessage(null), 3000)
+      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
     }
   }
 
@@ -469,7 +473,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         if (error) throw error
         await loadExpenses()
         setMessage({ type: 'success', text: 'Expense deleted successfully' })
-        setTimeout(() => setMessage(null), 3000)
+        setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
       } catch (error: any) {
         setMessage({ type: 'error', text: `Failed to delete expense: ${error.message}` })
         // Don't auto-close error messages
@@ -477,7 +481,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
     } else {
       setExpenses(expenses.filter((_, i) => i !== index))
       setMessage({ type: 'success', text: 'Expense removed' })
-      setTimeout(() => setMessage(null), 3000)
+      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
     }
   }
 
@@ -547,7 +551,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         loan_rate: 0.1, // Keep for backward compatibility but not shown
         inflation_rate: scenarioVars.inflation_rate / 100,
         enable_borrowing: scenarioVars.enable_borrowing || false,
-        ssa_start_age: scenarioVars.ssa_start_age || scenarioVars.retirement_age || 65,
+        ssa_start_age: scenarioVars.ssa_start_age || scenarioVars.retirement_age || DEFAULT_RETIREMENT_AGE,
         planner_ssa_income: scenarioVars.planner_ssa_income !== undefined ? scenarioVars.planner_ssa_income : true,
         spouse_ssa_income: scenarioVars.spouse_ssa_income !== undefined ? scenarioVars.spouse_ssa_income : true,
       }
@@ -595,7 +599,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
       setShowSaveDialog(false)
       setNewScenarioName('')
       setMessage({ type: 'success', text: 'Scenario variables saved successfully! Projections updated.' })
-      setTimeout(() => setMessage(null), 3000)
+      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
     } catch (error: any) {
       setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
       // Don't auto-close error messages
@@ -808,7 +812,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                   <Input
                     type="number"
                     value={planBasis.life_expectancy}
-                    onChange={(e) => setPlanBasis({ ...planBasis, life_expectancy: parseInt(e.target.value) || 90 })}
+                    onChange={(e) => setPlanBasis({ ...planBasis, life_expectancy: parseInt(e.target.value) || DEFAULT_LIFE_EXPECTANCY })}
                     className="h-9 text-sm"
                   />
                   <p className="text-[11px] text-muted-foreground">Plan ends at {planBasis.life_expectancy}</p>
@@ -835,7 +839,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                     <Input
                       type="number"
                       value={planBasis.spouse_life_expectancy}
-                      onChange={(e) => setPlanBasis({ ...planBasis, spouse_life_expectancy: parseInt(e.target.value) || 90 })}
+                      onChange={(e) => setPlanBasis({ ...planBasis, spouse_life_expectancy: parseInt(e.target.value) || DEFAULT_LIFE_EXPECTANCY })}
                       className="h-9 text-sm"
                     />
                     <p className="text-[11px] text-muted-foreground">Plan ends at {planBasis.spouse_life_expectancy}</p>
@@ -892,13 +896,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                             <SelectValue placeholder="Type" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="IRA">IRA</SelectItem>
-                            <SelectItem value="401k">401k</SelectItem>
-                            <SelectItem value="Roth IRA">Roth IRA</SelectItem>
-                            <SelectItem value="HSA">HSA</SelectItem>
-                            <SelectItem value="Taxable">Taxable</SelectItem>
-                            <SelectItem value="ESPP">ESPP</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
+                            {ACCOUNT_TYPES.map(t => (
+                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1155,7 +1155,7 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               <Input
                 type="number"
                 value={scenarioVars.retirement_age}
-                onChange={(e) => setScenarioVars({ ...scenarioVars, retirement_age: parseInt(e.target.value) || 65 })}
+                onChange={(e) => setScenarioVars({ ...scenarioVars, retirement_age: parseInt(e.target.value) || DEFAULT_RETIREMENT_AGE })}
                 className="h-9 text-sm"
               />
             </div>

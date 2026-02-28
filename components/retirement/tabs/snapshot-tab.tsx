@@ -33,6 +33,29 @@ import {
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from 'recharts'
+import {
+  SSA_FULL_RETIREMENT_AGE,
+  ssaClaimingMultiplier,
+} from '@/lib/constants/ssa-constants'
+import {
+  DEFAULT_AGE,
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_CURRENT_SAVINGS,
+  DEFAULT_ANNUAL_CONTRIBUTION,
+  DEFAULT_MONTHLY_EXPENSES,
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_INCLUDE_SSA,
+  DEFAULT_SSA_START_AGE,
+  DEFAULT_FILING_STATUS,
+  SAFE_WITHDRAWAL_RATE,
+  SCORE_ON_TRACK_THRESHOLD,
+  SCORE_CLOSE_THRESHOLD,
+} from '@/lib/constants/retirement-defaults'
+import { getStandardDeduction } from '@/lib/constants/tax-brackets'
+import { DEBOUNCE_SAVE_MS, TOAST_DURATION_SHORT, TOAST_DURATION_LONG } from '@/lib/constants/timing'
 
 interface SnapshotTabProps {
   planId: number
@@ -149,6 +172,30 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     checkExistingData()
   }, [planId, selectedScenarioId])
 
+  const saveMetrics = async (r: {
+    confidenceScore: number
+    monthlyRetirementIncome: number
+    yearsMoneyLasts: number
+    legacyValue: number
+    status: string
+  }, currentAge: number, retirementAge: number) => {
+    try {
+      await supabase.from('rp_plan_metrics').upsert({
+        plan_id: planId,
+        current_age: currentAge,
+        retirement_age: retirementAge,
+        confidence_score: r.confidenceScore,
+        monthly_income: r.monthlyRetirementIncome,
+        years_money_lasts: r.yearsMoneyLasts,
+        legacy_value: r.legacyValue,
+        status: r.status,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'plan_id' })
+    } catch {
+      // non-critical — silent fail
+    }
+  }
+
   const checkExistingData = async () => {
     try {
       // First check if we have accounts or expenses
@@ -248,7 +295,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
 
       const currentYear = new Date().getFullYear()
       const birthYear = planData.data.birth_year || (currentYear - 50)
-      const retirementAge = settingsData.data.retirement_age || 65
+      const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
       const yearsToRetirement = retirementAge - (currentYear - birthYear)
       
       const totalSavings = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
@@ -288,7 +335,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       
       // Adjust for inflation from current year to SSA start age
       // IMPORTANT: Use settings.current_year to match what the projection function uses
-      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
       const projectionCurrentYear = settings.current_year || currentYear
       const projectionCurrentAge = projectionCurrentYear - birthYear
       const yearsToSsaStart = Math.max(0, ssaStartAge - projectionCurrentAge)
@@ -307,7 +354,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         expenses,
         otherIncome,
         settings,
-        planData.data.life_expectancy || 90,
+        planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
         planData.data.spouse_birth_year || undefined,
         planData.data.spouse_life_expectancy || undefined,
         includePlannerSsa,
@@ -317,9 +364,10 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       )
 
       // Calculate snapshot results
-      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planData.data.life_expectancy || 90)
+      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
       setResults(snapshotResults)
       setProjections(projections) // Store projections for simplified view
+      saveMetrics(snapshotResults, currentYear - birthYear, retirementAge)
       
       // Store data for tooltip
       setPlanDataForTooltip(planData.data)
@@ -372,7 +420,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         includeSsa: ssaSettings.includeSsa ?? true,
         ssaForTwo: ssaSettings.ssaForTwo ?? true,
       })
-    }, 800) // 800ms debounce for income field
+    }, DEBOUNCE_SAVE_MS) // debounce for income field
 
     return () => clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -556,9 +604,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
 
     // Determine status
     let status: 'on-track' | 'close' | 'at-risk'
-    if (confidenceScore >= 80) {
+    if (confidenceScore >= SCORE_ON_TRACK_THRESHOLD) {
       status = 'on-track'
-    } else if (confidenceScore >= 60) {
+    } else if (confidenceScore >= SCORE_CLOSE_THRESHOLD) {
       status = 'close'
     } else {
       status = 'at-risk'
@@ -584,8 +632,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     const firstYearExpenses = retirementProjections[0]?.total_expenses || retirementProjections[0]?.living_expenses || annualExpenses
     const startingNetworth = retirementProjections[0]?.networth || currentSavings
     const withdrawalRate = startingNetworth > 0 ? (firstYearExpenses / startingNetworth) * 100 : 0
-    const growthRateDuring = (settings.growth_rate_during_retirement || 0.05) * 100
-    const inflationRate = (settings.inflation_rate || 0.03) * 100
+    const growthRateDuring = (settings.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100
+    const inflationRate = (settings.inflation_rate || DEFAULT_INFLATION_RATE) * 100
     
     // Calculate account balances at retirement
     const firstYearProj = retirementProjections[0]
@@ -693,7 +741,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       }
     } else if (avgGap < 0 && monthlyContributionNeeded > 0) {
       improvements.push(`Increase monthly savings by $${Math.round(monthlyContributionNeeded).toLocaleString(undefined, { maximumFractionDigits: 0 })} to eliminate income gaps`)
-    } else if (confidenceScore >= 80 && yearsToRetirement > 0) {
+    } else if (confidenceScore >= SCORE_ON_TRACK_THRESHOLD && yearsToRetirement > 0) {
       const extraMonthly = Math.round(currentSavings * 0.001) // 0.1% of savings as extra monthly
       improvements.push(`You're on track! Consider $${extraMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/month extra for additional cushion`)
     }
@@ -709,7 +757,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     
     // Withdrawal rate improvement
     if (withdrawalRate > 4.5) {
-      const expenseReduction = firstYearExpenses - (startingNetworth * 0.04)
+      const expenseReduction = firstYearExpenses - (startingNetworth * SAFE_WITHDRAWAL_RATE)
       if (expenseReduction > 0) {
         improvements.push(`Reduce annual expenses by $${expenseReduction.toLocaleString(undefined, { maximumFractionDigits: 0 })} to reach 4% withdrawal rate`)
       }
@@ -721,8 +769,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     }
     
     // SSA optimization
-    if (settings.ssa_start_age && settings.ssa_start_age < 67) {
-      improvements.push(`Delaying Social Security to age 67+ increases benefits by ~8% per year`)
+    if (settings.ssa_start_age && settings.ssa_start_age < SSA_FULL_RETIREMENT_AGE) {
+      improvements.push(`Delaying Social Security to age ${SSA_FULL_RETIREMENT_AGE}+ increases benefits by ~8% per year`)
     }
     
     // Additional suggestions based on situation
@@ -741,7 +789,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     const firstRetirementYear = retirementProjections[0]
     const firstYearLivingExpenses = firstRetirementYear?.living_expenses || 0
     const currentYearExpenses = annualExpenses
-    const inflationRateDecimal = settings.inflation_rate || 0.04
+    const inflationRateDecimal = settings.inflation_rate || DEFAULT_INFLATION_RATE
     const expensesAtRetirementStart = currentYearExpenses * Math.pow(1 + inflationRateDecimal, yearsToRetirement)
     const legacyValueCalculation = (() => {
       if (fundsRunOutAge === null || fundsRunOutAge >= lifeExpectancy) {
@@ -897,7 +945,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
 
       // Save calculator settings - use saved annual expenses
       // Inflate expenses to retirement start year (current expenses adjusted for inflation)
-      const inflationRate = 0.04 // 4% default inflation rate
+      const inflationRate = 0.03 // 3% default inflation rate
       const retirementStartExpenses = savedAnnualExpenses * Math.pow(1 + inflationRate, yearsToRetirement)
       
       // Use goal-based strategy to ensure expenses are always covered
@@ -910,7 +958,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         annual_retirement_expenses: retirementStartExpenses, // Expenses at retirement start (inflated from current)
         growth_rate_before_retirement: growthRate,
         growth_rate_during_retirement: growthRate * 0.7,
-        inflation_rate: 0.04,
+        inflation_rate: 0.03,
         planner_ssa_income: true, // Default to including SSA
         spouse_ssa_income: inputs.ssaForTwo, // Set based on whether spouse is included
         ssa_start_age: inputs.retirementAge, // Default SSA start age = retirement age
@@ -994,7 +1042,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         annual_retirement_expenses: retirementStartExpenses, // Use inflated expenses at retirement start
         growth_rate_before_retirement: growthRate,
         growth_rate_during_retirement: growthRate * 0.7,
-        inflation_rate: 0.04,
+        inflation_rate: 0.03,
         filing_status: (planDataForFilingStatus?.filing_status as any) || (inputs.ssaForTwo ? 'Married Filing Jointly' : 'Single'),
         // Use expense-based strategy to ensure expenses and tax are always covered
         withdrawal_strategy_type: 'amount_based_expense_coverage',
@@ -1033,6 +1081,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       setResults(snapshotResults)
       setProjections(projections) // Store projections for simplified view
       setHasExistingData(true)
+      saveMetrics(snapshotResults, inputs.age, inputs.retirementAge)
       
       // Store data for tooltip
       setPlanDataForTooltip({
@@ -1047,7 +1096,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       // projections removed - projections state is the single source of truth
       // Keep showQuickStart as true to show results in Simple view, not Advanced
       setMessage({ type: 'success', text: 'Your plan has been saved! Results are shown below.' })
-      setTimeout(() => setMessage(null), 5000)
+      setTimeout(() => setMessage(null), TOAST_DURATION_LONG)
       
       // Reload to ensure scenario is selected
       if (scenarioId) {
@@ -1368,8 +1417,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                             const currentYear = new Date().getFullYear()
                             const birthYear = planDataForTooltip?.birth_year || 0
                             const currentAge = birthYear ? currentYear - birthYear : 0
-                            const retirementAge = settingsForTooltip?.retirement_age || 65
-                            const lifeExpectancy = planDataForTooltip?.life_expectancy || 90
+                            const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
+                            const lifeExpectancy = planDataForTooltip?.life_expectancy || DEFAULT_LIFE_EXPECTANCY
                             const finalProjection = projections[projections.length - 1]
                             const finalAge = finalProjection?.age || 0
                             const zeroNetworthYear = projections.findIndex(p => (p.networth || 0) <= 0)
@@ -1453,9 +1502,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                           setEditingAssumptions(true)
                                           setEditedAssumptions({
                                             growth_rate_before_retirement: settingsForTooltip?.growth_rate_before_retirement || 0.1,
-                                            growth_rate_during_retirement: settingsForTooltip?.growth_rate_during_retirement || 0.05,
-                                            inflation_rate: settingsForTooltip?.inflation_rate || 0.04,
-                                            ssa_start_age: settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65,
+                                            growth_rate_during_retirement: settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+                                            inflation_rate: settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE,
+                                            ssa_start_age: settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE,
                                           })
                                         }}
                                         className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded transition-colors"
@@ -1495,7 +1544,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                                 setEditingAssumptions(false)
                                                 setEditedAssumptions(null)
                                                 setMessage({ type: 'success', text: 'Assumptions updated and projections recalculated!' })
-                                                setTimeout(() => setMessage(null), 3000)
+                                                setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
                                               } catch (error: any) {
                                                 console.error('Error saving assumptions:', error)
                                                 setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
@@ -1595,7 +1644,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                               step="1"
                                               min="62"
                                               max="70"
-                                              value={editedAssumptions.ssa_start_age || settingsForTooltip?.retirement_age || 65}
+                                              value={editedAssumptions.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE}
                                               onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 62
                                                 setEditedAssumptions({
@@ -1612,13 +1661,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                     ) : (
                                       <>
                                         <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settingsForTooltip?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
-                                        <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
-                                        <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                        <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100).toFixed(2)}%</p>
+                                        <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE) * 100).toFixed(2)}%</p>
                                         <p><span className="text-gray-500">Taxes:</span> Using IRS brackets</p>
-                                        <p><span className="text-gray-500">SSA Start Age:</span> {settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65} years</p>
+                                        <p><span className="text-gray-500">SSA Start Age:</span> {settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE} years</p>
                                       </>
                                     )}
-                                    <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || 'Single'}</p>
+                                    <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || DEFAULT_FILING_STATUS}</p>
                                     <p><span className="text-gray-500">Borrowing Enabled:</span> {settingsForTooltip?.enable_borrowing ? 'Yes' : 'No'}</p>
                                     {(planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly') && (
                                       <p className="text-xs text-yellow-400 mt-2">
@@ -1701,8 +1750,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                     <div className="w-64 bg-gray-200 rounded-full h-3">
                       <div
                         className={`h-3 rounded-full transition-all duration-500 ${
-                          results.confidenceScore >= 80 ? 'bg-green-500' :
-                          results.confidenceScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                          results.confidenceScore >= SCORE_ON_TRACK_THRESHOLD ? 'bg-green-500' :
+                          results.confidenceScore >= SCORE_CLOSE_THRESHOLD ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${results.confidenceScore}%` }}
                       />
@@ -1795,8 +1844,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                               const currentYear = new Date().getFullYear()
                               const birthYear = planDataForTooltip?.birth_year || 0
                               const currentAge = birthYear ? currentYear - birthYear : 0
-                              const retirementAge = settingsForTooltip?.retirement_age || 65
-                              const lifeExpectancy = planDataForTooltip?.life_expectancy || results.lifeExpectancy || 90
+                              const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
+                              const lifeExpectancy = planDataForTooltip?.life_expectancy || results.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY
                               const finalProjection = projections[projections.length - 1]
                               const finalAge = finalProjection?.age || 0
                               const zeroNetworthYear = projections.findIndex(p => (p.networth || 0) <= 0)
@@ -1831,8 +1880,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                     <h4 className="font-semibold text-yellow-400 mb-2">Assumptions</h4>
                                     <div className="space-y-1 text-gray-300">
                                       <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settingsForTooltip?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE) * 100).toFixed(2)}%</p>
                                     </div>
                                   </div>
                                   
@@ -1966,23 +2015,20 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                 </p>
                 {!showSsaCustomization && (() => {
                   // Calculate SSA at start age for display (matching projection calculations exactly)
-                  const ssaStartAge = settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65
+                  const ssaStartAge = settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                   // Use the same age calculation as projection: currentYear - birthYear
                   const currentYear = new Date().getFullYear()
                   const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
                   const currentAge = currentYear - birthYear
                   const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
-                  const inflationRate = settingsForTooltip?.inflation_rate || 0.03
+                  const inflationRate = settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE
                   const inflationToSsaStart = yearsToSsaStart > 0 
                     ? Math.pow(1 + inflationRate, yearsToSsaStart)
                     : 1
                   
-                  // Apply early retirement reduction factor (permanent reduction if claiming before 67)
-                  // ~6.67% reduction per year early, max 30% reduction at age 62
-                  const earlyRetirementMultiplier = ssaStartAge < 67 
-                    ? Math.max(0.70, 1.0 - (67 - ssaStartAge) * 0.0667) 
-                    : 1.0
-                  const earlyRetirementReduction = ssaStartAge < 67 ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
+                  // Apply early retirement reduction factor (permanent reduction if claiming before FRA)
+                  const earlyRetirementMultiplier = ssaClaimingMultiplier(ssaStartAge)
+                  const earlyRetirementReduction = ssaStartAge < SSA_FULL_RETIREMENT_AGE ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
                   
                   // Use same spouse inclusion logic as projection
                   const includeSpouseInDisplay = inputs.includeSsa && (
@@ -2029,7 +2075,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                       </div>
                       
                       <p className="text-xs text-gray-500 mt-1 pt-2 border-t border-gray-300">
-                        {ssaStartAge < 67 && `(Includes ${earlyRetirementReduction}% early retirement reduction for claiming at age ${ssaStartAge}. `}
+                        {ssaStartAge < SSA_FULL_RETIREMENT_AGE && `(Includes ${earlyRetirementReduction}% early retirement reduction for claiming at age ${ssaStartAge}. `}
                         {yearsToSsaStart > 0 && `Future dollars are inflation-adjusted to age ${ssaStartAge} (${(inflationRate * 100).toFixed(2)}% annual inflation). `}
                         Benefits will continue to adjust for inflation each year after age {ssaStartAge}.)
                       </p>
@@ -2104,21 +2150,19 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                         {(() => {
                           // Calculate SSA with inflation and early retirement adjustments
                           // Use consistent age calculation - derive from birthYear for accuracy
-                          const ssaStartAge = settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65
+                          const ssaStartAge = settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                           const currentYear = new Date().getFullYear()
                           const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
                           const currentAge = currentYear - birthYear
                           const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
-                          const inflationRate = settingsForTooltip?.inflation_rate || 0.03
+                          const inflationRate = settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE
                           const inflationToSsaStart = yearsToSsaStart > 0 
                             ? Math.pow(1 + inflationRate, yearsToSsaStart)
                             : 1
                           
                           // Early retirement reduction factor
-                          const earlyRetirementMultiplier = ssaStartAge < 67 
-                            ? Math.max(0.70, 1.0 - (67 - ssaStartAge) * 0.0667) 
-                            : 1.0
-                          const earlyRetirementReduction = ssaStartAge < 67 ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
+                          const earlyRetirementMultiplier = ssaClaimingMultiplier(ssaStartAge)
+                          const earlyRetirementReduction = ssaStartAge < SSA_FULL_RETIREMENT_AGE ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
                           
                           const basePlannerSsa = ssaSettings.includeSsa ? calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, true) : 0
                           const baseSpouseSsa = ssaSettings.includeSsa && ssaSettings.ssaForTwo ? calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, false) : 0
@@ -2141,9 +2185,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                   <strong>Total: ${Math.round(totalAdjustedSsa).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</strong>
                                 </p>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  {ssaStartAge < 67 && `(Includes ${earlyRetirementReduction}% early retirement reduction. `}
+                                  {ssaStartAge < SSA_FULL_RETIREMENT_AGE && `(Includes ${earlyRetirementReduction}% early retirement reduction. `}
                                   {yearsToSsaStart > 0 && `Inflation-adjusted to age ${ssaStartAge}.`}
-                                  {ssaStartAge >= 67 && yearsToSsaStart === 0 && '(Full retirement age benefit.)'}
+                                  {ssaStartAge >= SSA_FULL_RETIREMENT_AGE && yearsToSsaStart === 0 && '(Full retirement age benefit.)'}
                                   )
                                 </p>
                               </div>
@@ -2201,7 +2245,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                           setInputs({ ...inputs, includeSsa: ssaSettings.includeSsa, ssaForTwo: ssaSettings.ssaForTwo, estimatedAnnualIncome: ssaSettings.estimatedAnnualIncome })
                           
                           setMessage({ type: 'success', text: 'SSA assumptions saved to your profile!' })
-                          setTimeout(() => setMessage(null), 5000)
+                          setTimeout(() => setMessage(null), TOAST_DURATION_LONG)
                           
                           // Recalculate with new SSA settings (use current state values)
                           await loadAndCalculateSnapshot({
@@ -2298,15 +2342,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                             const currentYear = new Date().getFullYear()
                             const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
                             const currentAgeCalc = currentYear - birthYear
-                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || DEFAULT_RETIREMENT_AGE
                             
                             const filteredProjs = projections.filter(p => {
                               if (showPreRetirement) {
                                 // Show all projections from current age to life expectancy
-                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               } else {
                                 // Show only retirement years
-                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               }
                             })
                             
@@ -2605,14 +2649,14 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                             const currentYear = new Date().getFullYear()
                             const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
                             const currentAgeCalc = currentYear - birthYear
-                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || DEFAULT_RETIREMENT_AGE
                             
                             if (showPreRetirement) {
                               // Show all projections from current age to life expectancy
-                              return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                              return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                             } else {
                               // Show only retirement years
-                              return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                              return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                             }
                           })
                           .map((proj, idx) => {
@@ -2621,13 +2665,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                             const currentYear = new Date().getFullYear()
                             const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
                             const currentAgeCalc = currentYear - birthYear
-                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || DEFAULT_RETIREMENT_AGE
                             
                             const filteredProjs = projections.filter(p => {
                               if (showPreRetirement) {
-                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               } else {
-                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               }
                             })
                             const prevProj = idx > 0 ? filteredProjs[idx - 1] : null
@@ -2731,7 +2775,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                               // Determine filing status using the same logic as the main calculation
                                               const includeSpouseSsa = planDataForTooltip?.include_spouse || false
                                               const filingStatus = determineFilingStatus(includeSpouseSsa, planDataForTooltip?.filing_status)
-                                              const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+                                              const standardDeduction = getStandardDeduction(filingStatus)
                                               const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
                                               const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
                                               
@@ -2949,11 +2993,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                         
                                         // Calculate contributions from actual balance changes (same method as individual account tooltips)
                                         // Use settingsForTooltip consistently - this is what the projections were calculated with
-                                        const retirementAgeForCalc = settingsForTooltip?.retirement_age || 65
+                                        const retirementAgeForCalc = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                                         const isRetired = proj.age >= retirementAgeForCalc
                                         const growthRate = isRetired 
-                                          ? (settingsForTooltip?.growth_rate_during_retirement || 0.05)
-                                          : (settingsForTooltip?.growth_rate_before_retirement || 0.1)
+                                          ? (settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
+                                          : (settingsForTooltip?.growth_rate_before_retirement || DEFAULT_GROWTH_RATE_PRE_RETIREMENT)
                                         
                                         // Calculate contributions for each account type from balance changes
                                         const calculateAccountContributions = (current: number, previous: number | null, distribution: number): number => {
@@ -3107,13 +3151,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                     const currentYear = new Date().getFullYear()
                     const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
                     const currentAgeCalc = currentYear - birthYear
-                    const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                    const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || DEFAULT_RETIREMENT_AGE
                     
                     const filteredProjs = projections.filter(p => {
                       if (showPreRetirement) {
-                        return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                        return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                       } else {
-                        return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                        return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                       }
                     })
                     

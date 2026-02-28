@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { TrendingUp, Building2, Target, ChevronRight, LayoutDashboard, Shield } from 'lucide-react'
-import { motion } from 'motion/react'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 
 const apps = [
@@ -84,12 +83,7 @@ export function HomeContent({ userEmail }: HomeContentProps) {
 
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Hero */}
-        <motion.div
-          className="mb-12 text-center"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        >
+        <div className="mb-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
             <LayoutDashboard className="h-3 w-3" />
             Investment Planning Suite
@@ -100,25 +94,15 @@ export function HomeContent({ userEmail }: HomeContentProps) {
           <p className="mt-4 mx-auto max-w-xl text-lg text-muted-foreground">
             Your unified financial planning platform. Analyze portfolios, model real estate investments, and plan for retirement.
           </p>
-        </motion.div>
+        </div>
 
-        {/* App cards — staggered */}
-        <motion.div
-          className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: {},
-            visible: { transition: { staggerChildren: 0.1, delayChildren: 0.15 } },
-          }}
-        >
-          {apps.map((app) => (
-            <motion.div
+        {/* App cards */}
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {apps.map((app, i) => (
+            <div
               key={app.id}
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
-              }}
+              className="animate-in fade-in slide-in-from-bottom-4 duration-300"
+              style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
             >
               <Link
                 href={app.href}
@@ -148,20 +132,15 @@ export function HomeContent({ userEmail }: HomeContentProps) {
                   <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </Link>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
 
         {/* Footer */}
-        <motion.p
-          className="mt-12 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.4 }}
-        >
+        <p className="mt-12 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground animate-in fade-in duration-500" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
           <Shield className="h-3 w-3" />
           Your financial data is private and never shared.
-        </motion.p>
+        </p>
       </main>
     </div>
   )

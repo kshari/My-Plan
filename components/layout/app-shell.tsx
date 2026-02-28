@@ -4,7 +4,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, LayoutDashboard, TrendingUp, Building2, Target } from "lucide-react"
-import { motion } from "motion/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
@@ -68,14 +67,9 @@ export function AppShell({ children, userEmail }: AppShellProps) {
         </header>
 
         {/* Main content — leaves room for bottom nav on mobile */}
-        <motion.main
-          className="flex-1 overflow-y-auto pb-20 lg:pb-0"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-        >
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           {children}
-        </motion.main>
+        </main>
 
         {/* Mobile bottom navigation */}
         <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center border-t bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 lg:hidden">

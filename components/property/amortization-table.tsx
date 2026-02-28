@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { BALANCE_THRESHOLD } from '@/lib/constants/property-defaults'
 import type { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/ui/data-table'
 
@@ -65,7 +66,7 @@ export default function AmortizationTable({
     let balance = principal
     const rows: AmortizationRow[] = []
 
-    for (let i = 1; i <= totalPayments && balance > 0.01; i++) {
+    for (let i = 1; i <= totalPayments && balance > BALANCE_THRESHOLD; i++) {
       const interestPayment = balance * monthlyRate
       const principalPayment = monthlyPayment - interestPayment
       const newBalance = balance - principalPayment

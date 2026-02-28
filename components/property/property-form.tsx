@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { PROPERTY_TYPES } from '@/lib/constants/property-defaults'
 import { useRouter } from 'next/navigation'
 
 interface PropertyFormProps {
@@ -109,11 +110,9 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         >
           <option value="">Select property type</option>
-          <option value="Single Family">Single Family</option>
-          <option value="Multi Family">Multi Family</option>
-          <option value="Apartment">Apartment</option>
-          <option value="Commercial">Commercial</option>
-          <option value="Other">Other</option>
+          {PROPERTY_TYPES.map((pt) => (
+            <option key={pt} value={pt}>{pt}</option>
+          ))}
         </select>
       </div>
 
