@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { ErrorMessage } from '@/components/ui/error-message'
 
 export default function ProfileForm() {
   const [loading, setLoading] = useState(false)
@@ -98,11 +99,9 @@ export default function ProfileForm() {
       </div>
 
       {message && (
-        <div className={`rounded-md p-4 ${
-          message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-        }`}>
-          {message.text}
-        </div>
+        message.type === 'error'
+          ? <ErrorMessage message={message.text} />
+          : <div className="rounded-md bg-green-50 p-4 text-green-800">{message.text}</div>
       )}
     </div>
   )

@@ -1,14 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirectIfAuthenticated } from '@/lib/utils/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 export default async function RetirementSignupPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) {
-    redirect('/apps/retirement/dashboard')
-  }
+  await redirectIfAuthenticated('/apps/retirement/dashboard')
 
   async function handleSignup(formData: FormData) {
     'use server'

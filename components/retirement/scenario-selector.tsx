@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from './scenario-context'
 import { Plus, X, Check, Trash2 } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface Scenario {
   id: number
@@ -12,13 +13,18 @@ interface Scenario {
 }
 
 interface ScenarioSelectorProps {
-  planId: number
-  selectedScenarioId: number | null
-  onScenarioChange: (scenarioId: number) => void
+  planId?: number
+  selectedScenarioId?: number | null
+  onScenarioChange?: (scenarioId: number) => void
 }
 
-// Standalone version for use outside context
-export default function ScenarioSelector({ planId, selectedScenarioId, onScenarioChange }: ScenarioSelectorProps) {
+interface ScenarioSelectorInnerProps {
+  planId: number
+  selectedScenarioId: number | null
+  onScenarioChange: (scenarioId: number | null) => void
+}
+
+function ScenarioSelectorInner({ planId, selectedScenarioId, onScenarioChange }: ScenarioSelectorInnerProps) {
   const supabase = createClient()
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [loading, setLoading] = useState(false)
@@ -42,7 +48,6 @@ export default function ScenarioSelector({ planId, selectedScenarioId, onScenari
       if (error) throw error
       setScenarios(data || [])
       
-      // Auto-select default scenario or first scenario
       if (data && data.length > 0 && !selectedScenarioId) {
         const defaultScenario = data.find(s => s.is_default) || data[0]
         onScenarioChange(defaultScenario.id)
@@ -66,7 +71,7 @@ export default function ScenarioSelector({ planId, selectedScenarioId, onScenari
         .insert([{
           plan_id: planId,
           scenario_name: newScenarioName.trim(),
-          is_default: scenarios.length === 0 // First scenario is default
+          is_default: scenarios.length === 0
         }])
         .select()
         .single()
@@ -94,10 +99,11 @@ export default function ScenarioSelector({ planId, selectedScenarioId, onScenari
       if (error) throw error
       
       loadScenarios()
-      // Select first remaining scenario
       const remaining = scenarios.filter(s => s.id !== scenarioId)
       if (remaining.length > 0) {
         onScenarioChange(remaining[0].id)
+      } else {
+        onScenarioChange(null)
       }
     } catch (error: any) {
       alert(`Failed to delete scenario: ${error.message}`)
@@ -106,13 +112,11 @@ export default function ScenarioSelector({ planId, selectedScenarioId, onScenari
 
   const handleSetDefault = async (scenarioId: number) => {
     try {
-      // Remove default from all scenarios
       await supabase
         .from('rp_scenarios')
         .update({ is_default: false })
         .eq('plan_id', planId)
 
-      // Set new default
       const { error } = await supabase
         .from('rp_scenarios')
         .update({ is_default: true })
@@ -126,7 +130,7 @@ export default function ScenarioSelector({ planId, selectedScenarioId, onScenari
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-600">Loading scenarios...</div>
+    return <LoadingState message="Loading scenarios…" />
   }
 
   return (
@@ -221,4 +225,29 @@ export default function ScenarioSelector({ planId, selectedScenarioId, onScenari
       )}
     </div>
   )
+}
+
+export function ScenarioSelectorWithContext() {
+  const { planId, selectedScenarioId, setSelectedScenarioId } = useScenario()
+  return (
+    <ScenarioSelectorInner
+      planId={planId}
+      selectedScenarioId={selectedScenarioId}
+      onScenarioChange={setSelectedScenarioId}
+    />
+  )
+}
+
+export default function ScenarioSelector({ planId, selectedScenarioId, onScenarioChange }: ScenarioSelectorProps) {
+  if (planId !== undefined && onScenarioChange !== undefined) {
+    return (
+      <ScenarioSelectorInner
+        planId={planId}
+        selectedScenarioId={selectedScenarioId ?? null}
+        onScenarioChange={(id) => { if (id !== null) onScenarioChange(id) }}
+      />
+    )
+  }
+
+  return <ScenarioSelectorWithContext />
 }

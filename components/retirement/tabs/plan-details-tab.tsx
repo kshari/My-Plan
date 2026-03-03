@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import ScenariosTable from '../scenarios-table'
 import DefaultsPopup from '../defaults-popup'
-import { Copy, Plus, Trash2, Save, Check, X, User, Wallet, ShoppingCart, Pencil, ChevronUp } from 'lucide-react'
+import { CalculatorAssumptionsForm } from '../calculator-assumptions-form'
+import {
+  Copy, Plus, Trash2, Save, X, User, Wallet, ShoppingCart,
+  Pencil, ChevronUp, ChevronDown, SlidersHorizontal,
+} from 'lucide-react'
 import { calculateAndSaveProjectionsForScenario } from '@/lib/utils/calculate-projections'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { RetirementAssumptions } from '@/lib/types/retirement-assumptions'
 import {
   DEFAULT_RETIREMENT_AGE,
   DEFAULT_LIFE_EXPECTANCY,
@@ -25,6 +30,10 @@ import {
   DEFAULT_INFLATION_RATE_PCT,
   DEFAULT_ENABLE_BORROWING,
   DEFAULT_SSA_START_AGE,
+  DEFAULT_SSA_ANNUAL_BENEFIT,
+  DEFAULT_SPOUSE_SSA_BENEFIT,
+  DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM,
+  DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM,
   DEFAULT_PLANNER_SSA_INCOME,
   DEFAULT_SPOUSE_SSA_INCOME,
 } from '@/lib/constants/retirement-defaults'
@@ -57,17 +66,14 @@ interface Expense {
   amount_before_65: number
 }
 
-// Default accounts from centralized constants (clone to avoid mutation)
 const getDefaultAccounts = () => DEFAULT_PLAN_ACCOUNTS.map(a => ({ ...a, owner: '', annual_contribution: 0 }))
 
-// Default expenses from centralized constants (clone to avoid mutation)
 const getDefaultExpenses = () => DEFAULT_EXPENSE_CATEGORIES.map(e => ({
   expense_name: e.expense_name,
   amount_after_65: e.annual_amount / 12,
   amount_before_65: e.annual_amount / 12,
 }))
 
-// Categorize expenses as essential or discretionary
 const isEssentialExpense = (expenseName: string): boolean => {
   const essentialKeywords = ['rent', 'taxes', 'maint', 'groceries', 'utilities', 'medical', 'essential']
   const lowerName = expenseName.toLowerCase()
@@ -77,32 +83,36 @@ const isEssentialExpense = (expenseName: string): boolean => {
 export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
-  const [loading, setLoading] = useState(false)
+  const currentYear = new Date().getFullYear()
+
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [newScenarioName, setNewScenarioName] = useState('')
-  const [planBasisExpanded, setPlanBasisExpanded] = useState(false)
-  const [accountsExpanded, setAccountsExpanded] = useState(false)
-  const [expensesExpanded, setExpensesExpanded] = useState(false)
-  const [scenarioVarsExpanded, setScenarioVarsExpanded] = useState(false)
   const [showDefaultsPopup, setShowDefaultsPopup] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
-  
-  // Plan Basis (plan-level)
+  const [scenariosTableRefreshKey, setScenariosTableRefreshKey] = useState(0)
+
+  // Progressive disclosure
+  const [accountsExpanded, setAccountsExpanded] = useState(false)
+  const [expensesExpanded, setExpensesExpanded] = useState(false)
+  const [additionalExpanded, setAdditionalExpanded] = useState(false)
+
+  // Plan Basis
   const [planBasis, setPlanBasis] = useState({
-    birth_year: new Date().getFullYear() - 50,
     age: 50,
+    birth_year: currentYear - 50,
     filing_status: 'Married Filing Jointly' as 'Single' | 'Married Filing Jointly' | 'Married Filing Separately' | 'Head of Household',
     life_expectancy: 90,
     include_spouse: false,
-    spouse_birth_year: new Date().getFullYear() - 50,
+    spouse_birth_year: currentYear - 50,
     spouse_life_expectancy: 90,
   })
   const [accounts, setAccounts] = useState<Account[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
-  
-  // Scenario Variables (scenario-level)
+
+  // Scenario Variables (extended with SSA amounts + healthcare)
   const [scenarioVars, setScenarioVars] = useState({
     retirement_age: DEFAULT_RETIREMENT_AGE,
     growth_rate_before_retirement: DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT,
@@ -112,40 +122,45 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
     ssa_start_age: DEFAULT_SSA_START_AGE,
     planner_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
     spouse_ssa_income: DEFAULT_SPOUSE_SSA_INCOME,
+    planner_ssa_annual_benefit: null as number | null,
+    spouse_ssa_annual_benefit: null as number | null,
+    pre_medicare_annual_premium: null as number | null,
+    post_medicare_annual_premium: null as number | null,
   })
 
+  // --- Data loading ---
+
   useEffect(() => {
-    loadPlanBasis()
-    loadAccounts()
-    loadExpenses()
-    loadScenarios()
+    loadAll()
   }, [planId])
 
   useEffect(() => {
-    if (selectedScenarioId) {
-      loadScenarioVars()
-      setScenarioVarsExpanded(false) // Keep collapsed when scenario changes
-    }
+    if (selectedScenarioId) loadScenarioVars()
   }, [selectedScenarioId])
+
+  const loadAll = async () => {
+    setLoading(true)
+    await Promise.all([loadPlanBasis(), loadAccounts(), loadExpenses(), loadScenarios()])
+    setLoading(false)
+  }
 
   const loadPlanBasis = async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('rp_retirement_plans')
         .select('birth_year, filing_status, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy')
         .eq('id', planId)
         .single()
 
-      if (data && data.birth_year) {
-        const currentYear = new Date().getFullYear()
+      if (data?.birth_year) {
         const age = currentYear - data.birth_year
         setPlanBasis({
+          age,
           birth_year: data.birth_year,
-          age: age,
           filing_status: data.filing_status || 'Married Filing Jointly',
           life_expectancy: data.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
           include_spouse: data.include_spouse || false,
-          spouse_birth_year: data.spouse_birth_year || data.birth_year, // Default to planner's birth year
+          spouse_birth_year: data.spouse_birth_year || data.birth_year,
           spouse_life_expectancy: data.spouse_life_expectancy || DEFAULT_LIFE_EXPECTANCY,
         })
       }
@@ -156,22 +171,12 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
   const loadAccounts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('rp_accounts')
-        .select('*')
-        .eq('plan_id', planId)
-        .order('id')
-
+      const { data, error } = await supabase.from('rp_accounts').select('*').eq('plan_id', planId).order('id')
       if (error) throw error
-      
-      // If no accounts exist, initialize with defaults
       if (!data || data.length === 0) {
         setAccounts(getDefaultAccounts())
       } else {
-        setAccounts(data.map(acc => ({
-          ...acc,
-          annual_contribution: acc.annual_contribution || 0
-        })))
+        setAccounts(data.map(acc => ({ ...acc, annual_contribution: acc.annual_contribution || 0 })))
       }
     } catch (error) {
       console.error('Error loading accounts:', error)
@@ -180,15 +185,8 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
   const loadExpenses = async () => {
     try {
-      const { data, error } = await supabase
-        .from('rp_expenses')
-        .select('*')
-        .eq('plan_id', planId)
-        .order('id')
-
+      const { data, error } = await supabase.from('rp_expenses').select('*').eq('plan_id', planId).order('id')
       if (error) throw error
-      
-      // If no expenses exist, initialize with defaults
       if (!data || data.length === 0) {
         setExpenses(getDefaultExpenses())
       } else {
@@ -207,11 +205,8 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         .eq('plan_id', planId)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: true })
-
       if (error) throw error
       setScenarios(data || [])
-      
-      // Auto-select default scenario if exists
       if (data && data.length > 0) {
         const defaultScenario = data.find(s => s.is_default) || data[0]
         setSelectedScenarioId(defaultScenario.id)
@@ -223,10 +218,8 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
   const loadScenarioVars = async () => {
     if (!selectedScenarioId) return
-    
-    setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('rp_calculator_settings')
         .select('*')
         .eq('scenario_id', selectedScenarioId)
@@ -241,34 +234,25 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           inflation_rate: parseFloat(data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)) * 100,
           enable_borrowing: data.enable_borrowing ?? DEFAULT_ENABLE_BORROWING,
           planner_ssa_income: data.planner_ssa_income ?? DEFAULT_PLANNER_SSA_INCOME,
-          spouse_ssa_income: data.spouse_ssa_income ?? DEFAULT_PLANNER_SSA_INCOME,
+          spouse_ssa_income: data.spouse_ssa_income ?? DEFAULT_SPOUSE_SSA_INCOME,
+          planner_ssa_annual_benefit: data.planner_ssa_annual_benefit ?? null,
+          spouse_ssa_annual_benefit: data.spouse_ssa_annual_benefit ?? null,
+          pre_medicare_annual_premium: data.pre_medicare_annual_premium ?? null,
+          post_medicare_annual_premium: data.post_medicare_annual_premium ?? null,
         })
-      } else {
-        // If no data, ensure we still have default values for SSA income flags
-        setScenarioVars(prev => ({
-          ...prev,
-          planner_ssa_income: prev.planner_ssa_income ?? true,
-          spouse_ssa_income: prev.spouse_ssa_income ?? true,
-        }))
       }
     } catch (error) {
       console.error('Error loading scenario vars:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
   const loadDefaultsToScenarioVars = async () => {
     try {
-      // Load default settings
-      const { data: defaultSettingsData, error: defaultsError } = await supabase
+      const { data: defaultSettingsData } = await supabase
         .from('rp_default_settings')
         .select('*')
         .eq('plan_id', planId)
 
-      if (defaultsError) throw defaultsError
-
-      // Map defaults to scenario vars
       const defaults = defaultSettingsData || []
       const getDefault = (name: string, fallback: number) => {
         const setting = defaults.find((d: any) => d.setting_name === name)
@@ -281,52 +265,131 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         growth_rate_during_retirement: getDefault('Growth rate (return) during retirement', DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT),
         inflation_rate: getDefault('Inflation', DEFAULT_INFLATION_RATE_PCT),
         enable_borrowing: DEFAULT_ENABLE_BORROWING,
-        ssa_start_age: scenarioVars.retirement_age || DEFAULT_SSA_START_AGE,
+        ssa_start_age: DEFAULT_SSA_START_AGE,
         planner_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
-        spouse_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
+        spouse_ssa_income: DEFAULT_SPOUSE_SSA_INCOME,
+        planner_ssa_annual_benefit: null,
+        spouse_ssa_annual_benefit: null,
+        pre_medicare_annual_premium: null,
+        post_medicare_annual_premium: null,
       })
     } catch (error) {
       console.error('Error loading defaults:', error)
-      setScenarioVars({
+      setScenarioVars(prev => ({
+        ...prev,
         retirement_age: DEFAULT_RETIREMENT_AGE,
         growth_rate_before_retirement: DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT,
         growth_rate_during_retirement: DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT,
         inflation_rate: DEFAULT_INFLATION_RATE_PCT,
         enable_borrowing: DEFAULT_ENABLE_BORROWING,
-        ssa_start_age: scenarioVars.retirement_age || DEFAULT_SSA_START_AGE,
-        planner_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
-        spouse_ssa_income: DEFAULT_PLANNER_SSA_INCOME,
-      })
+      }))
     }
   }
 
-  const handleResetToDefaults = async () => {
-    await loadDefaultsToScenarioVars()
-  }
+  // --- Derived assumptions (bidirectional sync with CalculatorAssumptionsForm) ---
 
-  const handleAddScenario = async () => {
-    // Clear selected scenario
-    setSelectedScenarioId(null)
-    // Load defaults
-    await loadDefaultsToScenarioVars()
-    // Expand the scenario variables section
-    setScenarioVarsExpanded(true)
-    // Scroll to scenario variables section (optional, but helpful)
-    setTimeout(() => {
-      const element = document.getElementById('scenario-variables-section')
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const assumptions: RetirementAssumptions = useMemo(() => ({
+    age: planBasis.age,
+    retirementAge: scenarioVars.retirement_age,
+    lifeExpectancy: planBasis.life_expectancy,
+    currentSavings: accounts.reduce((s, a) => s + (a.balance || 0), 0),
+    annualContribution: accounts.reduce((s, a) => s + (a.annual_contribution || 0), 0),
+    monthlyExpenses: expenses.reduce((s, e) => {
+      const amt = scenarioVars.retirement_age >= 65 ? e.amount_after_65 : e.amount_before_65
+      return s + (amt || 0)
+    }, 0),
+    growthRatePreRetirement: scenarioVars.growth_rate_before_retirement,
+    growthRateDuringRetirement: scenarioVars.growth_rate_during_retirement,
+    inflationRate: scenarioVars.inflation_rate,
+    includeSsa: scenarioVars.planner_ssa_income,
+    ssaStartAge: scenarioVars.ssa_start_age,
+    ssaAnnualBenefit: scenarioVars.planner_ssa_annual_benefit ?? DEFAULT_SSA_ANNUAL_BENEFIT,
+    includeSpouse: planBasis.include_spouse,
+    spouseAge: planBasis.include_spouse ? currentYear - planBasis.spouse_birth_year : planBasis.age,
+    spouseSsaBenefit: scenarioVars.spouse_ssa_annual_benefit ?? DEFAULT_SPOUSE_SSA_BENEFIT,
+    preMedicareAnnualPremium: scenarioVars.pre_medicare_annual_premium ?? DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM,
+    postMedicareAnnualPremium: scenarioVars.post_medicare_annual_premium ?? DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM,
+  }), [planBasis, scenarioVars, accounts, expenses, currentYear])
+
+  const handleAssumptionsChange = (next: RetirementAssumptions) => {
+    // Plan basis fields
+    if (next.age !== assumptions.age) {
+      setPlanBasis(b => ({ ...b, age: next.age, birth_year: currentYear - next.age }))
+    }
+    if (next.lifeExpectancy !== assumptions.lifeExpectancy) {
+      setPlanBasis(b => ({ ...b, life_expectancy: next.lifeExpectancy }))
+    }
+    if (next.includeSpouse !== assumptions.includeSpouse) {
+      setPlanBasis(b => ({ ...b, include_spouse: next.includeSpouse }))
+    }
+    if (next.spouseAge !== assumptions.spouseAge) {
+      setPlanBasis(b => ({ ...b, spouse_birth_year: currentYear - next.spouseAge }))
+    }
+
+    // Aggregate fields: proportional distribution
+    if (next.currentSavings !== assumptions.currentSavings) {
+      const total = assumptions.currentSavings
+      if (accounts.length <= 1) {
+        setAccounts(accts => accts.map(a => ({ ...a, balance: next.currentSavings })))
+      } else if (total > 0) {
+        const ratio = next.currentSavings / total
+        setAccounts(accts => accts.map(a => ({ ...a, balance: Math.round(a.balance * ratio) })))
       }
-    }, 100)
+    }
+    if (next.annualContribution !== assumptions.annualContribution) {
+      const total = assumptions.annualContribution
+      if (accounts.length <= 1) {
+        setAccounts(accts => accts.map(a => ({ ...a, annual_contribution: next.annualContribution })))
+      } else if (total > 0) {
+        const ratio = next.annualContribution / total
+        setAccounts(accts => accts.map(a => ({ ...a, annual_contribution: Math.round((a.annual_contribution || 0) * ratio) })))
+      }
+    }
+    if (next.monthlyExpenses !== assumptions.monthlyExpenses) {
+      const total = assumptions.monthlyExpenses
+      if (expenses.length <= 1) {
+        setExpenses(exps => exps.map(e => ({
+          ...e, amount_before_65: next.monthlyExpenses, amount_after_65: next.monthlyExpenses,
+        })))
+      } else if (total > 0) {
+        const ratio = next.monthlyExpenses / total
+        setExpenses(exps => exps.map(e => ({
+          ...e,
+          amount_before_65: Math.round(e.amount_before_65 * ratio),
+          amount_after_65: Math.round(e.amount_after_65 * ratio),
+        })))
+      }
+    }
+
+    // Scenario variables
+    const sv: Partial<typeof scenarioVars> = {}
+    if (next.retirementAge !== assumptions.retirementAge) sv.retirement_age = next.retirementAge
+    if (next.growthRatePreRetirement !== assumptions.growthRatePreRetirement) sv.growth_rate_before_retirement = next.growthRatePreRetirement
+    if (next.growthRateDuringRetirement !== assumptions.growthRateDuringRetirement) sv.growth_rate_during_retirement = next.growthRateDuringRetirement
+    if (next.inflationRate !== assumptions.inflationRate) sv.inflation_rate = next.inflationRate
+    if (next.includeSsa !== assumptions.includeSsa) sv.planner_ssa_income = next.includeSsa
+    if (next.ssaStartAge !== assumptions.ssaStartAge) sv.ssa_start_age = next.ssaStartAge
+    if (next.ssaAnnualBenefit !== assumptions.ssaAnnualBenefit) sv.planner_ssa_annual_benefit = next.ssaAnnualBenefit
+    if (next.spouseSsaBenefit !== assumptions.spouseSsaBenefit) sv.spouse_ssa_annual_benefit = next.spouseSsaBenefit
+    if (next.preMedicareAnnualPremium !== assumptions.preMedicareAnnualPremium) sv.pre_medicare_annual_premium = next.preMedicareAnnualPremium
+    if (next.postMedicareAnnualPremium !== assumptions.postMedicareAnnualPremium) sv.post_medicare_annual_premium = next.postMedicareAnnualPremium
+    if (Object.keys(sv).length > 0) setScenarioVars(v => ({ ...v, ...sv }))
   }
 
-  const handleSavePlanBasis = async () => {
+  // --- Save (unified) ---
+
+  const handleSaveAll = async () => {
+    if (!selectedScenarioId) {
+      setMessage({ type: 'error', text: 'Please select or create a scenario first.' })
+      return
+    }
     setSaving(true)
     setMessage(null)
     try {
-      const { error } = await supabase
+      // 1. Plan basis
+      const { error: planError } = await supabase
         .from('rp_retirement_plans')
-        .update({ 
+        .update({
           birth_year: planBasis.birth_year,
           filing_status: planBasis.filing_status,
           life_expectancy: planBasis.life_expectancy,
@@ -335,101 +398,172 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           spouse_life_expectancy: planBasis.include_spouse ? planBasis.spouse_life_expectancy : null,
         })
         .eq('id', planId)
+      if (planError) throw planError
 
-      if (error) throw error
-      
-      // Save accounts
+      // 2. Accounts
       for (const account of accounts) {
         if (account.id) {
-          const { error } = await supabase
-            .from('rp_accounts')
-            .update({
-              account_name: account.account_name,
-              owner: account.owner,
-              balance: account.balance,
-              account_type: account.account_type,
-              annual_contribution: account.annual_contribution || 0,
-            })
-            .eq('id', account.id)
+          const { error } = await supabase.from('rp_accounts').update({
+            account_name: account.account_name, owner: account.owner,
+            balance: account.balance, account_type: account.account_type,
+            annual_contribution: account.annual_contribution || 0,
+          }).eq('id', account.id)
           if (error) throw error
         } else {
-          const { error } = await supabase
-            .from('rp_accounts')
-            .insert([{
-              plan_id: planId,
-              account_name: account.account_name,
-              owner: account.owner,
-              balance: account.balance,
-              account_type: account.account_type,
-              annual_contribution: account.annual_contribution || 0,
-            }])
+          const { error } = await supabase.from('rp_accounts').insert([{
+            plan_id: planId, account_name: account.account_name, owner: account.owner,
+            balance: account.balance, account_type: account.account_type,
+            annual_contribution: account.annual_contribution || 0,
+          }])
           if (error) throw error
         }
       }
-      
-      // Save expenses
+
+      // 3. Expenses
       for (const expense of expenses) {
         if (expense.id) {
-          const { error } = await supabase
-            .from('rp_expenses')
-            .update({
-              expense_name: expense.expense_name,
-              amount_after_65: expense.amount_after_65,
-              amount_before_65: expense.amount_before_65,
-            })
-            .eq('id', expense.id)
+          const { error } = await supabase.from('rp_expenses').update({
+            expense_name: expense.expense_name,
+            amount_after_65: expense.amount_after_65, amount_before_65: expense.amount_before_65,
+          }).eq('id', expense.id)
           if (error) throw error
         } else {
-          const { error } = await supabase
-            .from('rp_expenses')
-            .insert([{
-              plan_id: planId,
-              expense_name: expense.expense_name,
-              amount_after_65: expense.amount_after_65,
-              amount_before_65: expense.amount_before_65,
-            }])
+          const { error } = await supabase.from('rp_expenses').insert([{
+            plan_id: planId, expense_name: expense.expense_name,
+            amount_after_65: expense.amount_after_65, amount_before_65: expense.amount_before_65,
+          }])
           if (error) throw error
         }
       }
-      
-      await loadAccounts()
-      await loadExpenses()
-      
-      // Recalculate projections for all scenarios
+
+      // 4. Scenario settings (upsert)
+      const yearsToRet = scenarioVars.retirement_age - planBasis.age
+      const totalMonthly = expenses.reduce((sum, exp) => {
+        const amount = scenarioVars.retirement_age >= 65 ? exp.amount_after_65 : exp.amount_before_65
+        return sum + (amount || 0)
+      }, 0)
+      const annualExpensesToday = totalMonthly * 12
+      const inflationMult = Math.pow(1 + (scenarioVars.inflation_rate / 100), Math.max(yearsToRet, 0))
+
+      const { error: settingsError } = await supabase
+        .from('rp_calculator_settings')
+        .upsert({
+          plan_id: planId,
+          scenario_id: selectedScenarioId,
+          current_year: currentYear,
+          retirement_age: scenarioVars.retirement_age,
+          retirement_start_year: currentYear + yearsToRet,
+          years_to_retirement: yearsToRet,
+          annual_retirement_expenses: annualExpensesToday * inflationMult,
+          growth_rate_before_retirement: scenarioVars.growth_rate_before_retirement / 100,
+          growth_rate_during_retirement: scenarioVars.growth_rate_during_retirement / 100,
+          loan_rate: 0.1,
+          inflation_rate: scenarioVars.inflation_rate / 100,
+          enable_borrowing: scenarioVars.enable_borrowing,
+          ssa_start_age: scenarioVars.ssa_start_age || scenarioVars.retirement_age,
+          planner_ssa_income: scenarioVars.planner_ssa_income,
+          spouse_ssa_income: scenarioVars.spouse_ssa_income,
+          planner_ssa_annual_benefit: scenarioVars.planner_ssa_annual_benefit,
+          spouse_ssa_annual_benefit: scenarioVars.spouse_ssa_annual_benefit,
+          pre_medicare_annual_premium: scenarioVars.pre_medicare_annual_premium,
+          post_medicare_annual_premium: scenarioVars.post_medicare_annual_premium,
+        }, { onConflict: 'scenario_id' })
+      if (settingsError) throw settingsError
+
+      // 5. Recalculate projections for all scenarios
       const { data: allScenarios } = await supabase
-        .from('rp_scenarios')
-        .select('id')
-        .eq('plan_id', planId)
-      
-      if (allScenarios && allScenarios.length > 0) {
-        const { data: planData } = await supabase
-          .from('rp_retirement_plans')
-          .select('life_expectancy')
-          .eq('id', planId)
-          .single()
-        
-        const lifeExpectancy = planData?.life_expectancy || 100
-        
-        // Recalculate projections for each scenario
-        for (const scenario of allScenarios) {
+        .from('rp_scenarios').select('id').eq('plan_id', planId)
+      if (allScenarios) {
+        for (const s of allScenarios) {
           try {
-            await calculateAndSaveProjectionsForScenario(planId, scenario.id, lifeExpectancy)
-          } catch (error) {
-            console.error(`Error recalculating projections for scenario ${scenario.id}:`, error)
-            // Continue with other scenarios even if one fails
+            await calculateAndSaveProjectionsForScenario(planId, s.id, planBasis.life_expectancy || 100)
+          } catch (e) {
+            console.error(`Projection calc failed for scenario ${s.id}:`, e)
           }
         }
       }
-      
-      setMessage({ type: 'success', text: 'Plan basis saved successfully! Projections updated for all scenarios.' })
+
+      // 6. Reload
+      await Promise.all([loadAccounts(), loadExpenses(), loadScenarioVars()])
+
+      setMessage({ type: 'success', text: 'Plan saved! Projections updated for all scenarios.' })
       setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
+      window.dispatchEvent(new CustomEvent('switchTab', { detail: 'quick-analysis' }))
     } catch (error: any) {
       setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
-      // Don't auto-close error messages
     } finally {
       setSaving(false)
     }
   }
+
+  const handleSaveAsNewScenario = async (name?: string) => {
+    setSaving(true)
+    setMessage(null)
+    try {
+      const finalName = (name || '').trim() || suggestScenarioName()
+      const { data: newScenario, error: scenarioError } = await supabase
+        .from('rp_scenarios')
+        .insert([{ plan_id: planId, scenario_name: finalName, is_default: scenarios.length === 0 }])
+        .select().single()
+      if (scenarioError) throw scenarioError
+
+      setSelectedScenarioId(newScenario.id)
+      await loadScenarios()
+
+      // Now save everything with the new scenario id
+      // Temporarily set the scenario so handleSaveAll picks it up
+      // We need to save directly since state hasn't updated yet
+      const yearsToRet = scenarioVars.retirement_age - planBasis.age
+      const totalMonthly = expenses.reduce((sum, exp) => {
+        const amount = scenarioVars.retirement_age >= 65 ? exp.amount_after_65 : exp.amount_before_65
+        return sum + (amount || 0)
+      }, 0)
+      const inflationMult = Math.pow(1 + (scenarioVars.inflation_rate / 100), Math.max(yearsToRet, 0))
+
+      const { error: settingsError } = await supabase
+        .from('rp_calculator_settings')
+        .upsert({
+          plan_id: planId,
+          scenario_id: newScenario.id,
+          current_year: currentYear,
+          retirement_age: scenarioVars.retirement_age,
+          retirement_start_year: currentYear + yearsToRet,
+          years_to_retirement: yearsToRet,
+          annual_retirement_expenses: totalMonthly * 12 * inflationMult,
+          growth_rate_before_retirement: scenarioVars.growth_rate_before_retirement / 100,
+          growth_rate_during_retirement: scenarioVars.growth_rate_during_retirement / 100,
+          loan_rate: 0.1,
+          inflation_rate: scenarioVars.inflation_rate / 100,
+          enable_borrowing: scenarioVars.enable_borrowing,
+          ssa_start_age: scenarioVars.ssa_start_age || scenarioVars.retirement_age,
+          planner_ssa_income: scenarioVars.planner_ssa_income,
+          spouse_ssa_income: scenarioVars.spouse_ssa_income,
+          planner_ssa_annual_benefit: scenarioVars.planner_ssa_annual_benefit,
+          spouse_ssa_annual_benefit: scenarioVars.spouse_ssa_annual_benefit,
+          pre_medicare_annual_premium: scenarioVars.pre_medicare_annual_premium,
+          post_medicare_annual_premium: scenarioVars.post_medicare_annual_premium,
+        }, { onConflict: 'scenario_id' })
+      if (settingsError) throw settingsError
+
+      try {
+        await calculateAndSaveProjectionsForScenario(planId, newScenario.id, planBasis.life_expectancy || 100)
+      } catch (e) {
+        console.error('Projection calc failed:', e)
+      }
+
+      setShowSaveDialog(false)
+      setNewScenarioName('')
+      setScenariosTableRefreshKey((k) => k + 1)
+      setMessage({ type: 'success', text: `Saved as "${finalName}". Projections updated.` })
+      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
+    } catch (error: any) {
+      setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // --- Account / expense helpers ---
 
   const handleAddAccountRow = () => {
     setAccounts([...accounts, { account_name: '', owner: '', balance: 0, account_type: '', annual_contribution: 0 }])
@@ -439,22 +573,16 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
     const account = accounts[index]
     if (account.id) {
       try {
-        const { error } = await supabase
-          .from('rp_accounts')
-          .delete()
-          .eq('id', account.id)
+        const { error } = await supabase.from('rp_accounts').delete().eq('id', account.id)
         if (error) throw error
         await loadAccounts()
-        setMessage({ type: 'success', text: 'Account deleted successfully' })
+        setMessage({ type: 'success', text: 'Account deleted' })
         setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
       } catch (error: any) {
-        setMessage({ type: 'error', text: `Failed to delete account: ${error.message}` })
-        // Don't auto-close error messages
+        setMessage({ type: 'error', text: `Failed to delete: ${error.message}` })
       }
     } else {
       setAccounts(accounts.filter((_, i) => i !== index))
-      setMessage({ type: 'success', text: 'Account removed' })
-      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
     }
   }
 
@@ -466,196 +594,65 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
     const expense = expenses[index]
     if (expense.id) {
       try {
-        const { error } = await supabase
-          .from('rp_expenses')
-          .delete()
-          .eq('id', expense.id)
+        const { error } = await supabase.from('rp_expenses').delete().eq('id', expense.id)
         if (error) throw error
         await loadExpenses()
-        setMessage({ type: 'success', text: 'Expense deleted successfully' })
+        setMessage({ type: 'success', text: 'Expense deleted' })
         setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
       } catch (error: any) {
-        setMessage({ type: 'error', text: `Failed to delete expense: ${error.message}` })
-        // Don't auto-close error messages
+        setMessage({ type: 'error', text: `Failed to delete: ${error.message}` })
       }
     } else {
       setExpenses(expenses.filter((_, i) => i !== index))
-      setMessage({ type: 'success', text: 'Expense removed' })
-      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
     }
   }
 
-  const handleSaveScenarioVars = async (scenarioId?: number, scenarioName?: string) => {
-    setSaving(true)
-    setMessage(null)
-    try {
-      let targetScenarioId = scenarioId
-
-      // If scenarioName is provided, always create a new scenario (don't use selectedScenarioId)
-      if (scenarioName) {
-        const finalScenarioName = scenarioName.trim() || suggestScenarioName()
-        const { data: newScenario, error: scenarioError } = await supabase
-          .from('rp_scenarios')
-          .insert([{
-            plan_id: planId,
-            scenario_name: finalScenarioName,
-            is_default: scenarios.length === 0
-          }])
-          .select()
-          .single()
-
-        if (scenarioError) throw scenarioError
-        targetScenarioId = newScenario.id
-        setSelectedScenarioId(newScenario.id)
-        await loadScenarios()
-      } else {
-        // If no scenarioName provided, use the provided scenarioId or selectedScenarioId
-        targetScenarioId = scenarioId || selectedScenarioId || undefined
-      }
-
-      if (!targetScenarioId) {
-        setMessage({ type: 'error', text: 'Please select a scenario or enter a name to save as new scenario' })
-        // Don't auto-close error messages
-        setSaving(false)
-        return
-      }
-
-      const currentYear = new Date().getFullYear()
-      const calculatedAge = currentYear - planBasis.birth_year
-      const yearsToRetirement = scenarioVars.retirement_age - calculatedAge
-      const retirementStartYear = currentYear + yearsToRetirement
-
-      // Calculate annual retirement expenses from expenses table
-      const totalMonthlyExpenses = expenses.reduce((sum, exp) => {
-        // Use amount_after_65 if retirement age >= 65, otherwise amount_before_65
-        const amount = scenarioVars.retirement_age >= 65 ? exp.amount_after_65 : exp.amount_before_65
-        return sum + (amount || 0)
-      }, 0)
-      
-      const annualExpensesToday = totalMonthlyExpenses * 12
-      
-      // Adjust for inflation until retirement age
-      const inflationMultiplier = Math.pow(1 + (scenarioVars.inflation_rate / 100), yearsToRetirement)
-      const annualRetirementExpenses = annualExpensesToday * inflationMultiplier
-
-      const settingsToSave = {
-        plan_id: planId,
-        scenario_id: targetScenarioId,
-        current_year: currentYear,
-        retirement_age: scenarioVars.retirement_age,
-        retirement_start_year: retirementStartYear,
-        years_to_retirement: yearsToRetirement,
-        annual_retirement_expenses: annualRetirementExpenses,
-        growth_rate_before_retirement: scenarioVars.growth_rate_before_retirement / 100,
-        growth_rate_during_retirement: scenarioVars.growth_rate_during_retirement / 100,
-        loan_rate: 0.1, // Keep for backward compatibility but not shown
-        inflation_rate: scenarioVars.inflation_rate / 100,
-        enable_borrowing: scenarioVars.enable_borrowing || false,
-        ssa_start_age: scenarioVars.ssa_start_age || scenarioVars.retirement_age || DEFAULT_RETIREMENT_AGE,
-        planner_ssa_income: scenarioVars.planner_ssa_income !== undefined ? scenarioVars.planner_ssa_income : true,
-        spouse_ssa_income: scenarioVars.spouse_ssa_income !== undefined ? scenarioVars.spouse_ssa_income : true,
-      }
-
-      // If spouse_ssa_income is true, ensure include_spouse is also true
-      if (settingsToSave.spouse_ssa_income) {
-        const { error: planUpdateError } = await supabase
-          .from('rp_retirement_plans')
-          .update({ include_spouse: true })
-          .eq('id', planId)
-        
-        if (planUpdateError) {
-          console.error('Error updating include_spouse:', planUpdateError)
-          // Don't throw - continue with settings save
-        }
-      }
-
-      const { error } = await supabase
-        .from('rp_calculator_settings')
-        .upsert(settingsToSave, {
-          onConflict: 'scenario_id'
-        })
-
-      if (error) throw error
-      
-      // Load scenario variables for the selected scenario
-      await loadScenarioVars()
-      
-      // Recalculate projections for this scenario
-      const { data: planData } = await supabase
-        .from('rp_retirement_plans')
-        .select('life_expectancy')
-        .eq('id', planId)
-        .single()
-      
-      const lifeExpectancy = planData?.life_expectancy || 100
-      
-      try {
-        await calculateAndSaveProjectionsForScenario(planId, targetScenarioId, lifeExpectancy)
-      } catch (calcError) {
-        console.error('Error recalculating projections:', calcError)
-        // Don't fail the save if calculation fails, but log it
-      }
-      
-      setShowSaveDialog(false)
-      setNewScenarioName('')
-      setMessage({ type: 'success', text: 'Scenario variables saved successfully! Projections updated.' })
-      setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
-    } catch (error: any) {
-      setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
-      // Don't auto-close error messages
-    } finally {
-      setSaving(false)
-    }
+  const handleAddScenario = async () => {
+    setSelectedScenarioId(null)
+    await loadDefaultsToScenarioVars()
+    setShowSaveDialog(true)
   }
 
   const suggestScenarioName = () => {
     const retAge = scenarioVars.retirement_age
-    const growthBefore = scenarioVars.growth_rate_before_retirement
-    const growthDuring = scenarioVars.growth_rate_during_retirement
-    const borrowing = scenarioVars.enable_borrowing ? '-Borrow' : ''
-    return `Ret${retAge}-Grow${growthBefore}${growthDuring}${borrowing}`
+    const g1 = scenarioVars.growth_rate_before_retirement
+    const g2 = scenarioVars.growth_rate_during_retirement
+    const borrow = scenarioVars.enable_borrowing ? '-Borrow' : ''
+    return `Ret${retAge}-Grow${g1}/${g2}${borrow}`
   }
+
+  // --- Computed values ---
+
+  const totalAssets = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+  const totalAnnualContrib = accounts.reduce((sum, acc) => sum + (acc.annual_contribution || 0), 0)
+  const totalMonthlyExpenses = expenses.reduce((s, e) => {
+    const amt = scenarioVars.retirement_age >= 65 ? e.amount_after_65 : e.amount_before_65
+    return s + (amt || 0)
+  }, 0)
+  const selectedScenario = scenarios.find(s => s.id === selectedScenarioId)
+  const yearsToRetirement = scenarioVars.retirement_age - planBasis.age
+  const spouseAge = planBasis.include_spouse ? currentYear - planBasis.spouse_birth_year : null
+
+  const accountTypeDot = (type?: string) => {
+    switch (type) {
+      case '401k': case 'IRA': case 'Traditional IRA': return 'bg-blue-400'
+      case 'Roth IRA': return 'bg-emerald-400'
+      case 'HSA': return 'bg-teal-400'
+      case 'Taxable': return 'bg-amber-400'
+      case 'ESPP': return 'bg-violet-400'
+      default: return 'bg-muted-foreground/30'
+    }
+  }
+
+  // --- Render ---
 
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Loading…</div>
   }
 
-  const currentYear = new Date().getFullYear()
-  const calculatedAge = planBasis.birth_year ? currentYear - planBasis.birth_year : planBasis.age
-  const yearsToRetirement = scenarioVars.retirement_age - calculatedAge
-  const retirementStartYear = currentYear + yearsToRetirement
-  const spouseAge = planBasis.include_spouse ? currentYear - planBasis.spouse_birth_year : null
-
-  const totalAssets = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
-
-  const essentialMonthly = expenses.filter(e => isEssentialExpense(e.expense_name))
-    .reduce((s, e) => s + ((scenarioVars.retirement_age >= 65 ? e.amount_after_65 : e.amount_before_65) || 0), 0)
-  const discretionaryMonthly = expenses.filter(e => !isEssentialExpense(e.expense_name))
-    .reduce((s, e) => s + ((scenarioVars.retirement_age >= 65 ? e.amount_after_65 : e.amount_before_65) || 0), 0)
-  const totalMonthlyExpenses = essentialMonthly + discretionaryMonthly
-  const totalAnnualExpenses  = totalMonthlyExpenses * 12
-
-  const inflationMultiplier = yearsToRetirement > 0
-    ? Math.pow(1 + scenarioVars.inflation_rate / 100, yearsToRetirement) : 1
-  const annualRetirementExpensesAdjusted = totalAnnualExpenses * inflationMultiplier
-
-  const selectedScenario = scenarios.find(s => s.id === selectedScenarioId)
-
-  // Color dot per account type
-  const accountTypeDot = (type?: string) => {
-    switch (type) {
-      case '401k': case 'IRA': case 'Traditional IRA': return 'bg-blue-400'
-      case 'Roth IRA':  return 'bg-emerald-400'
-      case 'HSA':       return 'bg-teal-400'
-      case 'Taxable':   return 'bg-amber-400'
-      case 'ESPP':      return 'bg-violet-400'
-      default:          return 'bg-muted-foreground/30'
-    }
-  }
-
   return (
     <div className="space-y-6">
-      {/* ── Inline message ── */}
+      {/* Inline message */}
       {message && (
         <div className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-sm ${
           message.type === 'success'
@@ -682,449 +679,14 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         </div>
       )}
 
-      {/* ── Plan at a glance (scenario-agnostic) ── */}
-      <div className="rounded-xl border bg-muted/30 px-5 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-          <div>
-            <span className="text-muted-foreground">Age</span>
-            <span className="ml-2 font-semibold">{calculatedAge}</span>
-          </div>
-          {planBasis.include_spouse && spouseAge !== null && (
-            <div>
-              <span className="text-muted-foreground">Spouse age</span>
-              <span className="ml-2 font-semibold">{spouseAge}</span>
-            </div>
-          )}
-          <div>
-            <span className="text-muted-foreground">Filing</span>
-            <span className="ml-2 font-semibold">{planBasis.filing_status}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Total saved</span>
-            <span className="ml-2 font-semibold">${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Monthly spend</span>
-            <span className="ml-2 font-semibold">${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Plan through age</span>
-            <span className="ml-2 font-semibold">{planBasis.life_expectancy}</span>
-          </div>
-          <div className="ml-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPlanBasisExpanded(!planBasisExpanded)}
-              className="gap-1.5 text-muted-foreground hover:text-foreground"
-            >
-              {planBasisExpanded ? (
-                <>
-                  <ChevronUp className="h-3.5 w-3.5" />
-                  Collapse
-                </>
-              ) : (
-                <>
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit plan basis
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── PLAN BASIS CARD (collapsible) ── */}
-      {planBasisExpanded && (
+      {/* ── PLAN SETUP (Calculator Form) ── */}
       <div className="rounded-xl border bg-card overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h3 className="text-base font-semibold">Plan Basis</h3>
+          <h3 className="text-base font-semibold">Plan Setup</h3>
           <div className="flex items-center gap-2">
-            <Button onClick={handleSavePlanBasis} disabled={saving} size="sm">
-              <Save className="h-3.5 w-3.5" />
-              {saving ? 'Saving…' : 'Save Plan Basis'}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setPlanBasisExpanded(false)} className="text-muted-foreground">
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* ── Who You Are ── */}
-        <div className="px-6 py-5">
-          <div className="flex items-center gap-2 mb-4">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <h4 className="text-sm font-semibold">Who You Are</h4>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Filing Status</Label>
-              <Select
-                value={planBasis.filing_status}
-                onValueChange={(v) => setPlanBasis({ ...planBasis, filing_status: v as any })}
-              >
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Single">Single</SelectItem>
-                  <SelectItem value="Married Filing Jointly">Married Filing Jointly</SelectItem>
-                  <SelectItem value="Married Filing Separately">Married Filing Separately</SelectItem>
-                  <SelectItem value="Head of Household">Head of Household</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end pb-1.5">
-              <div className="flex items-center gap-2.5">
-                <Checkbox
-                  id="include-spouse"
-                  checked={planBasis.include_spouse}
-                  onCheckedChange={(v) => setPlanBasis({ ...planBasis, include_spouse: !!v })}
-                />
-                <Label htmlFor="include-spouse" className="text-sm font-medium cursor-pointer">
-                  Include spouse in plan
-                </Label>
-              </div>
-            </div>
-          </div>
-
-          <div className={`grid gap-4 ${planBasis.include_spouse ? 'md:grid-cols-2' : 'sm:grid-cols-2'}`}>
-            <div className="rounded-lg border bg-muted/20 p-4">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Planner</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Birth Year</Label>
-                  <Input
-                    type="number"
-                    value={planBasis.birth_year}
-                    onChange={(e) => {
-                      const birthYear = parseInt(e.target.value) || new Date().getFullYear() - 50
-                      setPlanBasis({ ...planBasis, birth_year: birthYear, age: currentYear - birthYear })
-                    }}
-                    className="h-9 text-sm"
-                  />
-                  <p className="text-[11px] text-muted-foreground">Age: {calculatedAge}</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Life Expectancy</Label>
-                  <Input
-                    type="number"
-                    value={planBasis.life_expectancy}
-                    onChange={(e) => setPlanBasis({ ...planBasis, life_expectancy: parseInt(e.target.value) || DEFAULT_LIFE_EXPECTANCY })}
-                    className="h-9 text-sm"
-                  />
-                  <p className="text-[11px] text-muted-foreground">Plan ends at {planBasis.life_expectancy}</p>
-                </div>
-              </div>
-            </div>
-
-            {planBasis.include_spouse && (
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Spouse</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Birth Year</Label>
-                    <Input
-                      type="number"
-                      value={planBasis.spouse_birth_year}
-                      onChange={(e) => setPlanBasis({ ...planBasis, spouse_birth_year: parseInt(e.target.value) || planBasis.birth_year })}
-                      className="h-9 text-sm"
-                    />
-                    <p className="text-[11px] text-muted-foreground">Age: {spouseAge ?? '—'}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Life Expectancy</Label>
-                    <Input
-                      type="number"
-                      value={planBasis.spouse_life_expectancy}
-                      onChange={(e) => setPlanBasis({ ...planBasis, spouse_life_expectancy: parseInt(e.target.value) || DEFAULT_LIFE_EXPECTANCY })}
-                      className="h-9 text-sm"
-                    />
-                    <p className="text-[11px] text-muted-foreground">Plan ends at {planBasis.spouse_life_expectancy}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* ── What You Have ── */}
-        <div className="px-6 py-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-semibold">What You Have</h4>
-              <Badge variant="outline" className="text-xs">
-                ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })} total
-              </Badge>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleAddAccountRow}>
-              <Plus className="h-3.5 w-3.5" />
-              Add Account
-            </Button>
-          </div>
-
-          <div className="rounded-xl border overflow-hidden">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="bg-muted/40 border-b">
-                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
-                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Account Name</th>
-                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Owner</th>
-                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Balance</th>
-                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Annual Contribution</th>
-                  <th className="w-10" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {accounts.map((account, index) => (
-                  <tr key={account.id || index} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`h-2 w-2 rounded-full shrink-0 ${accountTypeDot(account.account_type)}`} />
-                        <Select
-                          value={account.account_type || ''}
-                          onValueChange={(v) => {
-                            const n = [...accounts]; n[index].account_type = v; setAccounts(n)
-                          }}
-                        >
-                          <SelectTrigger className="h-7 text-xs w-28 px-2">
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ACCOUNT_TYPES.map(t => (
-                              <SelectItem key={t} value={t}>{t}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="text"
-                        value={account.account_name}
-                        onChange={(e) => {
-                          const n = [...accounts]; n[index].account_name = e.target.value; setAccounts(n)
-                        }}
-                        className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 min-w-[120px]"
-                        placeholder="Account name"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="text"
-                        value={account.owner}
-                        onChange={(e) => {
-                          const n = [...accounts]; n[index].owner = e.target.value; setAccounts(n)
-                        }}
-                        className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 w-24"
-                        placeholder="Owner"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="number"
-                        value={account.balance}
-                        onChange={(e) => {
-                          const n = [...accounts]; n[index].balance = parseFloat(e.target.value) || 0; setAccounts(n)
-                        }}
-                        className="h-8 text-sm text-right w-32"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="number"
-                        value={account.annual_contribution || 0}
-                        onChange={(e) => {
-                          const n = [...accounts]; n[index].annual_contribution = parseFloat(e.target.value) || 0; setAccounts(n)
-                        }}
-                        className="h-8 text-sm text-right w-32"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteAccount(index)}
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {accounts.length > 0 && (
-                <tfoot>
-                  <tr className="bg-muted/20 border-t">
-                    <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Total
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-sm font-bold">
-                      ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </td>
-                    <td colSpan={2} />
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* ── What You Spend ── */}
-        <div className="px-6 py-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-semibold">What You Spend</h4>
-              <Badge variant="outline" className="text-xs">
-                ${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
-              </Badge>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleAddExpenseRow}>
-              <Plus className="h-3.5 w-3.5" />
-              Add Expense
-            </Button>
-          </div>
-
-          <div className="rounded-xl border overflow-hidden">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="bg-muted/40 border-b">
-                  <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Expense
-                  </th>
-                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Working years <span className="font-normal normal-case text-muted-foreground/60">(before 65)</span>
-                  </th>
-                  <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Retirement years <span className="font-normal normal-case text-muted-foreground/60">(after 65)</span>
-                  </th>
-                  <th className="w-10" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {expenses.map((expense, index) => {
-                  const essential = isEssentialExpense(expense.expense_name)
-                  return (
-                    <tr key={expense.id || index} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${essential ? 'bg-blue-400' : 'bg-amber-400'}`} />
-                          <Input
-                            type="text"
-                            value={expense.expense_name}
-                            onChange={(e) => {
-                              const n = [...expenses]; n[index].expense_name = e.target.value; setExpenses(n)
-                            }}
-                            className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 min-w-[160px]"
-                            placeholder="Expense name"
-                          />
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <Input
-                          type="number"
-                          value={expense.amount_before_65}
-                          onChange={(e) => {
-                            const n = [...expenses]
-                            const v = parseFloat(e.target.value) || 0
-                            n[index].amount_before_65 = v
-                            if (n[index].amount_after_65 === 0 || n[index].amount_after_65 === expense.amount_before_65) {
-                              n[index].amount_after_65 = v
-                            }
-                            setExpenses(n)
-                          }}
-                          className="h-8 text-sm text-right w-32 ml-auto block"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <Input
-                          type="number"
-                          value={expense.amount_after_65}
-                          onChange={(e) => {
-                            const n = [...expenses]
-                            const v = parseFloat(e.target.value) || 0
-                            n[index].amount_after_65 = v
-                            if (n[index].amount_before_65 === 0 || n[index].amount_before_65 === expense.amount_after_65) {
-                              n[index].amount_before_65 = v
-                            }
-                            setExpenses(n)
-                          }}
-                          className="h-8 text-sm text-right w-32 ml-auto block"
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteExpense(index)}
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              {expenses.length > 0 && (
-                <tfoot className="border-t bg-muted/20">
-                  <tr>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />Essential
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Discretionary
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-xs">
-                      <div className="font-semibold">
-                        ${expenses.reduce((s, e) => s + (e.amount_before_65 || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-xs">
-                      <div className="font-semibold">
-                        ${expenses.reduce((s, e) => s + (e.amount_after_65 || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
-                      </div>
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* ── SCENARIOS TABLE ── */}
-      <ScenariosTable
-        planId={planId}
-        onAddScenario={handleAddScenario}
-        onModelScenarios={() => window.dispatchEvent(new CustomEvent('switchTab', { detail: 'scenario-modeling' }))}
-      />
-
-      {/* ── SCENARIO ASSUMPTIONS ── */}
-      <div id="scenario-variables-section" className="rounded-xl border bg-card overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div className="flex items-center gap-3">
-            <h3 className="text-base font-semibold">Scenario Assumptions</h3>
             {selectedScenario && (
               <Badge variant="secondary" className="text-xs">{selectedScenario.scenario_name}</Badge>
             )}
-          </div>
-          <div className="flex items-center gap-2">
             <Select
               value={selectedScenarioId?.toString() || ''}
               onValueChange={(v) => setSelectedScenarioId(parseInt(v))}
@@ -1140,160 +702,343 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={handleAddScenario}>
-              <Plus className="h-3.5 w-3.5" />
-              New
-            </Button>
           </div>
         </div>
 
-        {/* Fields */}
         <div className="px-6 py-5">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Retirement Age</Label>
-              <Input
-                type="number"
-                value={scenarioVars.retirement_age}
-                onChange={(e) => setScenarioVars({ ...scenarioVars, retirement_age: parseInt(e.target.value) || DEFAULT_RETIREMENT_AGE })}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">SSA Income Start Age</Label>
-              <Input
-                type="number"
-                value={scenarioVars.ssa_start_age}
-                onChange={(e) => setScenarioVars({ ...scenarioVars, ssa_start_age: parseInt(e.target.value) || 62 })}
-                className="h-9 text-sm"
-              />
-              <p className="text-[11px] text-muted-foreground">Typically 62–70</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Growth Rate — Pre-retirement</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={scenarioVars.growth_rate_before_retirement}
-                  onChange={(e) => setScenarioVars({ ...scenarioVars, growth_rate_before_retirement: parseFloat(e.target.value) || 0 })}
-                  className="h-9 text-sm pr-7"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Growth Rate — In retirement</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={scenarioVars.growth_rate_during_retirement}
-                  onChange={(e) => setScenarioVars({ ...scenarioVars, growth_rate_during_retirement: parseFloat(e.target.value) || 0 })}
-                  className="h-9 text-sm pr-7"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Inflation Rate</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={scenarioVars.inflation_rate}
-                  onChange={(e) => setScenarioVars({ ...scenarioVars, inflation_rate: parseFloat(e.target.value) || 0 })}
-                  className="h-9 text-sm pr-7"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Computed summary chips */}
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Years to retirement', value: yearsToRetirement.toString() },
-              { label: 'Retirement year',     value: retirementStartYear.toString() },
-              { label: 'Expenses at retirement (inflation-adj.)', value: `$${Math.round(annualRetirementExpensesAdjusted).toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr` },
-              { label: 'Plan ends (age)',     value: planBasis.life_expectancy.toString() },
-            ].map(item => (
-              <div key={item.label} className="rounded-lg bg-muted/40 px-3 py-2.5">
-                <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                <p className="text-sm font-semibold mt-0.5">{item.value}</p>
-              </div>
-            ))}
-          </div>
+          <CalculatorAssumptionsForm
+            value={assumptions}
+            onChange={handleAssumptionsChange}
+            defaultExpanded={true}
+            formId="plan-details"
+          />
         </div>
+      </div>
 
-        {/* Toggles */}
-        <div className="px-6 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-lg border bg-muted/20 px-4 py-3">
-            <div className="flex items-center gap-2.5 mb-1">
-              <Checkbox
-                id="enable-borrowing"
-                checked={scenarioVars.enable_borrowing}
-                onCheckedChange={(v) => setScenarioVars({ ...scenarioVars, enable_borrowing: !!v })}
-              />
-              <Label htmlFor="enable-borrowing" className="text-sm font-medium cursor-pointer">
-                Enable borrowing to cover shortfalls
-              </Label>
-            </div>
-            <p className="text-xs text-muted-foreground ml-6">
-              Borrows to cover negative cash flow; repays when surplus is available.
-            </p>
+      {/* ── DETAILED BREAKDOWNS (Progressive Disclosure) ── */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        {/* Accounts */}
+        <button
+          type="button"
+          onClick={() => setAccountsExpanded(!accountsExpanded)}
+          className="flex w-full items-center justify-between px-6 py-4 text-sm font-medium hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <span>Accounts</span>
+            <Badge variant="outline" className="text-xs font-normal">
+              {accounts.length} account{accounts.length !== 1 ? 's' : ''} · ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </Badge>
           </div>
+          {accountsExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </button>
 
-          <div className="rounded-lg border bg-muted/20 px-4 py-3">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">SSA Income</p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2.5">
-                <Checkbox
-                  id="planner-ssa"
-                  checked={scenarioVars.planner_ssa_income ?? true}
-                  onCheckedChange={(v) => setScenarioVars({ ...scenarioVars, planner_ssa_income: !!v })}
-                />
-                <Label htmlFor="planner-ssa" className="text-sm cursor-pointer">Include planner SSA</Label>
+        {accountsExpanded && (
+          <div className="border-t">
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-muted-foreground">
+                  Edit individual accounts below. Changes to totals in the form above are distributed proportionally.
+                </p>
+                <Button variant="outline" size="sm" onClick={handleAddAccountRow}>
+                  <Plus className="h-3.5 w-3.5" /> Add Account
+                </Button>
               </div>
+              <div className="rounded-xl border overflow-hidden">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/40 border-b">
+                      <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
+                      <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Account Name</th>
+                      <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Owner</th>
+                      <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Balance</th>
+                      <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Annual Contribution</th>
+                      <th className="w-10" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {accounts.map((account, index) => (
+                      <tr key={account.id || index} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`h-2 w-2 rounded-full shrink-0 ${accountTypeDot(account.account_type)}`} />
+                            <Select
+                              value={account.account_type || ''}
+                              onValueChange={(v) => { const n = [...accounts]; n[index].account_type = v; setAccounts(n) }}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-28 px-2"><SelectValue placeholder="Type" /></SelectTrigger>
+                              <SelectContent>
+                                {ACCOUNT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input type="text" value={account.account_name}
+                            onChange={(e) => { const n = [...accounts]; n[index].account_name = e.target.value; setAccounts(n) }}
+                            className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 min-w-[120px]"
+                            placeholder="Account name" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input type="text" value={account.owner}
+                            onChange={(e) => { const n = [...accounts]; n[index].owner = e.target.value; setAccounts(n) }}
+                            className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 w-24"
+                            placeholder="Owner" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input type="number" value={account.balance}
+                            onChange={(e) => { const n = [...accounts]; n[index].balance = parseFloat(e.target.value) || 0; setAccounts(n) }}
+                            className="h-8 text-sm text-right w-32" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input type="number" value={account.annual_contribution || 0}
+                            onChange={(e) => { const n = [...accounts]; n[index].annual_contribution = parseFloat(e.target.value) || 0; setAccounts(n) }}
+                            className="h-8 text-sm text-right w-32" />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteAccount(index)}
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {accounts.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-muted/20 border-t">
+                        <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</td>
+                        <td className="px-3 py-2.5 text-right text-sm font-bold">
+                          ${totalAssets.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-sm font-bold">
+                          ${totalAnnualContrib.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Separator />
+
+        {/* Expenses */}
+        <button
+          type="button"
+          onClick={() => setExpensesExpanded(!expensesExpanded)}
+          className="flex w-full items-center justify-between px-6 py-4 text-sm font-medium hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <span>Living Expenses</span>
+            <Badge variant="outline" className="text-xs font-normal">
+              {expenses.length} categor{expenses.length !== 1 ? 'ies' : 'y'} · ${totalMonthlyExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+            </Badge>
+            <span className="text-[10px] text-muted-foreground/70 font-normal">Excludes healthcare</span>
+          </div>
+          {expensesExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </button>
+
+        {expensesExpanded && (
+          <div className="border-t">
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-muted-foreground">
+                  Edit individual expense categories. Changes to the total in the form above are distributed proportionally.
+                </p>
+                <Button variant="outline" size="sm" onClick={handleAddExpenseRow}>
+                  <Plus className="h-3.5 w-3.5" /> Add Expense
+                </Button>
+              </div>
+              <div className="rounded-xl border overflow-hidden">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/40 border-b">
+                      <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Expense</th>
+                      <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Working years <span className="font-normal normal-case text-muted-foreground/60">(before 65)</span>
+                      </th>
+                      <th className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Retirement years <span className="font-normal normal-case text-muted-foreground/60">(after 65)</span>
+                      </th>
+                      <th className="w-10" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {expenses.map((expense, index) => {
+                      const essential = isEssentialExpense(expense.expense_name)
+                      return (
+                        <tr key={expense.id || index} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${essential ? 'bg-blue-400' : 'bg-amber-400'}`} />
+                              <Input type="text" value={expense.expense_name}
+                                onChange={(e) => { const n = [...expenses]; n[index].expense_name = e.target.value; setExpenses(n) }}
+                                className="h-8 text-sm border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 min-w-[160px]"
+                                placeholder="Expense name" />
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input type="number" value={expense.amount_before_65}
+                              onChange={(e) => {
+                                const n = [...expenses]; const v = parseFloat(e.target.value) || 0
+                                n[index].amount_before_65 = v
+                                if (n[index].amount_after_65 === 0 || n[index].amount_after_65 === expense.amount_before_65) n[index].amount_after_65 = v
+                                setExpenses(n)
+                              }}
+                              className="h-8 text-sm text-right w-32 ml-auto block" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input type="number" value={expense.amount_after_65}
+                              onChange={(e) => {
+                                const n = [...expenses]; const v = parseFloat(e.target.value) || 0
+                                n[index].amount_after_65 = v
+                                if (n[index].amount_before_65 === 0 || n[index].amount_before_65 === expense.amount_after_65) n[index].amount_before_65 = v
+                                setExpenses(n)
+                              }}
+                              className="h-8 text-sm text-right w-32 ml-auto block" />
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteExpense(index)}
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  {expenses.length > 0 && (
+                    <tfoot className="border-t bg-muted/20">
+                      <tr>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-400" />Essential</span>
+                            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Discretionary</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-xs font-semibold">
+                          ${expenses.reduce((s, e) => s + (e.amount_before_65 || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-xs font-semibold">
+                          ${expenses.reduce((s, e) => s + (e.amount_after_65 || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── ADDITIONAL SETTINGS ── */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setAdditionalExpanded(!additionalExpanded)}
+          className="flex w-full items-center justify-between px-6 py-4 text-sm font-medium hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+            <span>Additional Settings</span>
+          </div>
+          {additionalExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </button>
+
+        {additionalExpanded && (
+          <div className="border-t px-6 py-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Filing Status</Label>
+                <Select
+                  value={planBasis.filing_status}
+                  onValueChange={(v) => setPlanBasis({ ...planBasis, filing_status: v as any })}
+                >
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Single">Single</SelectItem>
+                    <SelectItem value="Married Filing Jointly">Married Filing Jointly</SelectItem>
+                    <SelectItem value="Married Filing Separately">Married Filing Separately</SelectItem>
+                    <SelectItem value="Head of Household">Head of Household</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {planBasis.include_spouse && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Spouse Life Expectancy</Label>
+                  <Input
+                    type="number"
+                    value={planBasis.spouse_life_expectancy}
+                    onChange={(e) => setPlanBasis({ ...planBasis, spouse_life_expectancy: parseInt(e.target.value) || DEFAULT_LIFE_EXPECTANCY })}
+                    className="h-9 text-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border bg-muted/20 px-4 py-3">
+              <div className="flex items-center gap-2.5 mb-1">
+                <Checkbox
+                  id="enable-borrowing"
+                  checked={scenarioVars.enable_borrowing}
+                  onCheckedChange={(v) => setScenarioVars({ ...scenarioVars, enable_borrowing: !!v })}
+                />
+                <Label htmlFor="enable-borrowing" className="text-sm font-medium cursor-pointer">
+                  Enable borrowing to cover shortfalls
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground ml-6">
+                Borrows to cover negative cash flow; repays when surplus is available.
+              </p>
+            </div>
+
+            {planBasis.include_spouse && (
+              <div className="rounded-lg border bg-muted/20 px-4 py-3">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Spouse SSA</p>
                 <div className="flex items-center gap-2.5">
                   <Checkbox
                     id="spouse-ssa"
                     checked={scenarioVars.spouse_ssa_income ?? true}
                     onCheckedChange={(v) => setScenarioVars({ ...scenarioVars, spouse_ssa_income: !!v })}
                   />
-                  <Label htmlFor="spouse-ssa" className="text-sm cursor-pointer">Include spouse SSA</Label>
+                  <Label htmlFor="spouse-ssa" className="text-sm cursor-pointer">Include spouse SSA income</Label>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Save actions */}
-        <div className="flex flex-wrap items-center gap-2 border-t px-6 py-4 bg-muted/10">
-          <Button variant="ghost" size="sm" onClick={() => setShowDefaultsPopup(true)} className="text-muted-foreground">
-            View Defaults
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleResetToDefaults} className="text-muted-foreground">
-            <X className="h-3.5 w-3.5" />
-            Reset to Defaults
-          </Button>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)} disabled={saving}>
-              <Plus className="h-3.5 w-3.5" />
-              Save as New Scenario
-            </Button>
-            {selectedScenarioId && (
-              <Button size="sm" onClick={() => handleSaveScenarioVars()} disabled={saving}>
-                <Save className="h-3.5 w-3.5" />
-                {saving ? 'Saving…' : 'Save to Current Scenario'}
-              </Button>
+              </div>
             )}
           </div>
+        )}
+      </div>
+
+      {/* ── SAVE ACTIONS ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => setShowDefaultsPopup(true)} className="text-muted-foreground">
+          View Defaults
+        </Button>
+        <Button variant="outline" size="sm" onClick={async () => { await loadDefaultsToScenarioVars() }} className="text-muted-foreground">
+          <X className="h-3.5 w-3.5" /> Reset to Defaults
+        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)} disabled={saving}>
+            <Plus className="h-3.5 w-3.5" /> Save as New Scenario
+          </Button>
+          {selectedScenarioId && (
+            <Button size="sm" onClick={handleSaveAll} disabled={saving}>
+              <Save className="h-3.5 w-3.5" />
+              {saving ? 'Saving…' : 'Save Plan'}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* ── Save as New Scenario inline form ── */}
+      {/* Save as New Scenario inline */}
       {showSaveDialog && (
         <div className="rounded-xl border bg-card px-5 py-4">
           <h4 className="text-sm font-semibold mb-3">Save as New Scenario</h4>
@@ -1303,34 +1048,36 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
               onChange={(e) => setNewScenarioName(e.target.value)}
               placeholder={suggestScenarioName()}
               className="flex-1 h-9 text-sm"
-              onKeyDown={(e) => e.key === 'Enter' && handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveAsNewScenario(newScenarioName.trim() || suggestScenarioName())}
             />
-            <Button variant="outline" size="sm" onClick={() => setNewScenarioName(suggestScenarioName())}>
-              Suggest
+            <Button variant="outline" size="sm" onClick={() => setNewScenarioName(suggestScenarioName())}>Suggest</Button>
+            <Button size="sm" onClick={() => handleSaveAsNewScenario(newScenarioName.trim() || suggestScenarioName())} disabled={saving}>
+              <Save className="h-3.5 w-3.5" /> Save
             </Button>
-            <Button size="sm" onClick={() => handleSaveScenarioVars(undefined, newScenarioName.trim() || suggestScenarioName())} disabled={saving}>
-              <Save className="h-3.5 w-3.5" />
-              Save
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => { setShowSaveDialog(false); setNewScenarioName('') }}>
-              Cancel
-            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setShowSaveDialog(false); setNewScenarioName('') }}>Cancel</Button>
           </div>
         </div>
       )}
 
-      {/* ── Empty scenarios nudge ── */}
+      {/* Empty scenarios nudge */}
       {scenarios.length === 0 && !showSaveDialog && (
         <div className="rounded-xl border border-dashed p-5 text-center">
           <p className="text-sm text-muted-foreground mb-3">
-            No scenarios yet. Configure your assumptions above and save your first scenario.
+            No scenarios yet. Configure your plan above and save your first scenario.
           </p>
-          <Button size="sm" onClick={() => setShowSaveDialog(true)} disabled={saving}>
-            <Save className="h-3.5 w-3.5" />
-            Save as New Scenario
+          <Button size="sm" onClick={() => setShowSaveDialog(true)}>
+            <Save className="h-3.5 w-3.5" /> Save as New Scenario
           </Button>
         </div>
       )}
+
+      {/* Scenarios Table */}
+      <ScenariosTable
+        planId={planId}
+        refreshTrigger={scenariosTableRefreshKey}
+        onAddScenario={handleAddScenario}
+        onModelScenarios={() => window.dispatchEvent(new CustomEvent('switchTab', { detail: 'scenario-modeling' }))}
+      />
 
       <DefaultsPopup
         planId={planId}

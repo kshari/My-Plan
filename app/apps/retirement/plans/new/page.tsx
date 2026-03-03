@@ -1,15 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
 import Link from 'next/link'
 import RetirementPlanForm from '@/components/retirement/retirement-plan-form'
 
 export default async function NewRetirementPlanPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
+  await requireAuth()
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
+import { PAGE_CONTAINER, BACK_LINK } from '@/lib/constants/css'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import RetirementPlanTabs from '@/components/retirement/retirement-plan-tabs'
 
@@ -11,10 +12,7 @@ interface RetirementPlanDetailPageProps {
 export default async function RetirementPlanDetailPage({ params, searchParams }: RetirementPlanDetailPageProps) {
   const { id } = await params
   const { tab } = await searchParams
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
+  const { supabase, user } = await requireAuth()
 
   const planId = parseInt(id)
   if (isNaN(planId)) notFound()
@@ -29,12 +27,12 @@ export default async function RetirementPlanDetailPage({ params, searchParams }:
   if (error || !plan) notFound()
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={PAGE_CONTAINER}>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <Link
             href="/apps/retirement/dashboard"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className={BACK_LINK}
           >
             ← Retirement Plans
           </Link>
@@ -48,7 +46,7 @@ export default async function RetirementPlanDetailPage({ params, searchParams }:
         </Link>
       </div>
 
-      <RetirementPlanTabs planId={planId} initialTab={tab} />
+      <RetirementPlanTabs planId={planId} planName={plan.plan_name} initialTab={tab} />
     </div>
   )
 }

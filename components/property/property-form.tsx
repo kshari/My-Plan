@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PROPERTY_TYPES } from '@/lib/constants/property-defaults'
 import { useRouter } from 'next/navigation'
+import { ErrorMessage } from '@/components/ui/error-message'
 
 interface PropertyFormProps {
   propertyId?: number
@@ -78,11 +79,7 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      {error && <ErrorMessage message={error} />}
 
       <div>
         <label htmlFor="address" className="block text-sm font-medium text-gray-700">

@@ -12,11 +12,9 @@ import {
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
 import {
-  INCOME_TAX_BRACKETS,
   DEFAULT_MARGINAL_TAX_RATE,
-  TOP_MARGINAL_RATE,
-  type FilingStatus,
 } from '@/lib/constants/tax-brackets'
+import { calculateMarginalTaxRate } from '@/lib/utils/tax-calculations'
 import {
   DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
   DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
@@ -26,12 +24,15 @@ import {
   RMD_START_AGE,
 } from '@/lib/constants/retirement-defaults'
 import { analyzeTaxEfficiency } from './analysis-tab'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface TaxEfficiencyTabProps {
   planId: number
+  /** When true, pre-expands the Total Net Savings / Roth conversion details section. */
+  initialShowRothDetails?: boolean
 }
 
-export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
+export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: TaxEfficiencyTabProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
@@ -45,26 +46,12 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
   const [saveToProfile, setSaveToProfile] = useState(false)
   const [savingTaxInfo, setSavingTaxInfo] = useState(false)
   const [currentSettings, setCurrentSettings] = useState<CalculatorSettings | null>(null)
-  const [showTaxSummaryDetails, setShowTaxSummaryDetails] = useState(false)
+  const [showTaxSummaryDetails, setShowTaxSummaryDetails] = useState(initialShowRothDetails ?? false)
   const [showAdditionalStrategies, setShowAdditionalStrategies] = useState(false)
   const [showTaxAssumptions, setShowTaxAssumptions] = useState(false)
   const [showContributionAnalysis, setShowContributionAnalysis] = useState(true)
   const [contributionAnalysis, setContributionAnalysis] = useState<any>(null)
   const [showRetirementBracketExplanation, setShowRetirementBracketExplanation] = useState(false)
-
-  // Calculate tax bracket from income based on 2024 tax brackets
-  const calculateTaxBracket = (income: number, filingStatus: string): number => {
-    const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
-    const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
-    
-    for (const bracket of bracketList) {
-      if (income >= bracket.min && income < bracket.max) {
-        return bracket.rate
-      }
-    }
-    
-    return TOP_MARGINAL_RATE
-  }
 
   // Analyze traditional vs Roth contribution strategy
   const analyzeContributionStrategy = (
@@ -97,7 +84,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
     }
     
     // Calculate expected retirement tax bracket
-    const retirementTaxBracket = calculateTaxBracket(avgRetirementTaxableIncome, filingStatus)
+    const retirementTaxBracket = calculateMarginalTaxRate(avgRetirementTaxableIncome, filingStatus)
     
     // Calculate years until retirement
     const currentYear = settings.current_year || new Date().getFullYear()
@@ -293,6 +280,8 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
         growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
         inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
         filing_status: (planDataForSettings?.filing_status as any) || DEFAULT_FILING_STATUS,
+        pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium != null ? parseFloat(settingsData.data.pre_medicare_annual_premium.toString()) : undefined,
+        post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium != null ? parseFloat(settingsData.data.post_medicare_annual_premium.toString()) : undefined,
       }
       
       setCurrentSettings(settings)
@@ -343,7 +332,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-600">Calculating tax efficiency analysis...</div>
+    return <LoadingState message="Calculating tax efficiency analysis…" />
   }
 
   const selectedScenario = scenarios.find(s => s.id === selectedScenarioId)
@@ -572,7 +561,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                       setCurrentGrossIncome(income)
                       // Auto-calculate tax bracket when income changes
                       if (income && income > 0 && currentSettings) {
-                        const calculatedBracket = calculateTaxBracket(income, currentSettings.filing_status || DEFAULT_FILING_STATUS)
+                        const calculatedBracket = calculateMarginalTaxRate(income, currentSettings.filing_status || DEFAULT_FILING_STATUS)
                         setCurrentTaxBracket(calculatedBracket)
                       } else if (!income) {
                         setCurrentTaxBracket(null)

@@ -1,13 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
+import { PAGE_CONTAINER } from '@/lib/constants/css'
 import Link from 'next/link'
 import PropertyList from '@/components/property/property-list'
 
 export default async function PropertyDashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
+  const { supabase, user } = await requireAuth()
 
   const { data: properties, error } = await supabase
     .from('pi_properties')
@@ -16,7 +13,7 @@ export default async function PropertyDashboardPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={PAGE_CONTAINER}>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Properties</h1>

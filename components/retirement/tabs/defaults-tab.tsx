@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { DEFAULT_SETTINGS_LIST } from '@/lib/constants/retirement-defaults'
 import { Save } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface DefaultSetting {
   id?: number
@@ -76,7 +77,7 @@ export default function DefaultsTab({ planId }: DefaultsTabProps) {
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-600">Loading...</div>
+  if (loading) return <LoadingState />
 
   return (
     <div>

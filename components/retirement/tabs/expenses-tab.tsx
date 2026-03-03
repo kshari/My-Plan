@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Save } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface Expense {
   id?: number
@@ -84,12 +85,12 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-600">Loading...</div>
+  if (loading) return <LoadingState />
 
   return (
     <div>
       <div className="mb-4 flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Monthly Expenses</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Monthly Living Expenses</h3>
         <button
           onClick={() => {
             setEditingExpense(null)

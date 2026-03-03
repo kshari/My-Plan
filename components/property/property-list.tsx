@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Building2, Calendar, Hash, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
 
 interface Property {
   id: number
@@ -19,11 +20,11 @@ interface PropertyListProps {
 export default function PropertyList({ properties }: PropertyListProps) {
   if (properties.length === 0) {
     return (
-      <div className="rounded-xl border bg-muted/20 py-16 text-center">
-        <Building2 className="mx-auto h-10 w-10 text-muted-foreground/40" />
-        <p className="mt-3 text-sm text-muted-foreground">No properties yet.</p>
-        <p className="text-xs text-muted-foreground/70 mt-1">Add your first property to get started.</p>
-      </div>
+      <EmptyState
+        icon={Building2}
+        message="No properties yet"
+        description="Add your first property to get started."
+      />
     )
   }
 

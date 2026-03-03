@@ -19,6 +19,7 @@ import {
   QCD_FRACTION_OF_RMD,
   RMD_START_AGE,
   RMD_LIFE_EXPECTANCY_FACTOR_AT_73,
+  MEDICARE_ELIGIBILITY_AGE,
 } from '@/lib/constants/retirement-defaults'
 import {
   INCOME_TAX_BRACKETS,
@@ -152,12 +153,19 @@ export interface CalculatorSettings {
   withdrawal_priority?: WithdrawalPriority // Primary withdrawal strategy priority (for goal-based)
   withdrawal_secondary_priority?: WithdrawalPriority // Secondary priority for tie-breaking
   withdrawal_strategy_type?: WithdrawalStrategyType // Strategy type selection
+  // Healthcare premiums (annual, in today's dollars; inflated per year)
+  pre_medicare_annual_premium?: number
+  post_medicare_annual_premium?: number
   // Strategy-specific parameters
   fixed_percentage_rate?: number // For fixed percentage strategy (e.g., 0.04 for 4%)
   fixed_dollar_amount?: number // For fixed dollar strategy
   guardrails_ceiling?: number // For guardrails strategy (e.g., 0.06 for 6%)
   guardrails_floor?: number // For guardrails strategy (e.g., 0.03 for 3%)
   bracket_topping_threshold?: number // Tax bracket threshold for bracket-topping
+  /** Optional override: per-year decimal returns for pre-retirement years. Falls back to growth_rate_before_retirement for any year beyond the array length. */
+  pre_retirement_return_sequence?: number[]
+  /** Optional override: per-year decimal returns for retirement years (e.g. [-0.15, -0.05, 0.02] for stress test). Falls back to growth_rate_during_retirement for any year beyond the array length. */
+  retirement_return_sequence?: number[]
 }
 
 export interface ProjectionDetail {
@@ -177,6 +185,7 @@ export interface ProjectionDetail {
   total_income?: number
   after_tax_income?: number
   living_expenses?: number
+  healthcare_expenses?: number
   special_expenses?: number
   total_expenses?: number
   gap_excess?: number
@@ -506,6 +515,8 @@ export function buildCalculatorSettings(
     guardrails_ceiling: settingsData?.guardrails_ceiling ? parseFloat(settingsData.guardrails_ceiling.toString()) : undefined,
     guardrails_floor: settingsData?.guardrails_floor ? parseFloat(settingsData.guardrails_floor.toString()) : undefined,
     bracket_topping_threshold: settingsData?.bracket_topping_threshold ? parseFloat(settingsData.bracket_topping_threshold.toString()) : undefined,
+    pre_medicare_annual_premium: settingsData?.pre_medicare_annual_premium != null ? parseFloat(settingsData.pre_medicare_annual_premium.toString()) : undefined,
+    post_medicare_annual_premium: settingsData?.post_medicare_annual_premium != null ? parseFloat(settingsData.post_medicare_annual_premium.toString()) : undefined,
   }
 }
 
@@ -606,11 +617,22 @@ export function calculateRetirementProjections(
       // Use pre-retirement expenses adjusted for inflation
       livingExpenses = baseAnnualExpenses * inflationMultiplier
     }
+
+    // Healthcare is a separate expense from living expenses, inflated from today's dollars
+    let healthcareExpenses = 0
+    const preMedicarePremium = settings.pre_medicare_annual_premium ?? 0
+    const postMedicarePremium = settings.post_medicare_annual_premium ?? 0
+    if (preMedicarePremium > 0 || postMedicarePremium > 0) {
+      const basePremium = age < MEDICARE_ELIGIBILITY_AGE ? preMedicarePremium : postMedicarePremium
+      healthcareExpenses = basePremium * inflationMultiplier
+    }
     
-    // Calculate growth rate for this year
-    const growthRate = isRetired 
-      ? settings.growth_rate_during_retirement 
-      : settings.growth_rate_before_retirement
+    // Calculate growth rate for this year (per-year sequences override for Monte Carlo / stress tests)
+    const retSeq = settings.retirement_return_sequence
+    const preSeq = settings.pre_retirement_return_sequence
+    const growthRate = isRetired
+      ? (retSeq && yearsSinceRetirement < retSeq.length ? retSeq[yearsSinceRetirement] : settings.growth_rate_during_retirement)
+      : (preSeq && yearsFromNow < preSeq.length ? preSeq[yearsFromNow] : settings.growth_rate_before_retirement)
     
     // Calculate income sources
     let ssaIncome = 0
@@ -691,7 +713,8 @@ export function calculateRetirementProjections(
     // We need to estimate taxes first, then withdraw enough to cover both expenses and taxes
     // Initial estimate: assume we need to withdraw enough to cover expenses
     // Taxes will be calculated on withdrawals, so we need to account for that
-    const initialExpensesToCover = livingExpenses - totalSsaIncome - otherRecurringIncome
+    const totalLivingAndHealthcare = livingExpenses + healthcareExpenses
+    const initialExpensesToCover = totalLivingAndHealthcare - totalSsaIncome - otherRecurringIncome
     
     // Estimate taxes on initial withdrawal using IRS tax brackets
     // Estimate based on expected income level (SSA + other income + initial withdrawal estimate)
@@ -773,7 +796,7 @@ export function calculateRetirementProjections(
       if (strategyType === 'amount_based_expense_coverage') {
         // Expense Based - Cover Expenses and Tax: Withdraw enough to cover expenses plus estimated tax
         useStrategyAmount = true
-        const totalExpenses = livingExpenses // special_expenses not currently implemented, always 0
+        const totalExpenses = totalLivingAndHealthcare
         const otherIncomeTotal = totalSsaIncome + otherRecurringIncome
         const expensesNeedingCoverage = Math.max(0, totalExpenses - otherIncomeTotal)
         
@@ -1018,7 +1041,7 @@ export function calculateRetirementProjections(
       } else if (strategyType === 'market_floor_upside') {
         // Floor-and-Upside: Guaranteed income for essentials, portfolio for discretionary
         // Use SSA + other income for essentials, portfolio for remaining
-        const essentialExpenses = livingExpenses * 0.7 // Assume 70% are essential
+        const essentialExpenses = totalLivingAndHealthcare * 0.7 // Assume 70% are essential
         const guaranteedIncome = totalSsaIncome + otherRecurringIncome
         const essentialShortfall = Math.max(0, essentialExpenses - guaranteedIncome)
         const discretionaryNeed = remainingNeed - essentialShortfall
@@ -1394,7 +1417,7 @@ export function calculateRetirementProjections(
                                   distributionHsa + distributionIra + distributionOther + otherRecurringIncome
         
         const afterTaxIncome = currentTotalIncome - currentTax
-        const shortfall = livingExpenses - afterTaxIncome
+        const shortfall = totalLivingAndHealthcare - afterTaxIncome
         
         // If we're within $1 of covering expenses, we're done (allow small rounding)
         if (shortfall <= 1) {
@@ -1595,7 +1618,7 @@ export function calculateRetirementProjections(
     // Before retirement: gap/excess is 0 (we're not drawing income for living expenses yet)
     // Note: Pre-retirement income (like early SSA) is tracked but doesn't create "excess" to reinvest
     const initialGapExcess = isRetired 
-      ? afterTaxIncome - livingExpenses
+      ? afterTaxIncome - totalLivingAndHealthcare
       : 0 // Before retirement, no gap/excess - income isn't being used for expenses
     
     // DEBT MANAGEMENT STRATEGY (only if enabled)
@@ -1755,8 +1778,9 @@ export function calculateRetirementProjections(
       total_income: totalIncome,
       after_tax_income: afterTaxIncome,
       living_expenses: livingExpenses,
-      special_expenses: 0, // Can be added later for one-time expenses
-      total_expenses: livingExpenses,
+      healthcare_expenses: healthcareExpenses,
+      special_expenses: 0,
+      total_expenses: totalLivingAndHealthcare,
       gap_excess: gapExcess,
       cumulative_liability: cumulativeLiability,
       debt_balance: debtBalance,

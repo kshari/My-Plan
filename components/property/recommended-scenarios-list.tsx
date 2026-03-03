@@ -21,7 +21,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/property/ui/tooltip'
+} from '@/components/ui/tooltip'
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface Property {

@@ -1,17 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
 import { HomeContent } from '@/components/home-content'
 
 export default async function Home() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
+  const { user } = await requireAuth()
 
   return <HomeContent userEmail={user.email ?? ''} />
 }

@@ -1,13 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { redirectIfAuthenticated } from '@/lib/utils/auth'
 import Link from 'next/link'
 import { Building2 } from 'lucide-react'
 
 export default async function PropertyHomePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) redirect('/apps/property/dashboard')
+  await redirectIfAuthenticated('/apps/property/dashboard')
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

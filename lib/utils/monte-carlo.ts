@@ -8,11 +8,13 @@ import {
   MC_STD_DEV_PRE_RETIREMENT,
   MC_STD_DEV_DURING_RETIREMENT,
   MC_NEGATIVE_CASHFLOW_FAILURE_THRESHOLD,
+  MC_RETURN_FLOOR,
   MC_PERCENTILE_P5,
   MC_PERCENTILE_P25,
   MC_PERCENTILE_P75,
   MC_PERCENTILE_P90,
   MC_PERCENTILE_P95,
+  STRESS_TEST_SCENARIOS,
 } from '@/lib/constants/monte-carlo'
 
 export interface MonteCarloResult {
@@ -67,7 +69,8 @@ export interface MonteCarloSummary {
 }
 
 /**
- * Run Monte Carlo simulation with variable market returns.
+ * Run Monte Carlo simulation with per-year variable market returns.
+ * Each simulation generates independent random returns for every year of the projection.
  */
 export function runMonteCarloSimulation(
   birthYear: number,
@@ -82,23 +85,37 @@ export function runMonteCarloSimulation(
   const retirementAge = baseSettings.retirement_age || DEFAULT_RETIREMENT_AGE
   const initialNetworth = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
 
+  // Determine how many years fall in each phase so we can generate per-year returns
+  const currentYear = baseSettings.current_year || new Date().getFullYear()
+  const currentAge = currentYear - birthYear
+  const totalProjectionYears = lifeExpectancy - currentAge + 1
+  const yearsBeforeRetirement = Math.max(0, retirementAge - currentAge)
+  const yearsDuringRetirement = Math.max(0, totalProjectionYears - yearsBeforeRetirement)
+
   for (let sim = 0; sim < numSimulations; sim++) {
-    // Generate random market returns using normal distribution
-    // Before retirement: mean = base rate, std dev = 15%
-    // During retirement: mean = base rate, std dev = 12%
-    const beforeRetirementReturn = generateNormalRandom(
-      baseSettings.growth_rate_before_retirement,
-      MC_STD_DEV_PRE_RETIREMENT
-    )
-    const duringRetirementReturn = generateNormalRandom(
-      baseSettings.growth_rate_during_retirement,
-      MC_STD_DEV_DURING_RETIREMENT
-    )
+    // Generate independent random return for every single year, floored at MC_RETURN_FLOOR
+    const preRetirementReturns: number[] = []
+    for (let y = 0; y < yearsBeforeRetirement; y++) {
+      preRetirementReturns.push(Math.max(MC_RETURN_FLOOR, generateNormalRandom(
+        baseSettings.growth_rate_before_retirement,
+        MC_STD_DEV_PRE_RETIREMENT
+      )))
+    }
+    const retirementReturns: number[] = []
+    for (let y = 0; y < yearsDuringRetirement; y++) {
+      retirementReturns.push(Math.max(MC_RETURN_FLOOR, generateNormalRandom(
+        baseSettings.growth_rate_during_retirement,
+        MC_STD_DEV_DURING_RETIREMENT
+      )))
+    }
+
+    // Build the full return sequence that the projection engine will use
+    const retirementReturnSequence = retirementReturns
 
     const modifiedSettings: CalculatorSettings = {
       ...baseSettings,
-      growth_rate_before_retirement: Math.max(0, beforeRetirementReturn),
-      growth_rate_during_retirement: Math.max(0, duringRetirementReturn),
+      pre_retirement_return_sequence: preRetirementReturns,
+      retirement_return_sequence: retirementReturnSequence,
     }
 
     const projections = calculateRetirementProjections(
@@ -112,18 +129,16 @@ export function runMonteCarloSimulation(
 
     const finalNetworth = projections[projections.length - 1]?.networth ?? 0
     const minNetworth = Math.min(...projections.map(p => p.networth ?? 0))
-    const yearsWithNegativeCashFlow = projections.filter(p => (p.gap_excess ?? 0) < 0).length
+    const retirementProjections = projections.filter(p => (p.age ?? 0) >= retirementAge)
+    const yearsWithNegativeCashFlow = retirementProjections.filter(p => (p.gap_excess ?? 0) < 0).length
     const totalTaxes = projections.reduce((sum, p) => sum + (p.tax ?? 0), 0)
-    const success = finalNetworth > 0 && yearsWithNegativeCashFlow < projections.length * MC_NEGATIVE_CASHFLOW_FAILURE_THRESHOLD
+    // Success = plan ends with positive net worth (portfolio doesn't deplete)
+    const success = finalNetworth > 0
 
-    // Weighted-average annual return across both phases
-    const yearsBeforeRetirement = projections.filter(p => (p.age ?? 0) < retirementAge).length
-    const yearsDuringRetirement  = projections.filter(p => (p.age ?? 0) >= retirementAge).length
-    const totalYears = projections.length
-    const avgAnnualReturn = totalYears > 0
-      ? (Math.max(0, beforeRetirementReturn) * yearsBeforeRetirement +
-         Math.max(0, duringRetirementReturn)  * yearsDuringRetirement) / totalYears
-      : Math.max(0, beforeRetirementReturn)
+    const allReturns = [...preRetirementReturns, ...retirementReturns]
+    const avgAnnualReturn = allReturns.length > 0
+      ? allReturns.reduce((a, b) => a + b, 0) / allReturns.length
+      : baseSettings.growth_rate_before_retirement
 
     results.push({
       simulation: sim + 1,
@@ -208,6 +223,134 @@ function generateNormalRandom(mean: number, stdDev: number): number {
   const u2 = Math.random()
   const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
   return mean + z0 * stdDev
+}
+
+/** Result of one run (baseline or stress) for deterministic stress test */
+export interface DeterministicStressRun {
+  finalNetworth: number
+  minNetworth: number
+  yearsWithNegativeCashFlow: number
+  success: boolean
+  projections: ProjectionDetail[]
+}
+
+/** One bear scenario result with max drawdown */
+export interface DeterministicStressScenarioResult {
+  name: string
+  bearSequencePct: number[]
+  recoveryRatePct: number
+  run: DeterministicStressRun
+  /** Peak-to-trough max drawdown as percentage (0–100) */
+  maxDrawdownPct: number
+}
+
+/** Summary of deterministic stress test: baseline + 5 bear scenarios */
+export interface DeterministicStressResult {
+  /** Baseline run with steady average growth */
+  baseline: DeterministicStressRun
+  /** Five bear scenario results */
+  scenarios: DeterministicStressScenarioResult[]
+  initialNetworth: number
+  retirementAge: number
+}
+
+/**
+ * Compute peak-to-trough max drawdown from projections (as percentage 0–100).
+ */
+function computeMaxDrawdown(projections: ProjectionDetail[]): number {
+  let peak = 0
+  let maxDrawdown = 0
+  for (const p of projections) {
+    const nw = p.networth ?? 0
+    if (nw > peak) peak = nw
+    if (peak > 0 && nw < peak) {
+      const dd = ((peak - nw) / peak) * 100
+      if (dd > maxDrawdown) maxDrawdown = dd
+    }
+  }
+  return Math.round(maxDrawdown * 100) / 100
+}
+
+/**
+ * Run a deterministic stress test: compare plan under steady growth vs 5 bear market
+ * scenarios. Each bear sequence is applied in the first years of retirement, followed
+ * by a recovery rate so the geometric average over retirement equals the plan's assumed rate.
+ */
+export function runDeterministicStressTest(
+  birthYear: number,
+  accounts: Account[],
+  expenses: Expense[],
+  otherIncome: OtherIncome[],
+  baseSettings: CalculatorSettings,
+  lifeExpectancy: number
+): DeterministicStressResult {
+  const retirementAge = baseSettings.retirement_age || DEFAULT_RETIREMENT_AGE
+  const initialNetworth = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+
+  const baselineProjections = calculateRetirementProjections(
+    birthYear,
+    accounts,
+    expenses,
+    otherIncome,
+    baseSettings,
+    lifeExpectancy
+  )
+
+  const retirementYears = baselineProjections.filter(p => (p.age ?? 0) >= retirementAge).length
+  const g = baseSettings.growth_rate_during_retirement
+
+  const toRun = (projections: ProjectionDetail[]): DeterministicStressRun => {
+    const finalNetworth = projections[projections.length - 1]?.networth ?? 0
+    const minNetworth = Math.min(...projections.map(p => p.networth ?? 0))
+    const retProj = projections.filter(p => (p.age ?? 0) >= retirementAge)
+    const yearsWithNegativeCashFlow = retProj.filter(p => (p.gap_excess ?? 0) < -1).length
+    const success = finalNetworth > 0
+    return { finalNetworth, minNetworth, yearsWithNegativeCashFlow, success, projections }
+  }
+
+  const scenarios: DeterministicStressScenarioResult[] = []
+
+  for (const scenario of STRESS_TEST_SCENARIOS) {
+    const bearSequence = [...scenario.sequence]
+    const bearYears = bearSequence.length
+    const normalYears = Math.max(1, retirementYears - bearYears)
+
+    const bearProduct = bearSequence.reduce((prod, r) => prod * (1 + r), 1)
+    const targetProduct = Math.pow(1 + g, retirementYears)
+    const recoveryRate = Math.pow(targetProduct / bearProduct, 1 / normalYears) - 1
+
+    const fullSequence = [
+      ...bearSequence,
+      ...Array(normalYears).fill(recoveryRate),
+    ]
+
+    const stressProjections = calculateRetirementProjections(
+      birthYear,
+      accounts,
+      expenses,
+      otherIncome,
+      { ...baseSettings, retirement_return_sequence: fullSequence },
+      lifeExpectancy
+    )
+
+    const run = toRun(stressProjections)
+    const maxDrawdownPct = computeMaxDrawdown(run.projections)
+
+    scenarios.push({
+      name: scenario.name,
+      bearSequencePct: bearSequence.map(r => r * 100),
+      recoveryRatePct: Math.round(recoveryRate * 10000) / 100,
+      run,
+      maxDrawdownPct,
+    })
+  }
+
+  return {
+    baseline: toRun(baselineProjections),
+    scenarios,
+    initialNetworth,
+    retirementAge,
+  }
 }
 
 /**

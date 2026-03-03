@@ -35,8 +35,8 @@ export const DEFAULT_SPOUSE_SSA_BENEFIT = 16_000
 
 // ── Healthcare / Medicare ──
 export const MEDICARE_ELIGIBILITY_AGE = 65
-export const DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM = 15_000  // ACA marketplace / COBRA estimate
-export const DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM = 4_200   // Medicare Part B + supplement estimate
+export const DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM = 24_000  // ACA marketplace / COBRA estimate
+export const DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM = 6_000   // Medicare Part B + supplement estimate
 
 // ── Savings & spending (for the quick calculator) ──
 export const DEFAULT_CURRENT_SAVINGS = 200_000
@@ -75,11 +75,12 @@ export const SCORE_CLOSE_THRESHOLD = 60
 export const SCORE_MEDIUM_RISK_THRESHOLD = 75
 export const SCORE_AT_RISK_THRESHOLD = 50
 
-// ── Analysis Score Weights ──
-export const SCORE_WEIGHT_LONGEVITY = 0.60
+// ── Analysis Score Weights (must sum to 1.0) ──
+export const SCORE_WEIGHT_LONGEVITY = 0.50
+export const SCORE_WEIGHT_CASHFLOW = 0.15
 export const SCORE_WEIGHT_TAX_EFFICIENCY = 0.15
-export const SCORE_WEIGHT_INFLATION_MEDICAL = 0.10
-export const SCORE_WEIGHT_CASHFLOW = 0.05
+export const SCORE_WEIGHT_INFLATION = 0.10
+export const SCORE_WEIGHT_MEDICAL = 0.10
 export const SCORE_WEIGHT_SCENARIO_LONGEVITY = 0.50
 export const SCORE_WEIGHT_SCENARIO_SCORE = 0.25
 

@@ -1,13 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { redirectIfAuthenticated } from '@/lib/utils/auth'
 import Link from 'next/link'
 import { Target } from 'lucide-react'
 
 export default async function RetirementHomePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) redirect('/apps/retirement/dashboard')
+  await redirectIfAuthenticated('/apps/retirement/dashboard')
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

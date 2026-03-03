@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { toast } from 'sonner'
 import { ArrowRight, Target, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { SCORE_ON_TRACK_THRESHOLD, SCORE_CLOSE_THRESHOLD } from '@/lib/constants/retirement-defaults'
+import { formatCurrencyShort as fmt, formatCurrency } from '@/lib/utils/formatting'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,12 +18,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
 interface RetirementPlan {
   id: number
   plan_name: string
+  life_expectancy?: number | null
   created_at: string
   updated_at: string
 }
@@ -33,19 +35,31 @@ interface PlanMetrics {
   confidence_score?: number | null
   monthly_income?: number | null
   years_money_lasts?: number | null
+  networth_at_retirement?: number | null
   legacy_value?: number | null
   status?: string | null
+}
+
+export interface PlanAssumptions {
+  retirement_age?: number | null
+  annual_retirement_expenses?: number | null
+  growth_rate_before_retirement?: number | null
+  growth_rate_during_retirement?: number | null
+  inflation_rate?: number | null
+  ssa_start_age?: number | null
+  planner_ssa_income?: boolean | null
+  spouse_ssa_income?: boolean | null
+  planner_ssa_annual_benefit?: number | null
+  spouse_ssa_annual_benefit?: number | null
+  pre_medicare_annual_premium?: number | null
+  post_medicare_annual_premium?: number | null
 }
 
 interface RetirementPlanListProps {
   plans: RetirementPlan[]
   metrics?: PlanMetrics[]
-}
-
-function fmt(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`
-  return `$${n.toLocaleString()}`
+  ssaStartAgeByPlanId?: Record<number, number | null>
+  settingsByPlanId?: Record<number, PlanAssumptions | null>
 }
 
 function statusBadge(status?: string | null) {
@@ -61,15 +75,47 @@ function statusBadge(status?: string | null) {
   ) : null
 }
 
-export default function RetirementPlanList({ plans, metrics = [] }: RetirementPlanListProps) {
-  const [deletingId, setDeletingId] = useState<number | null>(null)
+const TABLE_COLUMN_COUNT = 11
 
-  const handleDelete = async (planId: number, planName: string) => {
-    setDeletingId(planId)
+function AssumptionRow({ settings }: { settings: PlanAssumptions }) {
+  const n = (v: number | null | undefined) => (v != null ? v : null)
+  const pct = (v: number | null | undefined) => (v != null ? `${(Number(v) * 100).toFixed(1)}%` : '—')
+  const cur = (v: number | null | undefined) => (v != null ? formatCurrency(v) : '—')
+  const age = (v: number | null | undefined) => (v != null ? `${v}` : '—')
+  const yn = (v: boolean | null | undefined) => (v == null ? '—' : v ? 'Yes' : 'No')
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+      <span><strong className="text-foreground/80">Retire at</strong> {age(settings.retirement_age)}</span>
+      <span><strong className="text-foreground/80">Annual living expenses</strong> {cur(settings.annual_retirement_expenses)}</span>
+      <span><strong className="text-foreground/80">Growth (pre)</strong> {pct(settings.growth_rate_before_retirement)}</span>
+      <span><strong className="text-foreground/80">Growth (post)</strong> {pct(settings.growth_rate_during_retirement)}</span>
+      <span><strong className="text-foreground/80">Inflation</strong> {pct(settings.inflation_rate)}</span>
+      <span><strong className="text-foreground/80">SSA start age</strong> {age(settings.ssa_start_age)}</span>
+      <span><strong className="text-foreground/80">Planner SSA</strong> {yn(settings.planner_ssa_income)} {n(settings.planner_ssa_annual_benefit) != null && `(${cur(settings.planner_ssa_annual_benefit)}/yr)`}</span>
+      <span><strong className="text-foreground/80">Spouse SSA</strong> {yn(settings.spouse_ssa_income)} {n(settings.spouse_ssa_annual_benefit) != null && `(${cur(settings.spouse_ssa_annual_benefit)}/yr)`}</span>
+      <span><strong className="text-foreground/80">Healthcare (pre-65)</strong> {cur(settings.pre_medicare_annual_premium)}/yr</span>
+      <span><strong className="text-foreground/80">Healthcare (65+)</strong> {cur(settings.post_medicare_annual_premium)}/yr</span>
+    </div>
+  )
+}
+
+export default function RetirementPlanList({ plans, metrics = [], ssaStartAgeByPlanId = {}, settingsByPlanId = {} }: RetirementPlanListProps) {
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [planToDelete, setPlanToDelete] = useState<{ id: number; plan_name: string } | null>(null)
+  const [showAllAssumptions, setShowAllAssumptions] = useState(false)
+
+  const handleDeleteClick = (plan: RetirementPlan) => {
+    setPlanToDelete({ id: plan.id, plan_name: plan.plan_name })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!planToDelete) return
+    setDeletingId(planToDelete.id)
+    setPlanToDelete(null)
     try {
-      const response = await fetch(`/apps/retirement/plans/${planId}/delete`, { method: 'DELETE' })
+      const response = await fetch(`/apps/retirement/plans/${planToDelete.id}/delete`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Failed to delete plan')
-      toast.success(`"${planName}" deleted`)
+      toast.success(`"${planToDelete.plan_name}" deleted`)
       window.location.reload()
     } catch (error) {
       toast.error('Failed to delete plan')
@@ -91,16 +137,30 @@ export default function RetirementPlanList({ plans, metrics = [] }: RetirementPl
 
   return (
     <div className="rounded-xl border overflow-x-auto">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-muted/20">
+        <Checkbox
+          id="show-assumptions"
+          checked={showAllAssumptions}
+          onCheckedChange={(checked) => setShowAllAssumptions(checked === true)}
+          aria-label="Show all the assumptions"
+        />
+        <label htmlFor="show-assumptions" className="text-sm font-medium cursor-pointer select-none">
+          Show all the assumptions
+        </label>
+      </div>
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/40">
             <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Plan</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">Age</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">Retire at</th>
+            <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">Life exp.</th>
+            <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">SSA at</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Confidence</th>
             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Monthly Income</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Longevity</th>
-            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Legacy Value</th>
+            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Networth At Retirement</th>
+            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">End Networth</th>
             <th className="w-24 px-4 py-3" />
           </tr>
         </thead>
@@ -111,7 +171,8 @@ export default function RetirementPlanList({ plans, metrics = [] }: RetirementPl
             const dash = <span className="text-muted-foreground/40">—</span>
 
             return (
-              <tr key={plan.id} className="hover:bg-muted/20 transition-colors group">
+              <Fragment key={plan.id}>
+              <tr className="hover:bg-muted/20 transition-colors group">
                 {/* Plan name */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -140,6 +201,16 @@ export default function RetirementPlanList({ plans, metrics = [] }: RetirementPl
                   {hasMetrics && m.retirement_age ? m.retirement_age : dash}
                 </td>
 
+                {/* Life expectancy */}
+                <td className="px-4 py-3 text-center hidden sm:table-cell">
+                  {plan.life_expectancy != null ? plan.life_expectancy : dash}
+                </td>
+
+                {/* SSA start age */}
+                <td className="px-4 py-3 text-center hidden sm:table-cell">
+                  {ssaStartAgeByPlanId[plan.id] != null ? ssaStartAgeByPlanId[plan.id] : dash}
+                </td>
+
                 {/* Confidence score */}
                 <td className="px-4 py-3 text-center hidden md:table-cell">
                   {hasMetrics && m.confidence_score != null ? (
@@ -165,9 +236,14 @@ export default function RetirementPlanList({ plans, metrics = [] }: RetirementPl
                   ) : dash}
                 </td>
 
-                {/* Legacy value */}
+                {/* Networth at retirement */}
                 <td className="px-4 py-3 text-right hidden lg:table-cell">
-                  {hasMetrics && m.legacy_value ? fmt(m.legacy_value) : dash}
+                  {hasMetrics && m.networth_at_retirement != null ? formatCurrency(m.networth_at_retirement) : dash}
+                </td>
+
+                {/* End networth */}
+                <td className="px-4 py-3 text-right hidden lg:table-cell">
+                  {hasMetrics && m.legacy_value != null ? formatCurrency(m.legacy_value) : dash}
                 </td>
 
                 {/* Actions */}
@@ -179,38 +255,28 @@ export default function RetirementPlanList({ plans, metrics = [] }: RetirementPl
                     >
                       Open <ArrowRight className="h-3 w-3" />
                     </Link>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="ml-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          disabled={deletingId === plan.id}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete plan?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete <strong>{plan.plan_name}</strong> and all associated scenarios, settings, and projections.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(plan.id, plan.plan_name)}
-                            className="bg-destructive text-white hover:bg-destructive/90"
-                          >
-                            {deletingId === plan.id ? 'Deleting…' : 'Delete'}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="ml-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      disabled={deletingId === plan.id}
+                      onClick={() => handleDeleteClick(plan)}
+                      aria-label={`Delete ${plan.plan_name}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </td>
               </tr>
+              {showAllAssumptions && settingsByPlanId[plan.id] && (
+                <tr className="bg-muted/10 hover:bg-muted/15 transition-colors">
+                  <td colSpan={TABLE_COLUMN_COUNT} className="px-4 py-3 align-top">
+                    <AssumptionRow settings={settingsByPlanId[plan.id]!} />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             )
           })}
         </tbody>
@@ -220,6 +286,31 @@ export default function RetirementPlanList({ plans, metrics = [] }: RetirementPl
           Metrics appear after opening a plan and running Quick Analysis.
         </div>
       )}
+
+      {/* Single AlertDialog avoids per-row Radix IDs and prevents hydration mismatch */}
+      <AlertDialog open={!!planToDelete} onOpenChange={(open) => !open && setPlanToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {planToDelete && (
+                <>
+                  This will permanently delete <strong>{planToDelete.plan_name}</strong> and all associated scenarios, settings, and projections.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {planToDelete && deletingId === planToDelete.id ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

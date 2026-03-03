@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -28,6 +29,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {process.env.NODE_ENV === 'development' && (
+          <Script
+            src="/patch-performance-measure.js"
+            strategy="beforeInteractive"
+          />
+        )}
         <Providers>{children}</Providers>
       </body>
     </html>

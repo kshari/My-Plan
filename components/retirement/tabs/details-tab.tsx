@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
-import { Calculator, Settings, Save, Plus, Trash2, Check, Download, Table2, BarChart as BarChartIcon, TrendingUp, Columns3 } from 'lucide-react'
+import { Calculator, Settings, Save, Plus, Trash2, Check, Download, Table2, BarChart as BarChartIcon, TrendingUp, Columns3, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -28,7 +28,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/property/ui/tooltip'
+} from '@/components/ui/tooltip'
 import {
   LineChart,
   Line,
@@ -65,6 +65,9 @@ import {
   DEFAULT_LIFE_EXPECTANCY,
   DEFAULT_FILING_STATUS,
   DEFAULT_MAX_PROJECTION_AGE,
+  DEFAULT_SSA_ANNUAL_BENEFIT,
+  DEFAULT_SPOUSE_SSA_BENEFIT,
+  DEFAULT_SSA_START_AGE,
   SAFE_WITHDRAWAL_RATE,
   DEFAULT_FIXED_DOLLAR_WITHDRAWAL,
 } from '@/lib/constants/retirement-defaults'
@@ -72,9 +75,24 @@ import { DEBOUNCE_SAVE_MS } from '@/lib/constants/timing'
 
 interface DetailsTabProps {
   planId: number
+  /** Start on this sub-tab instead of the default 'projections'. */
+  initialSubTab?: 'projections' | 'strategy-modeling'
+  /** When true, initialise all projection columns as visible. */
+  initialAllColumns?: boolean
+  /** Start in this view mode instead of the default 'graph'. */
+  initialViewMode?: 'table' | 'graph'
 }
 
-export default function DetailsTab({ planId }: DetailsTabProps) {
+const ALL_COLUMNS_VISIBLE = {
+  year: true, age: true, event: true,
+  ssa: true, dist401k: true, distRoth: true, distTaxable: true,
+  distHsa: true, distIra: true, distOther: true, otherIncome: true,
+  totalIncome: true, expenses: true, contribution: true, gapExcess: true,
+  networth: true, balance401k: true, balanceRoth: true, balanceTaxable: true,
+  balanceHsa: true, balanceIra: true, balanceOther: true,
+}
+
+export default function DetailsTab({ planId, initialSubTab, initialAllColumns, initialViewMode }: DetailsTabProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [projections, setProjections] = useState<ProjectionDetail[]>([])
@@ -89,7 +107,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   const [expensesForTooltip, setExpensesForTooltip] = useState<Expense[]>([])
   const [otherIncomeForTooltip, setOtherIncomeForTooltip] = useState<OtherIncome[]>([])
   const [showPreRetirement, setShowPreRetirement] = useState(false)
-  const [viewMode, setViewMode] = useState<'table' | 'graph'>('table')
+  const [viewMode, setViewMode] = useState<'table' | 'graph'>(initialViewMode ?? 'graph')
   const [graphType, setGraphType] = useState<'line' | 'area' | 'bar'>('line')
   const [incomeGroupExpanded, setIncomeGroupExpanded] = useState(false)
   const [balanceGroupExpanded, setBalanceGroupExpanded] = useState(false)
@@ -107,6 +125,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   })
   const [comparingStrategies, setComparingStrategies] = useState(false)
   const [showStrategyPopup, setShowStrategyPopup] = useState(false)
+  const [strategyExplanationOpen, setStrategyExplanationOpen] = useState(false)
+  const [strategyComparisonInfoOpenRow, setStrategyComparisonInfoOpenRow] = useState<number | null>(null)
   const [savingStrategy, setSavingStrategy] = useState(false)
   const [strategyComparison, setStrategyComparison] = useState<Array<{
     strategyName: string
@@ -122,31 +142,54 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
     lifetimeExpenses: number
     totalWithdrawals: number
   }>>([])
-  const [activeSubTab, setActiveSubTab] = useState<'projections' | 'strategy-modeling'>('projections')
-  const [visibleColumns, setVisibleColumns] = useState({
-    year: true,
-    age: true,
-    event: true,
-    ssa: false, // Hidden by default, shown when income group expanded
-    dist401k: false,
-    distRoth: false,
-    distTaxable: false,
-    distHsa: false,
-    distIra: false,
-    distOther: false,
-    otherIncome: false,
-    totalIncome: true, // Shown by default (will show after-tax income)
-    expenses: true,
-    contribution: true, // Shown by default
-    gapExcess: true,
-    networth: true, // Shown by default
-    balance401k: false, // Hidden by default, shown when balance group expanded
-    balanceRoth: false,
-    balanceTaxable: false,
-    balanceHsa: false,
-    balanceIra: false,
-    balanceOther: false,
-  })
+  const [activeSubTab, setActiveSubTab] = useState<'projections' | 'strategy-modeling'>(initialSubTab ?? 'projections')
+  const [visibleColumns, setVisibleColumns] = useState(
+    initialAllColumns
+      ? ALL_COLUMNS_VISIBLE
+      : {
+          year: true,
+          age: true,
+          event: true,
+          ssa: false,
+          dist401k: false,
+          distRoth: false,
+          distTaxable: false,
+          distHsa: false,
+          distIra: false,
+          distOther: false,
+          otherIncome: false,
+          totalIncome: true,
+          expenses: true,
+          contribution: true,
+          gapExcess: true,
+          networth: true,
+          balance401k: false,
+          balanceRoth: false,
+          balanceTaxable: false,
+          balanceHsa: false,
+          balanceIra: false,
+          balanceOther: false,
+        }
+  )
+
+  /** Detailed explanation of each withdrawal strategy for tooltip (hover on desktop, click on mobile). */
+  const getStrategyExplanation = (strategyType: typeof modelingStrategyType): string => {
+    const explanations: Record<typeof modelingStrategyType, string> = {
+      amount_based_expense_coverage: `Expense-based (cover expenses and tax). Each year the plan withdraws only what is needed to cover your projected living expenses, healthcare, and the estimated tax on those withdrawals. Withdrawal order follows your plan’s priority (e.g. taxable first, then tax-deferred, then Roth) to minimize taxes. Best when you want to preserve assets and only spend what you need; works well with Social Security and other income filling part of the gap.`,
+      amount_based_4_percent: `4% rule. In the first year of retirement you withdraw 4% of the initial portfolio value; each following year that dollar amount is increased for inflation. This classic rule of thumb aims to make savings last 30+ years. In this plan, the 4% is applied to your total portfolio at retirement; withdrawals are taken from accounts in the order that optimizes taxes (e.g. taxable and tax-deferred before Roth). Market downturns early in retirement can make the fixed real amount harder to sustain.`,
+      amount_based_fixed_percentage: `Fixed percentage. You withdraw a set percentage of the current portfolio value every year (e.g. 4% or 5%). The dollar amount therefore goes up when the market rises and down when it falls. In this plan, that percentage is applied to your total portfolio each year; the system then pulls from 401(k), IRA, Roth, and taxable in an order that considers taxes. Simpler than expense-based strategies but can produce uneven income.`,
+      amount_based_fixed_dollar: `Fixed dollar amount. You withdraw the same dollar amount every year regardless of portfolio size or market returns. The plan uses your specified amount and draws from accounts in a tax-aware order. Risk: in a long downturn the fixed amount can deplete assets faster; in a strong market you may leave more unspent. Useful for testing a specific spending level.`,
+      amount_based_swp: `Systematic Withdrawal Plan (earnings only). Withdrawals are limited to investment earnings (dividends, interest, and realized gains), leaving principal intact. In this plan, each year the engine calculates taxable investment income and only withdraws up to that amount from the appropriate accounts. Very conservative; in low-return years income may fall short of expenses.`,
+      sequence_proportional: `Proportional withdrawals. Each year you take the needed total from all account types in proportion to their current balances (e.g. if 60% of assets are in 401(k), 60% of that year’s withdrawal comes from 401(k)). This keeps the mix of account types stable over time. The plan applies this proportion to your accounts and models the tax impact of the tax-deferred and taxable portions.`,
+      sequence_bracket_topping: `Bracket-topping. Each year the plan withdraws enough from tax-deferred accounts (401(k), IRA) to “fill” your target federal tax bracket (e.g. 12% or 22%), then covers the rest from taxable and Roth. That keeps taxable income in a lower bracket and can reduce lifetime taxes. You choose the bracket threshold; the plan uses it to size tax-deferred withdrawals and then fills remaining needs from other accounts.`,
+      market_bucket: `Bucket strategy. Assets are split into time-based buckets (e.g. cash for 1–3 years, bonds for 3–10 years, stocks for 10+ years). Spending comes from the nearest-term bucket; longer-term buckets are rebalanced periodically. In this plan, the logic maps your accounts to short-, medium-, and long-term and withdraws from the appropriate bucket each year, with tax treatment following the account type. Aims to reduce sequence-of-returns risk.`,
+      market_guardrails: `Guardrails (Guyton–Klinger style). Withdrawals are a percentage of portfolio value but are capped and floored (e.g. between 3% and 6%). If the rate would go above the ceiling or below the floor, it is held at the limit. You set the ceiling and floor; the plan applies them each year and withdraws in a tax-aware order. Designed to balance sustainability with income stability.`,
+      market_floor_upside: `Floor-and-upside. A “floor” of income is covered by guaranteed sources (e.g. Social Security, pensions); the portfolio is used for “upside” spending above the floor. The plan uses your expenses and income to determine how much must come from the portfolio each year and withdraws in a tax-efficient order. Good when you want a stable base with flexible discretionary spending.`,
+      tax_roth_conversion: `Roth conversion bridge. Before RMDs (e.g. before 73), the plan converts amounts from Traditional IRA/401(k) into Roth up to a target tax bracket, building tax-free growth and lowering future RMDs. Withdrawals for spending still follow a tax-aware order. You control conversion timing and size; the plan models the extra tax in conversion years and the reduced taxable income later.`,
+      tax_qcd: `Qualified Charitable Distributions (QCDs). After 70½, IRA distributions sent directly to charity count toward your RMD and are not included in income. The plan models giving a portion of RMDs as QCDs, reducing taxable income and potentially taxes. Useful if you already give to charity; the plan shows the tax impact versus taking the same RMD as taxable income.`,
+    }
+    return explanations[strategyType] ?? 'This strategy’s withdrawal logic is applied to your accounts each year; the plan shows the impact on taxes, income, and remaining balances.'
+  }
 
   useEffect(() => {
     loadScenarios()
@@ -251,6 +294,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           inflation_rate: parseFloat(settingsResult.data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
           enable_borrowing: settingsResult.data.enable_borrowing || false,
           ssa_start_age: settingsResult.data.ssa_start_age || settingsResult.data.retirement_age || DEFAULT_RETIREMENT_AGE,
+          pre_medicare_annual_premium: settingsResult.data.pre_medicare_annual_premium != null ? parseFloat(settingsResult.data.pre_medicare_annual_premium.toString()) : undefined,
+          post_medicare_annual_premium: settingsResult.data.post_medicare_annual_premium != null ? parseFloat(settingsResult.data.post_medicare_annual_premium.toString()) : undefined,
           withdrawal_priority: 'default',
           withdrawal_secondary_priority: 'tax_optimization',
         })
@@ -375,21 +420,26 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
       const lifeExpectancy = planData.data?.life_expectancy || DEFAULT_LIFE_EXPECTANCY
 
-      // Base settings
-      const baseSettings: CalculatorSettings = {
-        current_year: settingsData.data.current_year || new Date().getFullYear(),
-        retirement_age: settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE,
-        retirement_start_year: settingsData.data.retirement_start_year || 0,
-        years_to_retirement: settingsData.data.years_to_retirement || 0,
-        annual_retirement_expenses: settingsData.data.annual_retirement_expenses || 0,
-        growth_rate_before_retirement: parseFloat(settingsData.data.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
-        growth_rate_during_retirement: parseFloat(settingsData.data.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
-        inflation_rate: parseFloat(settingsData.data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
-        enable_borrowing: settingsData.data.enable_borrowing || false,
-        ssa_start_age: settingsData.data.ssa_start_age || settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE,
-        withdrawal_priority: 'default',
-        withdrawal_secondary_priority: 'tax_optimization',
-      }
+      // Base settings: use same builder as saved projections so strategy comparison matches projections view
+      const currentYear = settingsData.data.current_year || new Date().getFullYear()
+      const birthYear = planData.data?.birth_year ?? currentYear - 50
+      const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
+      const yearsToRetirement = retirementAge - (currentYear - birthYear)
+      const annualExpenses = expenses.reduce((sum, exp) => {
+        const amount = retirementAge >= 65 ? (exp.amount_after_65 || 0) : (exp.amount_before_65 || 0)
+        return sum + amount
+      }, 0) * 12
+      const baseSettings = buildCalculatorSettings(
+        settingsData.data,
+        planData.data,
+        currentYear,
+        retirementAge,
+        yearsToRetirement,
+        annualExpenses
+      )
+      // Force default withdrawal priority for comparison (each strategy overrides type)
+      baseSettings.withdrawal_priority = 'default'
+      baseSettings.withdrawal_secondary_priority = 'tax_optimization'
 
       // Define all strategies to compare
       const strategiesToCompare: Array<{
@@ -476,7 +526,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         },
       ]
 
-      // Calculate estimated SSA amounts at start age for strategy comparison
+      // Calculate estimated SSA amounts at start age for strategy comparison (same logic as main projections / saved data)
       const compIncludePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
       
       // Automatically include spouse SSA if:
@@ -487,15 +537,22 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       const compHasSpouse = planData.data.include_spouse || false
       const compIsMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
       const compIncludeSpouseSsa = compExplicitSpouseSsa || compHasSpouse || compIsMarriedFilingJointly
-      
-      const compBaseEstimatedPlannerSsa = compIncludePlannerSsa ? calculateEstimatedSSA(0, true) : 0
-      const compBaseEstimatedSpouseSsa = compIncludeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
-      
-      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || DEFAULT_RETIREMENT_AGE
-      const compCurrentAge = new Date().getFullYear() - planData.data.birth_year
+
+      const compEstimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
+      const compPlannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
+        ? Number(settingsData.data.planner_ssa_annual_benefit)
+        : (compIncludePlannerSsa ? (compEstimatedIncomeForSsa > 0 ? calculateEstimatedSSA(compEstimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const compSpouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
+        ? Number(settingsData.data.spouse_ssa_annual_benefit)
+        : (compIncludeSpouseSsa ? (compEstimatedIncomeForSsa > 0 ? calculateEstimatedSSA(compEstimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+      const compBaseEstimatedPlannerSsa = compIncludePlannerSsa ? compPlannerBenefit : 0
+      const compBaseEstimatedSpouseSsa = compIncludeSpouseSsa ? compSpouseBenefit : 0
+
+      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || DEFAULT_SSA_START_AGE
+      const compCurrentAge = currentYear - birthYear
       const compYearsToSsaStart = Math.max(0, compSsaStartAge - compCurrentAge)
       const compInflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, compYearsToSsaStart)
-      
+
       const compEstimatedPlannerSsaAtStart = compIncludePlannerSsa ? compBaseEstimatedPlannerSsa * compInflationToSsaStart : undefined
       const compEstimatedSpouseSsaAtStart = compIncludeSpouseSsa ? compBaseEstimatedSpouseSsa * compInflationToSsaStart : undefined
 
@@ -789,13 +846,20 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       const hasSpouse = planData.data.include_spouse || false
       const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
       const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
-      
-      // Get base SSA estimates (using default income since advanced view doesn't have income input)
-      const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
-      const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
-      
+
+      // Use same SSA benefit logic as Quick Projections: stored benefit, else estimate from income, else defaults
+      const estimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
+      const plannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
+        ? Number(settingsData.data.planner_ssa_annual_benefit)
+        : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const spouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
+        ? Number(settingsData.data.spouse_ssa_annual_benefit)
+        : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+      const baseEstimatedPlannerSsa = includePlannerSsa ? plannerBenefit : 0
+      const baseEstimatedSpouseSsa = includeSpouseSsa ? spouseBenefit : 0
+
       // Adjust for inflation from current year to SSA start age
-      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
+      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_SSA_START_AGE
       const currentAge = currentYear - planData.data.birth_year
       const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
       const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
@@ -867,7 +931,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         total_income: proj.total_income || 0,
         after_tax_income: proj.after_tax_income || 0,
         living_expenses: proj.living_expenses || 0,
-        special_expenses: proj.special_expenses || 0,
+        special_expenses: proj.healthcare_expenses ?? proj.special_expenses ?? 0,
         total_expenses: proj.total_expenses || 0,
         annual_contribution: proj.annual_contribution || 0,
         gap_excess: proj.gap_excess || 0,
@@ -923,7 +987,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
               total_income: rest.total_income || 0,
               after_tax_income: rest.after_tax_income || 0,
               living_expenses: rest.living_expenses || 0,
-              special_expenses: rest.special_expenses || 0,
+              special_expenses: rest.healthcare_expenses ?? rest.special_expenses ?? 0,
               total_expenses: rest.total_expenses || 0,
               gap_excess: rest.gap_excess || 0,
               cumulative_liability: rest.cumulative_liability || 0,
@@ -1030,14 +1094,6 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
             <Calculator className="h-3.5 w-3.5" />
             {calculating ? 'Calculating…' : 'Calculate Projections'}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setActiveSubTab('strategy-modeling')}
-          >
-            <Settings className="h-3.5 w-3.5" />
-            Strategy Modeling
-          </Button>
         </div>
       </div>
 
@@ -1046,7 +1102,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         <nav className="-mb-px flex gap-6">
           {([
             { id: 'projections' as const, label: 'Projections' },
-            { id: 'strategy-modeling' as const, label: 'Strategy Modeling' },
+            { id: 'strategy-modeling' as const, label: 'Withdrawal Strategy Modeling' },
           ] as const).map((tab) => (
             <button
               key={tab.id}
@@ -1129,6 +1185,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           
           // Lifetime expenses
           const lifetimeExpenses = retirementProjections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
+          const lifetimeHealthcare = retirementProjections.reduce((sum, p) => sum + (p.healthcare_expenses || 0), 0)
+          const lifetimeLiving = retirementProjections.reduce((sum, p) => sum + (p.living_expenses || 0), 0)
           
           // Total withdrawals
           const totalWithdrawals = total401kWithdrawals + totalRothWithdrawals + totalTaxableWithdrawals + totalIraWithdrawals + totalHsaWithdrawals
@@ -1153,11 +1211,35 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           return (
             <div className="mb-6 rounded-xl border bg-card p-4 shadow-sm">
               {/* Strategy pill header */}
-              <div className="flex items-center gap-3 mb-5">
-                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Strategy</span>
+              <div className="flex items-center gap-3 mb-5 flex-wrap">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Withdrawal Strategy</span>
                 <Badge variant="outline" className="font-medium text-sm px-3 py-0.5">
                   {getStrategyName()}
                 </Badge>
+                <TooltipProvider>
+                  <Tooltip open={strategyExplanationOpen} onOpenChange={setStrategyExplanationOpen}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-full p-0.5 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        aria-label="How this strategy works"
+                        onMouseEnter={() => setStrategyExplanationOpen(true)}
+                        onMouseLeave={() => setStrategyExplanationOpen(false)}
+                        onClick={() => setStrategyExplanationOpen((prev) => !prev)}
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      align="start"
+                      sideOffset={8}
+                      className="max-w-sm sm:max-w-md text-left text-xs leading-relaxed whitespace-pre-line p-3"
+                    >
+                      {getStrategyExplanation(modelingStrategyType)}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1167,15 +1249,18 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   Change
                 </Button>
               </div>
+
+              {/* Primary Outcomes label */}
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Primary Outcomes</p>
               
               {/* Primary metrics row */}
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 <div className="rounded-xl border bg-card p-3 border-l-4 border-l-primary">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Legacy Value</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">End Networth</p>
                   <p className="mt-1 text-lg font-bold tabular-nums">
                     ${legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Final net worth</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Final projected net worth</p>
                 </div>
                 
                 <div className={`rounded-xl border bg-card p-3 border-l-4 ${zeroNetworthYear >= 0 ? 'border-l-destructive' : 'border-l-emerald-500'}`}>
@@ -1318,7 +1403,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   <p className="mt-1 text-lg font-bold tabular-nums text-destructive">
                     ${totalTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Lifetime taxes paid</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Lifetime taxes paid</p>
                 </div>
                 
                 <div className="rounded-xl border bg-card p-3 border-l-4 border-l-amber-500">
@@ -1326,62 +1411,124 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   <p className="mt-1 text-lg font-bold tabular-nums">
                     ${avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Per year average</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Per year average</p>
                 </div>
                 
                 <div className={`rounded-xl border bg-card p-3 border-l-4 ${taxEfficiency < 15 ? 'border-l-emerald-500' : taxEfficiency < 25 ? 'border-l-amber-500' : 'border-l-destructive'}`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tax Efficiency</p>
-                  <p className="mt-1 text-lg font-bold tabular-nums">
-                    {taxEfficiency.toFixed(2)}%
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tax Efficiency</p>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="cursor-help text-muted-foreground/60 hover:text-muted-foreground">
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          <p className="font-semibold mb-1">Tax Efficiency</p>
+                          <p>Total taxes paid ÷ Total gross income during retirement.</p>
+                          <p className="mt-1 text-muted-foreground">Lower is better. Under 15% is excellent; over 25% may warrant a Roth conversion or QCD strategy.</p>
+                          <p className="mt-1 font-mono">{totalTax > 0 ? `$${totalTax.toLocaleString(undefined,{maximumFractionDigits:0})} ÷ $${totalIncome.toLocaleString(undefined,{maximumFractionDigits:0})} = ${taxEfficiency.toFixed(1)}%` : 'N/A'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <p className="text-lg font-bold tabular-nums">
+                    {taxEfficiency.toFixed(1)}%
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Tax as % of income</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Tax as % of gross income</p>
                 </div>
                 
                 <div className={`rounded-xl border bg-card p-3 border-l-4 ${negativeYears === 0 ? 'border-l-emerald-500' : 'border-l-destructive'}`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Negative Years</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Shortfall Years</p>
                   <p className={`mt-1 text-lg font-bold tabular-nums ${negativeYears > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {negativeYears} ({negativeYearsPercentage.toFixed(1)}%)
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Years with shortfall</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Years income &lt; expenses</p>
                 </div>
               </div>
+
+              {/* Lifetime Totals label */}
+              <p className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Lifetime Totals</p>
               
-              {/* Secondary flow metrics */}
-              <div className="mt-3 pt-3 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="rounded-xl border bg-muted/30 p-3">
+              {/* Secondary flow metrics — unified border-l styling */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-emerald-500">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lifetime Income</p>
                   <p className="mt-1 text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                     ${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Total income during retirement</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Total gross income during retirement</p>
                 </div>
                 
-                <div className="rounded-xl border bg-muted/30 p-3">
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-destructive">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lifetime Expenses</p>
                   <p className="mt-1 text-base font-bold tabular-nums text-destructive">
                     ${lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Total expenses during retirement</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Total expenses during retirement</p>
+                  {lifetimeHealthcare > 0 && (
+                    <div className="mt-2 flex gap-3 text-[11px] text-foreground/60">
+                      <span>Living: ${lifetimeLiving.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                      <span>Healthcare: ${lifetimeHealthcare.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="rounded-xl border bg-muted/30 p-3">
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-violet-500">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remaining Balances</p>
                   <p className="mt-1 text-base font-bold tabular-nums">
                     ${totalRemainingBalances.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                    401k: ${remaining401k.toLocaleString(undefined, { maximumFractionDigits: 0 })} · IRA: ${remainingIra.toLocaleString(undefined, { maximumFractionDigits: 0 })} · Roth: ${remainingRoth.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </p>
+                  <p className="text-[11px] text-foreground/60 mt-1">Account balances at end of plan</p>
+                  {/* Mini stacked breakdown */}
+                  {totalRemainingBalances > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {[
+                        { label: '401k', value: remaining401k, color: 'bg-blue-500' },
+                        { label: 'IRA', value: remainingIra, color: 'bg-amber-500' },
+                        { label: 'Roth', value: remainingRoth, color: 'bg-emerald-500' },
+                        { label: 'Other', value: remainingTaxable + remainingHsa + remainingOther, color: 'bg-violet-400' },
+                      ].filter(x => x.value > 0).map(({ label, value, color }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <div className="h-1.5 rounded-full shrink-0" style={{ width: `${Math.max(4, (value / totalRemainingBalances) * 80)}px` }}>
+                            <div className={`h-full w-full rounded-full ${color}`} />
+                          </div>
+                          <span className="text-[10px] font-medium text-foreground/70">{label}</span>
+                          <span className="text-[10px] text-foreground/50 ml-auto">${(value / 1000).toFixed(0)}k</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
-                <div className="rounded-xl border bg-muted/30 p-3">
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-sky-500">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Withdrawals</p>
                   <p className="mt-1 text-base font-bold tabular-nums">
                     ${totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                    401k: ${total401kWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })} · IRA: ${totalIraWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })} · Roth: ${totalRothWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </p>
+                  <p className="text-[11px] text-foreground/60 mt-1">Retirement account withdrawals</p>
+                  {/* Mini stacked breakdown */}
+                  {totalWithdrawals > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {[
+                        { label: '401k', value: total401kWithdrawals, color: 'bg-blue-500' },
+                        { label: 'IRA', value: totalIraWithdrawals, color: 'bg-amber-500' },
+                        { label: 'Roth', value: totalRothWithdrawals, color: 'bg-emerald-500' },
+                        { label: 'Taxable', value: totalTaxableWithdrawals, color: 'bg-violet-400' },
+                      ].filter(x => x.value > 0).map(({ label, value, color }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <div className="h-1.5 rounded-full shrink-0" style={{ width: `${Math.max(4, (value / totalWithdrawals) * 80)}px` }}>
+                            <div className={`h-full w-full rounded-full ${color}`} />
+                          </div>
+                          <span className="text-[10px] font-medium text-foreground/70">{label}</span>
+                          <span className="text-[10px] text-foreground/50 ml-auto">${(value / 1000).toFixed(0)}k</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1435,7 +1582,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     'Total Income',
                     'After-Tax Income',
                     'Living Expenses',
-                    'Special Expenses',
+                    'Healthcare Expenses',
                     'Total Expenses',
                     'Annual Contribution',
                     'Gap/Excess',
@@ -1569,7 +1716,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       (proj.total_income || 0).toFixed(2),
                       (proj.after_tax_income || 0).toFixed(2),
                       (proj.living_expenses || 0).toFixed(2),
-                      (proj.special_expenses || 0).toFixed(2),
+                      (proj.healthcare_expenses || 0).toFixed(2),
                       (proj.total_expenses || 0).toFixed(2),
                       (contribution || 0).toFixed(2),
                       (proj.gap_excess || 0).toFixed(2),
@@ -1770,7 +1917,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       </th>
                     )}
                     
-                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expenses (incl. tax)</th>}
+                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Expenses</th>}
                     {visibleColumns.contribution && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contributions</th>}
                     {visibleColumns.gapExcess && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Gap/Excess</th>}
                     
@@ -2363,7 +2510,29 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       ) : '-'}
                     </td>}
                     {visibleColumns.expenses && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
-                      {isRetired ? `$${(proj.total_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
+                      {isRetired ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-foreground/30">
+                              ${(proj.total_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="text-xs">
+                            <div className="space-y-1">
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">Living:</span>
+                                <span>${(proj.living_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                              </div>
+                              {(proj.healthcare_expenses || 0) > 0 && (
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-muted-foreground">Healthcare:</span>
+                                  <span>${(proj.healthcare_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                </div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : '-'}
                     </td>}
                     {visibleColumns.contribution && (() => {
                       // Calculate contributions if not present in projection data
@@ -2882,7 +3051,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       <Legend />
                       <Line type="monotone" dataKey="networth" name="Net Worth" stroke="#2563eb" strokeWidth={2} dot={false} />
                       <Line type="monotone" dataKey="total_income" name="Total Income" stroke="#16a34a" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#dc2626" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="total_expenses" name="Total Expenses" stroke="#dc2626" strokeWidth={2} dot={false} />
                       <Line type="monotone" dataKey="tax" name="Tax" stroke="#ca8a04" strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                     </LineChart>
                   ) : graphType === 'area' ? (
@@ -2934,7 +3103,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       />
                       <Legend />
                       <Bar dataKey="total_income" name="Total Income" fill="#16a34a" />
-                      <Bar dataKey="expenses" name="Expenses" fill="#dc2626" />
+                      <Bar dataKey="total_expenses" name="Total Expenses" fill="#dc2626" />
                       <Bar dataKey="tax" name="Tax" fill="#ca8a04" />
                     </BarChart>
                   )}
@@ -2979,7 +3148,33 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Strategy Type</label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Strategy Type</label>
+                    <TooltipProvider>
+                      <Tooltip open={strategyExplanationOpen} onOpenChange={setStrategyExplanationOpen}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center rounded-full p-0.5 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            aria-label="Strategy explanation"
+                            onMouseEnter={() => setStrategyExplanationOpen(true)}
+                            onMouseLeave={() => setStrategyExplanationOpen(false)}
+                            onClick={() => setStrategyExplanationOpen((prev) => !prev)}
+                          >
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="bottom"
+                          align="start"
+                          sideOffset={8}
+                          className="max-w-sm sm:max-w-md text-left text-xs leading-relaxed whitespace-pre-line p-3"
+                        >
+                          {getStrategyExplanation(modelingStrategyType)}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <select
                     value={modelingStrategyType}
                     onChange={(e) => setModelingStrategyType(e.target.value as any)}
@@ -3125,8 +3320,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       {/* Strategy Modeling Sub-tab */}
       {activeSubTab === 'strategy-modeling' && (
         <div>
-          {/* Strategy Comparison Table */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          {/* Strategy Comparison Table — print: 80% width to fit page */}
+          <div className="print-strategy-comparison-table rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Strategy Comparison</h3>
               <button
@@ -3232,7 +3427,36 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         return (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="sticky left-0 bg-inherit px-4 py-3 text-sm font-medium text-gray-900 z-10">
-                              {strategy.strategyName}
+                              <div className="flex items-center gap-1.5">
+                                <span>{strategy.strategyName}</span>
+                                <TooltipProvider>
+                                  <Tooltip
+                                    open={strategyComparisonInfoOpenRow === index}
+                                    onOpenChange={(open) => setStrategyComparisonInfoOpenRow(open ? index : null)}
+                                  >
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="inline-flex items-center justify-center rounded-full p-0.5 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 shrink-0"
+                                        aria-label={`Explanation for ${strategy.strategyName}`}
+                                        onMouseEnter={() => setStrategyComparisonInfoOpenRow(index)}
+                                        onMouseLeave={() => setStrategyComparisonInfoOpenRow(null)}
+                                        onClick={() => setStrategyComparisonInfoOpenRow((prev) => (prev === index ? null : index))}
+                                      >
+                                        <Info className="h-4 w-4" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="right"
+                                      align="start"
+                                      sideOffset={8}
+                                      className="max-w-sm sm:max-w-md text-left text-xs leading-relaxed whitespace-pre-line p-3"
+                                    >
+                                      {getStrategyExplanation(strategy.strategyType as typeof modelingStrategyType)}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
                             </td>
                             <td className={`px-4 py-3 text-right text-sm ${!allLegacySame && strategy.legacyValue === bestLegacy ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}

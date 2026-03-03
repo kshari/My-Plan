@@ -16,7 +16,8 @@ import {
 } from '@/lib/constants/ssa-constants'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Info, TrendingUp, TrendingDown, Calculator, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/property/ui/tooltip'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface SSAWithdrawalAnalysisTabProps {
   planId: number
@@ -588,12 +589,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
   }
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-600">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        Loading plan data...
-      </div>
-    )
+    return <LoadingState message="Loading plan data…" />
   }
 
   if (!planData) {
@@ -1022,8 +1018,8 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
             </div>
           </div>
 
-          {/* Chart */}
-          <div className="rounded-lg border border-gray-200 bg-white p-6">
+          {/* Chart — print: keep on one page with break before */}
+          <div className="print-ssa-cumulative-chart rounded-lg border border-gray-200 bg-white p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Cumulative Benefits Over Time</h3>
             <p className="text-sm text-gray-600 mb-4">
               <strong>Tip:</strong> Move your mouse over any age on the chart to see which starting age provides the highest cumulative benefits at that point.

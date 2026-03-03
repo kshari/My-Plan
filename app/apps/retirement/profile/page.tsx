@@ -1,19 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
+import { BACK_LINK } from '@/lib/constants/css'
 import Link from 'next/link'
 import ProfileForm from '@/components/retirement/profile-form'
 
 export default async function RetirementProfilePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
+  await requireAuth()
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <Link
         href="/apps/retirement/dashboard"
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className={BACK_LINK}
       >
         ← Retirement Plans
       </Link>

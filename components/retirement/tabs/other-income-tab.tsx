@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Save } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface OtherIncome {
   id?: number
@@ -83,7 +84,7 @@ export default function OtherIncomeTab({ planId }: OtherIncomeTabProps) {
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-600">Loading...</div>
+  if (loading) return <LoadingState />
 
   return (
     <div>

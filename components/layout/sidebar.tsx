@@ -8,6 +8,7 @@ import {
   Building2,
   Target,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   ChevronLeft,
   ChevronDown,
@@ -138,7 +139,44 @@ export function Sidebar({ userEmail, onClose }: SidebarProps) {
           })}
         </nav>
 
-        {/* Contextual plan nav — injected by detail pages */}
+        {/* Retirement Planner — Plan Structure & Dashboard (visible when in retirement app, not in a plan) */}
+        {pathname.startsWith("/apps/retirement") && !nav && (
+          <>
+            <div className="px-3">
+              <Separator className="bg-sidebar-border" />
+            </div>
+            <nav className="space-y-0.5 px-3 py-3">
+              <Link
+                href="/apps/retirement/structure"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors mb-2",
+                  pathname === "/apps/retirement/structure"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                )}
+              >
+                <LayoutGrid className="h-4 w-4 shrink-0" />
+                Plan Structure
+              </Link>
+              <Link
+                href="/apps/retirement/dashboard"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors mb-2",
+                  pathname === "/apps/retirement/dashboard"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                Dashboard
+              </Link>
+            </nav>
+          </>
+        )}
+
+        {/* Contextual plan nav — injected by detail pages (Plan name + items when in a plan) */}
         {nav && (
           <>
             <div className="px-3">
@@ -146,7 +184,61 @@ export function Sidebar({ userEmail, onClose }: SidebarProps) {
             </div>
 
             <nav className="space-y-0.5 px-3 py-3">
-              {/* Back + title */}
+              {/* Plan Structure (first, not plan-specific) */}
+              {(nav.planStructureHref || nav.planStructureNavId) && (
+                nav.planStructureHref ? (
+                  <Link
+                    href={nav.planStructureHref}
+                    onClick={onClose}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors mb-2",
+                      pathname === nav.planStructureHref
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <LayoutGrid className="h-4 w-4 shrink-0" />
+                    Plan Structure
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (nav.planStructureNavId) {
+                        nav.onNavigate(nav.planStructureNavId)
+                        onClose?.()
+                      }
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-left transition-colors mb-2",
+                      nav.activeId === nav.planStructureNavId
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <LayoutGrid className="h-4 w-4 shrink-0" />
+                    Plan Structure
+                  </button>
+                )
+              )}
+
+              {/* Dashboard link */}
+              {nav.dashboardHref && (
+                <Link
+                  href={nav.dashboardHref}
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors mb-2",
+                    pathname === nav.dashboardHref
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                  )}
+                >
+                  <LayoutDashboard className="h-4 w-4 shrink-0" />
+                  Dashboard
+                </Link>
+              )}
+
+              {/* Back + plan name */}
               <div className="flex items-center gap-1 mb-2">
                 {nav.backHref && (
                   <Link

@@ -23,10 +23,15 @@ export interface ContextNavSection {
 }
 
 export interface ContextNavState {
-  /** Short label shown above the section, e.g. "Retirement Plan" */
+  /** Plan/section header, e.g. the plan name */
   title: string
-  /** Where the back-link points, e.g. "/apps/retirement" */
+  /** Where the back-link points, e.g. "/apps/retirement/dashboard" */
   backHref?: string
+  /** Optional Plan Structure link/button shown first (not plan-specific) */
+  planStructureHref?: string
+  planStructureNavId?: string
+  /** Optional Dashboard link shown below Plan Structure */
+  dashboardHref?: string
   sections: ContextNavSection[]
   activeId: string
   onNavigate: (id: string) => void

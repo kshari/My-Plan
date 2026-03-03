@@ -9,6 +9,7 @@ import {
   DEFAULT_INFLATION_RATE,
   DEFAULT_RETIREMENT_AGE,
 } from '@/lib/constants/retirement-defaults'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface CompoundingTabProps {
   planId: number
@@ -174,7 +175,7 @@ export default function CompoundingTab({ planId }: CompoundingTabProps) {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-600">Loading accounts...</div>
+    return <LoadingState message="Loading accounts…" />
   }
 
   const totalStartingBalance = currentSavings

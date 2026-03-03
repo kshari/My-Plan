@@ -1,21 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
+import { BACK_LINK } from '@/lib/constants/css'
 import Link from 'next/link'
 import ProfileForm from '@/components/property/profile-form'
 
 export default async function PropertyProfilePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
-
-  const { data: { user: userDetails } } = await supabase.auth.getUser()
+  const { user } = await requireAuth()
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <Link
         href="/apps/property/dashboard"
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className={BACK_LINK}
       >
         ← Properties
       </Link>
@@ -25,7 +20,7 @@ export default async function PropertyProfilePage() {
         <p className="mb-6 text-sm text-muted-foreground">
           Manage your account information and preferences
         </p>
-        <ProfileForm user={userDetails} />
+        <ProfileForm user={user} />
       </div>
     </div>
   )

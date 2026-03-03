@@ -189,7 +189,7 @@ test.describe('Retirement Plan CRUD — Authenticated', () => {
       await page.waitForLoadState('networkidle')
 
       // Should show advanced tabs
-      await expect(page.locator('text=Plan Data')).toBeVisible({ timeout: 10000 })
+      await expect(page.locator('text=Plan Setup')).toBeVisible({ timeout: 10000 })
       await expect(page.locator('text=Scenario Modeling')).toBeVisible()
       await expect(page.locator('text=Projections')).toBeVisible()
     }

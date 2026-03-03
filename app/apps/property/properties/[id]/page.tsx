@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
+import { PAGE_CONTAINER, BACK_LINK } from '@/lib/constants/css'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PropertyDetails from '@/components/property/property-details'
 import FinancialScenariosList from '@/components/property/financial-scenarios-list'
@@ -11,10 +12,7 @@ interface PropertyDetailPageProps {
 
 export default async function PropertyDetailPage({ params }: PropertyDetailPageProps) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
+  const { supabase, user } = await requireAuth()
 
   const propertyId = parseInt(id)
   if (isNaN(propertyId)) notFound()
@@ -29,10 +27,10 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
   if (error || !property) notFound()
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={PAGE_CONTAINER}>
       <Link
         href="/apps/property/dashboard"
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className={BACK_LINK}
       >
         ← Back to Properties
       </Link>

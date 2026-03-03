@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import {
-  LayoutGrid,
   SlidersHorizontal,
   GitBranch,
   BarChart2,
@@ -26,31 +25,31 @@ import OtherToolsTab from './tabs/other-tools-tab'
 
 interface RetirementPlanTabsProps {
   planId: number
+  planName?: string
   initialTab?: string
 }
 
 const planNavSections: ContextNavSection[] = [
   {
     items: [
-      { id: 'overview',        label: 'Overview',        icon: LayoutGrid },
-      { id: 'quick-analysis',  label: 'Quick Analysis',  icon: Zap },
-    ],
-  },
-  {
-    label: 'Setup',
-    items: [
-      { id: 'plan-details',  label: 'Plan Data', icon: SlidersHorizontal },
-      { id: 'other-income',  label: 'Other Income', icon: DollarSign, disabled: true },
+      { id: 'quick-analysis',  label: 'Quick Projections',  icon: Zap },
     ],
   },
   {
     label: 'Advanced Analysis',
     items: [
-      { id: 'scenario-modeling', label: 'Scenarios',      icon: GitBranch },
-      { id: 'details',           label: 'Projections',    icon: BarChart2 },
+      { id: 'details',           label: 'Advanced Projections',    icon: BarChart2 },
+      { id: 'scenario-modeling', label: 'Scenario Modeling',      icon: GitBranch },
       { id: 'analysis',          label: 'Risk Analysis',  icon: ShieldAlert },
       { id: 'tax-efficiency',    label: 'Tax Efficiency', icon: Coins },
       { id: 'other-tools',       label: 'Other Tools',    icon: Wrench },
+    ],
+  },
+  {
+    label: 'Setup',
+    items: [
+      { id: 'plan-details',  label: 'Plan Setup', icon: SlidersHorizontal },
+      { id: 'other-income',  label: 'Other Income', icon: DollarSign, disabled: true },
     ],
   },
 ]
@@ -66,22 +65,24 @@ type TabId =
   | 'tax-efficiency'
   | 'other-tools'
 
-export default function RetirementPlanTabs({ planId, initialTab }: RetirementPlanTabsProps) {
+export default function RetirementPlanTabs({ planId, planName, initialTab }: RetirementPlanTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>((initialTab as TabId) || 'overview')
   const { setNav, updateActiveId } = useSidebarNav()
 
   // Register plan nav in the main sidebar on mount, clean up on unmount
   useEffect(() => {
     setNav({
-      title: 'Retirement Plan',
+      title: planName || 'Retirement Plan',
       backHref: '/apps/retirement/dashboard',
+      planStructureNavId: 'overview',
+      dashboardHref: '/apps/retirement/dashboard',
       sections: planNavSections,
       activeId: (initialTab as TabId) || 'overview',
       onNavigate: (id) => setActiveTab(id as TabId),
     })
     return () => setNav(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [planName])
 
   // Keep sidebar active highlight in sync whenever the tab changes
   useEffect(() => {
@@ -100,7 +101,7 @@ export default function RetirementPlanTabs({ planId, initialTab }: RetirementPla
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':          return <OverviewTab planId={planId} onNavigate={navigate} />
-      case 'quick-analysis':    return <SnapshotTab planId={planId} onSwitchToAdvanced={() => navigate('details')} />
+      case 'quick-analysis':    return <SnapshotTab planId={planId} onSwitchToAdvanced={() => navigate('details')} onSwitchToPlanSetup={() => navigate('plan-details')} />
       case 'plan-details':      return <PlanDetailsTab planId={planId} />
       case 'scenario-modeling': return <ScenarioModelingTab planId={planId} />
       case 'details':           return <DetailsTab planId={planId} />

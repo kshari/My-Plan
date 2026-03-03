@@ -32,9 +32,13 @@ import {
   DEFAULT_INFLATION_RATE_PCT,
   SAFE_WITHDRAWAL_RATE,
 } from '@/lib/constants/retirement-defaults'
+import { LoadingState } from '@/components/ui/loading-state'
+import { formatCurrencyShort as formatCurrency } from '@/lib/utils/formatting'
 
 interface ScenarioModelingTabProps {
   planId: number
+  /** Start with this model type instead of the default 'networth'. */
+  initialModelType?: 'networth' | 'monthly_income'
 }
 
 // Color palette for growth rate lines (3% to 15%)
@@ -54,12 +58,12 @@ const GROWTH_RATE_COLORS = [
   '#a855f7', // 15% - purple
 ]
 
-export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps) {
+export default function ScenarioModelingTab({ planId, initialModelType }: ScenarioModelingTabProps) {
   const supabase = createClient()
   const { selectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
   const [graphType, setGraphType] = useState<'line' | 'area' | 'bar'>('line')
-  const [modelType, setModelType] = useState<'networth' | 'monthly_income'>('networth')
+  const [modelType, setModelType] = useState<'networth' | 'monthly_income'>(initialModelType ?? 'networth')
   const [modelingData, setModelingData] = useState<any[]>([])
   const [planData, setPlanData] = useState<any>(null)
   const [currentAge, setCurrentAge] = useState<number>(50)
@@ -248,15 +252,6 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     }
   }
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}k`
-    }
-    return `$${value.toFixed(0)}`
-  }
-
   const renderChart = () => {
     if (modelingData.length === 0) return null
 
@@ -437,18 +432,13 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
   }
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-600">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        Calculating scenario models...
-      </div>
-    )
+    return <LoadingState message="Calculating scenario models…" />
   }
 
   if (!planData?.birth_year) {
     return (
       <div className="text-center py-8 text-gray-500">
-        Please set your birth year in Plan Data to use Scenario Modeling.
+        Please set your birth year in Plan Setup to use Scenario Modeling.
       </div>
     )
   }

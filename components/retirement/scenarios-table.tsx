@@ -54,12 +54,14 @@ interface ScenariosTableProps {
   planId: number
   onAddScenario?: () => void
   onModelScenarios?: () => void
+  /** When this value changes, scenarios are reloaded (e.g. after saving a new scenario from Plan Setup). */
+  refreshTrigger?: number
 }
 
 const fmt$ = (n: number) =>
   '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 })
 
-export default function ScenariosTable({ planId, onAddScenario, onModelScenarios }: ScenariosTableProps) {
+export default function ScenariosTable({ planId, onAddScenario, onModelScenarios, refreshTrigger }: ScenariosTableProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [scenarios, setScenarios] = useState<Scenario[]>([])
@@ -67,7 +69,7 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
   const [loading, setLoading] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
 
-  useEffect(() => { loadScenarios() }, [planId])
+  useEffect(() => { loadScenarios() }, [planId, refreshTrigger])
   useEffect(() => { if (scenarios.length > 0) loadMetrics() }, [scenarios])
 
   const loadScenarios = async () => {

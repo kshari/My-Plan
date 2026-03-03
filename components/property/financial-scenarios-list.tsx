@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import DeleteScenarioButton from '@/components/property/delete-scenario-button'
 import DeleteAllScenariosButton from '@/components/property/delete-all-scenarios-button'
+import { ErrorMessage } from '@/components/ui/error-message'
+import { EmptyState } from '@/components/ui/empty-state'
 
 interface FinancialScenariosListProps {
   propertyId: number
@@ -48,19 +50,13 @@ export default async function FinancialScenariosList({ propertyId }: FinancialSc
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-          Error loading scenarios: {error.message}
-        </div>
-      )}
+      {error && <ErrorMessage message={`Error loading scenarios: ${error.message}`} />}
 
       {!scenarios || scenarios.length === 0 ? (
-        <div className="py-12 text-center">
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No scenarios yet</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Get started by adding your first financial scenario.
-          </p>
-        </div>
+        <EmptyState
+          message="No scenarios yet"
+          description="Get started by adding your first financial scenario."
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
