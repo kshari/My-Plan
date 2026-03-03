@@ -2,6 +2,7 @@ import { requireAuth } from '@/lib/utils/auth'
 import { PAGE_CONTAINER } from '@/lib/constants/css'
 import RetirementPlanList, { type PlanAssumptions } from '@/components/retirement/retirement-plan-list'
 import RetirementCalculator from '@/components/retirement/retirement-calculator'
+import LocalDataMigrationPrompt from '@/components/retirement/local-data-migration-prompt'
 
 interface CalculatorSettingsRow {
   scenario_id: number
@@ -82,6 +83,9 @@ export default async function RetirementDashboardPage() {
 
   return (
     <div className={`${PAGE_CONTAINER} space-y-8`}>
+      {/* Migration prompt for users with local data */}
+      <LocalDataMigrationPrompt />
+
       {/* Calculator first */}
       <RetirementCalculator />
 

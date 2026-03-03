@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { useScenario } from '../scenario-context'
 import ScenariosTable from '../scenarios-table'
 import DefaultsPopup from '../defaults-popup'
@@ -82,6 +83,8 @@ const isEssentialExpense = (expenseName: string): boolean => {
 
 export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const currentYear = new Date().getFullYear()
 
@@ -146,6 +149,24 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
   const loadPlanBasis = async () => {
     try {
+      if (isLocal && dataService) {
+        const plan = await dataService.getPlan()
+        if (plan && (plan as any).birth_year) {
+          const d = plan as any
+          const age = currentYear - d.birth_year
+          setPlanBasis({
+            age,
+            birth_year: d.birth_year,
+            filing_status: d.filing_status || 'Married Filing Jointly',
+            life_expectancy: d.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
+            include_spouse: d.include_spouse || false,
+            spouse_birth_year: d.spouse_birth_year || d.birth_year,
+            spouse_life_expectancy: d.spouse_life_expectancy || DEFAULT_LIFE_EXPECTANCY,
+          })
+        }
+        return
+      }
+
       const { data } = await supabase
         .from('rp_retirement_plans')
         .select('birth_year, filing_status, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy')
@@ -171,6 +192,12 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
   const loadAccounts = async () => {
     try {
+      if (isLocal && dataService) {
+        const accts = await dataService.getAccounts()
+        setAccounts(accts.length > 0 ? accts : getDefaultAccounts())
+        return
+      }
+
       const { data, error } = await supabase.from('rp_accounts').select('*').eq('plan_id', planId).order('id')
       if (error) throw error
       if (!data || data.length === 0) {
@@ -185,6 +212,12 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
   const loadExpenses = async () => {
     try {
+      if (isLocal && dataService) {
+        const exps = await dataService.getExpenses()
+        setExpenses(exps.length > 0 ? exps : getDefaultExpenses())
+        return
+      }
+
       const { data, error } = await supabase.from('rp_expenses').select('*').eq('plan_id', planId).order('id')
       if (error) throw error
       if (!data || data.length === 0) {
@@ -198,6 +231,12 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   }
 
   const loadScenarios = async () => {
+    if (isLocal) {
+      const localScenario = { id: 0, scenario_name: 'Base Scenario', is_default: true }
+      setScenarios([localScenario])
+      if (!selectedScenarioId) setSelectedScenarioId(0)
+      return
+    }
     try {
       const { data, error } = await supabase
         .from('rp_scenarios')
@@ -217,8 +256,30 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   }
 
   const loadScenarioVars = async () => {
-    if (!selectedScenarioId) return
+    if (!isLocal && !selectedScenarioId) return
     try {
+      if (isLocal && dataService) {
+        const stg = await dataService.getSettings()
+        if (stg) {
+          const d = stg as any
+          setScenarioVars({
+            retirement_age: d.retirement_age || DEFAULT_RETIREMENT_AGE,
+            ssa_start_age: d.ssa_start_age || d.retirement_age || DEFAULT_SSA_START_AGE,
+            growth_rate_before_retirement: parseFloat(d.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)) * 100,
+            growth_rate_during_retirement: parseFloat(d.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)) * 100,
+            inflation_rate: parseFloat(d.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)) * 100,
+            enable_borrowing: d.enable_borrowing ?? DEFAULT_ENABLE_BORROWING,
+            planner_ssa_income: d.planner_ssa_income ?? DEFAULT_PLANNER_SSA_INCOME,
+            spouse_ssa_income: d.spouse_ssa_income ?? DEFAULT_SPOUSE_SSA_INCOME,
+            planner_ssa_annual_benefit: d.planner_ssa_annual_benefit ?? null,
+            spouse_ssa_annual_benefit: d.spouse_ssa_annual_benefit ?? null,
+            pre_medicare_annual_premium: d.pre_medicare_annual_premium ?? null,
+            post_medicare_annual_premium: d.post_medicare_annual_premium ?? null,
+          })
+        }
+        return
+      }
+
       const { data } = await supabase
         .from('rp_calculator_settings')
         .select('*')
@@ -379,13 +440,55 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   // --- Save (unified) ---
 
   const handleSaveAll = async () => {
-    if (!selectedScenarioId) {
+    if (!isLocal && !selectedScenarioId) {
       setMessage({ type: 'error', text: 'Please select or create a scenario first.' })
       return
     }
     setSaving(true)
     setMessage(null)
     try {
+      if (isLocal && dataService) {
+        // Save everything to localStorage via DataService
+        await dataService.savePlan({
+          plan_name: 'My Plan',
+          birth_year: planBasis.birth_year,
+          filing_status: planBasis.filing_status,
+          life_expectancy: planBasis.life_expectancy,
+          include_spouse: planBasis.include_spouse,
+          spouse_birth_year: planBasis.include_spouse ? planBasis.spouse_birth_year : undefined,
+          spouse_life_expectancy: planBasis.include_spouse ? planBasis.spouse_life_expectancy : undefined,
+        })
+        for (const account of accounts) await dataService.saveAccount(account)
+        for (const expense of expenses) await dataService.saveExpense(expense)
+
+        const yearsToRet = scenarioVars.retirement_age - planBasis.age
+        const totalMonthly = expenses.reduce((sum, exp) => {
+          const amount = scenarioVars.retirement_age >= 65 ? exp.amount_after_65 : exp.amount_before_65
+          return sum + (amount || 0)
+        }, 0)
+        const annualExpensesToday = totalMonthly * 12
+        const inflationMult = Math.pow(1 + (scenarioVars.inflation_rate / 100), Math.max(yearsToRet, 0))
+
+        await dataService.saveSettings({
+          current_year: currentYear,
+          retirement_age: scenarioVars.retirement_age,
+          retirement_start_year: currentYear + yearsToRet,
+          years_to_retirement: yearsToRet,
+          annual_retirement_expenses: annualExpensesToday * inflationMult,
+          growth_rate_before_retirement: scenarioVars.growth_rate_before_retirement / 100,
+          growth_rate_during_retirement: scenarioVars.growth_rate_during_retirement / 100,
+          inflation_rate: scenarioVars.inflation_rate / 100,
+          enable_borrowing: scenarioVars.enable_borrowing,
+          ssa_start_age: scenarioVars.ssa_start_age || scenarioVars.retirement_age,
+        } as any)
+
+        await Promise.all([loadAccounts(), loadExpenses(), loadScenarioVars()])
+        setMessage({ type: 'success', text: 'Plan saved locally!' })
+        setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
+        window.dispatchEvent(new CustomEvent('switchTab', { detail: 'quick-analysis' }))
+        return
+      }
+
       // 1. Plan basis
       const { error: planError } = await supabase
         .from('rp_retirement_plans')

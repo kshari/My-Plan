@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { useScenario } from '../scenario-context'
 import { 
   calculateRetirementProjections,
@@ -16,7 +17,7 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
-import { ChevronRight, ChevronDown, ChevronUp, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info, Calculator, Edit2, Save, X, Plus, Trash2, Check, SlidersHorizontal, FileDown } from 'lucide-react'
+import { ChevronRight, ChevronDown, ChevronUp, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info, Calculator, Edit2, Save, X, Plus, Trash2, Check, SlidersHorizontal, FileDown, Lock } from 'lucide-react'
 import { PlanPdfDialog } from '@/components/retirement/plan-pdf-dialog'
 import { PlanPrintAllDialog } from '@/components/retirement/plan-print-all-dialog'
 import { Badge } from '@/components/ui/badge'
@@ -64,6 +65,8 @@ import {
 } from '@/lib/constants/retirement-defaults'
 import { getStandardDeduction } from '@/lib/constants/tax-brackets'
 import { DEBOUNCE_SAVE_MS, TOAST_DURATION_SHORT, TOAST_DURATION_LONG } from '@/lib/constants/timing'
+import type { RetirementAssumptions } from '@/lib/types/retirement-assumptions'
+import { DEFAULT_RETIREMENT_ASSUMPTIONS } from '@/lib/types/retirement-assumptions'
 
 interface SnapshotTabProps {
   planId: number
@@ -73,6 +76,8 @@ interface SnapshotTabProps {
 
 export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlanSetup }: SnapshotTabProps) {
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
   const [calculating, setCalculating] = useState(false)
@@ -148,6 +153,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
     legacyValue: number
     status: string
   }, currentAge: number, retirementAge: number) => {
+    if (isLocal) return
     try {
       await supabase.from('rp_plan_metrics').upsert({
         plan_id: planId,
@@ -168,6 +174,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
 
   const checkExistingData = async () => {
     try {
+      if (isLocal && dataService) {
+        const defaults = await dataService.getCalculatorDefaults()
+        if (defaults && Object.keys(defaults).length > 0) {
+          setHasExistingData(true)
+          await loadAndCalculateSnapshot()
+        }
+        return
+      }
+
       // First check if we have accounts or expenses
       const accountsData = await supabase.from('rp_accounts').select('*').eq('plan_id', planId)
       const hasAccounts = (accountsData.data || []).length > 0
@@ -218,54 +233,114 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
   }
 
   const loadAndCalculateSnapshot = async (useSSASettings?: { includeSsa: boolean; ssaForTwo: boolean }) => {
-    if (!selectedScenarioId) return
+    if (!isLocal && !selectedScenarioId) return
     
     setCalculating(true)
     try {
-      const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
-        supabase.from('rp_retirement_plans').select('*').eq('id', planId).single(),
-        supabase.from('rp_accounts').select('*').eq('plan_id', planId),
-        supabase.from('rp_expenses').select('*').eq('plan_id', planId),
-        supabase.from('rp_other_income').select('*').eq('plan_id', planId),
-        supabase.from('rp_calculator_settings')
-          .select('*')
-          .eq('scenario_id', selectedScenarioId)
-          .single(),
-      ])
+      let planDataObj: any
+      let accounts: Account[]
+      let expenses: Expense[]
+      let otherIncome: OtherIncome[]
+      let settingsDataObj: any
 
-      if (!planData.data || !settingsData.data) {
-        setCalculating(false)
-        return
+      if (isLocal && dataService) {
+        const defaults = await dataService.getCalculatorDefaults()
+        const a: RetirementAssumptions = { ...DEFAULT_RETIREMENT_ASSUMPTIONS, ...(defaults || {}) } as RetirementAssumptions
+        const currentYr = new Date().getFullYear()
+        const birthYr = currentYr - a.age
+        const ytr = Math.max(0, a.retirementAge - a.age)
+
+        planDataObj = {
+          id: 'local',
+          plan_name: 'My Plan',
+          birth_year: birthYr,
+          life_expectancy: a.lifeExpectancy,
+          filing_status: a.includeSpouse ? 'Married Filing Jointly' : 'Single',
+          include_spouse: a.includeSpouse,
+          spouse_birth_year: a.includeSpouse ? currentYr - a.spouseAge : null,
+          spouse_life_expectancy: a.includeSpouse ? a.lifeExpectancy : null,
+        }
+        accounts = [{
+          id: 1,
+          account_name: 'Retirement Savings',
+          owner: 'Planner',
+          balance: a.currentSavings,
+          account_type: '401k',
+          annual_contribution: a.annualContribution,
+        }]
+        expenses = [{
+          id: 1,
+          expense_name: 'Living Expenses',
+          amount_before_65: a.monthlyExpenses,
+          amount_after_65: a.monthlyExpenses,
+        }]
+        otherIncome = []
+        settingsDataObj = {
+          current_year: currentYr,
+          retirement_age: a.retirementAge,
+          retirement_start_year: currentYr + ytr,
+          years_to_retirement: ytr,
+          annual_retirement_expenses: a.monthlyExpenses * 12,
+          growth_rate_before_retirement: a.growthRatePreRetirement / 100,
+          growth_rate_during_retirement: a.growthRateDuringRetirement / 100,
+          inflation_rate: a.inflationRate / 100,
+          planner_ssa_income: a.includeSsa,
+          spouse_ssa_income: a.includeSpouse && a.includeSsa,
+          ssa_start_age: a.ssaStartAge,
+          planner_ssa_annual_benefit: a.ssaAnnualBenefit,
+          spouse_ssa_annual_benefit: a.spouseSsaBenefit,
+          pre_medicare_annual_premium: a.preMedicareAnnualPremium,
+          post_medicare_annual_premium: a.postMedicareAnnualPremium,
+          enable_borrowing: false,
+        }
+      } else {
+        const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
+          supabase.from('rp_retirement_plans').select('*').eq('id', planId).single(),
+          supabase.from('rp_accounts').select('*').eq('plan_id', planId),
+          supabase.from('rp_expenses').select('*').eq('plan_id', planId),
+          supabase.from('rp_other_income').select('*').eq('plan_id', planId),
+          supabase.from('rp_calculator_settings')
+            .select('*')
+            .eq('scenario_id', selectedScenarioId)
+            .single(),
+        ])
+
+        if (!planData.data || !settingsData.data) {
+          setCalculating(false)
+          return
+        }
+        planDataObj = planData.data
+        settingsDataObj = settingsData.data
+
+        accounts = (accountsData.data || []).map(acc => ({
+          id: acc.id,
+          account_name: acc.account_name,
+          owner: acc.owner || 'planner',
+          balance: acc.balance || 0,
+          account_type: acc.account_type || 'Other',
+          annual_contribution: acc.annual_contribution || 0,
+        }))
+
+        expenses = (expensesData.data || []).map(exp => ({
+          id: exp.id,
+          expense_name: exp.expense_name,
+          amount_before_65: exp.amount_before_65 || 0,
+          amount_after_65: exp.amount_after_65 || 0,
+        }))
+
+        otherIncome = (incomeData.data || []).map(inc => ({
+          id: inc.id,
+          income_name: inc.income_source || '',
+          amount: inc.annual_amount || 0,
+          start_year: inc.start_year || undefined,
+          end_year: inc.end_year || undefined,
+          inflation_adjusted: inc.inflation_adjusted || false,
+        }))
       }
 
-      const accounts: Account[] = (accountsData.data || []).map(acc => ({
-        id: acc.id,
-        account_name: acc.account_name,
-        owner: acc.owner || 'planner',
-        balance: acc.balance || 0,
-        account_type: acc.account_type || 'Other',
-        annual_contribution: acc.annual_contribution || 0,
-      }))
-
-      const expenses: Expense[] = (expensesData.data || []).map(exp => ({
-        id: exp.id,
-        expense_name: exp.expense_name,
-        amount_before_65: exp.amount_before_65 || 0,
-        amount_after_65: exp.amount_after_65 || 0,
-      }))
-
-      const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({
-        id: inc.id,
-        income_name: inc.income_source || '',
-        amount: inc.annual_amount || 0,
-        start_year: inc.start_year || undefined,
-        end_year: inc.end_year || undefined,
-        inflation_adjusted: inc.inflation_adjusted || false,
-      }))
-
       const currentYear = new Date().getFullYear()
-      const birthYear = planData.data.birth_year || (currentYear - 50)
-      const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
+      const birthYear = planDataObj.birth_year || (currentYear - 50)
+      const retirementAge = settingsDataObj.retirement_age || DEFAULT_RETIREMENT_AGE
       const yearsToRetirement = retirementAge - (currentYear - birthYear)
       
       const totalSavings = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
@@ -277,8 +352,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
 
       // Calculate simple projection - use common helper function to ensure consistency
       const settings = buildCalculatorSettings(
-        settingsData.data,
-        planData.data,
+        settingsDataObj,
+        planDataObj,
         currentYear,
         retirementAge,
         yearsToRetirement,
@@ -286,22 +361,22 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       )
 
       // Use provided SSA settings if available, otherwise use database values
-      const includePlannerSsa = useSSASettings?.includeSsa ?? ((settingsData.data.planner_ssa_income as boolean) ?? true)
+      const includePlannerSsa = useSSASettings?.includeSsa ?? ((settingsDataObj.planner_ssa_income as boolean) ?? true)
       
       // Automatically include spouse SSA if:
       // 1. User explicitly set it to true, OR
       // 2. Plan includes spouse (include_spouse = true), OR
       // 3. Filing status is "Married Filing Jointly"
       // This ensures realistic projections for married couples
-      const explicitSpouseSsa = useSSASettings?.ssaForTwo ?? ((settingsData.data.spouse_ssa_income as boolean) ?? false)
-      const hasSpouse = planData.data.include_spouse || false
-      const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+      const explicitSpouseSsa = useSSASettings?.ssaForTwo ?? ((settingsDataObj.spouse_ssa_income as boolean) ?? false)
+      const hasSpouse = planDataObj.include_spouse || false
+      const isMarriedFilingJointly = planDataObj.filing_status === 'Married Filing Jointly'
       const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
 
       // Use explicit benefits when set; else estimate from income; else same defaults as calculator (22k/16k)
-      const estimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
-      const plannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null ? Number(settingsData.data.planner_ssa_annual_benefit) : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
-      const spouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null ? Number(settingsData.data.spouse_ssa_annual_benefit) : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+      const estimatedIncomeForSsa = Number(settingsDataObj?.estimated_ssa_annual_income) || 0
+      const plannerBenefit = settingsDataObj?.planner_ssa_annual_benefit != null ? Number(settingsDataObj.planner_ssa_annual_benefit) : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const spouseBenefit = settingsDataObj?.spouse_ssa_annual_benefit != null ? Number(settingsDataObj.spouse_ssa_annual_benefit) : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
       const baseEstimatedPlannerSsa = includePlannerSsa ? plannerBenefit : 0
       const baseEstimatedSpouseSsa = includeSpouseSsa ? spouseBenefit : 0
       
@@ -314,9 +389,6 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
       
       // Estimated SSA at start age (inflation-adjusted from today to start age)
-      // The calculation function will then apply inflation from start age forward
-      // NOTE: This amount is at START age in future dollars, BEFORE early retirement reduction
-      // The projection function will apply the early retirement multiplier and inflation from start age forward
       const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
       const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
 
@@ -326,9 +398,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         expenses,
         otherIncome,
         settings,
-        planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
-        planData.data.spouse_birth_year || undefined,
-        planData.data.spouse_life_expectancy || undefined,
+        planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
+        planDataObj.spouse_birth_year || undefined,
+        planDataObj.spouse_life_expectancy || undefined,
         includePlannerSsa,
         includeSpouseSsa,
         estimatedPlannerSsaAtStart,
@@ -336,21 +408,25 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       )
 
       // Calculate snapshot results
-      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
+      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
       setResults(snapshotResults)
-      setProjections(projections) // Store projections for simplified view
+      setProjections(projections)
       saveMetrics(snapshotResults, currentYear - birthYear, retirementAge)
+
+      if (isLocal && dataService) {
+        await dataService.saveProjections(projections)
+      }
       
       // Store data for tooltip (merge SSA + healthcare from DB for banner and display)
       const settingsWithSsa = {
         ...settings,
-        planner_ssa_income: settingsData.data?.planner_ssa_income ?? true,
-        spouse_ssa_income: settingsData.data?.spouse_ssa_income ?? false,
-        estimated_ssa_annual_income: settingsData.data?.estimated_ssa_annual_income ?? 0,
-        planner_ssa_annual_benefit: settingsData.data?.planner_ssa_annual_benefit,
-        spouse_ssa_annual_benefit: settingsData.data?.spouse_ssa_annual_benefit,
-        pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium,
-        post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium,
+        planner_ssa_income: settingsDataObj?.planner_ssa_income ?? true,
+        spouse_ssa_income: settingsDataObj?.spouse_ssa_income ?? false,
+        estimated_ssa_annual_income: settingsDataObj?.estimated_ssa_annual_income ?? 0,
+        planner_ssa_annual_benefit: settingsDataObj?.planner_ssa_annual_benefit,
+        spouse_ssa_annual_benefit: settingsDataObj?.spouse_ssa_annual_benefit,
+        pre_medicare_annual_premium: settingsDataObj?.pre_medicare_annual_premium,
+        post_medicare_annual_premium: settingsDataObj?.post_medicare_annual_premium,
       } as CalculatorSettings & {
         planner_ssa_income?: boolean
         spouse_ssa_income?: boolean
@@ -360,7 +436,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         pre_medicare_annual_premium?: number
         post_medicare_annual_premium?: number
       }
-      setPlanDataForTooltip(planData.data)
+      setPlanDataForTooltip(planDataObj)
       setAccountsForTooltip(accounts)
       setExpensesForTooltip(expenses)
       setOtherIncomeForTooltip(otherIncome)
@@ -817,8 +893,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         </div>
       )}
 
-      {/* ── Plan Inputs Banner (all assumptions); on mobile, collapsed behind "Show Plan Assumptions" ── */}
-      {(() => {
+      {/* ── Plan Inputs Banner (all assumptions); hidden in local mode since calculator shows this ── */}
+      {!isLocal && (() => {
         const currentYear = new Date().getFullYear()
         const age = results && planDataForTooltip?.birth_year
           ? currentYear - planDataForTooltip.birth_year
@@ -1716,7 +1792,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                       <span>{showProjections ? 'Hide' : 'See'} Yearly Projections</span>
                       <ChevronRight className={`h-4 w-4 transition-transform ${showProjections ? 'rotate-90' : ''}`} />
                     </button>
-                    {onSwitchToPlanSetup && (
+                    {onSwitchToPlanSetup && !isLocal && (
                       <button
                         onClick={onSwitchToPlanSetup}
                         type="button"
@@ -1726,29 +1802,44 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                         <span>Update Plan Setup</span>
                       </button>
                     )}
-                    <PlanPdfDialog
-                      planId={planId}
-                      scenarioId={selectedScenarioId}
-                      planName={planDataForTooltip?.plan_name}
-                    />
-                    <PlanPrintAllDialog
-                      planId={planId}
-                      scenarioId={selectedScenarioId}
-                      planName={planDataForTooltip?.plan_name}
-                    />
+                    {!isLocal && (
+                      <>
+                        <PlanPdfDialog
+                          planId={planId}
+                          scenarioId={selectedScenarioId}
+                          planName={planDataForTooltip?.plan_name}
+                        />
+                        <PlanPrintAllDialog
+                          planId={planId}
+                          scenarioId={selectedScenarioId}
+                          planName={planDataForTooltip?.plan_name}
+                        />
+                      </>
+                    )}
                   </div>
-                  <button
-                    onClick={() => {
-                      setShowQuickStart(false)
-                      if (onSwitchToAdvanced) {
-                        onSwitchToAdvanced()
-                      }
-                    }}
-                    className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 flex items-center gap-2"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                    <span>See Advanced Analysis</span>
-                  </button>
+                  {isLocal ? (
+                    <a
+                      href="/signup"
+                      className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 flex items-center gap-2 transition-colors"
+                    >
+                      <Lock className="h-3.5 w-3.5" />
+                      <span>Sign Up for Advanced Analysis</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setShowQuickStart(false)
+                        if (onSwitchToAdvanced) {
+                          onSwitchToAdvanced()
+                        }
+                      }}
+                      className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 flex items-center gap-2"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                      <span>See Advanced Analysis</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -2711,6 +2802,32 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
           )}
         </>
       ) : null}
+
+      {/* Local mode signup CTA */}
+      {isLocal && results && (
+        <div className="mt-8 rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-950/20 p-6 text-center">
+          <h3 className="text-lg font-semibold text-violet-900 dark:text-violet-100">Want deeper analysis?</h3>
+          <p className="mt-1.5 text-sm text-violet-700 dark:text-violet-300 max-w-md mx-auto">
+            Create a free account to unlock advanced projections, risk analysis, tax efficiency modeling, multiple scenarios, and PDF export.
+          </p>
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="/signup"
+              className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors"
+            >
+              Create Free Account <ArrowRight className="h-4 w-4" />
+            </a>
+            {onSwitchToAdvanced && (
+              <button
+                onClick={onSwitchToAdvanced}
+                className="inline-flex items-center gap-1.5 text-sm text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                See what&apos;s included
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

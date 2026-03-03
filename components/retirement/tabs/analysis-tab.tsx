@@ -688,7 +688,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                   <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground mt-0.5" />
                   <p className="text-xs text-muted-foreground leading-relaxed flex flex-wrap items-center gap-x-1.5 gap-y-2">
                     Each bear sequence is forced in the first years of retirement, then a recovery rate applies so the geometric average equals your plan&apos;s assumed growth rate. For many randomised scenarios,{' '}
-                    <Button variant="link" size="sm" className="h-auto p-0 text-xs font-semibold text-primary underline-offset-2" onClick={runMonteCarlo} disabled={runningMonteCarlo || !selectedScenarioId}>
+                    <Button variant="link" size="sm" className="h-auto p-0 text-xs font-semibold text-primary underline-offset-2" onClick={() => runMonteCarlo()} disabled={runningMonteCarlo || !selectedScenarioId}>
                       {runningMonteCarlo ? 'Running…' : 'Run Monte Carlo'}
                     </Button>
                   </p>
@@ -854,7 +854,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
             <p className="text-xs text-muted-foreground/70 max-w-sm mx-auto mb-4">
               Stress-test your plan across 1,000 randomised market scenarios and see how likely your retirement is to succeed in good and bad markets alike.
             </p>
-            <Button variant="outline" size="sm" onClick={runMonteCarlo} disabled={runningMonteCarlo || !selectedScenarioId}>
+            <Button variant="outline" size="sm" onClick={() => runMonteCarlo()} disabled={runningMonteCarlo || !selectedScenarioId}>
               <Activity className="h-3.5 w-3.5 mr-1.5" />
               {runningMonteCarlo ? 'Running…' : 'Run Monte Carlo'}
             </Button>

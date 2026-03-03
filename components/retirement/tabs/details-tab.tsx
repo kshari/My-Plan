@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { useScenario } from '../scenario-context'
 import { Calculator, Settings, Save, Plus, Trash2, Check, Download, Table2, BarChart as BarChartIcon, TrendingUp, Columns3, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -94,6 +95,8 @@ const ALL_COLUMNS_VISIBLE = {
 
 export default function DetailsTab({ planId, initialSubTab, initialAllColumns, initialViewMode }: DetailsTabProps) {
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [projections, setProjections] = useState<ProjectionDetail[]>([])
   const [loading, setLoading] = useState(false)
@@ -205,6 +208,12 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
   }, [selectedScenarioId])
 
   const loadScenarios = async () => {
+    if (isLocal) {
+      const localScenario = { id: 0, scenario_name: 'Base Scenario', is_default: true }
+      setScenarios([localScenario])
+      if (!selectedScenarioId) setSelectedScenarioId(0)
+      return
+    }
     try {
       const { data, error } = await supabase
         .from('rp_scenarios')
@@ -251,10 +260,51 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
 
   const loadProjections = async (scenarioId?: number) => {
     const targetScenarioId = scenarioId || selectedScenarioId
-    if (!targetScenarioId) return
+    if (!isLocal && !targetScenarioId) return
     
     setLoading(true)
     try {
+      if (isLocal && dataService) {
+        const [plan, accts, exps, income, stg, projs] = await Promise.all([
+          dataService.getPlan(),
+          dataService.getAccounts(),
+          dataService.getExpenses(),
+          dataService.getOtherIncome(),
+          dataService.getSettings(),
+          dataService.getProjections(),
+        ])
+        if (stg) {
+          const s = stg as any
+          setRetirementAge(s.retirement_age || DEFAULT_RETIREMENT_AGE)
+          setSettings({
+            current_year: s.current_year || new Date().getFullYear(),
+            retirement_age: s.retirement_age || DEFAULT_RETIREMENT_AGE,
+            retirement_start_year: s.retirement_start_year || 0,
+            years_to_retirement: s.years_to_retirement || 0,
+            annual_retirement_expenses: s.annual_retirement_expenses || 0,
+            growth_rate_before_retirement: parseFloat(s.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+            growth_rate_during_retirement: parseFloat(s.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+            inflation_rate: parseFloat(s.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
+            enable_borrowing: s.enable_borrowing || false,
+            ssa_start_age: s.ssa_start_age || s.retirement_age || DEFAULT_RETIREMENT_AGE,
+            pre_medicare_annual_premium: s.pre_medicare_annual_premium != null ? parseFloat(s.pre_medicare_annual_premium.toString()) : undefined,
+            post_medicare_annual_premium: s.post_medicare_annual_premium != null ? parseFloat(s.post_medicare_annual_premium.toString()) : undefined,
+            withdrawal_priority: 'default',
+            withdrawal_secondary_priority: 'tax_optimization',
+          })
+        }
+        if (plan) {
+          setLifeExpectancy((plan as any).life_expectancy || DEFAULT_LIFE_EXPECTANCY)
+          setPlanDataForTooltip(plan)
+        }
+        setAccountsForTooltip(accts)
+        setExpensesForTooltip(exps)
+        setOtherIncomeForTooltip(income)
+        setProjections(projs)
+        setLoading(false)
+        return
+      }
+
       // Load retirement age from settings and life expectancy from plan
       const [settingsResult, planResult, accountsResult, expensesResult, incomeResult] = await Promise.all([
         supabase
@@ -720,25 +770,29 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
   }
 
   const calculateAndSaveProjections = async () => {
-    if (!selectedScenarioId) {
+    if (!isLocal && !selectedScenarioId) {
       console.warn('Please select a scenario first')
       return
     }
 
     try {
       setCalculating(true)
-      // Load life expectancy from plan
-      const { data: planData } = await supabase
-        .from('rp_retirement_plans')
-        .select('life_expectancy')
-        .eq('id', planId)
-        .single()
+      if (isLocal && dataService) {
+        const plan = await dataService.getPlan()
+        const le = (plan as any)?.life_expectancy || DEFAULT_MAX_PROJECTION_AGE
+        await calculateAndSaveProjectionsInternal(0, le)
+      } else {
+        const { data: planData } = await supabase
+          .from('rp_retirement_plans')
+          .select('life_expectancy')
+          .eq('id', planId)
+          .single()
 
-      const lifeExpectancy = planData?.life_expectancy || DEFAULT_MAX_PROJECTION_AGE
-      await calculateAndSaveProjectionsInternal(selectedScenarioId, lifeExpectancy)
+        const lifeExpectancy = planData?.life_expectancy || DEFAULT_MAX_PROJECTION_AGE
+        await calculateAndSaveProjectionsInternal(selectedScenarioId!, lifeExpectancy)
+      }
     } catch (error: any) {
       console.error('Error in calculateAndSaveProjections:', error)
-      // Silently handle error - no alerts
     } finally {
       setCalculating(false)
     }
@@ -746,61 +800,87 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
 
   const calculateAndSaveProjectionsInternal = async (scenarioId: number, lifeExpectancy: number = DEFAULT_MAX_PROJECTION_AGE) => {
     try {
-      // Load all necessary data
-      const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
-        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy, filing_status').eq('id', planId).single(),
-        supabase.from('rp_accounts').select('*').eq('plan_id', planId),
-        supabase.from('rp_expenses').select('*').eq('plan_id', planId),
-        supabase.from('rp_other_income').select('*').eq('plan_id', planId),
-        supabase.from('rp_calculator_settings').select('*').eq('scenario_id', scenarioId).single(),
-      ])
+      let planDataObj: any
+      let accounts: Account[]
+      let expenses: Expense[]
+      let otherIncome: OtherIncome[]
+      let settingsDataObj: any
 
-      if (planData.error) throw planData.error
-      if (accountsData.error) throw accountsData.error
-      if (expensesData.error) throw expensesData.error
-      if (incomeData.error) throw incomeData.error
-      if (settingsData.error) throw settingsData.error
+      if (isLocal && dataService) {
+        const [plan, accts, exps, income, stg] = await Promise.all([
+          dataService.getPlan(),
+          dataService.getAccounts(),
+          dataService.getExpenses(),
+          dataService.getOtherIncome(),
+          dataService.getSettings(),
+        ])
+        if (!plan || !(plan as any).birth_year) {
+          console.warn('Please set birth year in Plan Details')
+          return
+        }
+        planDataObj = plan
+        accounts = accts
+        expenses = exps
+        otherIncome = income
+        settingsDataObj = stg || {}
+      } else {
+        const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
+          supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy, filing_status').eq('id', planId).single(),
+          supabase.from('rp_accounts').select('*').eq('plan_id', planId),
+          supabase.from('rp_expenses').select('*').eq('plan_id', planId),
+          supabase.from('rp_other_income').select('*').eq('plan_id', planId),
+          supabase.from('rp_calculator_settings').select('*').eq('scenario_id', scenarioId).single(),
+        ])
 
-      if (!planData.data?.birth_year) {
-        console.warn('Please set birth year in Plan Details')
-        return
+        if (planData.error) throw planData.error
+        if (accountsData.error) throw accountsData.error
+        if (expensesData.error) throw expensesData.error
+        if (incomeData.error) throw incomeData.error
+        if (settingsData.error) throw settingsData.error
+
+        if (!planData.data?.birth_year) {
+          console.warn('Please set birth year in Plan Details')
+          return
+        }
+
+        if (!settingsData.data) {
+          console.warn('Please configure scenario settings in Plan Details')
+          return
+        }
+
+        planDataObj = planData.data
+        settingsDataObj = settingsData.data
+
+        accounts = (accountsData.data || []).map(acc => ({
+          id: acc.id,
+          account_name: acc.account_name,
+          owner: acc.owner || '',
+          balance: acc.balance || 0,
+          account_type: acc.account_type,
+          annual_contribution: acc.annual_contribution || 0,
+        }))
+
+        expenses = (expensesData.data || []).map(exp => ({
+          id: exp.id,
+          expense_name: exp.expense_name,
+          amount_after_65: exp.amount_after_65 || 0,
+          amount_before_65: exp.amount_before_65 || 0,
+        }))
+
+        otherIncome = (incomeData.data || []).map(inc => ({
+          id: inc.id,
+          income_name: inc.income_source || '',
+          amount: inc.annual_amount || 0,
+          start_year: inc.start_year || undefined,
+          end_year: inc.end_year || undefined,
+          inflation_adjusted: inc.inflation_adjusted || false,
+        }))
       }
-
-      if (!settingsData.data) {
-        console.warn('Please configure scenario settings in Plan Details')
-        return
-      }
-
-      const accounts: Account[] = (accountsData.data || []).map(acc => ({
-        id: acc.id,
-        account_name: acc.account_name,
-        owner: acc.owner || '',
-        balance: acc.balance || 0,
-        account_type: acc.account_type,
-        annual_contribution: acc.annual_contribution || 0,
-      }))
-
-      const expenses: Expense[] = (expensesData.data || []).map(exp => ({
-        id: exp.id,
-        expense_name: exp.expense_name,
-        amount_after_65: exp.amount_after_65 || 0,
-        amount_before_65: exp.amount_before_65 || 0,
-      }))
-
-      const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({
-        id: inc.id,
-        income_name: inc.income_source || '',
-        amount: inc.annual_amount || 0,
-        start_year: inc.start_year || undefined,
-        end_year: inc.end_year || undefined,
-        inflation_adjusted: inc.inflation_adjusted || false,
-      }))
 
       // For saved projections, use common helper function to ensure consistency
-      // Calculate years to retirement
       const currentYear = new Date().getFullYear()
-      const birthYear = planData.data.birth_year
-      const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
+      const birthYear = planDataObj.birth_year
+      const retirementAge = settingsDataObj.retirement_age || DEFAULT_RETIREMENT_AGE
       const yearsToRetirement = retirementAge - (currentYear - birthYear)
       const annualExpenses = expenses.reduce((sum, exp) => {
         const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
@@ -808,8 +888,8 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
       }, 0) * 12
       
       const baseSettings = buildCalculatorSettings(
-        settingsData.data,
-        planData.data,
+        settingsDataObj,
+        planDataObj,
         currentYear,
         retirementAge,
         yearsToRetirement,
@@ -829,38 +909,32 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
         setRetirementAge(settings.retirement_age)
       }
       // Set life expectancy
-      if (planData.data?.life_expectancy) {
-        setLifeExpectancy(planData.data.life_expectancy)
+      if (planDataObj?.life_expectancy) {
+        setLifeExpectancy(planDataObj.life_expectancy)
       }
       setSettings(settings)
 
       // Calculate estimated SSA amounts at start age
-      const includePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
+      const includePlannerSsa = settingsDataObj?.planner_ssa_income !== undefined ? settingsDataObj.planner_ssa_income : true
       
-      // Automatically include spouse SSA if:
-      // 1. User explicitly set it to true, OR
-      // 2. Plan includes spouse (include_spouse = true), OR
-      // 3. Filing status is "Married Filing Jointly"
-      // This ensures realistic projections for married couples
-      const explicitSpouseSsa = (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : false)
-      const hasSpouse = planData.data.include_spouse || false
-      const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+      const explicitSpouseSsa = (settingsDataObj?.spouse_ssa_income !== undefined ? settingsDataObj.spouse_ssa_income : false)
+      const hasSpouse = planDataObj.include_spouse || false
+      const isMarriedFilingJointly = planDataObj.filing_status === 'Married Filing Jointly'
       const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
 
-      // Use same SSA benefit logic as Quick Projections: stored benefit, else estimate from income, else defaults
-      const estimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
-      const plannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
-        ? Number(settingsData.data.planner_ssa_annual_benefit)
+      const estimatedIncomeForSsa = Number(settingsDataObj?.estimated_ssa_annual_income) || 0
+      const plannerBenefit = settingsDataObj?.planner_ssa_annual_benefit != null
+        ? Number(settingsDataObj.planner_ssa_annual_benefit)
         : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
-      const spouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
-        ? Number(settingsData.data.spouse_ssa_annual_benefit)
+      const spouseBenefit = settingsDataObj?.spouse_ssa_annual_benefit != null
+        ? Number(settingsDataObj.spouse_ssa_annual_benefit)
         : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
       const baseEstimatedPlannerSsa = includePlannerSsa ? plannerBenefit : 0
       const baseEstimatedSpouseSsa = includeSpouseSsa ? spouseBenefit : 0
 
       // Adjust for inflation from current year to SSA start age
       const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_SSA_START_AGE
-      const currentAge = currentYear - planData.data.birth_year
+      const currentAge = currentYear - planDataObj.birth_year
       const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
       const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
       
@@ -870,14 +944,14 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
 
       // Calculate projections - use life expectancy parameter
       const calculatedProjections = calculateRetirementProjections(
-        planData.data.birth_year,
+        planDataObj.birth_year,
         accounts,
         expenses,
         otherIncome,
         settings,
-        lifeExpectancy, // Project to life expectancy age
-        planData.data.spouse_birth_year || undefined,
-        planData.data.spouse_life_expectancy || undefined,
+        lifeExpectancy,
+        planDataObj.spouse_birth_year || undefined,
+        planDataObj.spouse_life_expectancy || undefined,
         includePlannerSsa,
         includeSpouseSsa,
         estimatedPlannerSsaAtStart,
@@ -886,19 +960,26 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
       
       // For saving, recalculate with default strategy
       const projectionsForSaving = calculateRetirementProjections(
-        planData.data.birth_year,
+        planDataObj.birth_year,
         accounts,
         expenses,
         otherIncome,
-        baseSettings, // Always use default strategy for saved projections
+        baseSettings,
         lifeExpectancy,
-        planData.data.spouse_birth_year || undefined,
-        planData.data.spouse_life_expectancy || undefined,
+        planDataObj.spouse_birth_year || undefined,
+        planDataObj.spouse_life_expectancy || undefined,
         includePlannerSsa,
         includeSpouseSsa,
         estimatedPlannerSsaAtStart,
         estimatedSpouseSsaAtStart
       )
+
+      // For local mode, save projections directly to localStorage
+      if (isLocal && dataService) {
+        await dataService.saveProjections(projectionsForSaving)
+        await loadProjections(scenarioId)
+        return
+      }
 
       // Delete existing projections for this scenario
       const { error: deleteError } = await supabase

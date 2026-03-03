@@ -201,7 +201,13 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">
+          <div className="mt-6 text-center border-t border-border pt-4">
+            <a href="/try/retirement" className="text-sm text-violet-600 hover:text-violet-800 dark:text-violet-400 dark:hover:text-violet-300">
+              Try Retirement Planner without signing up →
+            </a>
+          </div>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             By continuing, you agree to our terms of service and privacy policy.
           </p>
         </div>

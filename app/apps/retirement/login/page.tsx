@@ -79,6 +79,11 @@ export default async function RetirementLoginPage() {
               ← Back to My Plan
             </Link>
           </div>
+          <div className="text-center border-t pt-4">
+            <Link href="/try/retirement" className="text-sm text-violet-600 hover:text-violet-800">
+              Try without signing up →
+            </Link>
+          </div>
         </form>
       </div>
     </div>

@@ -3,11 +3,13 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import {
   Calculator,
   Save,
   Sparkles,
   Check,
+  BarChart2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -139,9 +141,15 @@ function computeResult(a: RetirementAssumptions) {
   }
 }
 
-export default function RetirementCalculator() {
+interface RetirementCalculatorProps {
+  onCalculateProjections?: () => void
+}
+
+export default function RetirementCalculator({ onCalculateProjections }: RetirementCalculatorProps) {
   const router = useRouter()
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const [assumptions, setAssumptions] = useState<RetirementAssumptions>(DEFAULT_RETIREMENT_ASSUMPTIONS)
   const [saving, setSaving] = useState(false)
   const [savingPlan, setSavingPlan] = useState(false)
@@ -152,6 +160,14 @@ export default function RetirementCalculator() {
   // Load persisted assumptions on mount
   useEffect(() => {
     const load = async () => {
+      if (dataService) {
+        const saved = await dataService.getCalculatorDefaults()
+        if (saved && Object.keys(saved).length > 0) {
+          setAssumptions(prev => ({ ...prev, ...saved } as RetirementAssumptions))
+          setLoadedFromDb(true)
+        }
+        return
+      }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data } = await supabase
@@ -183,10 +199,18 @@ export default function RetirementCalculator() {
       }
     }
     load()
-  }, [])
+  }, [dataService])
 
   // Auto-save debounced whenever assumptions change (after initial load)
   const persistAssumptions = useCallback(async (a: RetirementAssumptions) => {
+    if (dataService) {
+      setSaving(true)
+      await dataService.saveCalculatorDefaults(a)
+      setSaving(false)
+      setAutoSaved(true)
+      setTimeout(() => setAutoSaved(false), SAVED_INDICATOR_MS)
+      return
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setSaving(true)
@@ -214,7 +238,7 @@ export default function RetirementCalculator() {
     setSaving(false)
     setAutoSaved(true)
     setTimeout(() => setAutoSaved(false), SAVED_INDICATOR_MS)
-  }, [])
+  }, [dataService])
 
   const update = useCallback(
     <K extends keyof RetirementAssumptions>(key: K, value: RetirementAssumptions[K]) => {
@@ -238,6 +262,12 @@ export default function RetirementCalculator() {
   }
 
   const handleSaveAsPlan = async () => {
+    if (isLocal) {
+      toast('Create a free account to save plans, run projections, and unlock all features.', {
+        action: { label: 'Sign Up', onClick: () => router.push('/signup') },
+      })
+      return
+    }
     setSavingPlan(true)
     try {
       const supabase = createClient()
@@ -516,15 +546,25 @@ export default function RetirementCalculator() {
       </div>
 
       <Separator />
-      {/* Save as plan */}
-      <div className="flex items-center justify-between px-6 py-4">
+      {/* Footer actions */}
+      <div className="flex items-center justify-between px-6 py-4 gap-3">
         <div className="text-xs text-muted-foreground max-w-md">
-          Save these as a plan to unlock detailed projections, scenario modeling, risk analysis, and more.
+          {isLocal && onCalculateProjections
+            ? 'Run quick projections with these assumptions, or create a free account for advanced analysis.'
+            : 'Save these as a plan to unlock detailed projections, scenario modeling, risk analysis, and more.'}
         </div>
-        <Button size="sm" onClick={handleSaveAsPlan} disabled={savingPlan}>
-          <Save className="h-3.5 w-3.5" />
-          {savingPlan ? 'Creating…' : 'Save as Plan'}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {isLocal && onCalculateProjections && (
+            <Button onClick={onCalculateProjections}>
+              <BarChart2 className="h-3.5 w-3.5" />
+              See Quick Projections
+            </Button>
+          )}
+          <Button size="sm" variant={isLocal && onCalculateProjections ? 'outline' : 'default'} onClick={handleSaveAsPlan} disabled={savingPlan}>
+            <Save className="h-3.5 w-3.5" />
+            {savingPlan ? 'Creating…' : 'Save as Plan'}
+          </Button>
+        </div>
       </div>
     </div>
   )
