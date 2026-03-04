@@ -91,12 +91,21 @@ function LoginContent() {
   const handleGoogleSignIn = async () => {
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = `${window.location.origin}/auth/callback`
+      console.log('[google-signin] supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+      console.log('[google-signin] redirectTo:', redirectTo)
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo },
       })
+
+      console.log('[google-signin] data:', JSON.stringify(data))
+      console.log('[google-signin] error:', error?.message ?? 'none')
+
       if (error) throw error
     } catch (error: any) {
+      console.error('[google-signin] caught error:', error)
       toast.error(error?.message ?? 'Sign in with Google failed')
       setLoading(false)
     }
