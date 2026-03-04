@@ -28,16 +28,10 @@ export function GoogleSignInButton({
     setLoading(true)
     try {
       const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
-      console.log('[google-signin-btn] supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-      console.log('[google-signin-btn] redirectTo:', redirectTo)
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo },
       })
-
-      console.log('[google-signin-btn] data:', JSON.stringify(data))
-      console.log('[google-signin-btn] error:', error?.message ?? 'none')
     } finally {
       setLoading(false)
     }

@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 function getOrigin(request: Request): string {
@@ -24,30 +23,13 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/'
   const origin = getOrigin(request)
 
-  const cookieStore = await cookies()
-  const allCookies = cookieStore.getAll()
-  const cookieNames = allCookies.map(c => c.name)
-  const hasCodeVerifier = cookieNames.some(name => name.includes('code-verifier'))
-
-  console.log('[auth/callback] all cookie names:', cookieNames)
-  console.log('[auth/callback] code_verifier cookie present:', hasCodeVerifier)
-  console.log('[auth/callback] auth code present:', !!code)
-
   if (code) {
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-
-    console.log('[auth/callback] exchangeCodeForSession error:', error?.message ?? 'none')
-    console.log('[auth/callback] session obtained:', !!data?.session)
-
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      const postExchangeCookies = cookieStore.getAll().map(c => c.name)
-      console.log('[auth/callback] cookies after exchange:', postExchangeCookies)
-      console.log('[auth/callback] redirecting to:', `${origin}${next}`)
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  console.log('[auth/callback] redirecting to auth-code-error')
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }
