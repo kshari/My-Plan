@@ -16,5 +16,5 @@ function getOrigin(request: Request): string {
 export async function POST(request: Request) {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  return NextResponse.redirect(new URL('/login', getOrigin(request)))
+  return NextResponse.redirect(new URL('/login', getOrigin(request)), 303)
 }
