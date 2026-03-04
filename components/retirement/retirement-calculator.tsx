@@ -555,7 +555,11 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isLocal && onCalculateProjections && (
-            <Button onClick={onCalculateProjections}>
+            <Button onClick={async () => {
+              if (saveTimer.current) clearTimeout(saveTimer.current)
+              await persistAssumptions(assumptions)
+              onCalculateProjections()
+            }}>
               <BarChart2 className="h-3.5 w-3.5" />
               See Quick Projections
             </Button>
