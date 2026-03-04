@@ -30,7 +30,7 @@ export function FeatureGate({ featureName, description }: FeatureGateProps) {
         </div>
         <div className="flex gap-2 justify-center">
           <Button asChild>
-            <Link href="/signup">Sign Up Free</Link>
+            <Link href="/login?signup=1">Sign Up Free</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href="/login">Sign In</Link>

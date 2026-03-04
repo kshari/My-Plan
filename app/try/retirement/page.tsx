@@ -77,7 +77,7 @@ export default function TryRetirementPage() {
             </span>
           </p>
           <Button size="sm" variant="outline" asChild className="shrink-0 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40">
-            <Link href="/signup">Sign Up Free</Link>
+            <Link href="/login?signup=1">Sign Up Free</Link>
           </Button>
         </div>
       </div>
@@ -126,7 +126,7 @@ export default function TryRetirementPage() {
             <div className="mt-6 pt-4 border-t flex flex-col sm:flex-row items-center justify-center gap-3">
               <p className="text-sm text-muted-foreground">Ready for the full experience?</p>
               <Button asChild>
-                <Link href="/signup">Create Free Account</Link>
+                <Link href="/login?signup=1">Create Free Account</Link>
               </Button>
             </div>
           </div>

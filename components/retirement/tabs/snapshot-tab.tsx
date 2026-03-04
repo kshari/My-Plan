@@ -1819,7 +1819,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                   </div>
                   {isLocal ? (
                     <a
-                      href="/signup"
+                      href="/login?signup=1"
                       className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 flex items-center gap-2 transition-colors"
                     >
                       <Lock className="h-3.5 w-3.5" />
@@ -2812,7 +2812,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
           </p>
           <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href="/signup"
+              href="/login?signup=1"
               className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors"
             >
               Create Free Account <ArrowRight className="h-4 w-4" />

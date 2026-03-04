@@ -5,6 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
 
+function isGoogleUser(user: User | null): boolean {
+  if (!user) return false
+  const provider = (user.app_metadata as { provider?: string })?.provider
+  if (provider === 'google') return true
+  const identities = user.identities ?? []
+  return identities.some((id: { provider?: string }) => id.provider === 'google')
+}
+
 interface ProfileFormProps {
   user: User | null
 }
@@ -64,6 +72,18 @@ export default function ProfileForm({ user }: ProfileFormProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const googleUser = isGoogleUser(user)
+
+  if (googleUser) {
+    return (
+      <div className="space-y-8">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          You signed in with Google. Account details are managed by your Google account.
+        </div>
+      </div>
+    )
   }
 
   return (

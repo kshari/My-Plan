@@ -264,7 +264,7 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
   const handleSaveAsPlan = async () => {
     if (isLocal) {
       toast('Create a free account to save plans, run projections, and unlock all features.', {
-        action: { label: 'Sign Up', onClick: () => router.push('/signup') },
+        action: { label: 'Sign Up', onClick: () => router.push('/login?signup=1') },
       })
       return
     }

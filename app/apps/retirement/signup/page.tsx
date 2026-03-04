@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirectIfAuthenticated } from '@/lib/utils/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button'
 
 export default async function RetirementSignupPage() {
   await redirectIfAuthenticated('/apps/retirement/dashboard')
@@ -71,6 +72,17 @@ export default async function RetirementSignupPage() {
             >
               Sign up
             </button>
+          </div>
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-500">or</span>
+            </div>
+          </div>
+          <div className="w-full">
+            <GoogleSignInButton next="/apps/retirement/dashboard" className="w-full" />
           </div>
           <div className="text-center">
             <Link href="/apps/retirement/login" className="text-sm text-blue-600 hover:text-blue-800">
