@@ -1,14 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirectIfAuthenticated } from '@/lib/utils/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button'
 
 export default async function RetirementSignupPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) {
-    redirect('/apps/retirement/dashboard')
-  }
+  await redirectIfAuthenticated('/apps/retirement/dashboard')
 
   async function handleSignup(formData: FormData) {
     'use server'
@@ -76,6 +73,17 @@ export default async function RetirementSignupPage() {
               Sign up
             </button>
           </div>
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-500">or</span>
+            </div>
+          </div>
+          <div className="w-full">
+            <GoogleSignInButton next="/apps/retirement/dashboard" className="w-full" />
+          </div>
           <div className="text-center">
             <Link href="/apps/retirement/login" className="text-sm text-blue-600 hover:text-blue-800">
               Already have an account? Sign in
@@ -84,6 +92,11 @@ export default async function RetirementSignupPage() {
           <div className="text-center">
             <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
               ← Back to My Plan
+            </Link>
+          </div>
+          <div className="text-center border-t pt-4">
+            <Link href="/try/retirement" className="text-sm text-violet-600 hover:text-violet-800">
+              Try without signing up →
             </Link>
           </div>
         </form>

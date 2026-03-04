@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { Plus, Save } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface Account {
   id?: number
@@ -18,6 +20,8 @@ interface AccountsTabProps {
 
 export default function AccountsTab({ planId }: AccountsTabProps) {
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -26,19 +30,24 @@ export default function AccountsTab({ planId }: AccountsTabProps) {
 
   useEffect(() => {
     loadAccounts()
-  }, [planId])
+  }, [planId, isLocal, dataService])
 
   const loadAccounts = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('rp_accounts')
-        .select('*')
-        .eq('plan_id', planId)
-        .order('id')
+      if (isLocal && dataService) {
+        const data = await dataService.getAccounts()
+        setAccounts(data || [])
+      } else {
+        const { data, error } = await supabase
+          .from('rp_accounts')
+          .select('*')
+          .eq('plan_id', planId)
+          .order('id')
 
-      if (error) throw error
-      setAccounts(data || [])
+        if (error) throw error
+        setAccounts(data || [])
+      }
     } catch (error) {
       console.error('Error loading accounts:', error)
     } finally {
@@ -49,17 +58,25 @@ export default function AccountsTab({ planId }: AccountsTabProps) {
   const handleSave = async (account: Account) => {
     setSaving(true)
     try {
-      if (editingAccount?.id) {
-        const { error } = await supabase
-          .from('rp_accounts')
-          .update(account)
-          .eq('id', editingAccount.id)
-        if (error) throw error
+      if (isLocal && dataService) {
+        const localId = editingAccount
+          ? (editingAccount as any)._localId ?? editingAccount.id
+          : undefined
+        const toSave = localId ? { ...account, _localId: localId } as any : account
+        await dataService.saveAccount(toSave)
       } else {
-        const { error } = await supabase
-          .from('rp_accounts')
-          .insert([{ ...account, plan_id: planId }])
-        if (error) throw error
+        if (editingAccount?.id) {
+          const { error } = await supabase
+            .from('rp_accounts')
+            .update(account)
+            .eq('id', editingAccount.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase
+            .from('rp_accounts')
+            .insert([{ ...account, plan_id: planId }])
+          if (error) throw error
+        }
       }
       setShowForm(false)
       setEditingAccount(null)
@@ -71,21 +88,25 @@ export default function AccountsTab({ planId }: AccountsTabProps) {
     }
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
     if (!confirm('Delete this account?')) return
     try {
-      const { error } = await supabase
-        .from('rp_accounts')
-        .delete()
-        .eq('id', id)
-      if (error) throw error
+      if (isLocal && dataService) {
+        await dataService.deleteAccount(id)
+      } else {
+        const { error } = await supabase
+          .from('rp_accounts')
+          .delete()
+          .eq('id', id)
+        if (error) throw error
+      }
       loadAccounts()
     } catch (error: any) {
       alert(`Failed to delete: ${error.message}`)
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-600">Loading...</div>
+  if (loading) return <LoadingState />
 
   return (
     <div>
@@ -128,7 +149,7 @@ export default function AccountsTab({ planId }: AccountsTabProps) {
           </thead>
           <tbody className="divide-y divide-gray-200">
             {accounts.map((account) => (
-              <tr key={account.id}>
+              <tr key={account.id ?? (account as Account & { _localId?: string })._localId}>
                 <td className="px-4 py-3 text-sm">{account.account_name}</td>
                 <td className="px-4 py-3 text-sm">{account.owner}</td>
                 <td className="px-4 py-3 text-sm text-right">${account.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -144,7 +165,10 @@ export default function AccountsTab({ planId }: AccountsTabProps) {
                     Edit
                   </button>
                   <button
-                    onClick={() => account.id && handleDelete(account.id)}
+                    onClick={() => {
+                      const id = account.id ?? (account as Account & { _localId?: string })._localId
+                      if (id != null) handleDelete(id)
+                    }}
                     className="text-red-600 hover:text-red-800"
                   >
                     Delete
@@ -164,7 +188,7 @@ function AccountForm({ account, onSave, onCancel, saving }: any) {
 
   return (
     <div className="mb-4 rounded-lg border border-gray-200 p-4">
-      <h4 className="mb-3 font-medium">{account.id ? 'Edit Account' : 'New Account'}</h4>
+      <h4 className="mb-3 font-medium">{account.id ?? (account as any)._localId ? 'Edit Account' : 'New Account'}</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Account Name</label>

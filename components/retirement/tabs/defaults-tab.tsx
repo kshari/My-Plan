@@ -2,7 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
+import { DEFAULT_SETTINGS_LIST } from '@/lib/constants/retirement-defaults'
 import { Save } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
+
+/** Maps DEFAULT_SETTINGS_LIST names to CalculatorSettings keys for DataService */
+const SETTING_NAME_TO_KEY: Record<string, string> = {
+  'Growth rate (return) before retirement': 'growth_rate_before_retirement',
+  'Loan rate (if borrowed for expenses)': 'debt_interest_rate',
+  'Growth rate (return) during retirement': 'growth_rate_during_retirement',
+  'Capital gains & dividends blended tax rate': 'capital_gains_tax_rate',
+  'Tax rate during retirement': 'income_tax_rate_retirement',
+  'Inflation': 'inflation_rate',
+}
 
 interface DefaultSetting {
   id?: number
@@ -14,16 +27,11 @@ interface DefaultsTabProps {
   planId: number
 }
 
-const defaultSettings = [
-  { name: 'Growth rate (return) before retirement', default: 0.1 },
-  { name: 'Loan rate (if borrowed for expenses)', default: 0.1 },
-  { name: 'Growth rate (return) during retirement', default: 0.05 },
-  { name: 'Capital gains & dividends blended tax rate', default: 0.2 },
-  { name: 'Tax rate during retirement', default: 0.25 },
-  { name: 'Inflation', default: 0.04 },
-]
+const defaultSettings = DEFAULT_SETTINGS_LIST.map(s => ({ name: s.name, default: s.default }))
 
 export default function DefaultsTab({ planId }: DefaultsTabProps) {
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const supabase = createClient()
   const [settings, setSettings] = useState<DefaultSetting[]>([])
   const [loading, setLoading] = useState(false)
@@ -36,6 +44,21 @@ export default function DefaultsTab({ planId }: DefaultsTabProps) {
   const loadSettings = async () => {
     setLoading(true)
     try {
+      if (isLocal && dataService) {
+        const stored = await dataService.getSettings()
+        const allSettings = defaultSettings.map((def) => {
+          const key = SETTING_NAME_TO_KEY[def.name]
+          const value = key && stored && (stored as Record<string, number>)[key]
+          return {
+            setting_name: def.name,
+            setting_value: typeof value === 'number' ? value : def.default,
+            plan_id: planId,
+          }
+        })
+        setSettings(allSettings)
+        return
+      }
+
       const { data, error } = await supabase
         .from('rp_default_settings')
         .select('*')
@@ -61,6 +84,17 @@ export default function DefaultsTab({ planId }: DefaultsTabProps) {
   const handleSave = async () => {
     setSaving(true)
     try {
+      if (isLocal && dataService) {
+        const toSave: Record<string, number> = {}
+        for (const s of settings) {
+          const key = SETTING_NAME_TO_KEY[s.setting_name]
+          if (key) toSave[key] = s.setting_value
+        }
+        await dataService.saveSettings(toSave)
+        alert('Settings saved successfully!')
+        return
+      }
+
       for (const setting of settings) {
         const { error } = await supabase
           .from('rp_default_settings')
@@ -82,7 +116,7 @@ export default function DefaultsTab({ planId }: DefaultsTabProps) {
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-600">Loading...</div>
+  if (loading) return <LoadingState />
 
   return (
     <div>

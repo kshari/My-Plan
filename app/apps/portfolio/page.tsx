@@ -1,17 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
 import PortfolioDashboard from '@/components/PortfolioDashboard'
 
 export default async function PortfolioPage() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
+  const { user } = await requireAuth()
 
   return <PortfolioDashboard user={user} />
 }

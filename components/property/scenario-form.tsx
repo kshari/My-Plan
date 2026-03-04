@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import AmortizationTable from '@/components/property/amortization-table'
+import { ErrorMessage } from '@/components/ui/error-message'
 
 interface ScenarioFormProps {
   propertyId: number
@@ -205,11 +206,7 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
 
       {activeTab === 'details' && (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-              {error}
-            </div>
-          )}
+          {error && <ErrorMessage message={error} />}
 
           <div>
             <label htmlFor="scenarioName" className="block text-sm font-medium text-gray-700">

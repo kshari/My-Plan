@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "@/components/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Investment Platform",
-  description: "Unified platform for portfolio analysis and property investment",
+  title: "My Plan — Investment Planning Platform",
+  description: "Unified platform for portfolio analysis, property investment, and retirement planning",
 };
 
 export default function RootLayout({
@@ -23,11 +25,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        {process.env.NODE_ENV === 'development' && (
+          <Script
+            src="/patch-performance-measure.js"
+            strategy="beforeInteractive"
+          />
+        )}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

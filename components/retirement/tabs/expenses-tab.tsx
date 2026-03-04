@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { Plus, Save } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface Expense {
   id?: number
@@ -17,6 +19,8 @@ interface ExpensesTabProps {
 
 export default function ExpensesTab({ planId }: ExpensesTabProps) {
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -30,6 +34,11 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
   const loadExpenses = async () => {
     setLoading(true)
     try {
+      if (isLocal && dataService) {
+        const data = await dataService.getExpenses()
+        setExpenses(data || [])
+        return
+      }
       const { data, error } = await supabase
         .from('rp_expenses')
         .select('*')
@@ -48,6 +57,16 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
   const handleSave = async (expense: Expense) => {
     setSaving(true)
     try {
+      if (isLocal && dataService) {
+        const toSave = editingExpense
+          ? { ...expense, id: editingExpense.id, _localId: (editingExpense as any)._localId }
+          : expense
+        await dataService.saveExpense(toSave)
+        setShowForm(false)
+        setEditingExpense(null)
+        loadExpenses()
+        return
+      }
       if (editingExpense?.id) {
         const { error } = await supabase
           .from('rp_expenses')
@@ -70,9 +89,14 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
     }
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
     if (!confirm('Delete this expense?')) return
     try {
+      if (isLocal && dataService) {
+        await dataService.deleteExpense(id)
+        loadExpenses()
+        return
+      }
       const { error } = await supabase
         .from('rp_expenses')
         .delete()
@@ -84,12 +108,12 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-600">Loading...</div>
+  if (loading) return <LoadingState />
 
   return (
     <div>
       <div className="mb-4 flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Monthly Expenses</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Monthly Living Expenses</h3>
         <button
           onClick={() => {
             setEditingExpense(null)
@@ -124,8 +148,8 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {expenses.map((expense) => (
-              <tr key={expense.id}>
+            {expenses.map((expense, index) => (
+              <tr key={(expense as any)._localId ?? expense.id ?? index}>
                 <td className="px-4 py-3 text-sm">{expense.expense_name}</td>
                 <td className="px-4 py-3 text-sm text-right">${expense.amount_after_65.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                 <td className="px-4 py-3 text-sm text-right">${expense.amount_before_65.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -140,7 +164,10 @@ export default function ExpensesTab({ planId }: ExpensesTabProps) {
                     Edit
                   </button>
                   <button
-                    onClick={() => expense.id && handleDelete(expense.id)}
+                    onClick={() => {
+                    const id = (expense as any)._localId ?? expense.id
+                    if (id != null) handleDelete(id)
+                  }}
                     className="text-red-600 hover:text-red-800"
                   >
                     Delete

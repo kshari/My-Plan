@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { ErrorMessage } from '@/components/ui/error-message'
 
 interface RetirementPlanFormProps {
   planId?: number
@@ -56,11 +57,7 @@ export default function RetirementPlanForm({ planId, initialData }: RetirementPl
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      {error && <ErrorMessage message={error} />}
 
       <div>
         <label htmlFor="planName" className="block text-sm font-medium text-gray-700">

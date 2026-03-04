@@ -1,7 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import {
+  SlidersHorizontal,
+  GitBranch,
+  BarChart2,
+  ShieldAlert,
+  Coins,
+  Wrench,
+  DollarSign,
+  Zap,
+} from 'lucide-react'
 import { ScenarioProvider } from './scenario-context'
+import { useSidebarNav, type ContextNavSection } from '@/components/layout/sidebar-context'
+import OverviewTab from './tabs/overview-tab'
 import SnapshotTab from './tabs/snapshot-tab'
 import PlanDetailsTab from './tabs/plan-details-tab'
 import OtherIncomeTab from './tabs/other-income-tab'
@@ -13,121 +25,99 @@ import OtherToolsTab from './tabs/other-tools-tab'
 
 interface RetirementPlanTabsProps {
   planId: number
+  planName?: string
+  initialTab?: string
 }
 
-const simpleTabs = [
-  { id: 'snapshot', label: 'Your Snapshot', icon: '🏠' },
+const planNavSections: ContextNavSection[] = [
+  {
+    items: [
+      { id: 'quick-analysis',  label: 'Quick Projections',  icon: Zap },
+    ],
+  },
+  {
+    label: 'Advanced Analysis',
+    items: [
+      { id: 'details',           label: 'Advanced Projections',    icon: BarChart2 },
+      { id: 'scenario-modeling', label: 'Scenario Modeling',      icon: GitBranch },
+      { id: 'analysis',          label: 'Risk Analysis',  icon: ShieldAlert },
+      { id: 'tax-efficiency',    label: 'Tax Efficiency', icon: Coins },
+      { id: 'other-tools',       label: 'Other Tools',    icon: Wrench },
+    ],
+  },
+  {
+    label: 'Setup',
+    items: [
+      { id: 'plan-details',  label: 'Plan Setup', icon: SlidersHorizontal },
+      { id: 'other-income',  label: 'Other Income', icon: DollarSign, disabled: true },
+    ],
+  },
 ]
 
-const advancedTabs = [
-  { id: 'plan-details', label: 'Plan Summary', icon: '⚙️', description: 'Your retirement profile and assumptions' },
-  { id: 'scenario-modeling', label: 'Scenario Modeling', icon: '📉', description: 'Model different retirement scenarios' },
-  { id: 'details', label: 'Projections', icon: '📋', description: 'Year-by-year retirement projections' },
-  { id: 'analysis', label: 'Risk Analysis', icon: '📊', description: 'Understand risks and opportunities' },
-  { id: 'tax-efficiency', label: 'Tax Efficiency', icon: '💰', description: 'Optimize your tax strategy' },
-  { id: 'other-tools', label: 'Other Tools', icon: '🛠️', description: 'Additional retirement planning tools' },
-  { id: 'other-income', label: 'Other Income', icon: '📊', description: 'Additional income sources', disabled: true },
-]
+type TabId =
+  | 'overview'
+  | 'quick-analysis'
+  | 'plan-details'
+  | 'other-income'
+  | 'scenario-modeling'
+  | 'details'
+  | 'analysis'
+  | 'tax-efficiency'
+  | 'other-tools'
 
-export default function RetirementPlanTabs({ planId }: RetirementPlanTabsProps) {
-  const [viewMode, setViewMode] = useState<'simple' | 'advanced'>('simple')
-  const [activeTab, setActiveTab] = useState('snapshot')
+export default function RetirementPlanTabs({ planId, planName, initialTab }: RetirementPlanTabsProps) {
+  const [activeTab, setActiveTab] = useState<TabId>((initialTab as TabId) || 'overview')
+  const { setNav, updateActiveId } = useSidebarNav()
 
-  // Listen for tab switch events from child components
+  // Register plan nav in the main sidebar on mount, clean up on unmount
   useEffect(() => {
-    const handleSwitchTab = (e: CustomEvent) => {
-      setActiveTab(e.detail)
-      if (e.detail !== 'snapshot') {
-        setViewMode('advanced')
-      }
-    }
-    window.addEventListener('switchTab', handleSwitchTab as EventListener)
-    return () => {
-      window.removeEventListener('switchTab', handleSwitchTab as EventListener)
-    }
+    setNav({
+      title: planName || 'Retirement Plan',
+      backHref: '/apps/retirement/dashboard',
+      planStructureNavId: 'overview',
+      dashboardHref: '/apps/retirement/dashboard',
+      sections: planNavSections,
+      activeId: (initialTab as TabId) || 'overview',
+      onNavigate: (id) => setActiveTab(id as TabId),
+    })
+    return () => setNav(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planName])
+
+  // Keep sidebar active highlight in sync whenever the tab changes
+  useEffect(() => {
+    updateActiveId(activeTab)
+  }, [activeTab, updateActiveId])
+
+  // Allow child components to switch tabs via custom event
+  useEffect(() => {
+    const handler = (e: CustomEvent<string>) => setActiveTab(e.detail as TabId)
+    window.addEventListener('switchTab', handler as EventListener)
+    return () => window.removeEventListener('switchTab', handler as EventListener)
   }, [])
 
-  const handleSwitchToAdvanced = () => {
-    setViewMode('advanced')
-    setActiveTab('plan-details')
-  }
+  const navigate = (id: string) => setActiveTab(id as TabId)
 
-  const tabs = viewMode === 'simple' ? simpleTabs : advancedTabs
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'overview':          return <OverviewTab planId={planId} onNavigate={navigate} />
+      case 'quick-analysis':    return <SnapshotTab planId={planId} onSwitchToAdvanced={() => navigate('details')} onSwitchToPlanSetup={() => navigate('plan-details')} />
+      case 'plan-details':      return <PlanDetailsTab planId={planId} />
+      case 'scenario-modeling': return <ScenarioModelingTab planId={planId} />
+      case 'details':           return <DetailsTab planId={planId} />
+      case 'analysis':          return <AnalysisTab planId={planId} />
+      case 'tax-efficiency':    return <TaxEfficiencyTab planId={planId} />
+      case 'other-tools':       return <OtherToolsTab planId={planId} />
+      case 'other-income':      return <OtherIncomeTab planId={planId} />
+      default:                  return null
+    }
+  }
 
   return (
     <ScenarioProvider planId={planId}>
-      <div className="rounded-lg bg-white shadow">
-        {/* Advanced Mode Header and Tab Navigation */}
-        {viewMode === 'advanced' && (
-          <div className="border-b border-gray-200 bg-gray-50">
-            <div className="px-4 py-4 border-b border-gray-200">
-              <p className="text-sm text-gray-700">
-                <strong>Advanced Mode:</strong> Full control over all assumptions and detailed modeling.{' '}
-                <button
-                  onClick={() => {
-                    setViewMode('simple')
-                    setActiveTab('snapshot')
-                  }}
-                  className="text-blue-600 hover:text-blue-800 underline"
-                >
-                  Switch back to Quick Summary
-                </button>
-              </p>
-            </div>
-            <nav className="flex flex-wrap gap-0" aria-label="Tabs">
-              {tabs.map((tab) => {
-                const isDisabled = 'disabled' in tab ? (tab.disabled as boolean) : false
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => !isDisabled && setActiveTab(tab.id)}
-                    disabled={isDisabled}
-                    className={`
-                      flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium
-                      ${
-                        activeTab === tab.id
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
-                      }
-                      ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                  >
-                    <span className="text-base">{tab.icon}</span>
-                    <span>{tab.label}</span>
-                  </button>
-                )
-              })}
-            </nav>
-          </div>
-        )}
-
-        {/* Simple Mode - Quick Summary */}
-        {viewMode === 'simple' && (
-          <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">
-                <strong>Quick Summary:</strong> Quick overview with key retirement metrics and projections.{' '}
-                <button
-                  onClick={handleSwitchToAdvanced}
-                  className="text-blue-600 hover:text-blue-800 underline font-medium"
-                >
-                  Take More Control
-                </button>
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Tab Content */}
+      <div className="rounded-xl border bg-card shadow-sm">
         <div className="p-4 sm:p-6">
-          {activeTab === 'snapshot' && <SnapshotTab planId={planId} onSwitchToAdvanced={handleSwitchToAdvanced} />}
-          {activeTab === 'plan-details' && <PlanDetailsTab planId={planId} />}
-          {activeTab === 'scenario-modeling' && <ScenarioModelingTab planId={planId} />}
-          {activeTab === 'details' && <DetailsTab planId={planId} />}
-          {activeTab === 'analysis' && <AnalysisTab planId={planId} />}
-          {activeTab === 'tax-efficiency' && <TaxEfficiencyTab planId={planId} />}
-          {activeTab === 'other-tools' && <OtherToolsTab planId={planId} />}
-          {activeTab === 'other-income' && <OtherIncomeTab planId={planId} />}
+          {renderContent()}
         </div>
       </div>
     </ScenarioProvider>

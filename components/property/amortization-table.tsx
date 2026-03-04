@@ -1,11 +1,14 @@
 'use client'
 
 import { useMemo } from 'react'
+import { BALANCE_THRESHOLD } from '@/lib/constants/property-defaults'
+import type { ColumnDef } from '@tanstack/react-table'
+import { DataTable } from '@/components/ui/data-table'
 
 interface AmortizationTableProps {
-  loanTerm: number | null // in years
+  loanTerm: number | null
   principal: number | null
-  interestRate: number | null // annual percentage
+  interestRate: number | null
   monthlyPayment: number | null
 }
 
@@ -17,180 +20,130 @@ interface AmortizationRow {
   remainingBalance: number
 }
 
+const fmt = (n: number) =>
+  '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+const columns: ColumnDef<AmortizationRow>[] = [
+  {
+    accessorKey: 'paymentNumber',
+    header: 'Payment #',
+    cell: ({ getValue }) => <span className="tabular-nums font-medium">{getValue<number>()}</span>,
+  },
+  {
+    accessorKey: 'paymentAmount',
+    header: 'Payment',
+    cell: ({ getValue }) => <span className="tabular-nums">{fmt(getValue<number>())}</span>,
+  },
+  {
+    accessorKey: 'principal',
+    header: 'Principal',
+    cell: ({ getValue }) => <span className="tabular-nums text-emerald-600 dark:text-emerald-400">{fmt(getValue<number>())}</span>,
+  },
+  {
+    accessorKey: 'interest',
+    header: 'Interest',
+    cell: ({ getValue }) => <span className="tabular-nums text-destructive">{fmt(getValue<number>())}</span>,
+  },
+  {
+    accessorKey: 'remainingBalance',
+    header: 'Balance',
+    cell: ({ getValue }) => <span className="tabular-nums">{fmt(getValue<number>())}</span>,
+  },
+]
+
 export default function AmortizationTable({
   loanTerm,
   principal,
   interestRate,
   monthlyPayment,
 }: AmortizationTableProps) {
-  const amortizationSchedule = useMemo(() => {
+  const schedule = useMemo<AmortizationRow[]>(() => {
     if (!loanTerm || !principal || !interestRate || !monthlyPayment || principal <= 0 || interestRate <= 0 || monthlyPayment <= 0) {
       return []
     }
-
-    const schedule: AmortizationRow[] = []
     const monthlyRate = interestRate / 100 / 12
     const totalPayments = loanTerm * 12
-    let remainingBalance = principal
+    let balance = principal
+    const rows: AmortizationRow[] = []
 
-    // Recalculate monthly payment to ensure accuracy
-    const calculatedMonthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) / (Math.pow(1 + monthlyRate, totalPayments) - 1)
-    
-    // Use the provided monthly payment if available, otherwise use calculated
-    const paymentAmount = monthlyPayment || calculatedMonthlyPayment
+    for (let i = 1; i <= totalPayments && balance > BALANCE_THRESHOLD; i++) {
+      const interestPayment = balance * monthlyRate
+      const principalPayment = monthlyPayment - interestPayment
+      const newBalance = balance - principalPayment
 
-    for (let i = 1; i <= totalPayments && remainingBalance > 0.01; i++) {
-      const interestPayment = remainingBalance * monthlyRate
-      const principalPayment = paymentAmount - interestPayment
-      const newBalance = remainingBalance - principalPayment
-
-      schedule.push({
+      rows.push({
         paymentNumber: i,
-        paymentAmount,
-        principal: principalPayment > remainingBalance ? remainingBalance : principalPayment,
+        paymentAmount: monthlyPayment,
+        principal: principalPayment > balance ? balance : principalPayment,
         interest: interestPayment,
         remainingBalance: newBalance < 0 ? 0 : newBalance,
       })
-
-      remainingBalance = newBalance < 0 ? 0 : newBalance
+      balance = newBalance < 0 ? 0 : newBalance
     }
-
-    return schedule
+    return rows
   }, [loanTerm, principal, interestRate, monthlyPayment])
 
-  // Calculate totals
-  const totals = useMemo(() => {
-    return amortizationSchedule.reduce(
-      (acc, row) => ({
-        totalPrincipal: acc.totalPrincipal + row.principal,
-        totalInterest: acc.totalInterest + row.interest,
-        totalPayments: acc.totalPayments + row.paymentAmount,
-      }),
-      { totalPrincipal: 0, totalInterest: 0, totalPayments: 0 }
-    )
-  }, [amortizationSchedule])
-
-  // Determine principal and interest rate from props or calculate from loan data
-  const displayPrincipal = principal || 0
-  const displayInterestRate = interestRate || 0
-  const displayMonthlyPayment = monthlyPayment || 0
+  const totals = useMemo(
+    () =>
+      schedule.reduce(
+        (acc, row) => ({
+          totalPrincipal: acc.totalPrincipal + row.principal,
+          totalInterest: acc.totalInterest + row.interest,
+          totalPayments: acc.totalPayments + row.paymentAmount,
+        }),
+        { totalPrincipal: 0, totalInterest: 0, totalPayments: 0 }
+      ),
+    [schedule]
+  )
 
   if (!loanTerm || !principal || !interestRate || !monthlyPayment || principal <= 0) {
     return (
-      <div className="rounded-lg bg-white p-6 shadow">
-        <h3 className="mb-2 text-lg font-semibold text-gray-900">Amortization Schedule</h3>
-        <p className="mb-4 text-sm text-gray-600">Enter loan details to view the amortization schedule</p>
-        <p className="text-sm text-gray-500">Please fill in the loan information above to generate the amortization schedule.</p>
+      <div className="rounded-xl border bg-card p-6">
+        <h3 className="mb-2 text-base font-semibold">Amortization Schedule</h3>
+        <p className="text-sm text-muted-foreground">Enter loan details above to generate the amortization schedule.</p>
       </div>
     )
   }
 
-  // Show only first 12 months, last 12 months, and allow user to see more
-  const firstYear = amortizationSchedule.slice(0, 12)
-  const lastYear = amortizationSchedule.slice(-12)
-  const showFullSchedule = amortizationSchedule.length <= 24
-
   return (
-    <div className="rounded-lg bg-white p-6 shadow">
-      <h3 className="mb-2 text-lg font-semibold text-gray-900">Amortization Schedule</h3>
-      <p className="mb-4 text-sm text-gray-600">
-        Loan Principal: ${displayPrincipal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | 
-        Interest Rate: {displayInterestRate.toFixed(2)}% | 
-        Monthly Payment: ${displayMonthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    <div className="rounded-xl border bg-card p-6 space-y-5">
+      {/* Header */}
+      <div>
+        <h3 className="text-base font-semibold">Amortization Schedule</h3>
+        <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <span>Principal: <strong className="text-foreground">{fmt(principal)}</strong></span>
+          <span>Rate: <strong className="text-foreground">{interestRate.toFixed(2)}%</strong></span>
+          <span>Monthly: <strong className="text-foreground">{fmt(monthlyPayment)}</strong></span>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total Paid', value: fmt(totals.totalPayments) },
+          { label: 'Total Principal', value: fmt(totals.totalPrincipal), color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Total Interest', value: fmt(totals.totalInterest), color: 'text-destructive' },
+        ].map((item) => (
+          <div key={item.label} className="rounded-lg border bg-muted/30 p-3 text-center">
+            <p className="text-xs text-muted-foreground">{item.label}</p>
+            <p className={`mt-1 text-sm font-semibold tabular-nums ${item.color ?? ''}`}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Table with pagination */}
+      <DataTable
+        columns={columns}
+        data={schedule}
+        searchPlaceholder="Jump to payment #…"
+        pageSize={24}
+        emptyMessage="No schedule generated."
+      />
+
+      <p className="text-xs text-muted-foreground">
+        {schedule.length} payments over {loanTerm} year{loanTerm !== 1 ? 's' : ''} ·{' '}
+        Total interest: {fmt(totals.totalInterest)}
       </p>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Payment #</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Payment Amount</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Principal</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Interest</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Remaining Balance</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {showFullSchedule ? (
-              amortizationSchedule.map((row) => (
-                <tr key={row.paymentNumber} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{row.paymentNumber}</td>
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                    ${row.paymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                    ${row.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                    ${row.interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                    ${row.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <>
-                {firstYear.map((row) => (
-                  <tr key={row.paymentNumber} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{row.paymentNumber}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.paymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 italic">
-                    ... {amortizationSchedule.length - 24} payments hidden ...
-                  </td>
-                </tr>
-                {lastYear.map((row) => (
-                  <tr key={row.paymentNumber} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{row.paymentNumber}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.paymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                      ${row.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                ))}
-              </>
-            )}
-            <tr className="font-semibold bg-gray-50">
-              <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">Totals</td>
-              <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-900">
-                ${totals.totalPayments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-900">
-                ${totals.totalPrincipal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-900">
-                ${totals.totalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-900">$0.00</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-4 text-sm text-gray-600">
-        <p>Total of {amortizationSchedule.length} payments over {loanTerm} years</p>
-        <p>Total Interest Paid: ${totals.totalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-      </div>
     </div>
   )
 }

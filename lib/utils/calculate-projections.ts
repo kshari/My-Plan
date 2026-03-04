@@ -1,4 +1,14 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import {
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_SSA_START_AGE,
+  DEFAULT_MAX_PROJECTION_AGE,
+  DEFAULT_SSA_ANNUAL_BENEFIT,
+  DEFAULT_SPOUSE_SSA_BENEFIT,
+  SCORE_ON_TRACK_THRESHOLD,
+  SCORE_CLOSE_THRESHOLD,
+} from '@/lib/constants/retirement-defaults'
 import {
   calculateRetirementProjections,
   buildCalculatorSettings,
@@ -6,6 +16,7 @@ import {
   type Account,
   type Expense,
   type OtherIncome,
+  type ProjectionDetail,
 } from '@/lib/utils/retirement-projections'
 
 /**
@@ -15,9 +26,10 @@ import {
 export async function calculateAndSaveProjectionsForScenario(
   planId: number,
   scenarioId: number,
-  lifeExpectancy: number = 100
+  lifeExpectancy: number = DEFAULT_MAX_PROJECTION_AGE,
+  supabaseInstance?: SupabaseClient
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = supabaseInstance ?? createClient()
   
   try {
     // Load all necessary data
@@ -73,7 +85,7 @@ export async function calculateAndSaveProjectionsForScenario(
     // Calculate years to retirement
     const currentYear = new Date().getFullYear()
     const birthYear = planData.data.birth_year
-    const retirementAge = settingsData.data.retirement_age || 65
+    const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
     const yearsToRetirement = retirementAge - (currentYear - birthYear)
     const annualExpenses = expenses.reduce((sum, exp) => {
       const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
@@ -105,11 +117,19 @@ export async function calculateAndSaveProjectionsForScenario(
     const hasSpouse = planData.data.include_spouse || false
     const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
     const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
-    
-    const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
-    const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
-    
-    const ssaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || 65
+
+    // Use same SSA benefit logic as Quick Projections: stored benefit, else estimate from income, else defaults
+    const estimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
+    const plannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
+      ? Number(settingsData.data.planner_ssa_annual_benefit)
+      : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+    const spouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
+      ? Number(settingsData.data.spouse_ssa_annual_benefit)
+      : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+    const baseEstimatedPlannerSsa = includePlannerSsa ? plannerBenefit : 0
+    const baseEstimatedSpouseSsa = includeSpouseSsa ? spouseBenefit : 0
+
+    const ssaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || DEFAULT_SSA_START_AGE
     const currentAge = currentYear - birthYear
     const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
     const inflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, yearsToSsaStart)
@@ -163,7 +183,7 @@ export async function calculateAndSaveProjectionsForScenario(
       total_income: proj.total_income || 0,
       after_tax_income: proj.after_tax_income || 0,
       living_expenses: proj.living_expenses || 0,
-      special_expenses: proj.special_expenses || 0,
+      special_expenses: proj.healthcare_expenses || proj.special_expenses || 0,
       total_expenses: proj.total_expenses || 0,
       gap_excess: proj.gap_excess || 0,
       cumulative_liability: proj.cumulative_liability || 0,
@@ -191,8 +211,118 @@ export async function calculateAndSaveProjectionsForScenario(
       })
 
     if (insertError) throw insertError
+
+    // Compute and save plan metrics so dashboard table shows all values
+    const metrics = computePlanMetricsFromProjections(
+      projectionsForSaving,
+      retirementAge,
+      lifeExpectancy
+    )
+    const { error: metricsError } = await supabase.from('rp_plan_metrics').upsert({
+      plan_id: planId,
+      current_age: currentAge,
+      retirement_age: retirementAge,
+      confidence_score: metrics.confidenceScore,
+      monthly_income: metrics.monthlyRetirementIncome,
+      years_money_lasts: metrics.yearsMoneyLasts,
+      networth_at_retirement: metrics.networthAtRetirement,
+      legacy_value: metrics.legacyValue,
+      status: metrics.status,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'plan_id' })
+    if (metricsError) {
+      console.error('rp_plan_metrics upsert failed:', metricsError)
+      throw metricsError
+    }
   } catch (error: any) {
     console.error('Error calculating projections:', error)
     throw error
+  }
+}
+
+/**
+ * Compute plan metrics from projection results (same logic as snapshot tab summary).
+ * Used so Saved Retirement Plans table shows confidence, income, years, networth, legacy.
+ */
+function computePlanMetricsFromProjections(
+  projections: ProjectionDetail[],
+  retirementAge: number,
+  lifeExpectancy: number
+): {
+  confidenceScore: number
+  monthlyRetirementIncome: number
+  yearsMoneyLasts: number
+  networthAtRetirement: number
+  legacyValue: number
+  status: string
+} {
+  const retirementProjections = projections.filter((p) => p.age >= retirementAge)
+  const networthAtRetirement = retirementProjections[0]?.networth ?? 0
+
+  if (retirementProjections.length === 0) {
+    return {
+      confidenceScore: 0,
+      monthlyRetirementIncome: 0,
+      yearsMoneyLasts: 0,
+      networthAtRetirement: 0,
+      legacyValue: 0,
+      status: 'at-risk',
+    }
+  }
+
+  const earlyRetirementYears = retirementProjections.slice(0, 10)
+  const monthlyRetirementIncome =
+    earlyRetirementYears.length > 0
+      ? earlyRetirementYears.reduce((sum, p) => sum + (p.after_tax_income || 0), 0) /
+        earlyRetirementYears.length /
+        12
+      : 0
+
+  let yearsMoneyLasts = 0
+  let fundsRunOutAge: number | null = null
+  for (let i = 0; i < retirementProjections.length; i++) {
+    const proj = retirementProjections[i]
+    const networth = proj.networth || 0
+    if (networth <= 0) {
+      fundsRunOutAge = proj.age ?? retirementAge + i
+      yearsMoneyLasts = i + 1
+      break
+    }
+  }
+
+  if (fundsRunOutAge === null) {
+    const lifeExpectancyIndex = retirementProjections.findIndex((p) => p.age === lifeExpectancy)
+    yearsMoneyLasts =
+      lifeExpectancyIndex >= 0 ? lifeExpectancyIndex + 1 : lifeExpectancy - retirementAge
+  }
+
+  let legacyValue = 0
+  if (fundsRunOutAge === null || fundsRunOutAge >= lifeExpectancy) {
+    const atLife = retirementProjections.find((p) => p.age === lifeExpectancy)
+    legacyValue = atLife?.networth ?? 0
+  }
+
+  const totalYears = retirementProjections.length
+  const yearsWithShortfall = retirementProjections.filter(
+    (p) => (p.gap_excess || 0) < -1000
+  ).length
+  const shortfallRatio = totalYears > 0 ? yearsWithShortfall / totalYears : 0
+  const confidenceScore = Math.max(
+    0,
+    Math.min(100, Math.round((1 - shortfallRatio) * 100))
+  )
+
+  let status: 'on-track' | 'close' | 'at-risk'
+  if (confidenceScore >= SCORE_ON_TRACK_THRESHOLD) status = 'on-track'
+  else if (confidenceScore >= SCORE_CLOSE_THRESHOLD) status = 'close'
+  else status = 'at-risk'
+
+  return {
+    confidenceScore,
+    monthlyRetirementIncome,
+    yearsMoneyLasts,
+    networthAtRetirement,
+    legacyValue,
+    status,
   }
 }

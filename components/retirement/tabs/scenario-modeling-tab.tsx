@@ -25,9 +25,20 @@ import {
   type Expense,
   type OtherIncome,
 } from '@/lib/utils/retirement-projections'
+import {
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_INFLATION_RATE_PCT,
+  SAFE_WITHDRAWAL_RATE,
+} from '@/lib/constants/retirement-defaults'
+import { LoadingState } from '@/components/ui/loading-state'
+import { formatCurrencyShort as formatCurrency } from '@/lib/utils/formatting'
 
 interface ScenarioModelingTabProps {
   planId: number
+  /** Start with this model type instead of the default 'networth'. */
+  initialModelType?: 'networth' | 'monthly_income'
 }
 
 // Color palette for growth rate lines (3% to 15%)
@@ -47,12 +58,12 @@ const GROWTH_RATE_COLORS = [
   '#a855f7', // 15% - purple
 ]
 
-export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps) {
+export default function ScenarioModelingTab({ planId, initialModelType }: ScenarioModelingTabProps) {
   const supabase = createClient()
   const { selectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
   const [graphType, setGraphType] = useState<'line' | 'area' | 'bar'>('line')
-  const [modelType, setModelType] = useState<'networth' | 'monthly_income'>('networth')
+  const [modelType, setModelType] = useState<'networth' | 'monthly_income'>(initialModelType ?? 'networth')
   const [modelingData, setModelingData] = useState<any[]>([])
   const [planData, setPlanData] = useState<any>(null)
   const [currentAge, setCurrentAge] = useState<number>(50)
@@ -89,7 +100,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
       const currentYear = new Date().getFullYear()
       const calcCurrentAge = currentYear - plan.birth_year
       setCurrentAge(calcCurrentAge)
-      setLifeExpectancy(plan.life_expectancy || 90)
+      setLifeExpectancy(plan.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
 
       // Load accounts, expenses, other income
       const [accountsResult, expensesResult, incomeResult, settingsResult] = await Promise.all([
@@ -149,9 +160,9 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
       const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
       const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
       
-      const ssaStartAge = settingsResult.data?.ssa_start_age || settingsResult.data?.retirement_age || 65
+      const ssaStartAge = settingsResult.data?.ssa_start_age || settingsResult.data?.retirement_age || DEFAULT_RETIREMENT_AGE
       const yearsToSsaStart = Math.max(0, ssaStartAge - calcCurrentAge)
-      const inflationRate = parseFloat(settingsResult.data?.inflation_rate?.toString() || '0.03')
+      const inflationRate = parseFloat(settingsResult.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE))
       const inflationToSsaStart = Math.pow(1 + inflationRate, yearsToSsaStart)
       
       const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
@@ -193,7 +204,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
               expenses,
               otherIncome,
               settings,
-              plan.life_expectancy || 90,
+              plan.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
               plan.spouse_birth_year || undefined,
               plan.spouse_life_expectancy || undefined,
               includePlannerSsa,
@@ -221,7 +232,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
             const retirementProj = projections.find(p => p.age === retirementAge)
             const networthAtRetirement = retirementProj?.networth || 0
             // 4% annual withdrawal divided by 12 months
-            const monthlyIncome = (networthAtRetirement * 0.04) / 12
+            const monthlyIncome = (networthAtRetirement * SAFE_WITHDRAWAL_RATE) / 12
             dataPoint[`income_${growthRate}`] = Math.max(0, monthlyIncome)
           } catch (error) {
             console.error(`Error calculating for retirement age ${retirementAge}, growth ${growthRate}:`, error)
@@ -239,15 +250,6 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}k`
-    }
-    return `$${value.toFixed(0)}`
   }
 
   const renderChart = () => {
@@ -366,7 +368,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     if (graphType === 'line') {
       return (
         <LineChart {...chartProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="retirementAge"
             label={{ value: 'Retirement Start Age', position: 'insideBottom', offset: -10, fontSize: 12, fontWeight: 'bold' }}
@@ -387,7 +389,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     } else if (graphType === 'area') {
       return (
         <AreaChart {...chartProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="retirementAge"
             label={{ value: 'Retirement Start Age', position: 'insideBottom', offset: -10, fontSize: 12, fontWeight: 'bold' }}
@@ -408,7 +410,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
     } else {
       return (
         <BarChart {...chartProps}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="retirementAge"
             label={{ value: 'Retirement Start Age', position: 'insideBottom', offset: -10, fontSize: 12, fontWeight: 'bold' }}
@@ -430,18 +432,13 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
   }
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-600">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        Calculating scenario models...
-      </div>
-    )
+    return <LoadingState message="Calculating scenario models…" />
   }
 
   if (!planData?.birth_year) {
     return (
       <div className="text-center py-8 text-gray-500">
-        Please set your birth year in Plan Summary to use Scenario Modeling.
+        Please set your birth year in Plan Setup to use Scenario Modeling.
       </div>
     )
   }
@@ -585,7 +582,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
           <div>
             <span className="font-medium text-gray-700">Inflation Rate:</span>{' '}
             <span className="text-gray-600">
-              {settingsData?.inflation_rate ? `${(parseFloat(settingsData.inflation_rate.toString()) * 100).toFixed(2)}%` : '4.00% (default)'}
+              {settingsData?.inflation_rate ? `${(parseFloat(settingsData.inflation_rate.toString()) * 100).toFixed(2)}%` : `${DEFAULT_INFLATION_RATE_PCT.toFixed(2)}% (default)`}
             </span>
           </div>
           <div>
@@ -601,7 +598,7 @@ export default function ScenarioModelingTab({ planId }: ScenarioModelingTabProps
             <span className="text-gray-600">
               {settingsData?.planner_ssa_income !== false ? 'Included' : 'Not included'}
               {planData?.include_spouse && settingsData?.spouse_ssa_income !== false ? ' (Planner + Spouse)' : ''}
-              {settingsData?.ssa_start_age ? ` starting at age ${settingsData.ssa_start_age}` : ` starting at retirement age ${settingsData?.retirement_age || 65} (default)`}
+              {settingsData?.ssa_start_age ? ` starting at age ${settingsData.ssa_start_age}` : ` starting at retirement age ${settingsData?.retirement_age || DEFAULT_RETIREMENT_AGE} (default)`}
               {estimatedSSAIncome !== null && estimatedSSAIncome > 0 && (
                 <> - Estimated: ${estimatedSSAIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</>
               )}

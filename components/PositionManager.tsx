@@ -3,37 +3,165 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getTickerInfo } from '@/lib/utils/market-data'
+import { toast } from 'sonner'
+import { Plus, Trash2 } from 'lucide-react'
+import type { ColumnDef } from '@tanstack/react-table'
+import { DataTable } from '@/components/ui/data-table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+
+interface Position {
+  id: string
+  quantity: number
+  cost_basis: number
+  purchase_date: string
+  position_type: 'stock' | 'option'
+  tickers?: { symbol: string; name?: string }
+  options_positions?: Array<{
+    strike_price: number
+    expiration_date: string
+    option_type: string
+    premium: number
+    contracts: number
+  }>
+}
 
 interface PositionManagerProps {
   portfolioId: string
-  positions: any[]
+  positions: Position[]
   onUpdate: () => void
 }
 
+const columns = (onDelete: (id: string) => void): ColumnDef<Position>[] => [
+  {
+    accessorFn: (row) => row.tickers?.symbol ?? '',
+    id: 'symbol',
+    header: 'Symbol',
+    cell: ({ row }) => (
+      <span className="font-mono font-semibold text-sm">
+        {row.original.tickers?.symbol ?? '—'}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'position_type',
+    header: 'Type',
+    cell: ({ row }) => (
+      <Badge
+        variant={row.original.position_type === 'option' ? 'secondary' : 'default'}
+        className="capitalize"
+      >
+        {row.original.position_type}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: 'quantity',
+    header: 'Quantity',
+    cell: ({ row }) => (
+      <span className="tabular-nums">{parseFloat(String(row.original.quantity)).toLocaleString()}</span>
+    ),
+  },
+  {
+    accessorKey: 'cost_basis',
+    header: 'Cost Basis',
+    cell: ({ row }) => (
+      <span className="tabular-nums">
+        ${parseFloat(String(row.original.cost_basis)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'purchase_date',
+    header: 'Purchase Date',
+    cell: ({ row }) => new Date(row.original.purchase_date).toLocaleDateString(),
+  },
+  {
+    id: 'options_details',
+    header: 'Options Details',
+    enableSorting: false,
+    cell: ({ row }) => {
+      const op = row.original.options_positions?.[0]
+      if (!op) return <span className="text-muted-foreground">—</span>
+      return (
+        <div className="text-xs space-y-0.5">
+          <div className="font-medium uppercase">{op.option_type} ${op.strike_price}</div>
+          <div className="text-muted-foreground">Exp {new Date(op.expiration_date).toLocaleDateString()}</div>
+        </div>
+      )
+    },
+  },
+  {
+    id: 'actions',
+    header: '',
+    enableHiding: false,
+    enableSorting: false,
+    cell: ({ row }) => (
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete position?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the{' '}
+              <strong>{row.original.tickers?.symbol}</strong> position. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => onDelete(row.original.id)}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    ),
+  },
+]
+
+const defaultForm = {
+  symbol: '',
+  quantity: '',
+  costBasis: '',
+  purchaseDate: new Date().toISOString().split('T')[0],
+  positionType: 'stock' as 'stock' | 'option',
+  strikePrice: '',
+  expirationDate: '',
+  optionType: 'call' as 'call' | 'put',
+  premium: '',
+  contracts: '1',
+}
+
 export default function PositionManager({ portfolioId, positions, onUpdate }: PositionManagerProps) {
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [formData, setFormData] = useState({
-    symbol: '',
-    quantity: '',
-    costBasis: '',
-    purchaseDate: new Date().toISOString().split('T')[0],
-    positionType: 'stock' as 'stock' | 'option',
-    // Option fields
-    strikePrice: '',
-    expirationDate: '',
-    optionType: 'call' as 'call' | 'put',
-    premium: '',
-    contracts: '1',
-  })
+  const [showForm, setShowForm] = useState(false)
+  const [formData, setFormData] = useState(defaultForm)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
   const handleAddPosition = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
-      // First, get or create ticker
       let tickerData: any
       const { data: existingTicker } = await supabase
         .from('pa_tickers')
@@ -44,24 +172,16 @@ export default function PositionManager({ portfolioId, positions, onUpdate }: Po
       if (existingTicker) {
         tickerData = existingTicker
       } else {
-        // Fetch ticker info from market data API
         const tickerInfo = await getTickerInfo(formData.symbol.toUpperCase())
-        const tickerName = tickerInfo?.name || formData.symbol.toUpperCase()
-        
         const { data: newTicker, error: tickerError } = await supabase
           .from('pa_tickers')
-          .insert({
-            symbol: formData.symbol.toUpperCase(),
-            name: tickerName,
-          })
+          .insert({ symbol: formData.symbol.toUpperCase(), name: tickerInfo?.name || formData.symbol.toUpperCase() })
           .select()
           .single()
-
         if (tickerError) throw tickerError
         tickerData = newTicker
       }
 
-      // Create position
       const { data: position, error: positionError } = await supabase
         .from('pa_positions')
         .insert({
@@ -74,323 +194,189 @@ export default function PositionManager({ portfolioId, positions, onUpdate }: Po
         })
         .select()
         .single()
-
       if (positionError) throw positionError
 
-      // If option, create options position
       if (formData.positionType === 'option') {
-        const { error: optionError } = await supabase
-          .from('pa_options_positions')
-          .insert({
-            position_id: position.id,
-            strike_price: parseFloat(formData.strikePrice),
-            expiration_date: formData.expirationDate,
-            option_type: formData.optionType,
-            premium: parseFloat(formData.premium),
-            contracts: parseInt(formData.contracts),
-          })
-
+        const { error: optionError } = await supabase.from('pa_options_positions').insert({
+          position_id: position.id,
+          strike_price: parseFloat(formData.strikePrice),
+          expiration_date: formData.expirationDate,
+          option_type: formData.optionType,
+          premium: parseFloat(formData.premium),
+          contracts: parseInt(formData.contracts),
+        })
         if (optionError) throw optionError
       }
 
-      // Reset form
-      setFormData({
-        symbol: '',
-        quantity: '',
-        costBasis: '',
-        purchaseDate: new Date().toISOString().split('T')[0],
-        positionType: 'stock',
-        strikePrice: '',
-        expirationDate: '',
-        optionType: 'call',
-        premium: '',
-        contracts: '1',
-      })
-      setShowAddModal(false)
+      toast.success(`${formData.symbol.toUpperCase()} position added`)
+      setFormData(defaultForm)
+      setShowForm(false)
       onUpdate()
     } catch (error: any) {
-      alert(`Error adding position: ${error.message}`)
+      toast.error(`Failed to add position: ${error.message}`)
     } finally {
       setLoading(false)
     }
   }
 
   const handleDeletePosition = async (positionId: string) => {
-    if (!confirm('Are you sure you want to delete this position?')) return
-
     try {
-      const { error } = await supabase
-        .from('pa_positions')
-        .delete()
-        .eq('id', positionId)
-
+      const { error } = await supabase.from('pa_positions').delete().eq('id', positionId)
       if (error) throw error
+      toast.success('Position deleted')
       onUpdate()
     } catch (error: any) {
-      alert(`Error deleting position: ${error.message}`)
+      toast.error(`Failed to delete: ${error.message}`)
     }
   }
 
+  const f = (key: keyof typeof formData, value: string) =>
+    setFormData((prev) => ({ ...prev, [key]: value }))
+
   return (
-    <div>
-      <div className="mb-4 flex justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Positions</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Add Position
-        </button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold tracking-tight">Positions</h2>
+        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+          <Plus className="h-4 w-4" />
+          {showForm ? 'Cancel' : 'Add Position'}
+        </Button>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <h3 className="mb-4 text-lg font-semibold">Add New Position</h3>
-            <form onSubmit={handleAddPosition}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Position Type
-                </label>
-                <select
-                  value={formData.positionType}
-                  onChange={(e) => setFormData({ ...formData, positionType: e.target.value as 'stock' | 'option' })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                >
-                  <option value="stock">Stock</option>
-                  <option value="option">Option</option>
-                </select>
-              </div>
+      {/* Inline add form */}
+      {showForm && (
+        <div className="rounded-xl border bg-muted/30 p-5">
+          <h3 className="mb-4 font-semibold text-sm">New Position</h3>
+          <form onSubmit={handleAddPosition} className="space-y-4">
+            {/* Position type */}
+            <div className="grid gap-2">
+              <Label>Position Type</Label>
+              <select
+                value={formData.positionType}
+                onChange={(e) => f('positionType', e.target.value)}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50 focus:border-ring"
+              >
+                <option value="stock">Stock</option>
+                <option value="option">Option</option>
+              </select>
+            </div>
 
-              <div className="mb-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Symbol *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.symbol}
-                    onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                    required
-                    placeholder="AAPL"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Quantity *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                    required
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="grid gap-2">
+                <Label>Symbol *</Label>
+                <Input
+                  value={formData.symbol}
+                  onChange={(e) => f('symbol', e.target.value)}
+                  placeholder="AAPL"
+                  required
+                />
               </div>
+              <div className="grid gap-2">
+                <Label>Quantity *</Label>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  value={formData.quantity}
+                  onChange={(e) => f('quantity', e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Cost Basis *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.costBasis}
+                  onChange={(e) => f('costBasis', e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Purchase Date *</Label>
+                <Input
+                  type="date"
+                  value={formData.purchaseDate}
+                  onChange={(e) => f('purchaseDate', e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-              <div className="mb-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Cost Basis *
-                  </label>
-                  <input
+            {formData.positionType === 'option' && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5 border-t pt-4">
+                <div className="grid gap-2">
+                  <Label>Option Type *</Label>
+                  <select
+                    value={formData.optionType}
+                    onChange={(e) => f('optionType', e.target.value)}
+                    className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-[3px] focus:ring-ring/50 focus:border-ring"
+                    required
+                  >
+                    <option value="call">Call</option>
+                    <option value="put">Put</option>
+                  </select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Strike Price *</Label>
+                  <Input
                     type="number"
                     step="0.01"
-                    value={formData.costBasis}
-                    onChange={(e) => setFormData({ ...formData, costBasis: e.target.value })}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                    value={formData.strikePrice}
+                    onChange={(e) => f('strikePrice', e.target.value)}
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Purchase Date *
-                  </label>
-                  <input
+                <div className="grid gap-2">
+                  <Label>Expiry *</Label>
+                  <Input
                     type="date"
-                    value={formData.purchaseDate}
-                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                    value={formData.expirationDate}
+                    onChange={(e) => f('expirationDate', e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Premium *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.premium}
+                    onChange={(e) => f('premium', e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Contracts *</Label>
+                  <Input
+                    type="number"
+                    value={formData.contracts}
+                    onChange={(e) => f('contracts', e.target.value)}
                     required
                   />
                 </div>
               </div>
+            )}
 
-              {formData.positionType === 'option' && (
-                <>
-                  <div className="mb-4 grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Strike Price *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={formData.strikePrice}
-                        onChange={(e) => setFormData({ ...formData, strikePrice: e.target.value })}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                        required={formData.positionType === 'option'}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Expiration Date *
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.expirationDate}
-                        onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                        required={formData.positionType === 'option'}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mb-4 grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Option Type *
-                      </label>
-                      <select
-                        value={formData.optionType}
-                        onChange={(e) => setFormData({ ...formData, optionType: e.target.value as 'call' | 'put' })}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                        required={formData.positionType === 'option'}
-                      >
-                        <option value="call">Call</option>
-                        <option value="put">Put</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Premium *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={formData.premium}
-                        onChange={(e) => setFormData({ ...formData, premium: e.target.value })}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                        required={formData.positionType === 'option'}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Contracts *
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.contracts}
-                        onChange={(e) => setFormData({ ...formData, contracts: e.target.value })}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                        required={formData.positionType === 'option'}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading ? 'Adding...' : 'Add Position'}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => { setShowForm(false); setFormData(defaultForm) }}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={loading}>
+                {loading ? 'Adding…' : 'Add Position'}
+              </Button>
+            </div>
+          </form>
         </div>
       )}
 
-      {positions.length === 0 ? (
-        <div className="rounded-lg bg-white p-12 text-center shadow">
-          <p className="text-gray-500">No positions yet. Add your first position to get started!</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-lg bg-white shadow">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Symbol
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Quantity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Cost Basis
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Purchase Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Options Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {positions.map((position) => (
-                <tr key={position.id}>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                    {position.tickers?.symbol || 'N/A'}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                      position.position_type === 'option' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {position.position_type}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {parseFloat(position.quantity).toLocaleString()}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    ${parseFloat(position.cost_basis).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {new Date(position.purchase_date).toLocaleDateString()}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {position.options_positions && position.options_positions.length > 0 ? (
-                      <div className="text-xs">
-                        {position.options_positions[0].option_type.toUpperCase()} ${position.options_positions[0].strike_price} 
-                        <br />
-                        Exp: {new Date(position.options_positions[0].expiration_date).toLocaleDateString()}
-                      </div>
-                    ) : '-'}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    <button
-                      onClick={() => handleDeletePosition(position.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Data table */}
+      <DataTable
+        columns={columns(handleDeletePosition)}
+        data={positions}
+        searchPlaceholder="Search positions…"
+        pageSize={15}
+        emptyMessage="No positions yet. Add your first position to get started."
+      />
     </div>
   )
 }

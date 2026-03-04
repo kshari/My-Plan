@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { IRR_INITIAL_GUESS, IRR_TOLERANCE, IRR_MAX_ITERATIONS, BALANCE_THRESHOLD } from '@/lib/constants/property-defaults'
 
 interface PLTableProps {
   scenario: any
@@ -17,9 +18,9 @@ function calculateIRR(cashFlows: number[]): number {
   if (!hasNegative || !hasPositive) return 0
   
   // Initial guess between -99% and 99% to avoid division by zero
-  let irr = 0.1
-  const maxIterations = 100
-  const tolerance = 0.0001
+  let irr = IRR_INITIAL_GUESS
+  const maxIterations = IRR_MAX_ITERATIONS
+  const tolerance = IRR_TOLERANCE
 
   for (let i = 0; i < maxIterations; i++) {
     let npv = 0
@@ -102,7 +103,7 @@ export default function PLTable({ scenario, years }: PLTableProps) {
 
         for (let month = 1; month <= 12; month++) {
           const paymentNum = (year - 1) * 12 + month
-          if (paymentNum <= numPayments && balance > 0.01) {
+          if (paymentNum <= numPayments && balance > BALANCE_THRESHOLD) {
             const interestPayment = balance * monthlyRate
             const principalPayment = monthlyMortgage - interestPayment
             yearInterest += interestPayment

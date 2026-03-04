@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { PROPERTY_TYPES } from '@/lib/constants/property-defaults'
 import { useRouter } from 'next/navigation'
+import { ErrorMessage } from '@/components/ui/error-message'
 
 interface PropertyFormProps {
   propertyId?: number
@@ -77,11 +79,7 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      {error && <ErrorMessage message={error} />}
 
       <div>
         <label htmlFor="address" className="block text-sm font-medium text-gray-700">
@@ -109,11 +107,9 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         >
           <option value="">Select property type</option>
-          <option value="Single Family">Single Family</option>
-          <option value="Multi Family">Multi Family</option>
-          <option value="Apartment">Apartment</option>
-          <option value="Commercial">Commercial</option>
-          <option value="Other">Other</option>
+          {PROPERTY_TYPES.map((pt) => (
+            <option key={pt} value={pt}>{pt}</option>
+          ))}
         </select>
       </div>
 

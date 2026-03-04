@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { requireAuth } from '@/lib/utils/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import RetirementPlanForm from '@/components/retirement/retirement-plan-form'
@@ -10,12 +10,7 @@ interface EditRetirementPlanPageProps {
 export default async function EditRetirementPlanPage({ params }: EditRetirementPlanPageProps) {
   const { id } = await params
   const planId = parseInt(id)
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    redirect('/login')
-  }
+  const { supabase, user } = await requireAuth()
 
   const { data: plan, error } = await supabase
     .from('rp_retirement_plans')

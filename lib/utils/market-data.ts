@@ -20,7 +20,9 @@ export interface MarketData {
 
 // Cache for API responses to avoid rate limits
 const priceCache = new Map<string, { data: MarketData; timestamp: number }>()
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+import { MARKET_DATA_CACHE_MS, MARKET_DATA_BATCH_SIZE, API_RATE_LIMIT_MS } from '@/lib/constants/timing'
+
+const CACHE_DURATION = MARKET_DATA_CACHE_MS
 
 /**
  * Fetch stock quote from Yahoo Finance (no API key required)
@@ -182,7 +184,7 @@ export async function getMarketDataBatch(symbols: string[]): Promise<Map<string,
   const results = new Map<string, MarketData>()
   
   // Fetch in parallel with rate limiting (max 5 concurrent requests)
-  const batchSize = 5
+  const batchSize = MARKET_DATA_BATCH_SIZE
   for (let i = 0; i < symbols.length; i += batchSize) {
     const batch = symbols.slice(i, i + batchSize)
     const promises = batch.map(async (symbol) => {
@@ -196,7 +198,7 @@ export async function getMarketDataBatch(symbols: string[]): Promise<Map<string,
     
     // Small delay between batches to avoid rate limits
     if (i + batchSize < symbols.length) {
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise(resolve => setTimeout(resolve, API_RATE_LIMIT_MS))
     }
   }
 

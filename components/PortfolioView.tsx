@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ChevronLeft, BarChart2, Upload, ListOrdered } from 'lucide-react'
 import PositionManager from './PositionManager'
 import PortfolioAnalysis from './PortfolioAnalysis'
 import CSVUpload from './CSVUpload'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface PortfolioViewProps {
   portfolioId: string
@@ -22,7 +26,6 @@ export default function PortfolioView({ portfolioId, onBack, onUpdate }: Portfol
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [positions, setPositions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'positions' | 'analysis' | 'upload'>('positions')
   const supabase = createClient()
 
   useEffect(() => {
@@ -37,7 +40,6 @@ export default function PortfolioView({ portfolioId, onBack, onUpdate }: Portfol
         .select('*')
         .eq('id', portfolioId)
         .single()
-
       if (error) throw error
       setPortfolio(data)
     } catch (error: any) {
@@ -49,14 +51,9 @@ export default function PortfolioView({ portfolioId, onBack, onUpdate }: Portfol
     try {
       const { data, error } = await supabase
         .from('pa_positions')
-        .select(`
-          *,
-          tickers (*),
-          options_positions (*)
-        `)
+        .select('*, tickers (*), options_positions (*)')
         .eq('portfolio_id', portfolioId)
         .order('created_at', { ascending: false })
-
       if (error) throw error
       setPositions(data || [])
     } catch (error: any) {
@@ -68,84 +65,63 @@ export default function PortfolioView({ portfolioId, onBack, onUpdate }: Portfol
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-72" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     )
   }
 
   return (
-    <div>
-      <button
-        onClick={onBack}
-        className="mb-4 text-blue-600 hover:text-blue-800"
-      >
-        ← Back to Portfolios
-      </button>
-
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">{portfolio?.name}</h1>
+    <div className="space-y-5">
+      {/* Back + title */}
+      <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="mb-3 -ml-2 text-muted-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          All Portfolios
+        </Button>
+        <h1 className="text-2xl font-bold tracking-tight">{portfolio?.name}</h1>
         {portfolio?.description && (
-          <p className="mt-2 text-gray-600">{portfolio.description}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{portfolio.description}</p>
         )}
       </div>
 
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('positions')}
-            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-              activeTab === 'positions'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-            }`}
-          >
+      {/* Tabs */}
+      <Tabs defaultValue="positions">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="positions" className="flex items-center gap-1.5">
+            <ListOrdered className="h-3.5 w-3.5" />
             Positions
-          </button>
-          <button
-            onClick={() => setActiveTab('upload')}
-            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-              activeTab === 'upload'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-            }`}
-          >
+          </TabsTrigger>
+          <TabsTrigger value="upload" className="flex items-center gap-1.5">
+            <Upload className="h-3.5 w-3.5" />
             CSV Upload
-          </button>
-          <button
-            onClick={() => setActiveTab('analysis')}
-            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-              activeTab === 'analysis'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-            }`}
-          >
+          </TabsTrigger>
+          <TabsTrigger value="analysis" className="flex items-center gap-1.5">
+            <BarChart2 className="h-3.5 w-3.5" />
             Analysis
-          </button>
-        </nav>
-      </div>
+          </TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'positions' && (
-        <PositionManager
-          portfolioId={portfolioId}
-          positions={positions}
-          onUpdate={fetchPositions}
-        />
-      )}
+        <TabsContent value="positions" className="mt-5">
+          <PositionManager portfolioId={portfolioId} positions={positions} onUpdate={fetchPositions} />
+        </TabsContent>
 
-      {activeTab === 'upload' && (
-        <CSVUpload
-          portfolioId={portfolioId}
-          onUploadSuccess={fetchPositions}
-        />
-      )}
+        <TabsContent value="upload" className="mt-5">
+          <CSVUpload portfolioId={portfolioId} onUploadSuccess={fetchPositions} />
+        </TabsContent>
 
-      {activeTab === 'analysis' && (
-        <PortfolioAnalysis
-          portfolioId={portfolioId}
-          positions={positions}
-        />
-      )}
+        <TabsContent value="analysis" className="mt-5">
+          <PortfolioAnalysis portfolioId={portfolioId} positions={positions} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

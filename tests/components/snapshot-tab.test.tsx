@@ -27,7 +27,7 @@ vi.mock('recharts', () => ({
 }))
 
 // Mock the tooltip components
-vi.mock('@/components/property/ui/tooltip', () => ({
+vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: any) => children,
   TooltipTrigger: ({ children }: any) => children,
   TooltipContent: ({ children }: any) => children,

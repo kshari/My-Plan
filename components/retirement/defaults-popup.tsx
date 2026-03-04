@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { DEFAULT_SETTINGS_LIST } from '@/lib/constants/retirement-defaults'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface DefaultSetting {
   id?: number
@@ -15,14 +17,7 @@ interface DefaultsPopupProps {
   onClose: () => void
 }
 
-const defaultSettings = [
-  { name: 'Growth rate (return) before retirement', default: 10, unit: '%' },
-  { name: 'Loan rate (if borrowed for expenses)', default: 10, unit: '%' },
-  { name: 'Growth rate (return) during retirement', default: 5, unit: '%' },
-  { name: 'Capital gains & dividends blended tax rate', default: 20, unit: '%' },
-  { name: 'Tax rate during retirement', default: 25, unit: '%' },
-  { name: 'Inflation', default: 4, unit: '%' },
-]
+const defaultSettings = DEFAULT_SETTINGS_LIST.map(s => ({ name: s.name, default: s.default * 100, unit: '%' }))
 
 export default function DefaultsPopup({ planId, isOpen, onClose }: DefaultsPopupProps) {
   const supabase = createClient()
@@ -103,7 +98,7 @@ export default function DefaultsPopup({ planId, isOpen, onClose }: DefaultsPopup
           </div>
 
           {loading ? (
-            <div className="text-center py-8 text-gray-600">Loading...</div>
+            <LoadingState message="Loading settings…" />
           ) : (
             <>
               <div className="space-y-4 mb-6">

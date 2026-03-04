@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { useScenario } from '../scenario-context'
 import { 
   calculateRetirementProjections,
@@ -16,8 +17,11 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
-import { ChevronRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info, Calculator, Edit2, Save, X, Plus, Trash2, Check } from 'lucide-react'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/property/ui/tooltip'
+import { ChevronRight, ChevronDown, ChevronUp, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, Info, Calculator, Edit2, Save, X, Plus, Trash2, Check, SlidersHorizontal, FileDown, Lock } from 'lucide-react'
+import { PlanPdfDialog } from '@/components/retirement/plan-pdf-dialog'
+import { PlanPrintAllDialog } from '@/components/retirement/plan-print-all-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import {
   LineChart,
   Line,
@@ -32,26 +36,48 @@ import {
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from 'recharts'
+import {
+  SSA_FULL_RETIREMENT_AGE,
+  ssaClaimingMultiplier,
+} from '@/lib/constants/ssa-constants'
+import {
+  DEFAULT_AGE,
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_CURRENT_SAVINGS,
+  DEFAULT_ANNUAL_CONTRIBUTION,
+  DEFAULT_MONTHLY_EXPENSES,
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_INCLUDE_SSA,
+  DEFAULT_SSA_START_AGE,
+  DEFAULT_FILING_STATUS,
+  SSA_EARLIEST_ELIGIBILITY_AGE,
+  SAFE_WITHDRAWAL_RATE,
+  SCORE_ON_TRACK_THRESHOLD,
+  SCORE_CLOSE_THRESHOLD,
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT,
+  DEFAULT_INFLATION_RATE_PCT,
+  DEFAULT_SSA_ANNUAL_BENEFIT,
+  DEFAULT_SPOUSE_SSA_BENEFIT,
+} from '@/lib/constants/retirement-defaults'
+import { getStandardDeduction } from '@/lib/constants/tax-brackets'
+import { DEBOUNCE_SAVE_MS, TOAST_DURATION_SHORT, TOAST_DURATION_LONG } from '@/lib/constants/timing'
+import type { RetirementAssumptions } from '@/lib/types/retirement-assumptions'
+import { DEFAULT_RETIREMENT_ASSUMPTIONS } from '@/lib/types/retirement-assumptions'
 
 interface SnapshotTabProps {
   planId: number
   onSwitchToAdvanced?: () => void
+  onSwitchToPlanSetup?: () => void
 }
 
-interface QuickStartInputs {
-  age: number
-  retirementAge: number
-  currentSavings: number
-  annualContribution: number
-  estimatedAnnualExpenses: number
-  riskComfort: number // 0-100, where 0 = Conservative, 100 = Aggressive
-  includeSsa: boolean
-  ssaForTwo: boolean
-  estimatedAnnualIncome: number // For SSA estimation
-}
-
-export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabProps) {
+export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlanSetup }: SnapshotTabProps) {
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
   const [calculating, setCalculating] = useState(false)
@@ -69,6 +95,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
   const [showPreRetirement, setShowPreRetirement] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'graph'>('table')
   const [graphType, setGraphType] = useState<'line' | 'area' | 'bar'>('line')
+  const [showBannerOnMobile, setShowBannerOnMobile] = useState(false)
   const [editingAssumptions, setEditingAssumptions] = useState(false)
   const [editedAssumptions, setEditedAssumptions] = useState<{
     growth_rate_before_retirement: number
@@ -77,36 +104,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     ssa_start_age: number
   } | null>(null)
   
-  // Quick Start inputs
-  const [inputs, setInputs] = useState<QuickStartInputs>({
-    age: 50,
-    retirementAge: 65,
-    currentSavings: 0,
-    annualContribution: 0,
-    estimatedAnnualExpenses: 70000, // Default: $70,000/year for a couple (general estimate)
-    riskComfort: 50, // Middle of the road
-    includeSsa: true, // Default to including SSA
-    ssaForTwo: true, // Default to two people (general estimate)
-    estimatedAnnualIncome: 0, // Will be used to estimate SSA
-  })
 
-  // SSA customization state
-  const [showSsaCustomization, setShowSsaCustomization] = useState(false)
-  const [ssaSettings, setSsaSettings] = useState({
-    includeSsa: true, // Default to including SSA
-    ssaForTwo: true, // Default to two people (general estimate)
-    estimatedAnnualIncome: 0, // Will be used for estimation if provided
-  })
-
-  // Use imported calculateEstimatedSSA from retirement-projections
-  // Note: These are base estimates in today's dollars, used for quick display only
-  // Actual projection uses more sophisticated logic with spouse/filing status checks
-  const estimatedPlannerSSA = inputs.includeSsa ? calculateEstimatedSSA(inputs.estimatedAnnualIncome, true) : 0
-  // For spouse, use same logic as projection: include if ssaForTwo OR if we have a spouse in plan
-  const shouldIncludeSpouseSsa = inputs.includeSsa && (inputs.ssaForTwo || planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly')
-  const estimatedSpouseSSA = shouldIncludeSpouseSsa ? calculateEstimatedSSA(inputs.estimatedAnnualIncome, false) : 0
-  const totalEstimatedSSA = estimatedPlannerSSA + estimatedSpouseSSA
-  
   // Results
   const [results, setResults] = useState<{
     monthlyRetirementIncome: number
@@ -142,14 +140,49 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
   // Projections state
   const [showProjections, setShowProjections] = useState(false)
   const [projections, setProjections] = useState<ProjectionDetail[]>([])
-  const ssaSettingsInitialized = useRef(false)
 
   useEffect(() => {
     checkExistingData()
   }, [planId, selectedScenarioId])
 
+  const saveMetrics = async (r: {
+    confidenceScore: number
+    monthlyRetirementIncome: number
+    yearsMoneyLasts: number
+    networthAtRetirement: number
+    legacyValue: number
+    status: string
+  }, currentAge: number, retirementAge: number) => {
+    if (isLocal) return
+    try {
+      await supabase.from('rp_plan_metrics').upsert({
+        plan_id: planId,
+        current_age: currentAge,
+        retirement_age: retirementAge,
+        confidence_score: r.confidenceScore,
+        monthly_income: r.monthlyRetirementIncome,
+        years_money_lasts: r.yearsMoneyLasts,
+        networth_at_retirement: r.networthAtRetirement,
+        legacy_value: r.legacyValue,
+        status: r.status,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'plan_id' })
+    } catch {
+      // non-critical — silent fail
+    }
+  }
+
   const checkExistingData = async () => {
     try {
+      if (isLocal && dataService) {
+        const defaults = await dataService.getCalculatorDefaults()
+        if (defaults && Object.keys(defaults).length > 0) {
+          setHasExistingData(true)
+          await loadAndCalculateSnapshot()
+        }
+        return
+      }
+
       // First check if we have accounts or expenses
       const accountsData = await supabase.from('rp_accounts').select('*').eq('plan_id', planId)
       const hasAccounts = (accountsData.data || []).length > 0
@@ -200,54 +233,114 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
   }
 
   const loadAndCalculateSnapshot = async (useSSASettings?: { includeSsa: boolean; ssaForTwo: boolean }) => {
-    if (!selectedScenarioId) return
+    if (!isLocal && !selectedScenarioId) return
     
     setCalculating(true)
     try {
-      const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
-        supabase.from('rp_retirement_plans').select('*').eq('id', planId).single(),
-        supabase.from('rp_accounts').select('*').eq('plan_id', planId),
-        supabase.from('rp_expenses').select('*').eq('plan_id', planId),
-        supabase.from('rp_other_income').select('*').eq('plan_id', planId),
-        supabase.from('rp_calculator_settings')
-          .select('*')
-          .eq('scenario_id', selectedScenarioId)
-          .single(),
-      ])
+      let planDataObj: any
+      let accounts: Account[]
+      let expenses: Expense[]
+      let otherIncome: OtherIncome[]
+      let settingsDataObj: any
 
-      if (!planData.data || !settingsData.data) {
-        setCalculating(false)
-        return
+      if (isLocal && dataService) {
+        const defaults = await dataService.getCalculatorDefaults()
+        const a: RetirementAssumptions = { ...DEFAULT_RETIREMENT_ASSUMPTIONS, ...(defaults || {}) } as RetirementAssumptions
+        const currentYr = new Date().getFullYear()
+        const birthYr = currentYr - a.age
+        const ytr = Math.max(0, a.retirementAge - a.age)
+
+        planDataObj = {
+          id: 'local',
+          plan_name: 'My Plan',
+          birth_year: birthYr,
+          life_expectancy: a.lifeExpectancy,
+          filing_status: a.includeSpouse ? 'Married Filing Jointly' : 'Single',
+          include_spouse: a.includeSpouse,
+          spouse_birth_year: a.includeSpouse ? currentYr - a.spouseAge : null,
+          spouse_life_expectancy: a.includeSpouse ? a.lifeExpectancy : null,
+        }
+        accounts = [{
+          id: 1,
+          account_name: 'Retirement Savings',
+          owner: 'Planner',
+          balance: a.currentSavings,
+          account_type: '401k',
+          annual_contribution: a.annualContribution,
+        }]
+        expenses = [{
+          id: 1,
+          expense_name: 'Living Expenses',
+          amount_before_65: a.monthlyExpenses,
+          amount_after_65: a.monthlyExpenses,
+        }]
+        otherIncome = []
+        settingsDataObj = {
+          current_year: currentYr,
+          retirement_age: a.retirementAge,
+          retirement_start_year: currentYr + ytr,
+          years_to_retirement: ytr,
+          annual_retirement_expenses: a.monthlyExpenses * 12,
+          growth_rate_before_retirement: a.growthRatePreRetirement / 100,
+          growth_rate_during_retirement: a.growthRateDuringRetirement / 100,
+          inflation_rate: a.inflationRate / 100,
+          planner_ssa_income: a.includeSsa,
+          spouse_ssa_income: a.includeSpouse && a.includeSsa,
+          ssa_start_age: a.ssaStartAge,
+          planner_ssa_annual_benefit: a.ssaAnnualBenefit,
+          spouse_ssa_annual_benefit: a.spouseSsaBenefit,
+          pre_medicare_annual_premium: a.preMedicareAnnualPremium,
+          post_medicare_annual_premium: a.postMedicareAnnualPremium,
+          enable_borrowing: false,
+        }
+      } else {
+        const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
+          supabase.from('rp_retirement_plans').select('*').eq('id', planId).single(),
+          supabase.from('rp_accounts').select('*').eq('plan_id', planId),
+          supabase.from('rp_expenses').select('*').eq('plan_id', planId),
+          supabase.from('rp_other_income').select('*').eq('plan_id', planId),
+          supabase.from('rp_calculator_settings')
+            .select('*')
+            .eq('scenario_id', selectedScenarioId)
+            .single(),
+        ])
+
+        if (!planData.data || !settingsData.data) {
+          setCalculating(false)
+          return
+        }
+        planDataObj = planData.data
+        settingsDataObj = settingsData.data
+
+        accounts = (accountsData.data || []).map(acc => ({
+          id: acc.id,
+          account_name: acc.account_name,
+          owner: acc.owner || 'planner',
+          balance: acc.balance || 0,
+          account_type: acc.account_type || 'Other',
+          annual_contribution: acc.annual_contribution || 0,
+        }))
+
+        expenses = (expensesData.data || []).map(exp => ({
+          id: exp.id,
+          expense_name: exp.expense_name,
+          amount_before_65: exp.amount_before_65 || 0,
+          amount_after_65: exp.amount_after_65 || 0,
+        }))
+
+        otherIncome = (incomeData.data || []).map(inc => ({
+          id: inc.id,
+          income_name: inc.income_source || '',
+          amount: inc.annual_amount || 0,
+          start_year: inc.start_year || undefined,
+          end_year: inc.end_year || undefined,
+          inflation_adjusted: inc.inflation_adjusted || false,
+        }))
       }
 
-      const accounts: Account[] = (accountsData.data || []).map(acc => ({
-        id: acc.id,
-        account_name: acc.account_name,
-        owner: acc.owner || 'planner',
-        balance: acc.balance || 0,
-        account_type: acc.account_type || 'Other',
-        annual_contribution: acc.annual_contribution || 0,
-      }))
-
-      const expenses: Expense[] = (expensesData.data || []).map(exp => ({
-        id: exp.id,
-        expense_name: exp.expense_name,
-        amount_before_65: exp.amount_before_65 || 0,
-        amount_after_65: exp.amount_after_65 || 0,
-      }))
-
-      const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({
-        id: inc.id,
-        income_name: inc.income_source || '',
-        amount: inc.annual_amount || 0,
-        start_year: inc.start_year || undefined,
-        end_year: inc.end_year || undefined,
-        inflation_adjusted: inc.inflation_adjusted || false,
-      }))
-
       const currentYear = new Date().getFullYear()
-      const birthYear = planData.data.birth_year || (currentYear - 50)
-      const retirementAge = settingsData.data.retirement_age || 65
+      const birthYear = planDataObj.birth_year || (currentYear - 50)
+      const retirementAge = settingsDataObj.retirement_age || DEFAULT_RETIREMENT_AGE
       const yearsToRetirement = retirementAge - (currentYear - birthYear)
       
       const totalSavings = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
@@ -259,8 +352,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
 
       // Calculate simple projection - use common helper function to ensure consistency
       const settings = buildCalculatorSettings(
-        settingsData.data,
-        planData.data,
+        settingsDataObj,
+        planDataObj,
         currentYear,
         retirementAge,
         yearsToRetirement,
@@ -268,35 +361,34 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       )
 
       // Use provided SSA settings if available, otherwise use database values
-      const includePlannerSsa = useSSASettings?.includeSsa ?? ((settingsData.data.planner_ssa_income as boolean) ?? true)
+      const includePlannerSsa = useSSASettings?.includeSsa ?? ((settingsDataObj.planner_ssa_income as boolean) ?? true)
       
       // Automatically include spouse SSA if:
       // 1. User explicitly set it to true, OR
       // 2. Plan includes spouse (include_spouse = true), OR
       // 3. Filing status is "Married Filing Jointly"
       // This ensures realistic projections for married couples
-      const explicitSpouseSsa = useSSASettings?.ssaForTwo ?? ((settingsData.data.spouse_ssa_income as boolean) ?? false)
-      const hasSpouse = planData.data.include_spouse || false
-      const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+      const explicitSpouseSsa = useSSASettings?.ssaForTwo ?? ((settingsDataObj.spouse_ssa_income as boolean) ?? false)
+      const hasSpouse = planDataObj.include_spouse || false
+      const isMarriedFilingJointly = planDataObj.filing_status === 'Married Filing Jointly'
       const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
 
-      // Calculate estimated SSA amounts at start age
-      // First get the base estimate (in today's dollars)
-      const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(inputs.estimatedAnnualIncome, true) : 0
-      const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(inputs.estimatedAnnualIncome, false) : 0
+      // Use explicit benefits when set; else estimate from income; else same defaults as calculator (22k/16k)
+      const estimatedIncomeForSsa = Number(settingsDataObj?.estimated_ssa_annual_income) || 0
+      const plannerBenefit = settingsDataObj?.planner_ssa_annual_benefit != null ? Number(settingsDataObj.planner_ssa_annual_benefit) : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const spouseBenefit = settingsDataObj?.spouse_ssa_annual_benefit != null ? Number(settingsDataObj.spouse_ssa_annual_benefit) : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+      const baseEstimatedPlannerSsa = includePlannerSsa ? plannerBenefit : 0
+      const baseEstimatedSpouseSsa = includeSpouseSsa ? spouseBenefit : 0
       
       // Adjust for inflation from current year to SSA start age
       // IMPORTANT: Use settings.current_year to match what the projection function uses
-      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
       const projectionCurrentYear = settings.current_year || currentYear
       const projectionCurrentAge = projectionCurrentYear - birthYear
       const yearsToSsaStart = Math.max(0, ssaStartAge - projectionCurrentAge)
       const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
       
       // Estimated SSA at start age (inflation-adjusted from today to start age)
-      // The calculation function will then apply inflation from start age forward
-      // NOTE: This amount is at START age in future dollars, BEFORE early retirement reduction
-      // The projection function will apply the early retirement multiplier and inflation from start age forward
       const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
       const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
 
@@ -306,9 +398,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         expenses,
         otherIncome,
         settings,
-        planData.data.life_expectancy || 90,
-        planData.data.spouse_birth_year || undefined,
-        planData.data.spouse_life_expectancy || undefined,
+        planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
+        planDataObj.spouse_birth_year || undefined,
+        planDataObj.spouse_life_expectancy || undefined,
         includePlannerSsa,
         includeSpouseSsa,
         estimatedPlannerSsaAtStart,
@@ -316,40 +408,39 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       )
 
       // Calculate snapshot results
-      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planData.data.life_expectancy || 90)
+      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
       setResults(snapshotResults)
-      setProjections(projections) // Store projections for simplified view
+      setProjections(projections)
+      saveMetrics(snapshotResults, currentYear - birthYear, retirementAge)
+
+      if (isLocal && dataService) {
+        await dataService.saveProjections(projections)
+      }
       
-      // Store data for tooltip
-      setPlanDataForTooltip(planData.data)
+      // Store data for tooltip (merge SSA + healthcare from DB for banner and display)
+      const settingsWithSsa = {
+        ...settings,
+        planner_ssa_income: settingsDataObj?.planner_ssa_income ?? true,
+        spouse_ssa_income: settingsDataObj?.spouse_ssa_income ?? false,
+        estimated_ssa_annual_income: settingsDataObj?.estimated_ssa_annual_income ?? 0,
+        planner_ssa_annual_benefit: settingsDataObj?.planner_ssa_annual_benefit,
+        spouse_ssa_annual_benefit: settingsDataObj?.spouse_ssa_annual_benefit,
+        pre_medicare_annual_premium: settingsDataObj?.pre_medicare_annual_premium,
+        post_medicare_annual_premium: settingsDataObj?.post_medicare_annual_premium,
+      } as CalculatorSettings & {
+        planner_ssa_income?: boolean
+        spouse_ssa_income?: boolean
+        estimated_ssa_annual_income?: number
+        planner_ssa_annual_benefit?: number
+        spouse_ssa_annual_benefit?: number
+        pre_medicare_annual_premium?: number
+        post_medicare_annual_premium?: number
+      }
+      setPlanDataForTooltip(planDataObj)
       setAccountsForTooltip(accounts)
       setExpensesForTooltip(expenses)
       setOtherIncomeForTooltip(otherIncome)
-      setSettingsForTooltip(settings)
-      // projections removed - projections state is the single source of truth
-      
-      // Update quick start inputs from existing data (only if not using custom SSA settings)
-      if (!useSSASettings) {
-        setInputs({
-          age: currentYear - birthYear,
-          retirementAge: retirementAge,
-          currentSavings: totalSavings,
-          annualContribution: accounts.reduce((sum, acc) => sum + (acc.annual_contribution || 0), 0),
-          estimatedAnnualExpenses: annualExpenses || 70000, // Use calculated expenses or default
-          riskComfort: 50, // Default
-          includeSsa: settingsData.data.planner_ssa_income ?? true,
-          ssaForTwo: settingsData.data.spouse_ssa_income ?? true, // Default to true for general estimate
-          estimatedAnnualIncome: 0, // Not stored, user can enter
-        })
-
-        // Update SSA settings state from saved data
-        setSsaSettings({
-          includeSsa: settingsData.data.planner_ssa_income ?? true,
-          ssaForTwo: settingsData.data.spouse_ssa_income ?? true,
-          estimatedAnnualIncome: 0, // Not stored in DB, user can customize
-        })
-        ssaSettingsInitialized.current = true
-      }
+      setSettingsForTooltip(settingsWithSsa)
     } catch (error) {
       console.error('Error calculating snapshot:', error)
     } finally {
@@ -357,25 +448,6 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     }
   }
 
-  // Recalculate when SSA settings change (with debouncing for income field)
-  useEffect(() => {
-    // Only recalculate if we have results (meaning data has been loaded) and we're in quick start view
-    if (!results || !selectedScenarioId || !showQuickStart) return
-    
-    // Skip recalculation on initial load - only recalculate when user changes settings
-    if (!ssaSettingsInitialized.current) return
-
-    // Debounce the recalculation, especially for income field changes
-    const timeoutId = setTimeout(() => {
-      loadAndCalculateSnapshot({
-        includeSsa: ssaSettings.includeSsa ?? true,
-        ssaForTwo: ssaSettings.ssaForTwo ?? true,
-      })
-    }, 800) // 800ms debounce for income field
-
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ssaSettings.includeSsa, ssaSettings.ssaForTwo, ssaSettings.estimatedAnnualIncome])
 
   const calculateSnapshotResults = (
     projections: ProjectionDetail[],
@@ -398,6 +470,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         biggestRisks: ['Incomplete plan data'],
         improvements: ['Add your accounts and expenses'],
         lifeExpectancy,
+        networthAtRetirement: 0,
         legacyValue: 0,
         fundsRunOutAge: null,
         incomeCoverageAtFundsRunOut: undefined,
@@ -412,11 +485,10 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       }
     }
 
-    // Calculate average monthly income in retirement (first 10 years)
-    const earlyRetirementYears = retirementProjections.slice(0, 10)
-    const avgMonthlyIncome = earlyRetirementYears.length > 0
-      ? earlyRetirementYears.reduce((sum, p) => sum + (p.after_tax_income || 0), 0) / earlyRetirementYears.length / 12
-      : 0
+    // Estimated income at start of retirement = first year's after-tax income
+    const firstRetirementYearProj = retirementProjections[0]
+    const firstYearAfterTaxIncome = firstRetirementYearProj?.after_tax_income ?? 0
+    const avgMonthlyIncome = firstYearAfterTaxIncome / 12
 
     // Find when money runs out - first year with negative networth
     // Don't use gap_excess as it can have small negative values due to rounding
@@ -555,9 +627,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
 
     // Determine status
     let status: 'on-track' | 'close' | 'at-risk'
-    if (confidenceScore >= 80) {
+    if (confidenceScore >= SCORE_ON_TRACK_THRESHOLD) {
       status = 'on-track'
-    } else if (confidenceScore >= 60) {
+    } else if (confidenceScore >= SCORE_CLOSE_THRESHOLD) {
       status = 'close'
     } else {
       status = 'at-risk'
@@ -583,8 +655,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     const firstYearExpenses = retirementProjections[0]?.total_expenses || retirementProjections[0]?.living_expenses || annualExpenses
     const startingNetworth = retirementProjections[0]?.networth || currentSavings
     const withdrawalRate = startingNetworth > 0 ? (firstYearExpenses / startingNetworth) * 100 : 0
-    const growthRateDuring = (settings.growth_rate_during_retirement || 0.05) * 100
-    const inflationRate = (settings.inflation_rate || 0.03) * 100
+    const growthRateDuring = (settings.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100
+    const inflationRate = (settings.inflation_rate || DEFAULT_INFLATION_RATE) * 100
     
     // Calculate account balances at retirement
     const firstYearProj = retirementProjections[0]
@@ -692,7 +764,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       }
     } else if (avgGap < 0 && monthlyContributionNeeded > 0) {
       improvements.push(`Increase monthly savings by $${Math.round(monthlyContributionNeeded).toLocaleString(undefined, { maximumFractionDigits: 0 })} to eliminate income gaps`)
-    } else if (confidenceScore >= 80 && yearsToRetirement > 0) {
+    } else if (confidenceScore >= SCORE_ON_TRACK_THRESHOLD && yearsToRetirement > 0) {
       const extraMonthly = Math.round(currentSavings * 0.001) // 0.1% of savings as extra monthly
       improvements.push(`You're on track! Consider $${extraMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}/month extra for additional cushion`)
     }
@@ -708,7 +780,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     
     // Withdrawal rate improvement
     if (withdrawalRate > 4.5) {
-      const expenseReduction = firstYearExpenses - (startingNetworth * 0.04)
+      const expenseReduction = firstYearExpenses - (startingNetworth * SAFE_WITHDRAWAL_RATE)
       if (expenseReduction > 0) {
         improvements.push(`Reduce annual expenses by $${expenseReduction.toLocaleString(undefined, { maximumFractionDigits: 0 })} to reach 4% withdrawal rate`)
       }
@@ -720,8 +792,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     }
     
     // SSA optimization
-    if (settings.ssa_start_age && settings.ssa_start_age < 67) {
-      improvements.push(`Delaying Social Security to age 67+ increases benefits by ~8% per year`)
+    if (settings.ssa_start_age && settings.ssa_start_age < SSA_FULL_RETIREMENT_AGE) {
+      improvements.push(`Delaying Social Security to age ${SSA_FULL_RETIREMENT_AGE}+ increases benefits by ~8% per year`)
     }
     
     // Additional suggestions based on situation
@@ -733,14 +805,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     const topImprovements = improvements.slice(0, 4)
 
     // Build calculation details for tooltips
-    const totalIncomeFirst10Years = earlyRetirementYears.reduce((sum, p) => sum + (p.after_tax_income || 0), 0)
-    const avgAnnualIncome = totalIncomeFirst10Years / earlyRetirementYears.length
-    
+    const annualIncomeAtRetirementStart = firstYearAfterTaxIncome
+
     // Calculate expense details for tooltip
     const firstRetirementYear = retirementProjections[0]
     const firstYearLivingExpenses = firstRetirementYear?.living_expenses || 0
     const currentYearExpenses = annualExpenses
-    const inflationRateDecimal = settings.inflation_rate || 0.04
+    const inflationRateDecimal = settings.inflation_rate || DEFAULT_INFLATION_RATE
     const expensesAtRetirementStart = currentYearExpenses * Math.pow(1 + inflationRateDecimal, yearsToRetirement)
     const legacyValueCalculation = (() => {
       if (fundsRunOutAge === null || fundsRunOutAge >= lifeExpectancy) {
@@ -753,7 +824,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
     })()
     
     const calculationDetails = {
-      monthlyIncomeCalculation: `Average monthly income = (Sum of after-tax income for first 10 retirement years) / 10 years / 12 months\n\nTotal income (10 years): $${totalIncomeFirst10Years.toLocaleString(undefined, { maximumFractionDigits: 0 })}\nAverage annual income: $${avgAnnualIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}\nAverage monthly income: $${Math.round(avgMonthlyIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nThis represents your average monthly after-tax income during the first 10 years of retirement.`,
+      monthlyIncomeCalculation: `Estimated income at retirement = first year of retirement after-tax income\n\nFirst year annual (after-tax): $${annualIncomeAtRetirementStart.toLocaleString(undefined, { maximumFractionDigits: 0 })}\nMonthly = Annual ÷ 12: $${Math.round(avgMonthlyIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nThis is your estimated after-tax income at the start of retirement (first year).`,
       confidenceScoreCalculation: `Confidence Score = (1 - Shortfall Ratio) × 100\n\nTotal retirement years: ${totalYears}\nYears with shortfall (gap < -$1,000): ${yearsWithShortfall}\nShortfall ratio: ${(shortfallRatio * 100).toFixed(2)}%\n\nConfidence Score: ${confidenceScore}%\n\nThis score indicates the likelihood your plan will succeed based on how often you face income shortfalls.`,
       yearsMoneyLastsCalculation: (() => {
         const retirementAge = settings.retirement_age
@@ -772,6 +843,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       legacyValueCalculation,
     }
 
+    const networthAtRetirement = retirementProjections[0]?.networth ?? 0
+
     return {
       monthlyRetirementIncome: Math.round(avgMonthlyIncome),
       annualRetirementIncome: Math.round(avgMonthlyIncome * 12),
@@ -782,308 +855,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
       biggestRisks: topRisks,
       improvements: topImprovements,
       lifeExpectancy,
+      networthAtRetirement: Math.round(networthAtRetirement),
       legacyValue: Math.round(legacyValue),
       fundsRunOutAge,
       incomeCoverageAtFundsRunOut,
       calculationDetails,
-    }
-  }
-
-  const handleQuickStartCalculate = async () => {
-    setCalculating(true)
-    setSaving(true)
-    setMessage(null)
-    try {
-      // Convert quick start inputs to full plan structure
-      const currentYear = new Date().getFullYear()
-      const birthYear = currentYear - inputs.age
-      const yearsToRetirement = inputs.retirementAge - inputs.age
-      
-      // Estimate growth rate based on risk comfort (Conservative = 6%, Aggressive = 10%)
-      const growthRate = 0.06 + (inputs.riskComfort / 100) * 0.04
-      
-      // Save plan basis (birth year, filing status, and include_spouse)
-      // If includeSpouseSsa is true (ssaForTwo), ensure include_spouse is also true
-      const { error: planError } = await supabase
-        .from('rp_retirement_plans')
-        .update({
-          birth_year: birthYear,
-          life_expectancy: 90, // Default
-          filing_status: inputs.ssaForTwo ? 'Married Filing Jointly' : 'Single', // Set filing status based on whether spouse is included
-          include_spouse: inputs.ssaForTwo, // If spouse SSA is included, spouse should be included in plan
-        })
-        .eq('id', planId)
-      
-      if (planError) throw planError
-
-      // Get or create default scenario
-      let scenarioId = selectedScenarioId
-      if (!scenarioId) {
-        // Check if default scenario exists
-        const { data: existingScenarios } = await supabase
-          .from('rp_scenarios')
-          .select('*')
-          .eq('plan_id', planId)
-          .eq('is_default', true)
-          .limit(1)
-        
-        if (existingScenarios && existingScenarios.length > 0) {
-          scenarioId = existingScenarios[0].id
-        } else {
-          // Create default scenario
-          const { data: newScenario, error: scenarioError } = await supabase
-            .from('rp_scenarios')
-            .insert([{
-              plan_id: planId,
-              scenario_name: 'Default',
-              is_default: true,
-            }])
-            .select()
-            .single()
-          
-          if (scenarioError) throw scenarioError
-          scenarioId = newScenario.id
-          setSelectedScenarioId(scenarioId)
-        }
-      }
-
-      // Delete existing accounts and expenses to replace with Quick Start data
-      await supabase.from('rp_accounts').delete().eq('plan_id', planId)
-      await supabase.from('rp_expenses').delete().eq('plan_id', planId)
-
-      // Create simplified account
-      const { error: accountError } = await supabase
-        .from('rp_accounts')
-        .insert([{
-          plan_id: planId,
-          account_name: 'Combined Savings',
-          owner: 'planner',
-          balance: inputs.currentSavings,
-          account_type: '401k',
-          annual_contribution: inputs.annualContribution,
-        }])
-      
-      if (accountError) throw accountError
-
-      // Use provided annual expenses, convert to monthly for expenses table
-      const estimatedMonthlyExpenses = inputs.estimatedAnnualExpenses / 12
-      
-      const { error: expenseError } = await supabase
-        .from('rp_expenses')
-        .insert([{
-          plan_id: planId,
-          expense_name: 'Living Expenses',
-          amount_before_65: estimatedMonthlyExpenses,
-          amount_after_65: estimatedMonthlyExpenses, // Same value for both before and after 65
-        }])
-      
-      if (expenseError) throw expenseError
-
-      // Reload expenses from database to ensure we use the saved values
-      const { data: savedExpensesData, error: reloadExpensesError } = await supabase
-        .from('rp_expenses')
-        .select('*')
-        .eq('plan_id', planId)
-      
-      if (reloadExpensesError) throw reloadExpensesError
-
-      // Calculate annual expenses from saved monthly expenses for settings
-      const savedMonthlyExpenses = (savedExpensesData || []).reduce((sum, exp) => {
-        const amount = inputs.retirementAge >= 65 ? (exp.amount_after_65 || 0) : (exp.amount_before_65 || 0)
-        return sum + amount
-      }, 0)
-      const savedAnnualExpenses = savedMonthlyExpenses * 12
-
-      // Save calculator settings - use saved annual expenses
-      // Inflate expenses to retirement start year (current expenses adjusted for inflation)
-      const inflationRate = 0.04 // 4% default inflation rate
-      const retirementStartExpenses = savedAnnualExpenses * Math.pow(1 + inflationRate, yearsToRetirement)
-      
-      // Use goal-based strategy to ensure expenses are always covered
-      const settingsData = {
-        plan_id: planId,
-        scenario_id: scenarioId,
-        retirement_age: inputs.retirementAge,
-        retirement_start_year: currentYear + yearsToRetirement,
-        years_to_retirement: yearsToRetirement,
-        annual_retirement_expenses: retirementStartExpenses, // Expenses at retirement start (inflated from current)
-        growth_rate_before_retirement: growthRate,
-        growth_rate_during_retirement: growthRate * 0.7,
-        inflation_rate: 0.04,
-        planner_ssa_income: true, // Default to including SSA
-        spouse_ssa_income: inputs.ssaForTwo, // Set based on whether spouse is included
-        ssa_start_age: inputs.retirementAge, // Default SSA start age = retirement age
-        // Use expense-based strategy to ensure expenses and tax are always covered
-        withdrawal_strategy_type: 'amount_based_expense_coverage',
-        withdrawal_priority: 'default', // Not used for amount-based strategies
-        withdrawal_secondary_priority: 'tax_optimization', // Not used for amount-based strategies
-        enable_borrowing: false, // Don't allow borrowing in Quick Start
-      }
-
-      // Check if settings exist (use maybeSingle to avoid error if not found)
-      const { data: existingSettings, error: checkError } = await supabase
-        .from('rp_calculator_settings')
-        .select('id')
-        .eq('scenario_id', scenarioId)
-        .maybeSingle()
-
-      if (checkError) {
-        console.error('Error checking existing settings:', checkError)
-        throw checkError
-      }
-
-      if (existingSettings) {
-        const { error: settingsError } = await supabase
-          .from('rp_calculator_settings')
-          .update(settingsData)
-          .eq('scenario_id', scenarioId)
-        
-        if (settingsError) {
-          console.error('Error updating settings:', settingsError)
-          throw settingsError
-        }
-      } else {
-        const { error: settingsError } = await supabase
-          .from('rp_calculator_settings')
-          .insert([settingsData])
-        
-        if (settingsError) {
-          console.error('Error inserting settings:', settingsError)
-          throw settingsError
-        }
-      }
-
-      // Reload accounts from database to ensure we use the saved values
-      const { data: savedAccountsData, error: reloadAccountsError } = await supabase
-        .from('rp_accounts')
-        .select('*')
-        .eq('plan_id', planId)
-      
-      if (reloadAccountsError) throw reloadAccountsError
-
-      // Now calculate projections with saved data from database
-      const accounts: Account[] = (savedAccountsData || []).map(acc => ({
-        id: acc.id,
-        account_name: acc.account_name || '',
-        owner: acc.owner || 'planner',
-        balance: acc.balance || 0,
-        account_type: acc.account_type || '401k',
-        annual_contribution: acc.annual_contribution || 0,
-      }))
-
-      const expenses: Expense[] = (savedExpensesData || []).map(exp => ({
-        id: exp.id,
-        expense_name: exp.expense_name || '',
-        amount_before_65: exp.amount_before_65 || 0,
-        amount_after_65: exp.amount_after_65 || 0,
-      }))
-
-      // Get filing_status from plan basis (we just saved it)
-      const { data: planDataForFilingStatus } = await supabase
-        .from('rp_retirement_plans')
-        .select('filing_status')
-        .eq('id', planId)
-        .single()
-
-      const settings: CalculatorSettings = {
-        current_year: currentYear,
-        retirement_age: inputs.retirementAge,
-        retirement_start_year: currentYear + yearsToRetirement,
-        years_to_retirement: yearsToRetirement,
-        annual_retirement_expenses: retirementStartExpenses, // Use inflated expenses at retirement start
-        growth_rate_before_retirement: growthRate,
-        growth_rate_during_retirement: growthRate * 0.7,
-        inflation_rate: 0.04,
-        filing_status: (planDataForFilingStatus?.filing_status as any) || (inputs.ssaForTwo ? 'Married Filing Jointly' : 'Single'),
-        // Use expense-based strategy to ensure expenses and tax are always covered
-        withdrawal_strategy_type: 'amount_based_expense_coverage',
-        withdrawal_priority: 'default', // Not used for amount-based strategies
-        withdrawal_secondary_priority: 'tax_optimization', // Not used for amount-based strategies
-        enable_borrowing: false, // Don't allow borrowing in Quick Start
-      }
-
-      // Determine SSA inclusion based on inputs
-      // ssaForTwo defaults to true (not shown in quick form, but assumed for general estimate)
-      const includePlannerSsa = inputs.includeSsa ?? true
-      const includeSpouseSsa = inputs.ssaForTwo ?? true // Default to true for general estimate (two people)
-
-      const projections = calculateRetirementProjections(
-        birthYear,
-        accounts,
-        expenses,
-        [],
-        settings,
-        90,
-        undefined, // spouseBirthYear - not used in quick start
-        undefined, // spouseLifeExpectancy - not used in quick start
-        includePlannerSsa,
-        includeSpouseSsa
-      )
-
-      const snapshotResults = calculateSnapshotResults(
-        projections,
-        inputs.currentSavings,
-        savedAnnualExpenses, // Use saved annual expenses from database
-        yearsToRetirement,
-        settings,
-        90 // Default life expectancy for quick start
-      )
-      
-      setResults(snapshotResults)
-      setProjections(projections) // Store projections for simplified view
-      setHasExistingData(true)
-      
-      // Store data for tooltip
-      setPlanDataForTooltip({
-        birth_year: birthYear,
-        life_expectancy: 90,
-        include_spouse: inputs.ssaForTwo,
-        filing_status: inputs.ssaForTwo ? 'Married Filing Jointly' : 'Single',
-      })
-      setAccountsForTooltip(accounts)
-      setExpensesForTooltip(expenses)
-      setSettingsForTooltip(settings)
-      // projections removed - projections state is the single source of truth
-      // Keep showQuickStart as true to show results in Simple view, not Advanced
-      setMessage({ type: 'success', text: 'Your plan has been saved! Results are shown below.' })
-      setTimeout(() => setMessage(null), 5000)
-      
-      // Reload to ensure scenario is selected
-      if (scenarioId) {
-        setSelectedScenarioId(scenarioId)
-      }
-    } catch (error: any) {
-      console.error('Error saving quick start:', error)
-      
-      // Handle Supabase errors - they can have different structures
-      let errorMessage = 'Failed to save your plan. Please try again.'
-      
-      if (error) {
-        // Supabase errors typically have a message property
-        if (error.message) {
-          errorMessage = error.message
-        } else if (error.details) {
-          errorMessage = error.details
-        } else if (error.hint) {
-          errorMessage = error.hint
-        } else if (typeof error === 'string') {
-          errorMessage = error
-        } else {
-          // Try to stringify the error to see what we have
-          try {
-            const errorStr = JSON.stringify(error, null, 2)
-            console.error('Error details:', errorStr)
-            errorMessage = `Error: ${errorStr.substring(0, 200)}`
-          } catch {
-            errorMessage = 'An unknown error occurred. Please check the console for details.'
-          }
-        }
-      }
-      
-      setMessage({ type: 'error', text: errorMessage })
-    } finally {
-      setCalculating(false)
-      setSaving(false)
     }
   }
 
@@ -1117,145 +893,181 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
         </div>
       )}
 
-      {showQuickStart ? (
-        <>
-          {/* Quick Start Form */}
-          {!results && (
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Quick Start</h2>
-                <p className="text-gray-600">
-                  Get your retirement snapshot in 2 minutes. We'll use smart defaults for everything else.
-                </p>
+      {/* ── Plan Inputs Banner (all assumptions); hidden in local mode since calculator shows this ── */}
+      {!isLocal && (() => {
+        const currentYear = new Date().getFullYear()
+        const age = results && planDataForTooltip?.birth_year
+          ? currentYear - planDataForTooltip.birth_year
+          : DEFAULT_AGE
+        const retireAt = results && settingsForTooltip ? settingsForTooltip.retirement_age : DEFAULT_RETIREMENT_AGE
+        const totalSaved = results
+          ? accountsForTooltip.reduce((s, a) => s + (a.balance ?? 0), 0)
+          : DEFAULT_CURRENT_SAVINGS
+        const annualContrib = results
+          ? accountsForTooltip.reduce((s, a) => s + (a.annual_contribution ?? 0), 0)
+          : DEFAULT_ANNUAL_CONTRIBUTION
+        const annualSpend = results
+          ? expensesForTooltip.reduce((s, e) => s + ((retireAt >= 65 ? e.amount_after_65 : e.amount_before_65) ?? 0), 0) * 12
+          : DEFAULT_MONTHLY_EXPENSES * 12
+        const filing = (results ? planDataForTooltip?.filing_status : 'Single') as string | undefined
+        const growthPre  = results && settingsForTooltip ? +(settingsForTooltip.growth_rate_before_retirement * 100).toFixed(1) : DEFAULT_GROWTH_RATE_PRE_RETIREMENT_PCT
+        const growthPost = results && settingsForTooltip ? +(settingsForTooltip.growth_rate_during_retirement * 100).toFixed(1) : DEFAULT_GROWTH_RATE_DURING_RETIREMENT_PCT
+        const inflation  = results && settingsForTooltip ? +(settingsForTooltip.inflation_rate * 100).toFixed(1) : DEFAULT_INFLATION_RATE_PCT
+        const lifeExp = results && planDataForTooltip?.life_expectancy != null ? planDataForTooltip.life_expectancy : DEFAULT_LIFE_EXPECTANCY
+        const yrsToRetire = results && settingsForTooltip ? settingsForTooltip.years_to_retirement : Math.max(0, retireAt - age)
+        const ssaStart = results && settingsForTooltip?.ssa_start_age != null ? settingsForTooltip.ssa_start_age : retireAt
+        const st = settingsForTooltip as (CalculatorSettings & { planner_ssa_income?: boolean; spouse_ssa_income?: boolean; planner_ssa_annual_benefit?: number; spouse_ssa_annual_benefit?: number; pre_medicare_annual_premium?: number; post_medicare_annual_premium?: number }) | null
+        const plannerSsa = st?.planner_ssa_income ?? true
+        const spouseSsa = st?.spouse_ssa_income ?? false
+        const plannerSsaBenefit = st?.planner_ssa_annual_benefit
+        const spouseSsaBenefit = st?.spouse_ssa_annual_benefit
+        const preMedicare = st?.pre_medicare_annual_premium
+        const postMedicare = st?.post_medicare_annual_premium
+
+        const fmt = (n: number) =>
+          n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M`
+          : n >= 1_000   ? `$${Math.round(n / 1_000)}k`
+          : `$${n}`
+
+        const plannerSsaLabel = plannerSsa
+          ? (plannerSsaBenefit != null ? `at ${ssaStart}: ${fmt(plannerSsaBenefit)}/yr` : `at ${ssaStart}`)
+          : 'No'
+        const spouseSsaLabel = (spouseSsa && spouseSsaBenefit != null) ? `${fmt(spouseSsaBenefit)}/yr` : 'No'
+
+        return (
+          <div className="space-y-2">
+            {/* Mobile: show button when banner is collapsed */}
+            <button
+              type="button"
+              onClick={() => setShowBannerOnMobile(true)}
+              className="md:hidden w-full flex items-center justify-center gap-2 rounded-xl border bg-muted/30 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              style={{ display: showBannerOnMobile ? 'none' : undefined }}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Show Plan Assumptions
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            {/* Banner: visible on md+ always; on mobile when expanded */}
+            <div className={`rounded-xl border bg-muted/30 px-5 py-3 space-y-2 ${showBannerOnMobile ? 'block' : 'hidden md:block'}`}>
+            {/* Line 1: Plan basis only */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                <div>
+                  <span className="text-muted-foreground">Age</span>
+                  <span className="ml-1.5 font-semibold">{age}</span>
+                </div>
+                {filing && (
+                  <div>
+                    <span className="text-muted-foreground">Filing</span>
+                    <span className="ml-1.5 font-semibold">{filing}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Saved</span>
+                  <span className="ml-1.5 font-semibold">{fmt(totalSaved)}</span>
+                </div>
+                {annualContrib > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Contributing</span>
+                    <span className="ml-1.5 font-semibold">{fmt(annualContrib)}/yr</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Living expenses</span>
+                  <span className="ml-1.5 font-semibold">{fmt(annualSpend)}/yr</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Retire at</span>
+                  <span className="ml-1.5 font-semibold">{retireAt}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Life exp.</span>
+                  <span className="ml-1.5 font-semibold">{lifeExp}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Yrs to retire</span>
+                  <span className="ml-1.5 font-semibold">{yrsToRetire}</span>
+                </div>
               </div>
+              {!planDataForTooltip && (
+                <div className="ml-auto">
+                  <Badge variant="outline" className="text-[11px] text-muted-foreground">Quick estimate</Badge>
+                </div>
+              )}
+            </div>
 
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="snapshot-your-age" className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Age
-                    </label>
-                    <input
-                      id="snapshot-your-age"
-                      type="number"
-                      value={inputs.age || ''}
-                      onChange={(e) => setInputs({ ...inputs, age: parseInt(e.target.value) || 0 })}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      min="18"
-                      max="100"
-                    />
+            {/* Line 2: Pre-ret / In-ret / Inflation + SSA & healthcare */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm border-t border-border/60 pt-2">
+              {(results ? settingsForTooltip : true) && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                    <span className="text-muted-foreground">Pre-ret.</span>
+                    <span className="font-semibold">{growthPre}%</span>
                   </div>
-
                   <div>
-                    <label htmlFor="snapshot-retirement-age" className="block text-sm font-medium text-gray-700 mb-2">
-                      Planned Retirement Age
-                    </label>
-                    <input
-                      id="snapshot-retirement-age"
-                      type="number"
-                      value={inputs.retirementAge || ''}
-                      onChange={(e) => setInputs({ ...inputs, retirementAge: parseInt(e.target.value) || 0 })}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      min={inputs.age}
-                      max="100"
-                    />
+                    <span className="text-muted-foreground">In-ret.</span>
+                    <span className="ml-1.5 font-semibold">{growthPost}%</span>
                   </div>
-
                   <div>
-                    <label htmlFor="snapshot-current-savings" className="block text-sm font-medium text-gray-700 mb-2">
-                      Current Savings
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                      <input
-                        id="snapshot-current-savings"
-                        type="number"
-                        value={inputs.currentSavings || ''}
-                        onChange={(e) => setInputs({ ...inputs, currentSavings: parseFloat(e.target.value) || 0 })}
-                        className="w-full rounded-md border border-gray-300 pl-8 pr-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="0"
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Total across all retirement accounts</p>
-                  </div>
-
-                  <div>
-                    <label htmlFor="snapshot-annual-contribution" className="block text-sm font-medium text-gray-700 mb-2">
-                      Annual Contribution
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                      <input
-                        id="snapshot-annual-contribution"
-                        type="number"
-                        value={inputs.annualContribution || ''}
-                        onChange={(e) => setInputs({ ...inputs, annualContribution: parseFloat(e.target.value) || 0 })}
-                        className="w-full rounded-md border border-gray-300 pl-8 pr-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="0"
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">How much you save each year</p>
-                  </div>
-
-                  <div>
-                    <label htmlFor="snapshot-annual-expenses" className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Annual Expenses
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                      <input
-                        id="snapshot-annual-expenses"
-                        type="number"
-                        value={inputs.estimatedAnnualExpenses || ''}
-                        onChange={(e) => setInputs({ ...inputs, estimatedAnnualExpenses: parseFloat(e.target.value) || 0 })}
-                        className="w-full rounded-md border border-gray-300 pl-8 pr-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="70000"
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Expected annual expenses in retirement (default: $70,000 for a couple)</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Risk Comfort
-                      <span className="ml-2 text-xs font-normal text-gray-500">
-                        {inputs.riskComfort < 33 ? 'Conservative' : inputs.riskComfort < 67 ? 'Moderate' : 'Aggressive'}
-                      </span>
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={inputs.riskComfort}
-                      onChange={(e) => setInputs({ ...inputs, riskComfort: parseInt(e.target.value) })}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500 mt-1">
-                      <span>Conservative</span>
-                      <span>Aggressive</span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Affects expected investment returns</p>
+                    <span className="text-muted-foreground">Inflation</span>
+                    <span className="ml-1.5 font-semibold">{inflation}%</span>
                   </div>
                 </div>
+              )}
+              {results && st && (
+                <>
+                  {(results ? settingsForTooltip : true) && <span className="hidden sm:block h-4 w-px bg-border" />}
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                    <div>
+                      <span className="text-muted-foreground">Planner SSA</span>
+                      <span className="ml-1.5 font-semibold">{plannerSsaLabel}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Spouse SSA</span>
+                      <span className="ml-1.5 font-semibold">{spouseSsaLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Healthcare (Pre-65):</span>
+                      <span className="font-semibold">{preMedicare != null && preMedicare > 0 ? fmt(preMedicare) + '/yr' : '—'}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Healthcare (65+):</span>
+                      <span className="font-semibold">{postMedicare != null && postMedicare > 0 ? fmt(postMedicare) + '/yr' : '—'}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            </div>
+            {/* Mobile: collapse button when banner is expanded */}
+            {showBannerOnMobile && (
+              <button
+                type="button"
+                onClick={() => setShowBannerOnMobile(false)}
+                className="md:hidden w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+                Hide Plan Assumptions
+              </button>
+            )}
+          </div>
+        )
+      })()}
+          {/* Plan Inputs form (same as calculator assumptions) */}
 
-                <button
-                  onClick={handleQuickStartCalculate}
-                  disabled={calculating || saving || !inputs.age || !inputs.retirementAge || inputs.currentSavings === 0 || !inputs.estimatedAnnualExpenses}
-                  className="w-full rounded-md bg-blue-100 px-6 py-3 text-base font-medium text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {(calculating || saving) ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      <span>{saving ? 'Saving...' : 'Calculating...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Save & See My Retirement Snapshot</span>
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </button>
-              </div>
+      {showQuickStart ? (
+        <>
+          {!results && (
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 text-center">
+              {calculating ? (
+                <>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                  <p className="mt-4 text-gray-600">Loading your retirement snapshot...</p>
+                </>
+              ) : (
+                <p className="text-gray-600">No snapshot data yet. Set up accounts and expenses in Plan Details to see your quick summary here.</p>
+              )}
             </div>
           )}
 
@@ -1279,8 +1091,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                             const currentYear = new Date().getFullYear()
                             const birthYear = planDataForTooltip?.birth_year || 0
                             const currentAge = birthYear ? currentYear - birthYear : 0
-                            const retirementAge = settingsForTooltip?.retirement_age || 65
-                            const lifeExpectancy = planDataForTooltip?.life_expectancy || 90
+                            const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
+                            const lifeExpectancy = planDataForTooltip?.life_expectancy || DEFAULT_LIFE_EXPECTANCY
                             const finalProjection = projections[projections.length - 1]
                             const finalAge = finalProjection?.age || 0
                             const zeroNetworthYear = projections.findIndex(p => (p.networth || 0) <= 0)
@@ -1364,9 +1176,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                           setEditingAssumptions(true)
                                           setEditedAssumptions({
                                             growth_rate_before_retirement: settingsForTooltip?.growth_rate_before_retirement || 0.1,
-                                            growth_rate_during_retirement: settingsForTooltip?.growth_rate_during_retirement || 0.05,
-                                            inflation_rate: settingsForTooltip?.inflation_rate || 0.04,
-                                            ssa_start_age: settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65,
+                                            growth_rate_during_retirement: settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+                                            inflation_rate: settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE,
+                                            ssa_start_age: settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE,
                                           })
                                         }}
                                         className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded transition-colors"
@@ -1406,7 +1218,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                                 setEditingAssumptions(false)
                                                 setEditedAssumptions(null)
                                                 setMessage({ type: 'success', text: 'Assumptions updated and projections recalculated!' })
-                                                setTimeout(() => setMessage(null), 3000)
+                                                setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
                                               } catch (error: any) {
                                                 console.error('Error saving assumptions:', error)
                                                 setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
@@ -1506,7 +1318,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                               step="1"
                                               min="62"
                                               max="70"
-                                              value={editedAssumptions.ssa_start_age || settingsForTooltip?.retirement_age || 65}
+                                              value={editedAssumptions.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE}
                                               onChange={(e) => {
                                                 const value = parseInt(e.target.value) || 62
                                                 setEditedAssumptions({
@@ -1523,13 +1335,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                     ) : (
                                       <>
                                         <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settingsForTooltip?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
-                                        <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
-                                        <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                        <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100).toFixed(2)}%</p>
+                                        <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE) * 100).toFixed(2)}%</p>
                                         <p><span className="text-gray-500">Taxes:</span> Using IRS brackets</p>
-                                        <p><span className="text-gray-500">SSA Start Age:</span> {settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65} years</p>
+                                        <p><span className="text-gray-500">SSA Start Age:</span> {settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE} years</p>
                                       </>
                                     )}
-                                    <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || 'Single'}</p>
+                                    <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || DEFAULT_FILING_STATUS}</p>
                                     <p><span className="text-gray-500">Borrowing Enabled:</span> {settingsForTooltip?.enable_borrowing ? 'Yes' : 'No'}</p>
                                     {(planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly') && (
                                       <p className="text-xs text-yellow-400 mt-2">
@@ -1612,8 +1424,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                     <div className="w-64 bg-gray-200 rounded-full h-3">
                       <div
                         className={`h-3 rounded-full transition-all duration-500 ${
-                          results.confidenceScore >= 80 ? 'bg-green-500' :
-                          results.confidenceScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                          results.confidenceScore >= SCORE_ON_TRACK_THRESHOLD ? 'bg-green-500' :
+                          results.confidenceScore >= SCORE_CLOSE_THRESHOLD ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${results.confidenceScore}%` }}
                       />
@@ -1645,7 +1457,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   </div>
                   {results.calculationDetails && (
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <p className="text-xs text-gray-500">Expenses at Retirement Start</p>
+                      <p className="text-xs text-gray-500">Living Expenses at Retirement Start</p>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button className="cursor-help">
@@ -1706,8 +1518,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                               const currentYear = new Date().getFullYear()
                               const birthYear = planDataForTooltip?.birth_year || 0
                               const currentAge = birthYear ? currentYear - birthYear : 0
-                              const retirementAge = settingsForTooltip?.retirement_age || 65
-                              const lifeExpectancy = planDataForTooltip?.life_expectancy || results.lifeExpectancy || 90
+                              const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
+                              const lifeExpectancy = planDataForTooltip?.life_expectancy || results.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY
                               const finalProjection = projections[projections.length - 1]
                               const finalAge = finalProjection?.age || 0
                               const zeroNetworthYear = projections.findIndex(p => (p.networth || 0) <= 0)
@@ -1742,8 +1554,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                     <h4 className="font-semibold text-yellow-400 mb-2">Assumptions</h4>
                                     <div className="space-y-1 text-gray-300">
                                       <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settingsForTooltip?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE) * 100).toFixed(2)}%</p>
                                     </div>
                                   </div>
                                   
@@ -1860,51 +1672,44 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
 
               {/* SSA Information */}
               <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                    <Info className="h-5 w-5 text-blue-600" />
-                    Social Security Income
-                  </h3>
-                  <button
-                    onClick={() => setShowSsaCustomization(!showSsaCustomization)}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    {showSsaCustomization ? 'Hide' : 'Estimate based on current income'}
-                  </button>
-                </div>
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">
+                  <Info className="h-5 w-5 text-blue-600" />
+                  Social Security Income
+                </h3>
                 <p className="text-sm text-gray-700 mb-3">
-                  Your projections include Social Security benefits. We've estimated benefits for two people based on general assumptions.
+                  Your projections use the SSA assumptions from your plan. Edit your plan in Plan Details to change assumptions.
                 </p>
-                {!showSsaCustomization && (() => {
+                {(() => {
                   // Calculate SSA at start age for display (matching projection calculations exactly)
-                  const ssaStartAge = settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65
+                  const ssaStartAge = settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                   // Use the same age calculation as projection: currentYear - birthYear
                   const currentYear = new Date().getFullYear()
-                  const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
+                  const birthYear = planDataForTooltip?.birth_year || (currentYear - 50)
                   const currentAge = currentYear - birthYear
                   const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
-                  const inflationRate = settingsForTooltip?.inflation_rate || 0.03
+                  const inflationRate = settingsForTooltip?.inflation_rate || DEFAULT_INFLATION_RATE
                   const inflationToSsaStart = yearsToSsaStart > 0 
                     ? Math.pow(1 + inflationRate, yearsToSsaStart)
                     : 1
                   
-                  // Apply early retirement reduction factor (permanent reduction if claiming before 67)
-                  // ~6.67% reduction per year early, max 30% reduction at age 62
-                  const earlyRetirementMultiplier = ssaStartAge < 67 
-                    ? Math.max(0.70, 1.0 - (67 - ssaStartAge) * 0.0667) 
-                    : 1.0
-                  const earlyRetirementReduction = ssaStartAge < 67 ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
+                  // Apply early retirement reduction factor (permanent reduction if claiming before FRA)
+                  const earlyRetirementMultiplier = ssaClaimingMultiplier(ssaStartAge)
+                  const earlyRetirementReduction = ssaStartAge < SSA_FULL_RETIREMENT_AGE ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
                   
-                  // Use same spouse inclusion logic as projection
-                  const includeSpouseInDisplay = inputs.includeSsa && (
-                    inputs.ssaForTwo || 
-                    planDataForTooltip?.include_spouse || 
-                    planDataForTooltip?.filing_status === 'Married Filing Jointly'
-                  )
-                  
-                  // Calculate final amounts: base estimate * inflation adjustment * early retirement factor
-                  const basePlannerSsa = inputs.includeSsa ? calculateEstimatedSSA(inputs.estimatedAnnualIncome, true) : 0
-                  const baseSpouseSsa = includeSpouseInDisplay ? calculateEstimatedSSA(inputs.estimatedAnnualIncome, false) : 0
+                  const includeSpouseInDisplay = planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly'
+                  const st = settingsForTooltip as any
+                  const estimatedIncome = Number(st?.estimated_ssa_annual_income) || 0
+                  // Use explicit benefits when set; else estimate from income (calculateEstimatedSSA returns defaults when income is 0)
+                  const plannerIncluded = st?.planner_ssa_income !== false
+                  const spouseIncluded = st?.spouse_ssa_income === true || (includeSpouseInDisplay && st?.spouse_ssa_income !== false)
+                  const plannerBenefit = st?.planner_ssa_annual_benefit != null && st.planner_ssa_annual_benefit !== ''
+                    ? Number(st.planner_ssa_annual_benefit)
+                    : (plannerIncluded ? calculateEstimatedSSA(estimatedIncome, true) : 0)
+                  const spouseBenefit = st?.spouse_ssa_annual_benefit != null && st.spouse_ssa_annual_benefit !== ''
+                    ? Number(st.spouse_ssa_annual_benefit)
+                    : (spouseIncluded ? calculateEstimatedSSA(estimatedIncome, false) : 0)
+                  const basePlannerSsa = plannerBenefit
+                  const baseSpouseSsa = spouseBenefit
                   
                   const plannerSsaAtStartAge = basePlannerSsa * inflationToSsaStart * earlyRetirementMultiplier
                   const spouseSsaAtStartAge = baseSpouseSsa * inflationToSsaStart * earlyRetirementMultiplier
@@ -1940,197 +1745,13 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                       </div>
                       
                       <p className="text-xs text-gray-500 mt-1 pt-2 border-t border-gray-300">
-                        {ssaStartAge < 67 && `(Includes ${earlyRetirementReduction}% early retirement reduction for claiming at age ${ssaStartAge}. `}
+                        {ssaStartAge < SSA_FULL_RETIREMENT_AGE && `(Includes ${earlyRetirementReduction}% early retirement reduction for claiming at age ${ssaStartAge}. `}
                         {yearsToSsaStart > 0 && `Future dollars are inflation-adjusted to age ${ssaStartAge} (${(inflationRate * 100).toFixed(2)}% annual inflation). `}
                         Benefits will continue to adjust for inflation each year after age {ssaStartAge}.)
                       </p>
                     </div>
                   )
                 })()}
-                
-                {showSsaCustomization && (
-                  <div className="mt-4 space-y-4 bg-white rounded-md p-4 border border-gray-200">
-                    <div>
-                      <label className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          checked={ssaSettings.includeSsa ?? true}
-                          onChange={(e) => {
-                            const isChecked = e.target.checked
-                            setSsaSettings({ 
-                              ...ssaSettings, 
-                              includeSsa: isChecked,
-                              // When unchecking, also clear spouse SSA
-                              ssaForTwo: isChecked ? ssaSettings.ssaForTwo : false
-                            })
-                          }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Include Social Security income in projections</span>
-                      </label>
-                    </div>
-
-                    {ssaSettings.includeSsa && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Current Annual Income
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 inline-block ml-1 text-gray-400 cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs bg-gray-900 text-gray-100 border border-gray-700">
-                                <p className="text-xs text-gray-200">
-                                  Your current annual income helps us estimate your Social Security benefits. 
-                                  Social Security uses your highest 35 years of earnings.
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                            <input
-                              type="number"
-                              value={ssaSettings.estimatedAnnualIncome || ''}
-                              onChange={(e) => setSsaSettings({ ...ssaSettings, estimatedAnnualIncome: parseFloat(e.target.value) || 0 })}
-                              className="w-full rounded-md border border-gray-300 pl-8 pr-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              placeholder="0"
-                            />
-                          </div>
-                          <p className="mt-1 text-xs text-gray-500">Used to estimate your Social Security benefits</p>
-                        </div>
-
-                        <div>
-                          <label className="flex items-center gap-2 mb-2">
-                            <input
-                              type="checkbox"
-                              checked={ssaSettings.ssaForTwo ?? true}
-                              onChange={(e) => setSsaSettings({ ...ssaSettings, ssaForTwo: e.target.checked })}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">Include Social Security for spouse/partner</span>
-                          </label>
-                        </div>
-
-                        {(() => {
-                          // Calculate SSA with inflation and early retirement adjustments
-                          // Use consistent age calculation - derive from birthYear for accuracy
-                          const ssaStartAge = settingsForTooltip?.ssa_start_age || settingsForTooltip?.retirement_age || 65
-                          const currentYear = new Date().getFullYear()
-                          const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
-                          const currentAge = currentYear - birthYear
-                          const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
-                          const inflationRate = settingsForTooltip?.inflation_rate || 0.03
-                          const inflationToSsaStart = yearsToSsaStart > 0 
-                            ? Math.pow(1 + inflationRate, yearsToSsaStart)
-                            : 1
-                          
-                          // Early retirement reduction factor
-                          const earlyRetirementMultiplier = ssaStartAge < 67 
-                            ? Math.max(0.70, 1.0 - (67 - ssaStartAge) * 0.0667) 
-                            : 1.0
-                          const earlyRetirementReduction = ssaStartAge < 67 ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
-                          
-                          const basePlannerSsa = ssaSettings.includeSsa ? calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, true) : 0
-                          const baseSpouseSsa = ssaSettings.includeSsa && ssaSettings.ssaForTwo ? calculateEstimatedSSA(ssaSettings.estimatedAnnualIncome, false) : 0
-                          
-                          const adjustedPlannerSsa = basePlannerSsa * inflationToSsaStart * earlyRetirementMultiplier
-                          const adjustedSpouseSsa = baseSpouseSsa * inflationToSsaStart * earlyRetirementMultiplier
-                          const totalAdjustedSsa = adjustedPlannerSsa + adjustedSpouseSsa
-                          
-                          return (
-                            <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                              <p className="text-sm font-medium text-gray-900 mb-2">Updated Estimated Social Security Benefits at Age {ssaStartAge}:</p>
-                              <div className="space-y-1 text-sm text-gray-700">
-                                {adjustedPlannerSsa > 0 && (
-                                  <p>• Your estimated benefit: <span className="font-semibold">${Math.round(adjustedPlannerSsa).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
-                                )}
-                                {adjustedSpouseSsa > 0 && (
-                                  <p>• Spouse estimated benefit: <span className="font-semibold">${Math.round(adjustedSpouseSsa).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
-                                )}
-                                <p className="pt-2 border-t border-green-200">
-                                  <strong>Total: ${Math.round(totalAdjustedSsa).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</strong>
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {ssaStartAge < 67 && `(Includes ${earlyRetirementReduction}% early retirement reduction. `}
-                                  {yearsToSsaStart > 0 && `Inflation-adjusted to age ${ssaStartAge}.`}
-                                  {ssaStartAge >= 67 && yearsToSsaStart === 0 && '(Full retirement age benefit.)'}
-                                  )
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </>
-                    )}
-
-                    {/* Save button - always visible regardless of includeSsa setting */}
-                    <button
-                      onClick={async () => {
-                        // Save SSA settings to profile
-                        try {
-                          const { error: planError } = await supabase
-                            .from('rp_retirement_plans')
-                            .update({
-                              // Store SSA income estimate in plan (we'll use this for display)
-                            })
-                            .eq('id', planId)
-                          
-                          if (planError) throw planError
-
-                          // Update scenario settings
-                          if (selectedScenarioId) {
-                            // When includeSsa is false, clear both planner and spouse SSA
-                            const plannerSsaIncome = ssaSettings.includeSsa ? true : false
-                            const spouseSsaIncome = ssaSettings.includeSsa && ssaSettings.ssaForTwo ? true : false
-                            
-                            // If spouse_ssa_income is true, ensure include_spouse is also true
-                            if (spouseSsaIncome) {
-                              const { error: planUpdateError } = await supabase
-                                .from('rp_retirement_plans')
-                                .update({ include_spouse: true })
-                                .eq('id', planId)
-                              
-                              if (planUpdateError) {
-                                console.error('Error updating include_spouse:', planUpdateError)
-                                // Don't throw - continue with settings update
-                              }
-                            }
-                            
-                            const { error: settingsError } = await supabase
-                              .from('rp_calculator_settings')
-                              .update({
-                                planner_ssa_income: plannerSsaIncome,
-                                spouse_ssa_income: spouseSsaIncome,
-                              })
-                              .eq('scenario_id', selectedScenarioId)
-                            
-                            if (settingsError) throw settingsError
-                          }
-
-                          // Update inputs to match
-                          setInputs({ ...inputs, includeSsa: ssaSettings.includeSsa, ssaForTwo: ssaSettings.ssaForTwo, estimatedAnnualIncome: ssaSettings.estimatedAnnualIncome })
-                          
-                          setMessage({ type: 'success', text: 'SSA assumptions saved to your profile!' })
-                          setTimeout(() => setMessage(null), 5000)
-                          
-                          // Recalculate with new SSA settings (use current state values)
-                          await loadAndCalculateSnapshot({
-                            includeSsa: ssaSettings.includeSsa ?? true,
-                            ssaForTwo: ssaSettings.ssaForTwo ?? true,
-                          })
-                        } catch (error: any) {
-                          console.error('Error saving SSA settings:', error)
-                          setMessage({ type: 'error', text: error.message || 'Failed to save SSA settings. Please try again.' })
-                        }
-                      }}
-                      className="w-full flex items-center justify-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save to Profile & Recalculate
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Recommendations & Next Steps */}
@@ -2171,28 +1792,54 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                       <span>{showProjections ? 'Hide' : 'See'} Yearly Projections</span>
                       <ChevronRight className={`h-4 w-4 transition-transform ${showProjections ? 'rotate-90' : ''}`} />
                     </button>
+                    {onSwitchToPlanSetup && !isLocal && (
+                      <button
+                        onClick={onSwitchToPlanSetup}
+                        type="button"
+                        className="rounded-md bg-white border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        <span>Update Plan Setup</span>
+                      </button>
+                    )}
+                    {!isLocal && (
+                      <>
+                        <PlanPdfDialog
+                          planId={planId}
+                          scenarioId={selectedScenarioId}
+                          planName={planDataForTooltip?.plan_name}
+                        />
+                        <PlanPrintAllDialog
+                          planId={planId}
+                          scenarioId={selectedScenarioId}
+                          planName={planDataForTooltip?.plan_name}
+                        />
+                      </>
+                    )}
+                  </div>
+                  {isLocal ? (
+                    <a
+                      href="/login?signup=1"
+                      className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 flex items-center gap-2 transition-colors"
+                    >
+                      <Lock className="h-3.5 w-3.5" />
+                      <span>Sign Up for Advanced Analysis</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </a>
+                  ) : (
                     <button
                       onClick={() => {
-                        setResults(null)
-                        setShowQuickStart(true)
+                        setShowQuickStart(false)
+                        if (onSwitchToAdvanced) {
+                          onSwitchToAdvanced()
+                        }
                       }}
-                      className="rounded-md bg-white border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 flex items-center gap-2"
                     >
-                      Change Plan Inputs
+                      <ChevronRight className="h-4 w-4" />
+                      <span>See Advanced Analysis</span>
                     </button>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowQuickStart(false)
-                      if (onSwitchToAdvanced) {
-                        onSwitchToAdvanced()
-                      }
-                    }}
-                    className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 flex items-center gap-2"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                    <span>See Advanced Planning</span>
-                  </button>
+                  )}
                 </div>
               </div>
 
@@ -2207,17 +1854,17 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                           onClick={() => {
                             // Export projections to CSV - same logic as advanced projections
                             const currentYear = new Date().getFullYear()
-                            const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
+                            const birthYear = planDataForTooltip?.birth_year || (currentYear - 50)
                             const currentAgeCalc = currentYear - birthYear
-                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                            const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                             
                             const filteredProjs = projections.filter(p => {
                               if (showPreRetirement) {
                                 // Show all projections from current age to life expectancy
-                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               } else {
                                 // Show only retirement years
-                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               }
                             })
                             
@@ -2239,7 +1886,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                               'Total Income',
                               'After-Tax Income',
                               'Living Expenses',
-                              'Special Expenses',
+                              'Healthcare Expenses',
                               'Total Expenses',
                               'Annual Contribution',
                               'Gap/Excess',
@@ -2372,7 +2019,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                 (proj.total_income || 0).toFixed(2),
                                 (proj.after_tax_income || 0).toFixed(2),
                                 (proj.living_expenses || 0).toFixed(2),
-                                (proj.special_expenses || 0).toFixed(2),
+                                (proj.healthcare_expenses || proj.special_expenses || 0).toFixed(2),
                                 (proj.total_expenses || 0).toFixed(2),
                                 (contribution || 0).toFixed(2),
                                 (proj.gap_excess || 0).toFixed(2),
@@ -2504,7 +2151,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Year</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Age</th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Income</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Expenses</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Total Expenses</th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Gap/Excess</th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Remaining Funds</th>
                         </tr>
@@ -2514,31 +2161,31 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                           .filter(p => {
                             // Use settingsForTooltip values for consistency with calculations
                             const currentYear = new Date().getFullYear()
-                            const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
+                            const birthYear = planDataForTooltip?.birth_year || (currentYear - 50)
                             const currentAgeCalc = currentYear - birthYear
-                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                            const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                             
                             if (showPreRetirement) {
                               // Show all projections from current age to life expectancy
-                              return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                              return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                             } else {
                               // Show only retirement years
-                              return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                              return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                             }
                           })
                           .map((proj, idx) => {
                             // Get filtered projections for calculating previous projection
                             // Use same filter logic as above for consistency
                             const currentYear = new Date().getFullYear()
-                            const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
+                            const birthYear = planDataForTooltip?.birth_year || (currentYear - 50)
                             const currentAgeCalc = currentYear - birthYear
-                            const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                            const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                             
                             const filteredProjs = projections.filter(p => {
                               if (showPreRetirement) {
-                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               } else {
-                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                                return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                               }
                             })
                             const prevProj = idx > 0 ? filteredProjs[idx - 1] : null
@@ -2642,7 +2289,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                               // Determine filing status using the same logic as the main calculation
                                               const includeSpouseSsa = planDataForTooltip?.include_spouse || false
                                               const filingStatus = determineFilingStatus(includeSpouseSsa, planDataForTooltip?.filing_status)
-                                              const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+                                              const standardDeduction = getStandardDeduction(filingStatus)
                                               const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
                                               const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
                                               
@@ -2778,7 +2425,27 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                 })()}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                                ${((proj.total_expenses || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help border-b border-dotted border-gray-300">
+                                      ${((proj.total_expenses || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="text-xs">
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between gap-4">
+                                        <span className="text-muted-foreground">Living:</span>
+                                        <span>${(proj.living_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                      {((proj.healthcare_expenses || proj.special_expenses || 0) > 0) && (
+                                        <div className="flex justify-between gap-4">
+                                          <span className="text-muted-foreground">Healthcare:</span>
+                                          <span>${(proj.healthcare_expenses || proj.special_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
                               </td>
                               <td className={`px-4 py-3 whitespace-nowrap text-sm text-right font-medium ${
                                 (() => {
@@ -2860,11 +2527,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                                         
                                         // Calculate contributions from actual balance changes (same method as individual account tooltips)
                                         // Use settingsForTooltip consistently - this is what the projections were calculated with
-                                        const retirementAgeForCalc = settingsForTooltip?.retirement_age || 65
+                                        const retirementAgeForCalc = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                                         const isRetired = proj.age >= retirementAgeForCalc
                                         const growthRate = isRetired 
-                                          ? (settingsForTooltip?.growth_rate_during_retirement || 0.05)
-                                          : (settingsForTooltip?.growth_rate_before_retirement || 0.1)
+                                          ? (settingsForTooltip?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
+                                          : (settingsForTooltip?.growth_rate_before_retirement || DEFAULT_GROWTH_RATE_PRE_RETIREMENT)
                                         
                                         // Calculate contributions for each account type from balance changes
                                         const calculateAccountContributions = (current: number, previous: number | null, distribution: number): number => {
@@ -3016,15 +2683,15 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                   {viewMode === 'graph' && (() => {
                     // Use settingsForTooltip values for consistency with calculations
                     const currentYear = new Date().getFullYear()
-                    const birthYear = planDataForTooltip?.birth_year || (currentYear - (inputs.age || 50))
+                    const birthYear = planDataForTooltip?.birth_year || (currentYear - 50)
                     const currentAgeCalc = currentYear - birthYear
-                    const retirementAge = settingsForTooltip?.retirement_age || inputs.retirementAge || 65
+                    const retirementAge = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
                     
                     const filteredProjs = projections.filter(p => {
                       if (showPreRetirement) {
-                        return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || 90)
+                        return p.age >= currentAgeCalc && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                       } else {
-                        return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || 90)
+                        return p.age >= retirementAge && p.age <= (results?.lifeExpectancy || DEFAULT_LIFE_EXPECTANCY)
                       }
                     })
                     
@@ -3044,7 +2711,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                           <ResponsiveContainer width="100%" height="100%">
                             {graphType === 'line' ? (
                               <LineChart data={filteredProjs}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                                 <XAxis 
                                   dataKey="age" 
                                   label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -3069,7 +2736,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                               </LineChart>
                             ) : graphType === 'area' ? (
                               <AreaChart data={filteredProjs}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                                 <XAxis 
                                   dataKey="age" 
                                   label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -3095,7 +2762,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
                               </AreaChart>
                             ) : (
                               <BarChart data={filteredProjs}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                                 <XAxis 
                                   dataKey="age" 
                                   label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -3135,6 +2802,32 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced }: SnapshotTabP
           )}
         </>
       ) : null}
+
+      {/* Local mode signup CTA */}
+      {isLocal && results && (
+        <div className="mt-8 rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-950/20 p-6 text-center">
+          <h3 className="text-lg font-semibold text-violet-900 dark:text-violet-100">Want deeper analysis?</h3>
+          <p className="mt-1.5 text-sm text-violet-700 dark:text-violet-300 max-w-md mx-auto">
+            Create a free account to unlock advanced projections, risk analysis, tax efficiency modeling, multiple scenarios, and PDF export.
+          </p>
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="/login?signup=1"
+              className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors"
+            >
+              Create Free Account <ArrowRight className="h-4 w-4" />
+            </a>
+            {onSwitchToAdvanced && (
+              <button
+                onClick={onSwitchToAdvanced}
+                className="inline-flex items-center gap-1.5 text-sm text-violet-600 dark:text-violet-400 hover:underline"
+              >
+                See what&apos;s included
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

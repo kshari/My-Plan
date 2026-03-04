@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import FinancialMetrics from '@/components/property/financial-metrics'
 import LoanDetails from '@/components/property/loan-details'
@@ -12,12 +12,7 @@ interface ScenarioDetailPageProps {
 
 export default async function ScenarioDetailPage({ params }: ScenarioDetailPageProps) {
   const { id, scenarioId } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
+  const { supabase, user } = await requireAuth()
 
   const propertyId = parseInt(id)
   const scenarioIdNum = parseInt(scenarioId)

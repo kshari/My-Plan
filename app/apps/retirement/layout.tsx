@@ -1,7 +1,22 @@
-export default function RetirementLayout({
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { AppShell } from "@/components/layout/app-shell"
+
+export default async function RetirementLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) redirect("/login")
+
+  return (
+    <AppShell userEmail={user.email ?? ""}>
+      {children}
+    </AppShell>
+  )
 }

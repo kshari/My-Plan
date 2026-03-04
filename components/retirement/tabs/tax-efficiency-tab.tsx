@@ -11,13 +11,28 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
+import {
+  DEFAULT_MARGINAL_TAX_RATE,
+} from '@/lib/constants/tax-brackets'
+import { calculateMarginalTaxRate } from '@/lib/utils/tax-calculations'
+import {
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_FILING_STATUS,
+  RMD_START_AGE,
+} from '@/lib/constants/retirement-defaults'
 import { analyzeTaxEfficiency } from './analysis-tab'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface TaxEfficiencyTabProps {
   planId: number
+  /** When true, pre-expands the Total Net Savings / Roth conversion details section. */
+  initialShowRothDetails?: boolean
 }
 
-export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
+export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: TaxEfficiencyTabProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
@@ -31,66 +46,12 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
   const [saveToProfile, setSaveToProfile] = useState(false)
   const [savingTaxInfo, setSavingTaxInfo] = useState(false)
   const [currentSettings, setCurrentSettings] = useState<CalculatorSettings | null>(null)
-  const [showTaxSummaryDetails, setShowTaxSummaryDetails] = useState(false)
+  const [showTaxSummaryDetails, setShowTaxSummaryDetails] = useState(initialShowRothDetails ?? false)
   const [showAdditionalStrategies, setShowAdditionalStrategies] = useState(false)
   const [showTaxAssumptions, setShowTaxAssumptions] = useState(false)
   const [showContributionAnalysis, setShowContributionAnalysis] = useState(true)
   const [contributionAnalysis, setContributionAnalysis] = useState<any>(null)
   const [showRetirementBracketExplanation, setShowRetirementBracketExplanation] = useState(false)
-
-  // Calculate tax bracket from income based on 2024 tax brackets
-  const calculateTaxBracket = (income: number, filingStatus: string): number => {
-    // 2024 tax brackets (marginal rates)
-    const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-      'Single': [
-        { min: 0, max: 11600, rate: 0.10 },
-        { min: 11600, max: 47150, rate: 0.12 },
-        { min: 47150, max: 100525, rate: 0.22 },
-        { min: 100525, max: 191950, rate: 0.24 },
-        { min: 191950, max: 243725, rate: 0.32 },
-        { min: 243725, max: 609350, rate: 0.35 },
-        { min: 609350, max: Infinity, rate: 0.37 }
-      ],
-      'Married Filing Jointly': [
-        { min: 0, max: 23200, rate: 0.10 },
-        { min: 23200, max: 94300, rate: 0.12 },
-        { min: 94300, max: 201050, rate: 0.22 },
-        { min: 201050, max: 383900, rate: 0.24 },
-        { min: 383900, max: 487450, rate: 0.32 },
-        { min: 487450, max: 731200, rate: 0.35 },
-        { min: 731200, max: Infinity, rate: 0.37 }
-      ],
-      'Married Filing Separately': [
-        { min: 0, max: 11600, rate: 0.10 },
-        { min: 11600, max: 47150, rate: 0.12 },
-        { min: 47150, max: 100525, rate: 0.22 },
-        { min: 100525, max: 191950, rate: 0.24 },
-        { min: 191950, max: 243725, rate: 0.32 },
-        { min: 243725, max: 365600, rate: 0.35 },
-        { min: 365600, max: Infinity, rate: 0.37 }
-      ],
-      'Head of Household': [
-        { min: 0, max: 16550, rate: 0.10 },
-        { min: 16550, max: 63100, rate: 0.12 },
-        { min: 63100, max: 100500, rate: 0.22 },
-        { min: 100500, max: 191950, rate: 0.24 },
-        { min: 191950, max: 243700, rate: 0.32 },
-        { min: 243700, max: 609350, rate: 0.35 },
-        { min: 609350, max: Infinity, rate: 0.37 }
-      ]
-    }
-    
-    const status = filingStatus || 'Single'
-    const bracketList = brackets[status] || brackets['Single']
-    
-    for (const bracket of bracketList) {
-      if (income >= bracket.min && income < bracket.max) {
-        return bracket.rate
-      }
-    }
-    
-    return 0.37 // Top bracket
-  }
 
   // Analyze traditional vs Roth contribution strategy
   const analyzeContributionStrategy = (
@@ -103,14 +64,14 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
     effectiveTaxRate: number
   ): any => {
     // Get current tax bracket
-    const currentBracket = currentTaxBracket || effectiveTaxRate || 0.22
-    const filingStatus = settings.filing_status || planData?.filing_status || 'Single'
+    const currentBracket = currentTaxBracket || effectiveTaxRate || DEFAULT_MARGINAL_TAX_RATE
+    const filingStatus = settings.filing_status || planData?.filing_status || DEFAULT_FILING_STATUS
     
     // Estimate retirement tax bracket from projections
     // Look at average taxable income in retirement years
     const retirementProjections = projections.filter(p => {
       const age = p.age || 0
-      return age >= (settings.retirement_age || 65) && age < 80 // First 15 years of retirement
+      return age >= (settings.retirement_age || DEFAULT_RETIREMENT_AGE) && age < 80 // First 15 years of retirement
     })
     
     let avgRetirementTaxableIncome = 0
@@ -123,7 +84,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
     }
     
     // Calculate expected retirement tax bracket
-    const retirementTaxBracket = calculateTaxBracket(avgRetirementTaxableIncome, filingStatus)
+    const retirementTaxBracket = calculateMarginalTaxRate(avgRetirementTaxableIncome, filingStatus)
     
     // Calculate years until retirement
     const currentYear = settings.current_year || new Date().getFullYear()
@@ -307,18 +268,20 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
       }
       
       // Use current tax bracket from profile if available, otherwise use estimated 22% bracket
-      const effectiveTaxRate = currentTaxBracket || planDataForSettings?.current_tax_bracket || 0.22
+      const effectiveTaxRate = currentTaxBracket || planDataForSettings?.current_tax_bracket || DEFAULT_MARGINAL_TAX_RATE
 
       const settings: CalculatorSettings = {
         current_year: settingsData.data?.current_year || new Date().getFullYear(),
-        retirement_age: settingsData.data?.retirement_age || 65,
+        retirement_age: settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE,
         retirement_start_year: settingsData.data?.retirement_start_year || 0,
         years_to_retirement: settingsData.data?.years_to_retirement || 0,
         annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0,
-        growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || '0.1'),
-        growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || '0.05'),
-        inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || '0.04'),
-        filing_status: (planDataForSettings?.filing_status as any) || 'Single',
+        growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+        growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+        inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
+        filing_status: (planDataForSettings?.filing_status as any) || DEFAULT_FILING_STATUS,
+        pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium != null ? parseFloat(settingsData.data.pre_medicare_annual_premium.toString()) : undefined,
+        post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium != null ? parseFloat(settingsData.data.post_medicare_annual_premium.toString()) : undefined,
       }
       
       setCurrentSettings(settings)
@@ -369,7 +332,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-600">Calculating tax efficiency analysis...</div>
+    return <LoadingState message="Calculating tax efficiency analysis…" />
   }
 
   const selectedScenario = scenarios.find(s => s.id === selectedScenarioId)
@@ -558,7 +521,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
               </p>
               <ul className="text-xs sm:text-sm text-gray-700 list-disc list-inside ml-2 space-y-1 mb-3">
                 <li><strong>Tax Calculation:</strong> Using IRS tax brackets for each year</li>
-                <li><strong>Filing Status:</strong> {currentSettings?.filing_status || 'Single'}</li>
+                <li><strong>Filing Status:</strong> {currentSettings?.filing_status || DEFAULT_FILING_STATUS}</li>
                 {currentGrossIncome && (
                   <li><strong>Current Gross Income:</strong> ${currentGrossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })} (from profile)</li>
                 )}
@@ -598,7 +561,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                       setCurrentGrossIncome(income)
                       // Auto-calculate tax bracket when income changes
                       if (income && income > 0 && currentSettings) {
-                        const calculatedBracket = calculateTaxBracket(income, currentSettings.filing_status || 'Single')
+                        const calculatedBracket = calculateMarginalTaxRate(income, currentSettings.filing_status || DEFAULT_FILING_STATUS)
                         setCurrentTaxBracket(calculatedBracket)
                       } else if (!income) {
                         setCurrentTaxBracket(null)
@@ -751,7 +714,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                     <div>
                       <p className="font-medium text-gray-900 mb-1">Why Convert Now?</p>
                       <ul className="text-xs sm:text-sm list-disc list-inside ml-2 space-y-1">
-                        <li><strong>Lower Tax Rates:</strong> You're likely in a lower tax bracket now than you will be when RMDs begin at age 73</li>
+                        <li><strong>Lower Tax Rates:</strong> You're likely in a lower tax bracket now than you will be when RMDs begin at age {RMD_START_AGE}</li>
                         <li><strong>Reduce RMDs:</strong> Converting traditional accounts to Roth reduces the balance subject to Required Minimum Distributions (RMDs)</li>
                         <li><strong>Tax-Free Growth:</strong> All future earnings in the Roth account grow tax-free</li>
                         <li><strong>Tax Diversification:</strong> Having both traditional and Roth accounts gives you flexibility to manage your tax bracket in retirement</li>
@@ -787,7 +750,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                       <p className="font-medium text-gray-900 mb-1">Key Considerations:</p>
                       <ul className="text-xs sm:text-sm list-disc list-inside ml-2 space-y-1">
                         <li><strong>Tax Bracket Management:</strong> Convert only enough to fill your current tax bracket without pushing into the next one</li>
-                        <li><strong>Timing:</strong> Best done between retirement and age 73 (RMD age) when income may be lower</li>
+                        <li><strong>Timing:</strong> Best done between retirement and age {RMD_START_AGE} (RMD age) when income may be lower</li>
                         <li><strong>5-Year Rule:</strong> Converted funds must stay in Roth for 5 years before tax-free withdrawal (unless you're 59½+)</li>
                         <li><strong>Medicare Premiums:</strong> Large conversions can increase Medicare Part B and D premiums (IRMAA surcharges)</li>
                         <li><strong>State Taxes:</strong> Consider state income tax implications if you plan to move to a different state</li>
@@ -907,7 +870,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                               placing you in a lower tax bracket. This is the optimal window to convert traditional retirement funds to Roth accounts.
                             </li>
                             <li>
-                              <strong>End Year ({conversionEndYear}):</strong> Concludes the year before Required Minimum Distributions (RMDs) begin at age 73. 
+                              <strong>End Year ({conversionEndYear}):</strong> Concludes the year before Required Minimum Distributions (RMDs) begin at age {RMD_START_AGE}. 
                               After RMDs start, you're required to take distributions anyway, reducing the benefit of conversion. Converting before RMD age 
                               helps reduce the balance subject to mandatory distributions and gives you more control over your tax situation.
                             </li>
@@ -1027,7 +990,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                                 on the converted amount (at your current tax rate of {(taxRate * 100).toFixed(0)}%).
                               </p>
                               <p>
-                                <strong>Step 3 - Future Tax Savings:</strong> The converted amount would have been subject to RMDs starting at age 73. 
+                                <strong>Step 3 - Future Tax Savings:</strong> The converted amount would have been subject to RMDs starting at age {RMD_START_AGE}. 
                                 We estimate an average RMD rate of 5% per year over 20 years. Without conversion, you'd pay taxes on these RMDs. 
                                 With conversion, Roth withdrawals are tax-free.
                               </p>
@@ -1077,7 +1040,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
               <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
                 <p className="text-xs font-medium text-blue-900 mb-1">Why Roth Conversions Matter:</p>
                 <ul className="text-xs text-blue-800 list-disc list-inside space-y-1">
-                  <li>Reduce Required Minimum Distributions (RMDs) starting at age 73</li>
+                  <li>Reduce Required Minimum Distributions (RMDs) starting at age {RMD_START_AGE}</li>
                   <li>Provide tax diversification in retirement</li>
                   <li>Lock in current tax rates if you expect rates to increase</li>
                   <li>Offer estate planning benefits</li>
@@ -1197,7 +1160,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                               <div>
                                 <p className="font-medium text-gray-900 mb-1">Step 1: Analyze Retirement Projections</p>
                                 <p>
-                                  The system examines your retirement projections for the first 15 years of retirement (ages {currentSettings?.retirement_age || 65} to 80). 
+                                  The system examines your retirement projections for the first 15 years of retirement (ages {currentSettings?.retirement_age || DEFAULT_RETIREMENT_AGE} to 80). 
                                   {contributionAnalysis.retirementProjectionsCount > 0 ? (
                                     <> It found <strong>{contributionAnalysis.retirementProjectionsCount} years</strong> of projection data in this range.</>
                                   ) : (
@@ -1247,7 +1210,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                               <div>
                                 <p className="font-medium text-gray-900 mb-1">Step 3: Determine Tax Bracket</p>
                                 <p className="mb-1">
-                                  Using the calculated average taxable income and your filing status ({currentSettings?.filing_status || 'Single'}), 
+                                  Using the calculated average taxable income and your filing status ({currentSettings?.filing_status || DEFAULT_FILING_STATUS}), 
                                   the system applies the 2024 federal tax brackets to determine which marginal tax bracket 
                                   this income level falls into.
                                 </p>
@@ -1309,7 +1272,7 @@ export default function TaxEfficiencyTab({ planId }: TaxEfficiencyTabProps) {
                     <tr>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">RMD Impact</td>
                       <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        Subject to RMDs at 73
+                        Subject to RMDs at {RMD_START_AGE}
                       </td>
                       <td className="px-4 py-3 text-sm text-center text-gray-700">
                         No RMDs required

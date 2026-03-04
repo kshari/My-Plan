@@ -4,11 +4,24 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
+  DEFAULT_INTEREST_RATE_MIN, DEFAULT_INTEREST_RATE_MAX,
+  DEFAULT_DOWN_PAYMENT_PCT, DEFAULT_DOWN_PAYMENT_MIN, DEFAULT_DOWN_PAYMENT_MAX,
+  DEFAULT_CLOSING_COST_PCT, LOAN_TERMS, DEFAULT_LOAN_TERM,
+  DEFAULT_PRICE_CHANGE_MIN, DEFAULT_PRICE_CHANGE_MAX,
+  DEFAULT_INCOME_CHANGE_MIN, DEFAULT_INCOME_CHANGE_MAX,
+  DEFAULT_EXPENSE_CHANGE_MIN, DEFAULT_EXPENSE_CHANGE_MAX,
+  SLIDER_RANGE_MIN, SLIDER_RANGE_MAX_PRICE, SLIDER_RANGE_MAX_INCOME_EXPENSE,
+  MAX_INTEREST_RATE_SLIDER, MAX_DOWN_PAYMENT_SLIDER,
+  DEFAULT_ASKING_PRICE, DEFAULT_GROSS_INCOME, DEFAULT_OPERATING_EXPENSES,
+  SCENARIO_COMPARISON_TOLERANCE, THRESHOLD_ANALYSIS_STEP, SLIDER_STEP,
+  THRESHOLD_ANALYSIS_RANGE, THRESHOLD_ANALYSIS_MAX_RATE,
+} from '@/lib/constants/property-defaults'
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/property/ui/tooltip'
+} from '@/components/ui/tooltip'
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface Property {
@@ -56,17 +69,17 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   const supabase = createClient()
   
   // Input state for ranges
-  const [minInterestRate, setMinInterestRate] = useState('4.0')
-  const [maxInterestRate, setMaxInterestRate] = useState('7.0')
-  const [purchasePriceMinChange, setPurchasePriceMinChange] = useState('-20')
+  const [minInterestRate, setMinInterestRate] = useState(String(DEFAULT_INTEREST_RATE_MIN))
+  const [maxInterestRate, setMaxInterestRate] = useState(String(DEFAULT_INTEREST_RATE_MAX))
+  const [purchasePriceMinChange, setPurchasePriceMinChange] = useState(String(SLIDER_RANGE_MIN))
   const [purchasePriceMaxChange, setPurchasePriceMaxChange] = useState('5')
-  const [incomeMinChange, setIncomeMinChange] = useState('-20')
-  const [incomeMaxChange, setIncomeMaxChange] = useState('20')
-  const [expensesMinChange, setExpensesMinChange] = useState('-20')
-  const [expensesMaxChange, setExpensesMaxChange] = useState('20')
-  const [minDownPayment, setMinDownPayment] = useState('25')
-  const [maxDownPayment, setMaxDownPayment] = useState('25')
-  const [closingCostPercent, setClosingCostPercent] = useState('3')
+  const [incomeMinChange, setIncomeMinChange] = useState(String(SLIDER_RANGE_MIN))
+  const [incomeMaxChange, setIncomeMaxChange] = useState(String(SLIDER_RANGE_MAX_INCOME_EXPENSE))
+  const [expensesMinChange, setExpensesMinChange] = useState(String(SLIDER_RANGE_MIN))
+  const [expensesMaxChange, setExpensesMaxChange] = useState(String(SLIDER_RANGE_MAX_INCOME_EXPENSE))
+  const [minDownPayment, setMinDownPayment] = useState(String(DEFAULT_DOWN_PAYMENT_PCT))
+  const [maxDownPayment, setMaxDownPayment] = useState(String(DEFAULT_DOWN_PAYMENT_PCT))
+  const [closingCostPercent, setClosingCostPercent] = useState(String(DEFAULT_CLOSING_COST_PCT))
   const [includeLoanTerm15, setIncludeLoanTerm15] = useState(false)
   const [includeLoanTerm20, setIncludeLoanTerm20] = useState(false)
   const [includeLoanTerm30, setIncludeLoanTerm30] = useState(true)
@@ -80,9 +93,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   const [savingThresholdVariable, setSavingThresholdVariable] = useState<string | null>(null)
 
   const scenarios = useMemo(() => {
-    const askingPrice = property['Asking Price'] || 1000000
-    const baseGrossIncome = property['Gross Income'] || 120000
-    const baseOperatingExpenses = property['Operating Expenses'] || 40000
+    const askingPrice = property['Asking Price'] || DEFAULT_ASKING_PRICE
+    const baseGrossIncome = property['Gross Income'] || DEFAULT_GROSS_INCOME
+    const baseOperatingExpenses = property['Operating Expenses'] || DEFAULT_OPERATING_EXPENSES
 
     // Parse input values (handle 0 correctly by checking for NaN instead of falsy)
     const parseValue = (value: string, defaultValue: number): number => {
@@ -93,16 +106,16 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       return isNaN(parsed) ? defaultValue : parsed
     }
 
-    const minIntRate = parseValue(minInterestRate, 4.0)
-    const maxIntRate = parseValue(maxInterestRate, 7.0)
-    const priceMinChange = parseValue(purchasePriceMinChange, -15)
-    const priceMaxChange = parseValue(purchasePriceMaxChange, 10)
-    const incomeMinChangeVal = parseValue(incomeMinChange, -10)
-    const incomeMaxChangeVal = parseValue(incomeMaxChange, 10)
-    const expensesMinChangeVal = parseValue(expensesMinChange, -10)
-    const expensesMaxChangeVal = parseValue(expensesMaxChange, 10)
-    const minDownPaymentVal = parseValue(minDownPayment, 20)
-    const maxDownPaymentVal = parseValue(maxDownPayment, 30)
+    const minIntRate = parseValue(minInterestRate, DEFAULT_INTEREST_RATE_MIN)
+    const maxIntRate = parseValue(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)
+    const priceMinChange = parseValue(purchasePriceMinChange, DEFAULT_PRICE_CHANGE_MIN)
+    const priceMaxChange = parseValue(purchasePriceMaxChange, DEFAULT_PRICE_CHANGE_MAX)
+    const incomeMinChangeVal = parseValue(incomeMinChange, DEFAULT_INCOME_CHANGE_MIN)
+    const incomeMaxChangeVal = parseValue(incomeMaxChange, DEFAULT_INCOME_CHANGE_MAX)
+    const expensesMinChangeVal = parseValue(expensesMinChange, DEFAULT_EXPENSE_CHANGE_MIN)
+    const expensesMaxChangeVal = parseValue(expensesMaxChange, DEFAULT_EXPENSE_CHANGE_MAX)
+    const minDownPaymentVal = parseValue(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN)
+    const maxDownPaymentVal = parseValue(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)
 
     const generatedScenarios: Scenario[] = []
     let scenarioId = 1
@@ -130,9 +143,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
 
     // Build loan terms array based on toggles
     const loanTerms: number[] = []
-    if (includeLoanTerm15) loanTerms.push(15)
-    if (includeLoanTerm20) loanTerms.push(20)
-    if (includeLoanTerm30) loanTerms.push(30)
+    if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
+    if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
+    if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
 
     // Generate scenarios with loans - systematic combinations
     for (const priceMult of purchasePriceMultipliers) {
@@ -168,7 +181,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
             }
 
             // Closing costs (percentage of purchase price)
-            const closingCostPercentVal = parseValue(closingCostPercent, 3)
+            const closingCostPercentVal = parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
             const purchaseClosingCosts = purchasePrice * (closingCostPercentVal / 100)
             const loanClosingCosts = loanPrincipal * (closingCostPercentVal / 100)
             const totalClosingCosts = purchaseClosingCosts + loanClosingCosts
@@ -232,7 +245,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           const noi = grossIncome - operatingExpenses
 
           // Closing costs (percentage of purchase price) - part of initial investment, not an expense
-          const closingCostPercentVal = parseValue(closingCostPercent, 3)
+          const closingCostPercentVal = parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
           const purchaseClosingCosts = purchasePrice * (closingCostPercentVal / 100)
           const loanClosingCosts = 0
           const totalClosingCosts = purchaseClosingCosts
@@ -429,9 +442,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   }
 
   // Calculate absolute values based on property and ranges
-  const askingPrice = property['Asking Price'] || 1000000
-  const baseGrossIncome = property['Gross Income'] || 120000
-  const baseOperatingExpenses = property['Operating Expenses'] || 40000
+  const askingPrice = property['Asking Price'] || DEFAULT_ASKING_PRICE
+  const baseGrossIncome = property['Gross Income'] || DEFAULT_GROSS_INCOME
+  const baseOperatingExpenses = property['Operating Expenses'] || DEFAULT_OPERATING_EXPENSES
   
   const parseValue = (value: string, defaultValue: number): number => {
     if (value === '' || value === null || value === undefined) {
@@ -441,16 +454,16 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
     return isNaN(parsed) ? defaultValue : parsed
   }
 
-  const priceMinChange = parseValue(purchasePriceMinChange, -15)
-  const priceMaxChange = parseValue(purchasePriceMaxChange, 10)
-  const incomeMinChangeVal = parseValue(incomeMinChange, -10)
-  const incomeMaxChangeVal = parseValue(incomeMaxChange, 10)
-  const expensesMinChangeVal = parseValue(expensesMinChange, -10)
-  const expensesMaxChangeVal = parseValue(expensesMaxChange, 10)
-  const minDownPaymentVal = parseValue(minDownPayment, 20)
-  const maxDownPaymentVal = parseValue(maxDownPayment, 30)
-  const minIntRate = parseValue(minInterestRate, 4.0)
-  const maxIntRate = parseValue(maxInterestRate, 7.0)
+  const priceMinChange = parseValue(purchasePriceMinChange, DEFAULT_PRICE_CHANGE_MIN)
+  const priceMaxChange = parseValue(purchasePriceMaxChange, DEFAULT_PRICE_CHANGE_MAX)
+  const incomeMinChangeVal = parseValue(incomeMinChange, DEFAULT_INCOME_CHANGE_MIN)
+  const incomeMaxChangeVal = parseValue(incomeMaxChange, DEFAULT_INCOME_CHANGE_MAX)
+  const expensesMinChangeVal = parseValue(expensesMinChange, DEFAULT_EXPENSE_CHANGE_MIN)
+  const expensesMaxChangeVal = parseValue(expensesMaxChange, DEFAULT_EXPENSE_CHANGE_MAX)
+  const minDownPaymentVal = parseValue(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN)
+  const maxDownPaymentVal = parseValue(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)
+  const minIntRate = parseValue(minInterestRate, DEFAULT_INTEREST_RATE_MIN)
+  const maxIntRate = parseValue(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)
 
   // Calculate threshold values where cash flow becomes positive for each variable (keeping others at baseline)
   const calculatePositiveCashFlowThresholds = useMemo(() => {
@@ -462,10 +475,10 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
 
     // Get the first available loan term (or default to 30 if none selected)
     const loanTerms: number[] = []
-    if (includeLoanTerm15) loanTerms.push(15)
-    if (includeLoanTerm20) loanTerms.push(20)
-    if (includeLoanTerm30) loanTerms.push(30)
-    const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : 30
+    if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
+    if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
+    if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
+    const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : DEFAULT_LOAN_TERM
 
     // Helper function to calculate cash flow for a scenario
     const calculateCashFlow = (
@@ -516,7 +529,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
     const avgDownPayment = (minDownPaymentVal + maxDownPaymentVal) / 2
     let priceThreshold = null
     // Search from high to low to find the highest price that gives positive cash flow
-    for (let change = 50; change >= -50; change -= 0.1) {
+    for (let change = THRESHOLD_ANALYSIS_RANGE; change >= -THRESHOLD_ANALYSIS_RANGE; change -= THRESHOLD_ANALYSIS_STEP) {
       const cashFlow = calculateCashFlow(change, 0, 0, avgInterestRate, avgDownPayment, defaultLoanTerm)
       if (cashFlow >= 0) {
         priceThreshold = change
@@ -531,7 +544,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
 
     // Test Income - find minimum income change needed
     let incomeThreshold = null
-    for (let change = -50; change <= 50; change += 0.1) {
+    for (let change = -THRESHOLD_ANALYSIS_RANGE; change <= THRESHOLD_ANALYSIS_RANGE; change += THRESHOLD_ANALYSIS_STEP) {
       const cashFlow = calculateCashFlow(0, change, 0, avgInterestRate, avgDownPayment, defaultLoanTerm)
       if (cashFlow >= 0) {
         incomeThreshold = change
@@ -546,7 +559,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
 
     // Test Expenses - find maximum expense change allowed
     let expensesThreshold = null
-    for (let change = 50; change >= -50; change -= 0.1) {
+    for (let change = THRESHOLD_ANALYSIS_RANGE; change >= -THRESHOLD_ANALYSIS_RANGE; change -= THRESHOLD_ANALYSIS_STEP) {
       const cashFlow = calculateCashFlow(0, 0, change, avgInterestRate, avgDownPayment, defaultLoanTerm)
       if (cashFlow >= 0) {
         expensesThreshold = change
@@ -561,7 +574,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
 
     // Test Interest Rate - find maximum interest rate allowed
     let intRateThreshold = null
-    for (let rate = 15; rate >= 0; rate -= 0.1) {
+    for (let rate = THRESHOLD_ANALYSIS_MAX_RATE; rate >= 0; rate -= THRESHOLD_ANALYSIS_STEP) {
       const cashFlow = calculateCashFlow(0, 0, 0, rate, avgDownPayment, defaultLoanTerm)
       if (cashFlow >= 0) {
         intRateThreshold = rate
@@ -576,7 +589,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
 
     // Test Down Payment - find minimum down payment needed
     let dpThreshold = null
-    for (let dp = 0; dp <= 50; dp += 0.1) {
+    for (let dp = 0; dp <= MAX_DOWN_PAYMENT_SLIDER; dp += THRESHOLD_ANALYSIS_STEP) {
       const cashFlow = calculateCashFlow(0, 0, 0, avgInterestRate, dp, defaultLoanTerm)
       if (cashFlow >= 0) {
         dpThreshold = dp
@@ -635,7 +648,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
     setSavingScenarioId(scenario.id)
     try {
       const askingPrice = property['Asking Price'] || 0
-      const closingCostPercentVal = parseValueHelper(closingCostPercent, 3)
+      const closingCostPercentVal = parseValueHelper(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
       
       // Calculate purchase closing costs
       const purchaseClosingCosts = scenario.purchasePrice * (closingCostPercentVal / 100)
@@ -722,16 +735,16 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       const askingPrice = property['Asking Price'] || 0
       const baseGrossIncome = property['Gross Income'] || 0
       const baseOperatingExpenses = property['Operating Expenses'] || 0
-      const avgInterestRate = (parseValueHelper(minInterestRate, 4.0) + parseValueHelper(maxInterestRate, 7.0)) / 2
-      const avgDownPayment = (parseValueHelper(minDownPayment, 20) + parseValueHelper(maxDownPayment, 30)) / 2
-      const closingCostPercentVal = parseValueHelper(closingCostPercent, 3)
+      const avgInterestRate = (parseValueHelper(minInterestRate, DEFAULT_INTEREST_RATE_MIN) + parseValueHelper(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)) / 2
+      const avgDownPayment = (parseValueHelper(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN) + parseValueHelper(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)) / 2
+      const closingCostPercentVal = parseValueHelper(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
       
       // Get the first available loan term (or default to 30 if none selected)
       const loanTerms: number[] = []
-      if (includeLoanTerm15) loanTerms.push(15)
-      if (includeLoanTerm20) loanTerms.push(20)
-      if (includeLoanTerm30) loanTerms.push(30)
-      const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : 30
+      if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
+      if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
+      if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
+      const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : DEFAULT_LOAN_TERM
 
       let purchasePrice = askingPrice
       let grossIncome = baseGrossIncome
@@ -818,11 +831,11 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       if (existingScenarios && existingScenarios.length > 0) {
         // Check if any existing scenario matches all key fields
         const isDuplicate = existingScenarios.some((existing: any) => {
-          return Math.abs(existing['Purchase Price'] - scenarioData['Purchase Price']) < 0.01 &&
-                 Math.abs(existing['Gross Income'] - scenarioData['Gross Income']) < 0.01 &&
-                 Math.abs(existing['Operating Expenses'] - scenarioData['Operating Expenses']) < 0.01 &&
+          return Math.abs(existing['Purchase Price'] - scenarioData['Purchase Price']) < SCENARIO_COMPARISON_TOLERANCE &&
+                 Math.abs(existing['Gross Income'] - scenarioData['Gross Income']) < SCENARIO_COMPARISON_TOLERANCE &&
+                 Math.abs(existing['Operating Expenses'] - scenarioData['Operating Expenses']) < SCENARIO_COMPARISON_TOLERANCE &&
                  Math.round(existing['Down Payment Percentage'] || 0) === roundedDownPaymentPercent &&
-                 Math.abs((existing['Interest Rate'] || 0) - interestRate) < 0.01 &&
+                 Math.abs((existing['Interest Rate'] || 0) - interestRate) < SCENARIO_COMPARISON_TOLERANCE &&
                  existing['Loan Term'] === defaultLoanTerm
         })
 
@@ -877,16 +890,16 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       const askingPrice = property['Asking Price'] || 0
       const baseGrossIncome = property['Gross Income'] || 0
       const baseOperatingExpenses = property['Operating Expenses'] || 0
-      const avgInterestRate = (parseValueHelper(minInterestRate, 4.0) + parseValueHelper(maxInterestRate, 7.0)) / 2
-      const avgDownPayment = (parseValueHelper(minDownPayment, 20) + parseValueHelper(maxDownPayment, 30)) / 2
-      const closingCostPercentVal = parseValueHelper(closingCostPercent, 3)
+      const avgInterestRate = (parseValueHelper(minInterestRate, DEFAULT_INTEREST_RATE_MIN) + parseValueHelper(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)) / 2
+      const avgDownPayment = (parseValueHelper(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN) + parseValueHelper(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)) / 2
+      const closingCostPercentVal = parseValueHelper(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
       
       // Get the first available loan term (or default to 30 if none selected)
       const loanTerms: number[] = []
-      if (includeLoanTerm15) loanTerms.push(15)
-      if (includeLoanTerm20) loanTerms.push(20)
-      if (includeLoanTerm30) loanTerms.push(30)
-      const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : 30
+      if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
+      if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
+      if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
+      const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : DEFAULT_LOAN_TERM
 
       const scenariosToSave: any[] = []
 
@@ -985,11 +998,11 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         
         return !existingScenarios.some((existing: any) => {
           return existing['Scenario Name'] === scenario['Scenario Name'] &&
-                 Math.abs(existing['Purchase Price'] - scenario['Purchase Price']) < 0.01 &&
-                 Math.abs(existing['Gross Income'] - scenario['Gross Income']) < 0.01 &&
-                 Math.abs(existing['Operating Expenses'] - scenario['Operating Expenses']) < 0.01 &&
+                 Math.abs(existing['Purchase Price'] - scenario['Purchase Price']) < SCENARIO_COMPARISON_TOLERANCE &&
+                 Math.abs(existing['Gross Income'] - scenario['Gross Income']) < SCENARIO_COMPARISON_TOLERANCE &&
+                 Math.abs(existing['Operating Expenses'] - scenario['Operating Expenses']) < SCENARIO_COMPARISON_TOLERANCE &&
                  Math.round(existing['Down Payment Percentage'] || 0) === Math.round(scenario['Down Payment Percentage'] || 0) &&
-                 Math.abs((existing['Interest Rate'] || 0) - (scenario['Interest Rate'] || 0)) < 0.01 &&
+                 Math.abs((existing['Interest Rate'] || 0) - (scenario['Interest Rate'] || 0)) < SCENARIO_COMPARISON_TOLERANCE &&
                  existing['Loan Term'] === scenario['Loan Term']
         })
       })
@@ -1113,17 +1126,17 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 type="button"
                 onClick={() => {
                   // Reset to property baseline (0% changes)
-                  setMinInterestRate('4.0')
-                  setMaxInterestRate('7.0')
+                  setMinInterestRate(String(DEFAULT_INTEREST_RATE_MIN))
+                  setMaxInterestRate(String(DEFAULT_INTEREST_RATE_MAX))
                   setPurchasePriceMinChange('0')
                   setPurchasePriceMaxChange('0')
                   setIncomeMinChange('0')
                   setIncomeMaxChange('0')
                   setExpensesMinChange('0')
                   setExpensesMaxChange('0')
-                  setMinDownPayment('25')
-                  setMaxDownPayment('25')
-                  setClosingCostPercent('3')
+                  setMinDownPayment(String(DEFAULT_DOWN_PAYMENT_PCT))
+                  setMaxDownPayment(String(DEFAULT_DOWN_PAYMENT_PCT))
+                  setClosingCostPercent(String(DEFAULT_CLOSING_COST_PCT))
                 }}
                 className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
               >
@@ -1140,8 +1153,8 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     type="range"
                     id="interestRateRange"
                     min={0}
-                    max={15}
-                    step={0.5}
+                    max={MAX_INTEREST_RATE_SLIDER}
+                    step={SLIDER_STEP}
                     value={minIntRate}
                     onChange={(e) => {
                       const newMin = parseFloat(e.target.value)
@@ -1154,8 +1167,8 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   <input
                     type="range"
                     min={0}
-                    max={15}
-                    step={0.5}
+                    max={MAX_INTEREST_RATE_SLIDER}
+                    step={SLIDER_STEP}
                     value={maxIntRate}
                     onChange={(e) => {
                       const newMax = parseFloat(e.target.value)
@@ -1175,9 +1188,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   <input
                     type="range"
                     id="purchasePriceRange"
-                    min={-20}
-                    max={5}
-                    step={1}
+                    min={SLIDER_RANGE_MIN}
+                    max={SLIDER_RANGE_MAX_PRICE}
+                    step={SLIDER_STEP}
                     value={priceMinChange}
                     onChange={(e) => {
                       const newMin = parseInt(e.target.value)
@@ -1189,9 +1202,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   />
                   <input
                     type="range"
-                    min={-20}
-                    max={5}
-                    step={1}
+                    min={SLIDER_RANGE_MIN}
+                    max={SLIDER_RANGE_MAX_PRICE}
+                    step={SLIDER_STEP}
                     value={priceMaxChange}
                     onChange={(e) => {
                       const newMax = parseInt(e.target.value)
@@ -1211,9 +1224,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   <input
                     type="range"
                     id="incomeRange"
-                    min={-20}
-                    max={20}
-                    step={1}
+                    min={SLIDER_RANGE_MIN}
+                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
+                    step={SLIDER_STEP}
                     value={incomeMinChangeVal}
                     onChange={(e) => {
                       const newMin = parseInt(e.target.value)
@@ -1225,9 +1238,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   />
                   <input
                     type="range"
-                    min={-20}
-                    max={20}
-                    step={1}
+                    min={SLIDER_RANGE_MIN}
+                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
+                    step={SLIDER_STEP}
                     value={incomeMaxChangeVal}
                     onChange={(e) => {
                       const newMax = parseInt(e.target.value)
@@ -1247,9 +1260,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   <input
                     type="range"
                     id="expensesRange"
-                    min={-20}
-                    max={20}
-                    step={1}
+                    min={SLIDER_RANGE_MIN}
+                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
+                    step={SLIDER_STEP}
                     value={expensesMinChangeVal}
                     onChange={(e) => {
                       const newMin = parseInt(e.target.value)
@@ -1261,9 +1274,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   />
                   <input
                     type="range"
-                    min={-20}
-                    max={20}
-                    step={1}
+                    min={SLIDER_RANGE_MIN}
+                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
+                    step={SLIDER_STEP}
                     value={expensesMaxChangeVal}
                     onChange={(e) => {
                       const newMax = parseInt(e.target.value)
@@ -1284,7 +1297,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     type="range"
                     id="downPaymentRange"
                     min={0}
-                    max={50}
+                    max={MAX_DOWN_PAYMENT_SLIDER}
                     step={5}
                     value={minDownPaymentVal}
                     onChange={(e) => {
@@ -1298,7 +1311,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   <input
                     type="range"
                     min={0}
-                    max={50}
+                    max={MAX_DOWN_PAYMENT_SLIDER}
                     step={5}
                     value={maxDownPaymentVal}
                     onChange={(e) => {
@@ -1321,7 +1334,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   min={0}
                   max={10}
                   step={0.5}
-                  value={parseValue(closingCostPercent, 3)}
+                  value={parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)}
                   onChange={(e) => {
                     setClosingCostPercent(parseFloat(e.target.value).toFixed(2))
                   }}
@@ -1347,10 +1360,10 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   Down Payment = {((minDownPaymentVal + maxDownPaymentVal) / 2).toFixed(0)}%, 
                   Loan Term = {(() => {
                     const terms: number[] = []
-                    if (includeLoanTerm15) terms.push(15)
-                    if (includeLoanTerm20) terms.push(20)
-                    if (includeLoanTerm30) terms.push(30)
-                    return terms.length > 0 ? terms[0] : 30
+                    if (includeLoanTerm15) terms.push(LOAN_TERMS[0])
+                    if (includeLoanTerm20) terms.push(LOAN_TERMS[1])
+                    if (includeLoanTerm30) terms.push(LOAN_TERMS[2])
+                    return terms.length > 0 ? terms[0] : DEFAULT_LOAN_TERM
                   })()} years
                 </div>
               </div>

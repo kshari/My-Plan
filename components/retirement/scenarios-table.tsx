@@ -3,7 +3,29 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from './scenario-context'
-import { Plus, Trash2, Check, X, LineChart } from 'lucide-react'
+import { Plus, Trash2, Check, LineChart } from 'lucide-react'
+import { toast } from 'sonner'
+import type { ColumnDef } from '@tanstack/react-table'
+import { DataTable } from '@/components/ui/data-table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
+  SCORE_AT_RISK_THRESHOLD,
+  SCORE_MEDIUM_RISK_THRESHOLD,
+  SCORE_WEIGHT_SCENARIO_LONGEVITY,
+  SCORE_WEIGHT_SCENARIO_SCORE,
+} from '@/lib/constants/retirement-defaults'
 
 interface Scenario {
   id: number
@@ -24,29 +46,31 @@ interface ScenarioMetrics {
   growthRateDuring?: number
 }
 
+interface ScenarioRow extends Scenario {
+  metrics?: ScenarioMetrics
+}
+
 interface ScenariosTableProps {
   planId: number
   onAddScenario?: () => void
   onModelScenarios?: () => void
+  /** When this value changes, scenarios are reloaded (e.g. after saving a new scenario from Plan Setup). */
+  refreshTrigger?: number
 }
 
-export default function ScenariosTable({ planId, onAddScenario, onModelScenarios }: ScenariosTableProps) {
+const fmt$ = (n: number) =>
+  '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 })
+
+export default function ScenariosTable({ planId, onAddScenario, onModelScenarios, refreshTrigger }: ScenariosTableProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [metrics, setMetrics] = useState<Map<number, ScenarioMetrics>>(new Map())
   const [loading, setLoading] = useState(false)
-  const [deleting, setDeleting] = useState<number | null>(null)
+  const [deletingAll, setDeletingAll] = useState(false)
 
-  useEffect(() => {
-    loadScenarios()
-  }, [planId])
-
-  useEffect(() => {
-    if (scenarios.length > 0) {
-      loadMetrics()
-    }
-  }, [scenarios])
+  useEffect(() => { loadScenarios() }, [planId, refreshTrigger])
+  useEffect(() => { if (scenarios.length > 0) loadMetrics() }, [scenarios])
 
   const loadScenarios = async () => {
     setLoading(true)
@@ -57,14 +81,11 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
         .eq('plan_id', planId)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: true })
-
       if (error) throw error
       setScenarios(data || [])
-      
-      // Auto-select default scenario if exists
       if (data && data.length > 0 && !selectedScenarioId) {
-        const defaultScenario = data.find(s => s.is_default) || data[0]
-        setSelectedScenarioId(defaultScenario.id)
+        const def = data.find((s) => s.is_default) || data[0]
+        setSelectedScenarioId(def.id)
       }
     } catch (error) {
       console.error('Error loading scenarios:', error)
@@ -74,327 +95,290 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
   }
 
   const loadMetrics = async () => {
-    const metricsMap = new Map<number, ScenarioMetrics>()
-    
+    const map = new Map<number, ScenarioMetrics>()
     for (const scenario of scenarios) {
       try {
-        // Load settings for retirement age and growth rates
-        const { data: settingsData } = await supabase
+        const { data: settings } = await supabase
           .from('rp_calculator_settings')
           .select('retirement_age, retirement_start_year, growth_rate_before_retirement, growth_rate_during_retirement')
           .eq('scenario_id', scenario.id)
           .maybeSingle()
-
-        // Load projections to calculate score
-        const { data: projectionsData } = await supabase
+        const { data: projections } = await supabase
           .from('rp_projection_details')
           .select('*')
           .eq('scenario_id', scenario.id)
           .order('year')
 
-        // Calculate score from projections
         let overallScore: number | undefined
         let riskLevel: string | undefined
         let startingNetworth: number | undefined
         let endingNetworth: number | undefined
-        
-        if (projectionsData && projectionsData.length > 0) {
-          // Calculate score based on projections
-          const negativeYears = projectionsData.filter((p: any) => (p.gap_excess || 0) < 0).length
-          const sustainabilityScore = Math.max(0, 100 - (negativeYears / projectionsData.length) * 100)
-          
-          const totalTaxes = projectionsData.reduce((sum: number, p: any) => sum + (p.tax || 0), 0)
-          const totalIncome = projectionsData.reduce((sum: number, p: any) => sum + (p.total_income || 0), 0)
-          const taxEfficiencyScore = totalIncome > 0 ? Math.max(0, 100 - (totalTaxes / totalIncome) * 100 * 2) : 50
-          
-          const finalNetworth = projectionsData[projectionsData.length - 1]?.networth || 0
-          const initialNetworth = projectionsData[0]?.networth || 0
-          const longevityScore = initialNetworth > 0 
-            ? Math.min(100, (finalNetworth / initialNetworth) * 50 + 50)
-            : 0
-          
-          overallScore = Math.round(
-            sustainabilityScore * 0.5 + 
-            taxEfficiencyScore * 0.25 + 
-            longevityScore * 0.25
-          )
-          
-          if (overallScore < 50) riskLevel = 'High'
-          else if (overallScore < 75) riskLevel = 'Medium'
-          else riskLevel = 'Low'
-          
-          // Get starting networth at retirement age, ending networth at final age
-          const retirementAge = settingsData?.retirement_age
-          if (retirementAge) {
-            // Find projection at retirement age
-            const retirementProjection = projectionsData.find((p: any) => p.age === retirementAge)
-            startingNetworth = retirementProjection?.networth || projectionsData[0]?.networth || 0
-          } else {
-            // Fallback to first projection if retirement age not found
-            startingNetworth = initialNetworth
-          }
-          endingNetworth = finalNetworth
+
+        if (projections && projections.length > 0) {
+          const negYears = projections.filter((p: any) => (p.gap_excess || 0) < 0).length
+          const sustScore = Math.max(0, 100 - (negYears / projections.length) * 100)
+          const totalTax = projections.reduce((s: number, p: any) => s + (p.tax || 0), 0)
+          const totalInc = projections.reduce((s: number, p: any) => s + (p.total_income || 0), 0)
+          const taxScore = totalInc > 0 ? Math.max(0, 100 - (totalTax / totalInc) * 200) : 50
+          const finalNW = projections[projections.length - 1]?.networth || 0
+          const initNW = projections[0]?.networth || 0
+          const lonScore = initNW > 0 ? Math.min(100, (finalNW / initNW) * 50 + 50) : 0
+          overallScore = Math.round(sustScore * SCORE_WEIGHT_SCENARIO_LONGEVITY + taxScore * SCORE_WEIGHT_SCENARIO_SCORE + lonScore * SCORE_WEIGHT_SCENARIO_SCORE)
+          riskLevel = overallScore < SCORE_AT_RISK_THRESHOLD ? 'High' : overallScore < SCORE_MEDIUM_RISK_THRESHOLD ? 'Medium' : 'Low'
+          const retireProjn = settings?.retirement_age
+            ? projections.find((p: any) => p.age === settings.retirement_age)
+            : null
+          startingNetworth = retireProjn?.networth ?? initNW
+          endingNetworth = finalNW
         }
 
-        metricsMap.set(scenario.id, {
+        map.set(scenario.id, {
           scenarioId: scenario.id,
-          retirementAge: settingsData?.retirement_age,
-          retirementStartYear: settingsData?.retirement_start_year,
+          retirementAge: settings?.retirement_age,
+          retirementStartYear: settings?.retirement_start_year,
           overallScore,
           riskLevel,
           startingNetworth,
           endingNetworth,
-          growthRateBefore: settingsData?.growth_rate_before_retirement,
-          growthRateDuring: settingsData?.growth_rate_during_retirement,
+          growthRateBefore: settings?.growth_rate_before_retirement,
+          growthRateDuring: settings?.growth_rate_during_retirement,
         })
-      } catch (error) {
-        console.error(`Error loading metrics for scenario ${scenario.id}:`, error)
+      } catch (err) {
+        console.error(`Metrics error for scenario ${scenario.id}:`, err)
       }
     }
-    
-    setMetrics(metricsMap)
+    setMetrics(map)
   }
 
-  const handleDeleteScenario = async (scenarioId: number) => {
-    if (!confirm('Delete this scenario? All associated data (settings, projections) will be deleted.')) {
-      return
-    }
-
-    setDeleting(scenarioId)
+  const handleDelete = async (scenarioId: number) => {
     try {
-      // Delete associated data first
       await supabase.from('rp_projection_details').delete().eq('scenario_id', scenarioId)
       await supabase.from('rp_calculator_settings').delete().eq('scenario_id', scenarioId)
-      
-      // Delete the scenario
-      const { error } = await supabase
-        .from('rp_scenarios')
-        .delete()
-        .eq('id', scenarioId)
-
+      const { error } = await supabase.from('rp_scenarios').delete().eq('id', scenarioId)
       if (error) throw error
-
-      // Reload scenarios
-      await loadScenarios()
-      
-      // If deleted scenario was selected, select first remaining scenario
+      toast.success('Scenario deleted')
       if (selectedScenarioId === scenarioId) {
-        const remaining = scenarios.filter(s => s.id !== scenarioId)
-        if (remaining.length > 0) {
-          setSelectedScenarioId(remaining[0].id)
-        } else {
-          setSelectedScenarioId(null)
-        }
+        const remaining = scenarios.filter((s) => s.id !== scenarioId)
+        setSelectedScenarioId(remaining.length > 0 ? remaining[0].id : null)
       }
-    } catch (error: any) {
-      alert(`Failed to delete scenario: ${error.message}`)
-    } finally {
-      setDeleting(null)
-    }
-  }
-
-  const handleDeleteAllScenarios = async () => {
-    if (!confirm('Delete ALL scenarios? This will delete all scenarios and their associated data. This action cannot be undone.')) {
-      return
-    }
-
-    try {
-      // Delete all projections and settings for all scenarios
-      for (const scenario of scenarios) {
-        await supabase.from('rp_projection_details').delete().eq('scenario_id', scenario.id)
-        await supabase.from('rp_calculator_settings').delete().eq('scenario_id', scenario.id)
-      }
-      
-      // Delete all scenarios
-      const { error } = await supabase
-        .from('rp_scenarios')
-        .delete()
-        .eq('plan_id', planId)
-
-      if (error) throw error
-
-      setSelectedScenarioId(null)
       await loadScenarios()
-      alert('All scenarios deleted successfully')
     } catch (error: any) {
-      alert(`Failed to delete scenarios: ${error.message}`)
+      toast.error(`Failed to delete: ${error.message}`)
     }
   }
 
-  if (loading) {
-    return <div className="text-center py-4 text-gray-600">Loading scenarios...</div>
+  const handleDeleteAll = async () => {
+    setDeletingAll(true)
+    try {
+      for (const s of scenarios) {
+        await supabase.from('rp_projection_details').delete().eq('scenario_id', s.id)
+        await supabase.from('rp_calculator_settings').delete().eq('scenario_id', s.id)
+      }
+      const { error } = await supabase.from('rp_scenarios').delete().eq('plan_id', planId)
+      if (error) throw error
+      setSelectedScenarioId(null)
+      toast.success('All scenarios deleted')
+      await loadScenarios()
+    } catch (error: any) {
+      toast.error(`Failed to delete all: ${error.message}`)
+    } finally {
+      setDeletingAll(false)
+    }
   }
+
+  // Build combined row data
+  const tableData: ScenarioRow[] = scenarios.map((s) => ({ ...s, metrics: metrics.get(s.id) }))
+
+  const tableColumns: ColumnDef<ScenarioRow>[] = [
+    {
+      accessorKey: 'scenario_name',
+      header: 'Scenario',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-medium truncate">{row.original.scenario_name}</span>
+          {row.original.is_default && (
+            <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">Default</Badge>
+          )}
+          {selectedScenarioId === row.original.id && (
+            <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 border-primary text-primary">Active</Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorFn: (row) => row.metrics?.retirementAge,
+      id: 'retirement_age',
+      header: 'Retire Age',
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.original.metrics?.retirementAge ?? '—'}</span>
+      ),
+    },
+    {
+      id: 'growth_rates',
+      header: 'Growth Rates',
+      enableSorting: false,
+      cell: ({ row }) => {
+        const m = row.original.metrics
+        if (m?.growthRateBefore == null || m?.growthRateDuring == null) return <span className="text-muted-foreground">—</span>
+        return (
+          <span className="tabular-nums text-xs">
+            {(m.growthRateBefore * 100).toFixed(1)}% / {(m.growthRateDuring * 100).toFixed(1)}%
+          </span>
+        )
+      },
+    },
+    {
+      accessorFn: (row) => row.metrics?.startingNetworth,
+      id: 'starting_networth',
+      header: 'Starting NW',
+      cell: ({ row }) => {
+        const v = row.original.metrics?.startingNetworth
+        return <span className="tabular-nums">{v != null ? fmt$(v) : <span className="text-muted-foreground">—</span>}</span>
+      },
+    },
+    {
+      accessorFn: (row) => row.metrics?.endingNetworth,
+      id: 'ending_networth',
+      header: 'Ending NW',
+      cell: ({ row }) => {
+        const v = row.original.metrics?.endingNetworth
+        if (v == null) return <span className="text-muted-foreground">—</span>
+        return <span className={`tabular-nums font-medium ${v < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>{fmt$(v)}</span>
+      },
+    },
+    {
+      accessorFn: (row) => row.metrics?.overallScore,
+      id: 'score',
+      header: 'Score',
+      cell: ({ row }) => {
+        const score = row.original.metrics?.overallScore
+        if (score == null) return <span className="text-muted-foreground">—</span>
+        const color = score >= SCORE_MEDIUM_RISK_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : score >= SCORE_AT_RISK_THRESHOLD ? 'text-amber-600' : 'text-destructive'
+        return <span className={`font-bold tabular-nums ${color}`}>{score}</span>
+      },
+    },
+    {
+      accessorFn: (row) => row.metrics?.riskLevel,
+      id: 'risk',
+      header: 'Risk',
+      cell: ({ row }) => {
+        const risk = row.original.metrics?.riskLevel
+        if (!risk) return <span className="text-muted-foreground">—</span>
+        const variant = risk === 'Low' ? 'success' : risk === 'Medium' ? 'warning' : 'destructive'
+        return <Badge variant={variant as any}>{risk}</Badge>
+      },
+    },
+    {
+      id: 'actions',
+      header: '',
+      enableHiding: false,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const isSelected = selectedScenarioId === row.original.id
+        return (
+          <div className="flex items-center gap-1.5 justify-end">
+            <Button
+              variant={isSelected ? 'default' : 'outline'}
+              size="icon-sm"
+              onClick={(e) => { e.stopPropagation(); setSelectedScenarioId(row.original.id) }}
+              title={isSelected ? 'Selected' : 'Select'}
+            >
+              <Check className="h-3.5 w-3.5" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon-sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => e.stopPropagation()}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete scenario?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <strong>{row.original.scenario_name}</strong> and all associated projections and settings.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDelete(row.original.id)} className="bg-destructive text-white hover:bg-destructive/90">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )
+      },
+    },
+  ]
+
+  if (loading) return <div className="py-6 text-center text-sm text-muted-foreground">Loading scenarios…</div>
 
   if (scenarios.length === 0) {
     return (
-      <div className="text-center py-4 text-gray-500">
-        No scenarios yet. Create your first scenario in Plan Details.
+      <div className="rounded-xl border bg-muted/20 py-10 text-center">
+        <p className="text-sm text-muted-foreground">No scenarios yet. Create your first scenario in Plan Details.</p>
+        {onAddScenario && (
+          <Button size="sm" className="mt-4" onClick={onAddScenario}>
+            <Plus className="h-4 w-4" /> Add Scenario
+          </Button>
+        )}
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="mb-4 flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Scenarios</h3>
-        <div className="flex gap-2">
+    <div className="space-y-3">
+      {/* Header toolbar */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h3 className="text-base font-semibold">Scenarios</h3>
+        <div className="flex gap-2 flex-wrap">
           {onModelScenarios && (
-            <button
-              onClick={onModelScenarios}
-              className="flex items-center gap-2 rounded-md bg-purple-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-200"
-            >
-              <LineChart className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={onModelScenarios}>
+              <LineChart className="h-4 w-4" />
               Scenario Modeling
-            </button>
+            </Button>
           )}
           {onAddScenario && (
-            <button
-              onClick={onAddScenario}
-              className="flex items-center gap-2 rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200"
-            >
-              <Plus className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={onAddScenario}>
+              <Plus className="h-4 w-4" />
               Add Scenario
-            </button>
+            </Button>
           )}
           {scenarios.length > 0 && (
-            <button
-              onClick={handleDeleteAllScenarios}
-              className="flex items-center gap-2 rounded-md bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete All Scenarios
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-destructive border-destructive/40 hover:bg-destructive/10" disabled={deletingAll}>
+                  <Trash2 className="h-4 w-4" />
+                  {deletingAll ? 'Deleting…' : 'Delete All'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete all scenarios?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {scenarios.length} scenarios and their associated data. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-white hover:bg-destructive/90">
+                    Delete All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </div>
-      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-2 md:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scenario</th>
-            <th className="px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Retirement Age</th>
-            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Growth Rates</th>
-            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Starting Networth</th>
-            <th className="px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ending Networth</th>
-            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Score</th>
-            <th className="hidden md:table-cell px-2 md:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
-            <th className="px-2 md:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 bg-white">
-          {scenarios.map((scenario) => {
-            const scenarioMetrics = metrics.get(scenario.id)
-            const isSelected = selectedScenarioId === scenario.id
-            
-            return (
-              <tr
-                key={scenario.id}
-                className={`cursor-pointer hover:bg-gray-50 ${
-                  isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                }`}
-                onClick={() => setSelectedScenarioId(scenario.id)}
-              >
-                <td className="px-2 md:px-3 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {scenario.scenario_name}
-                    </span>
-                    {scenario.is_default && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        Default
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-2 md:px-3 py-3 text-right text-sm text-gray-900">
-                  {scenarioMetrics?.retirementAge || '-'}
-                </td>
-                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-center text-sm text-gray-900">
-                  {scenarioMetrics?.growthRateBefore !== undefined && scenarioMetrics?.growthRateDuring !== undefined ? (
-                    <span>
-                      {(scenarioMetrics.growthRateBefore * 100).toFixed(2)}% / {(scenarioMetrics.growthRateDuring * 100).toFixed(2)}%
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-sm text-gray-900">
-                  {scenarioMetrics?.startingNetworth !== undefined ? (
-                    `$${scenarioMetrics.startingNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-2 md:px-3 py-3 text-right text-sm text-gray-900">
-                  {scenarioMetrics?.endingNetworth !== undefined ? (
-                    `$${scenarioMetrics.endingNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-right text-sm">
-                  {scenarioMetrics?.overallScore !== undefined ? (
-                    <span className={`font-semibold ${
-                      scenarioMetrics.overallScore >= 75 ? 'text-green-600' :
-                      scenarioMetrics.overallScore >= 50 ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {scenarioMetrics.overallScore}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="hidden md:table-cell px-2 md:px-3 py-3 text-center">
-                  {scenarioMetrics?.riskLevel ? (
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      scenarioMetrics.riskLevel === 'Low' ? 'bg-green-100 text-green-800' :
-                      scenarioMetrics.riskLevel === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {scenarioMetrics.riskLevel}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-2 md:px-3 py-3 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedScenarioId(scenario.id)
-                      }}
-                      className={`flex items-center gap-1.5 text-sm px-2 md:px-3 py-1 rounded ${
-                        isSelected
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                      title={isSelected ? 'Selected' : 'Select'}
-                    >
-                      {isSelected && <Check className="w-3.5 h-3.5" />}
-                      <span className="hidden md:inline">{isSelected ? 'Selected' : 'Select'}</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteScenario(scenario.id)
-                      }}
-                      disabled={deleting === scenario.id}
-                      className="flex items-center gap-1.5 text-sm px-2 md:px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
-                      title={deleting === scenario.id ? 'Deleting...' : 'Delete'}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span className="hidden md:inline">{deleting === scenario.id ? 'Deleting...' : 'Delete'}</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-      </div>
+
+      <DataTable
+        columns={tableColumns}
+        data={tableData}
+        searchPlaceholder="Search scenarios…"
+        pageSize={10}
+        emptyMessage="No scenarios found."
+      />
     </div>
   )
 }

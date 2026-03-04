@@ -2,14 +2,34 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { useScenario } from '../scenario-context'
-import { Calculator, Settings, Save, Plus, Trash2, Check } from 'lucide-react'
+import { Calculator, Settings, Save, Plus, Trash2, Check, Download, Table2, BarChart as BarChartIcon, TrendingUp, Columns3, Info } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/property/ui/tooltip'
+} from '@/components/ui/tooltip'
 import {
   LineChart,
   Line,
@@ -37,13 +57,46 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
+import { getStandardDeduction } from '@/lib/constants/tax-brackets'
+import {
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_FILING_STATUS,
+  DEFAULT_MAX_PROJECTION_AGE,
+  DEFAULT_SSA_ANNUAL_BENEFIT,
+  DEFAULT_SPOUSE_SSA_BENEFIT,
+  DEFAULT_SSA_START_AGE,
+  SAFE_WITHDRAWAL_RATE,
+  DEFAULT_FIXED_DOLLAR_WITHDRAWAL,
+} from '@/lib/constants/retirement-defaults'
+import { DEBOUNCE_SAVE_MS } from '@/lib/constants/timing'
 
 interface DetailsTabProps {
   planId: number
+  /** Start on this sub-tab instead of the default 'projections'. */
+  initialSubTab?: 'projections' | 'strategy-modeling'
+  /** When true, initialise all projection columns as visible. */
+  initialAllColumns?: boolean
+  /** Start in this view mode instead of the default 'graph'. */
+  initialViewMode?: 'table' | 'graph'
 }
 
-export default function DetailsTab({ planId }: DetailsTabProps) {
+const ALL_COLUMNS_VISIBLE = {
+  year: true, age: true, event: true,
+  ssa: true, dist401k: true, distRoth: true, distTaxable: true,
+  distHsa: true, distIra: true, distOther: true, otherIncome: true,
+  totalIncome: true, expenses: true, contribution: true, gapExcess: true,
+  networth: true, balance401k: true, balanceRoth: true, balanceTaxable: true,
+  balanceHsa: true, balanceIra: true, balanceOther: true,
+}
+
+export default function DetailsTab({ planId, initialSubTab, initialAllColumns, initialViewMode }: DetailsTabProps) {
   const supabase = createClient()
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [projections, setProjections] = useState<ProjectionDetail[]>([])
   const [loading, setLoading] = useState(false)
@@ -57,7 +110,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   const [expensesForTooltip, setExpensesForTooltip] = useState<Expense[]>([])
   const [otherIncomeForTooltip, setOtherIncomeForTooltip] = useState<OtherIncome[]>([])
   const [showPreRetirement, setShowPreRetirement] = useState(false)
-  const [viewMode, setViewMode] = useState<'table' | 'graph'>('table')
+  const [viewMode, setViewMode] = useState<'table' | 'graph'>(initialViewMode ?? 'graph')
   const [graphType, setGraphType] = useState<'line' | 'area' | 'bar'>('line')
   const [incomeGroupExpanded, setIncomeGroupExpanded] = useState(false)
   const [balanceGroupExpanded, setBalanceGroupExpanded] = useState(false)
@@ -67,14 +120,16 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   const [strategyModelerExpanded, setStrategyModelerExpanded] = useState(false)
   const [modelingStrategyType, setModelingStrategyType] = useState<'amount_based_expense_coverage' | 'amount_based_4_percent' | 'amount_based_fixed_percentage' | 'amount_based_fixed_dollar' | 'amount_based_swp' | 'sequence_proportional' | 'sequence_bracket_topping' | 'market_bucket' | 'market_guardrails' | 'market_floor_upside' | 'tax_roth_conversion' | 'tax_qcd'>('amount_based_expense_coverage')
   const [strategyParams, setStrategyParams] = useState({
-    fixed_percentage_rate: 4, // 4%
-    fixed_dollar_amount: 50000,
+    fixed_percentage_rate: SAFE_WITHDRAWAL_RATE * 100, // 4% rule
+    fixed_dollar_amount: DEFAULT_FIXED_DOLLAR_WITHDRAWAL,
     guardrails_ceiling: 6, // 6%
     guardrails_floor: 3, // 3%
     bracket_topping_threshold: 12, // 12% tax bracket
   })
   const [comparingStrategies, setComparingStrategies] = useState(false)
   const [showStrategyPopup, setShowStrategyPopup] = useState(false)
+  const [strategyExplanationOpen, setStrategyExplanationOpen] = useState(false)
+  const [strategyComparisonInfoOpenRow, setStrategyComparisonInfoOpenRow] = useState<number | null>(null)
   const [savingStrategy, setSavingStrategy] = useState(false)
   const [strategyComparison, setStrategyComparison] = useState<Array<{
     strategyName: string
@@ -90,31 +145,54 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
     lifetimeExpenses: number
     totalWithdrawals: number
   }>>([])
-  const [activeSubTab, setActiveSubTab] = useState<'projections' | 'strategy-modeling'>('projections')
-  const [visibleColumns, setVisibleColumns] = useState({
-    year: true,
-    age: true,
-    event: true,
-    ssa: false, // Hidden by default, shown when income group expanded
-    dist401k: false,
-    distRoth: false,
-    distTaxable: false,
-    distHsa: false,
-    distIra: false,
-    distOther: false,
-    otherIncome: false,
-    totalIncome: true, // Shown by default (will show after-tax income)
-    expenses: true,
-    contribution: true, // Shown by default
-    gapExcess: true,
-    networth: true, // Shown by default
-    balance401k: false, // Hidden by default, shown when balance group expanded
-    balanceRoth: false,
-    balanceTaxable: false,
-    balanceHsa: false,
-    balanceIra: false,
-    balanceOther: false,
-  })
+  const [activeSubTab, setActiveSubTab] = useState<'projections' | 'strategy-modeling'>(initialSubTab ?? 'projections')
+  const [visibleColumns, setVisibleColumns] = useState(
+    initialAllColumns
+      ? ALL_COLUMNS_VISIBLE
+      : {
+          year: true,
+          age: true,
+          event: true,
+          ssa: false,
+          dist401k: false,
+          distRoth: false,
+          distTaxable: false,
+          distHsa: false,
+          distIra: false,
+          distOther: false,
+          otherIncome: false,
+          totalIncome: true,
+          expenses: true,
+          contribution: true,
+          gapExcess: true,
+          networth: true,
+          balance401k: false,
+          balanceRoth: false,
+          balanceTaxable: false,
+          balanceHsa: false,
+          balanceIra: false,
+          balanceOther: false,
+        }
+  )
+
+  /** Detailed explanation of each withdrawal strategy for tooltip (hover on desktop, click on mobile). */
+  const getStrategyExplanation = (strategyType: typeof modelingStrategyType): string => {
+    const explanations: Record<typeof modelingStrategyType, string> = {
+      amount_based_expense_coverage: `Expense-based (cover expenses and tax). Each year the plan withdraws only what is needed to cover your projected living expenses, healthcare, and the estimated tax on those withdrawals. Withdrawal order follows your plan’s priority (e.g. taxable first, then tax-deferred, then Roth) to minimize taxes. Best when you want to preserve assets and only spend what you need; works well with Social Security and other income filling part of the gap.`,
+      amount_based_4_percent: `4% rule. In the first year of retirement you withdraw 4% of the initial portfolio value; each following year that dollar amount is increased for inflation. This classic rule of thumb aims to make savings last 30+ years. In this plan, the 4% is applied to your total portfolio at retirement; withdrawals are taken from accounts in the order that optimizes taxes (e.g. taxable and tax-deferred before Roth). Market downturns early in retirement can make the fixed real amount harder to sustain.`,
+      amount_based_fixed_percentage: `Fixed percentage. You withdraw a set percentage of the current portfolio value every year (e.g. 4% or 5%). The dollar amount therefore goes up when the market rises and down when it falls. In this plan, that percentage is applied to your total portfolio each year; the system then pulls from 401(k), IRA, Roth, and taxable in an order that considers taxes. Simpler than expense-based strategies but can produce uneven income.`,
+      amount_based_fixed_dollar: `Fixed dollar amount. You withdraw the same dollar amount every year regardless of portfolio size or market returns. The plan uses your specified amount and draws from accounts in a tax-aware order. Risk: in a long downturn the fixed amount can deplete assets faster; in a strong market you may leave more unspent. Useful for testing a specific spending level.`,
+      amount_based_swp: `Systematic Withdrawal Plan (earnings only). Withdrawals are limited to investment earnings (dividends, interest, and realized gains), leaving principal intact. In this plan, each year the engine calculates taxable investment income and only withdraws up to that amount from the appropriate accounts. Very conservative; in low-return years income may fall short of expenses.`,
+      sequence_proportional: `Proportional withdrawals. Each year you take the needed total from all account types in proportion to their current balances (e.g. if 60% of assets are in 401(k), 60% of that year’s withdrawal comes from 401(k)). This keeps the mix of account types stable over time. The plan applies this proportion to your accounts and models the tax impact of the tax-deferred and taxable portions.`,
+      sequence_bracket_topping: `Bracket-topping. Each year the plan withdraws enough from tax-deferred accounts (401(k), IRA) to “fill” your target federal tax bracket (e.g. 12% or 22%), then covers the rest from taxable and Roth. That keeps taxable income in a lower bracket and can reduce lifetime taxes. You choose the bracket threshold; the plan uses it to size tax-deferred withdrawals and then fills remaining needs from other accounts.`,
+      market_bucket: `Bucket strategy. Assets are split into time-based buckets (e.g. cash for 1–3 years, bonds for 3–10 years, stocks for 10+ years). Spending comes from the nearest-term bucket; longer-term buckets are rebalanced periodically. In this plan, the logic maps your accounts to short-, medium-, and long-term and withdraws from the appropriate bucket each year, with tax treatment following the account type. Aims to reduce sequence-of-returns risk.`,
+      market_guardrails: `Guardrails (Guyton–Klinger style). Withdrawals are a percentage of portfolio value but are capped and floored (e.g. between 3% and 6%). If the rate would go above the ceiling or below the floor, it is held at the limit. You set the ceiling and floor; the plan applies them each year and withdraws in a tax-aware order. Designed to balance sustainability with income stability.`,
+      market_floor_upside: `Floor-and-upside. A “floor” of income is covered by guaranteed sources (e.g. Social Security, pensions); the portfolio is used for “upside” spending above the floor. The plan uses your expenses and income to determine how much must come from the portfolio each year and withdraws in a tax-efficient order. Good when you want a stable base with flexible discretionary spending.`,
+      tax_roth_conversion: `Roth conversion bridge. Before RMDs (e.g. before 73), the plan converts amounts from Traditional IRA/401(k) into Roth up to a target tax bracket, building tax-free growth and lowering future RMDs. Withdrawals for spending still follow a tax-aware order. You control conversion timing and size; the plan models the extra tax in conversion years and the reduced taxable income later.`,
+      tax_qcd: `Qualified Charitable Distributions (QCDs). After 70½, IRA distributions sent directly to charity count toward your RMD and are not included in income. The plan models giving a portion of RMDs as QCDs, reducing taxable income and potentially taxes. Useful if you already give to charity; the plan shows the tax impact versus taking the same RMD as taxable income.`,
+    }
+    return explanations[strategyType] ?? 'This strategy’s withdrawal logic is applied to your accounts each year; the plan shows the impact on taxes, income, and remaining balances.'
+  }
 
   useEffect(() => {
     loadScenarios()
@@ -130,6 +208,12 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   }, [selectedScenarioId])
 
   const loadScenarios = async () => {
+    if (isLocal) {
+      const localScenario = { id: 0, scenario_name: 'Base Scenario', is_default: true }
+      setScenarios([localScenario])
+      if (!selectedScenarioId) setSelectedScenarioId(0)
+      return
+    }
     try {
       const { data, error } = await supabase
         .from('rp_scenarios')
@@ -159,7 +243,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       // Debounce to avoid too many recalculations
       const timeoutId = setTimeout(() => {
         calculateAndSaveProjections()
-      }, 300)
+      }, DEBOUNCE_SAVE_MS)
       return () => clearTimeout(timeoutId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,10 +260,51 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
   const loadProjections = async (scenarioId?: number) => {
     const targetScenarioId = scenarioId || selectedScenarioId
-    if (!targetScenarioId) return
+    if (!isLocal && !targetScenarioId) return
     
     setLoading(true)
     try {
+      if (isLocal && dataService) {
+        const [plan, accts, exps, income, stg, projs] = await Promise.all([
+          dataService.getPlan(),
+          dataService.getAccounts(),
+          dataService.getExpenses(),
+          dataService.getOtherIncome(),
+          dataService.getSettings(),
+          dataService.getProjections(),
+        ])
+        if (stg) {
+          const s = stg as any
+          setRetirementAge(s.retirement_age || DEFAULT_RETIREMENT_AGE)
+          setSettings({
+            current_year: s.current_year || new Date().getFullYear(),
+            retirement_age: s.retirement_age || DEFAULT_RETIREMENT_AGE,
+            retirement_start_year: s.retirement_start_year || 0,
+            years_to_retirement: s.years_to_retirement || 0,
+            annual_retirement_expenses: s.annual_retirement_expenses || 0,
+            growth_rate_before_retirement: parseFloat(s.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+            growth_rate_during_retirement: parseFloat(s.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+            inflation_rate: parseFloat(s.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
+            enable_borrowing: s.enable_borrowing || false,
+            ssa_start_age: s.ssa_start_age || s.retirement_age || DEFAULT_RETIREMENT_AGE,
+            pre_medicare_annual_premium: s.pre_medicare_annual_premium != null ? parseFloat(s.pre_medicare_annual_premium.toString()) : undefined,
+            post_medicare_annual_premium: s.post_medicare_annual_premium != null ? parseFloat(s.post_medicare_annual_premium.toString()) : undefined,
+            withdrawal_priority: 'default',
+            withdrawal_secondary_priority: 'tax_optimization',
+          })
+        }
+        if (plan) {
+          setLifeExpectancy((plan as any).life_expectancy || DEFAULT_LIFE_EXPECTANCY)
+          setPlanDataForTooltip(plan)
+        }
+        setAccountsForTooltip(accts)
+        setExpensesForTooltip(exps)
+        setOtherIncomeForTooltip(income)
+        setProjections(projs)
+        setLoading(false)
+        return
+      }
+
       // Load retirement age from settings and life expectancy from plan
       const [settingsResult, planResult, accountsResult, expensesResult, incomeResult] = await Promise.all([
         supabase
@@ -210,15 +335,17 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         setRetirementAge(settingsResult.data.retirement_age)
         setSettings({
           current_year: settingsResult.data.current_year || new Date().getFullYear(),
-          retirement_age: settingsResult.data.retirement_age || 65,
+          retirement_age: settingsResult.data.retirement_age || DEFAULT_RETIREMENT_AGE,
           retirement_start_year: settingsResult.data.retirement_start_year || 0,
           years_to_retirement: settingsResult.data.years_to_retirement || 0,
           annual_retirement_expenses: settingsResult.data.annual_retirement_expenses || 0,
-          growth_rate_before_retirement: parseFloat(settingsResult.data.growth_rate_before_retirement?.toString() || '0.1'),
-          growth_rate_during_retirement: parseFloat(settingsResult.data.growth_rate_during_retirement?.toString() || '0.05'),
-          inflation_rate: parseFloat(settingsResult.data.inflation_rate?.toString() || '0.04'),
+          growth_rate_before_retirement: parseFloat(settingsResult.data.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+          growth_rate_during_retirement: parseFloat(settingsResult.data.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+          inflation_rate: parseFloat(settingsResult.data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
           enable_borrowing: settingsResult.data.enable_borrowing || false,
-          ssa_start_age: settingsResult.data.ssa_start_age || settingsResult.data.retirement_age || 65,
+          ssa_start_age: settingsResult.data.ssa_start_age || settingsResult.data.retirement_age || DEFAULT_RETIREMENT_AGE,
+          pre_medicare_annual_premium: settingsResult.data.pre_medicare_annual_premium != null ? parseFloat(settingsResult.data.pre_medicare_annual_premium.toString()) : undefined,
+          post_medicare_annual_premium: settingsResult.data.post_medicare_annual_premium != null ? parseFloat(settingsResult.data.post_medicare_annual_premium.toString()) : undefined,
           withdrawal_priority: 'default',
           withdrawal_secondary_priority: 'tax_optimization',
         })
@@ -341,23 +468,28 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         inflation_adjusted: inc.inflation_adjusted || false,
       }))
 
-      const lifeExpectancy = planData.data?.life_expectancy || 90
+      const lifeExpectancy = planData.data?.life_expectancy || DEFAULT_LIFE_EXPECTANCY
 
-      // Base settings
-      const baseSettings: CalculatorSettings = {
-        current_year: settingsData.data.current_year || new Date().getFullYear(),
-        retirement_age: settingsData.data.retirement_age || 65,
-        retirement_start_year: settingsData.data.retirement_start_year || 0,
-        years_to_retirement: settingsData.data.years_to_retirement || 0,
-        annual_retirement_expenses: settingsData.data.annual_retirement_expenses || 0,
-        growth_rate_before_retirement: parseFloat(settingsData.data.growth_rate_before_retirement?.toString() || '0.1'),
-        growth_rate_during_retirement: parseFloat(settingsData.data.growth_rate_during_retirement?.toString() || '0.05'),
-        inflation_rate: parseFloat(settingsData.data.inflation_rate?.toString() || '0.04'),
-        enable_borrowing: settingsData.data.enable_borrowing || false,
-        ssa_start_age: settingsData.data.ssa_start_age || settingsData.data.retirement_age || 65,
-        withdrawal_priority: 'default',
-        withdrawal_secondary_priority: 'tax_optimization',
-      }
+      // Base settings: use same builder as saved projections so strategy comparison matches projections view
+      const currentYear = settingsData.data.current_year || new Date().getFullYear()
+      const birthYear = planData.data?.birth_year ?? currentYear - 50
+      const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
+      const yearsToRetirement = retirementAge - (currentYear - birthYear)
+      const annualExpenses = expenses.reduce((sum, exp) => {
+        const amount = retirementAge >= 65 ? (exp.amount_after_65 || 0) : (exp.amount_before_65 || 0)
+        return sum + amount
+      }, 0) * 12
+      const baseSettings = buildCalculatorSettings(
+        settingsData.data,
+        planData.data,
+        currentYear,
+        retirementAge,
+        yearsToRetirement,
+        annualExpenses
+      )
+      // Force default withdrawal priority for comparison (each strategy overrides type)
+      baseSettings.withdrawal_priority = 'default'
+      baseSettings.withdrawal_secondary_priority = 'tax_optimization'
 
       // Define all strategies to compare
       const strategiesToCompare: Array<{
@@ -444,7 +576,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         },
       ]
 
-      // Calculate estimated SSA amounts at start age for strategy comparison
+      // Calculate estimated SSA amounts at start age for strategy comparison (same logic as main projections / saved data)
       const compIncludePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
       
       // Automatically include spouse SSA if:
@@ -455,15 +587,22 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       const compHasSpouse = planData.data.include_spouse || false
       const compIsMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
       const compIncludeSpouseSsa = compExplicitSpouseSsa || compHasSpouse || compIsMarriedFilingJointly
-      
-      const compBaseEstimatedPlannerSsa = compIncludePlannerSsa ? calculateEstimatedSSA(0, true) : 0
-      const compBaseEstimatedSpouseSsa = compIncludeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
-      
-      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || 65
-      const compCurrentAge = new Date().getFullYear() - planData.data.birth_year
+
+      const compEstimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
+      const compPlannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
+        ? Number(settingsData.data.planner_ssa_annual_benefit)
+        : (compIncludePlannerSsa ? (compEstimatedIncomeForSsa > 0 ? calculateEstimatedSSA(compEstimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const compSpouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
+        ? Number(settingsData.data.spouse_ssa_annual_benefit)
+        : (compIncludeSpouseSsa ? (compEstimatedIncomeForSsa > 0 ? calculateEstimatedSSA(compEstimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+      const compBaseEstimatedPlannerSsa = compIncludePlannerSsa ? compPlannerBenefit : 0
+      const compBaseEstimatedSpouseSsa = compIncludeSpouseSsa ? compSpouseBenefit : 0
+
+      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || DEFAULT_SSA_START_AGE
+      const compCurrentAge = currentYear - birthYear
       const compYearsToSsaStart = Math.max(0, compSsaStartAge - compCurrentAge)
       const compInflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, compYearsToSsaStart)
-      
+
       const compEstimatedPlannerSsaAtStart = compIncludePlannerSsa ? compBaseEstimatedPlannerSsa * compInflationToSsaStart : undefined
       const compEstimatedSpouseSsaAtStart = compIncludeSpouseSsa ? compBaseEstimatedSpouseSsa * compInflationToSsaStart : undefined
 
@@ -485,7 +624,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         )
 
         // Calculate metrics
-        const retirementAge = strategy.settings.retirement_age || 65
+        const retirementAge = strategy.settings.retirement_age || DEFAULT_RETIREMENT_AGE
         const retirementProjections = calculatedProjections.filter(p => {
           const age = p.age || 0
           return age >= retirementAge
@@ -631,87 +770,117 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   }
 
   const calculateAndSaveProjections = async () => {
-    if (!selectedScenarioId) {
+    if (!isLocal && !selectedScenarioId) {
       console.warn('Please select a scenario first')
       return
     }
 
     try {
       setCalculating(true)
-      // Load life expectancy from plan
-      const { data: planData } = await supabase
-        .from('rp_retirement_plans')
-        .select('life_expectancy')
-        .eq('id', planId)
-        .single()
+      if (isLocal && dataService) {
+        const plan = await dataService.getPlan()
+        const le = (plan as any)?.life_expectancy || DEFAULT_MAX_PROJECTION_AGE
+        await calculateAndSaveProjectionsInternal(0, le)
+      } else {
+        const { data: planData } = await supabase
+          .from('rp_retirement_plans')
+          .select('life_expectancy')
+          .eq('id', planId)
+          .single()
 
-      const lifeExpectancy = planData?.life_expectancy || 100
-      await calculateAndSaveProjectionsInternal(selectedScenarioId, lifeExpectancy)
+        const lifeExpectancy = planData?.life_expectancy || DEFAULT_MAX_PROJECTION_AGE
+        await calculateAndSaveProjectionsInternal(selectedScenarioId!, lifeExpectancy)
+      }
     } catch (error: any) {
       console.error('Error in calculateAndSaveProjections:', error)
-      // Silently handle error - no alerts
     } finally {
       setCalculating(false)
     }
   }
 
-  const calculateAndSaveProjectionsInternal = async (scenarioId: number, lifeExpectancy: number = 100) => {
+  const calculateAndSaveProjectionsInternal = async (scenarioId: number, lifeExpectancy: number = DEFAULT_MAX_PROJECTION_AGE) => {
     try {
-      // Load all necessary data
-      const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
-        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy, filing_status').eq('id', planId).single(),
-        supabase.from('rp_accounts').select('*').eq('plan_id', planId),
-        supabase.from('rp_expenses').select('*').eq('plan_id', planId),
-        supabase.from('rp_other_income').select('*').eq('plan_id', planId),
-        supabase.from('rp_calculator_settings').select('*').eq('scenario_id', scenarioId).single(),
-      ])
+      let planDataObj: any
+      let accounts: Account[]
+      let expenses: Expense[]
+      let otherIncome: OtherIncome[]
+      let settingsDataObj: any
 
-      if (planData.error) throw planData.error
-      if (accountsData.error) throw accountsData.error
-      if (expensesData.error) throw expensesData.error
-      if (incomeData.error) throw incomeData.error
-      if (settingsData.error) throw settingsData.error
+      if (isLocal && dataService) {
+        const [plan, accts, exps, income, stg] = await Promise.all([
+          dataService.getPlan(),
+          dataService.getAccounts(),
+          dataService.getExpenses(),
+          dataService.getOtherIncome(),
+          dataService.getSettings(),
+        ])
+        if (!plan || !(plan as any).birth_year) {
+          console.warn('Please set birth year in Plan Details')
+          return
+        }
+        planDataObj = plan
+        accounts = accts
+        expenses = exps
+        otherIncome = income
+        settingsDataObj = stg || {}
+      } else {
+        const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
+          supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, spouse_birth_year, spouse_life_expectancy, filing_status').eq('id', planId).single(),
+          supabase.from('rp_accounts').select('*').eq('plan_id', planId),
+          supabase.from('rp_expenses').select('*').eq('plan_id', planId),
+          supabase.from('rp_other_income').select('*').eq('plan_id', planId),
+          supabase.from('rp_calculator_settings').select('*').eq('scenario_id', scenarioId).single(),
+        ])
 
-      if (!planData.data?.birth_year) {
-        console.warn('Please set birth year in Plan Details')
-        return
+        if (planData.error) throw planData.error
+        if (accountsData.error) throw accountsData.error
+        if (expensesData.error) throw expensesData.error
+        if (incomeData.error) throw incomeData.error
+        if (settingsData.error) throw settingsData.error
+
+        if (!planData.data?.birth_year) {
+          console.warn('Please set birth year in Plan Details')
+          return
+        }
+
+        if (!settingsData.data) {
+          console.warn('Please configure scenario settings in Plan Details')
+          return
+        }
+
+        planDataObj = planData.data
+        settingsDataObj = settingsData.data
+
+        accounts = (accountsData.data || []).map(acc => ({
+          id: acc.id,
+          account_name: acc.account_name,
+          owner: acc.owner || '',
+          balance: acc.balance || 0,
+          account_type: acc.account_type,
+          annual_contribution: acc.annual_contribution || 0,
+        }))
+
+        expenses = (expensesData.data || []).map(exp => ({
+          id: exp.id,
+          expense_name: exp.expense_name,
+          amount_after_65: exp.amount_after_65 || 0,
+          amount_before_65: exp.amount_before_65 || 0,
+        }))
+
+        otherIncome = (incomeData.data || []).map(inc => ({
+          id: inc.id,
+          income_name: inc.income_source || '',
+          amount: inc.annual_amount || 0,
+          start_year: inc.start_year || undefined,
+          end_year: inc.end_year || undefined,
+          inflation_adjusted: inc.inflation_adjusted || false,
+        }))
       }
-
-      if (!settingsData.data) {
-        console.warn('Please configure scenario settings in Plan Details')
-        return
-      }
-
-      const accounts: Account[] = (accountsData.data || []).map(acc => ({
-        id: acc.id,
-        account_name: acc.account_name,
-        owner: acc.owner || '',
-        balance: acc.balance || 0,
-        account_type: acc.account_type,
-        annual_contribution: acc.annual_contribution || 0,
-      }))
-
-      const expenses: Expense[] = (expensesData.data || []).map(exp => ({
-        id: exp.id,
-        expense_name: exp.expense_name,
-        amount_after_65: exp.amount_after_65 || 0,
-        amount_before_65: exp.amount_before_65 || 0,
-      }))
-
-      const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({
-        id: inc.id,
-        income_name: inc.income_source || '',
-        amount: inc.annual_amount || 0,
-        start_year: inc.start_year || undefined,
-        end_year: inc.end_year || undefined,
-        inflation_adjusted: inc.inflation_adjusted || false,
-      }))
 
       // For saved projections, use common helper function to ensure consistency
-      // Calculate years to retirement
       const currentYear = new Date().getFullYear()
-      const birthYear = planData.data.birth_year
-      const retirementAge = settingsData.data.retirement_age || 65
+      const birthYear = planDataObj.birth_year
+      const retirementAge = settingsDataObj.retirement_age || DEFAULT_RETIREMENT_AGE
       const yearsToRetirement = retirementAge - (currentYear - birthYear)
       const annualExpenses = expenses.reduce((sum, exp) => {
         const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
@@ -719,8 +888,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       }, 0) * 12
       
       const baseSettings = buildCalculatorSettings(
-        settingsData.data,
-        planData.data,
+        settingsDataObj,
+        planDataObj,
         currentYear,
         retirementAge,
         yearsToRetirement,
@@ -740,31 +909,32 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         setRetirementAge(settings.retirement_age)
       }
       // Set life expectancy
-      if (planData.data?.life_expectancy) {
-        setLifeExpectancy(planData.data.life_expectancy)
+      if (planDataObj?.life_expectancy) {
+        setLifeExpectancy(planDataObj.life_expectancy)
       }
       setSettings(settings)
 
       // Calculate estimated SSA amounts at start age
-      const includePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
+      const includePlannerSsa = settingsDataObj?.planner_ssa_income !== undefined ? settingsDataObj.planner_ssa_income : true
       
-      // Automatically include spouse SSA if:
-      // 1. User explicitly set it to true, OR
-      // 2. Plan includes spouse (include_spouse = true), OR
-      // 3. Filing status is "Married Filing Jointly"
-      // This ensures realistic projections for married couples
-      const explicitSpouseSsa = (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : false)
-      const hasSpouse = planData.data.include_spouse || false
-      const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+      const explicitSpouseSsa = (settingsDataObj?.spouse_ssa_income !== undefined ? settingsDataObj.spouse_ssa_income : false)
+      const hasSpouse = planDataObj.include_spouse || false
+      const isMarriedFilingJointly = planDataObj.filing_status === 'Married Filing Jointly'
       const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
-      
-      // Get base SSA estimates (using default income since advanced view doesn't have income input)
-      const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
-      const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
-      
+
+      const estimatedIncomeForSsa = Number(settingsDataObj?.estimated_ssa_annual_income) || 0
+      const plannerBenefit = settingsDataObj?.planner_ssa_annual_benefit != null
+        ? Number(settingsDataObj.planner_ssa_annual_benefit)
+        : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const spouseBenefit = settingsDataObj?.spouse_ssa_annual_benefit != null
+        ? Number(settingsDataObj.spouse_ssa_annual_benefit)
+        : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+      const baseEstimatedPlannerSsa = includePlannerSsa ? plannerBenefit : 0
+      const baseEstimatedSpouseSsa = includeSpouseSsa ? spouseBenefit : 0
+
       // Adjust for inflation from current year to SSA start age
-      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || 65
-      const currentAge = currentYear - planData.data.birth_year
+      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_SSA_START_AGE
+      const currentAge = currentYear - planDataObj.birth_year
       const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
       const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
       
@@ -774,14 +944,14 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
       // Calculate projections - use life expectancy parameter
       const calculatedProjections = calculateRetirementProjections(
-        planData.data.birth_year,
+        planDataObj.birth_year,
         accounts,
         expenses,
         otherIncome,
         settings,
-        lifeExpectancy, // Project to life expectancy age
-        planData.data.spouse_birth_year || undefined,
-        planData.data.spouse_life_expectancy || undefined,
+        lifeExpectancy,
+        planDataObj.spouse_birth_year || undefined,
+        planDataObj.spouse_life_expectancy || undefined,
         includePlannerSsa,
         includeSpouseSsa,
         estimatedPlannerSsaAtStart,
@@ -790,19 +960,26 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       
       // For saving, recalculate with default strategy
       const projectionsForSaving = calculateRetirementProjections(
-        planData.data.birth_year,
+        planDataObj.birth_year,
         accounts,
         expenses,
         otherIncome,
-        baseSettings, // Always use default strategy for saved projections
+        baseSettings,
         lifeExpectancy,
-        planData.data.spouse_birth_year || undefined,
-        planData.data.spouse_life_expectancy || undefined,
+        planDataObj.spouse_birth_year || undefined,
+        planDataObj.spouse_life_expectancy || undefined,
         includePlannerSsa,
         includeSpouseSsa,
         estimatedPlannerSsaAtStart,
         estimatedSpouseSsaAtStart
       )
+
+      // For local mode, save projections directly to localStorage
+      if (isLocal && dataService) {
+        await dataService.saveProjections(projectionsForSaving)
+        await loadProjections(scenarioId)
+        return
+      }
 
       // Delete existing projections for this scenario
       const { error: deleteError } = await supabase
@@ -835,7 +1012,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
         total_income: proj.total_income || 0,
         after_tax_income: proj.after_tax_income || 0,
         living_expenses: proj.living_expenses || 0,
-        special_expenses: proj.special_expenses || 0,
+        special_expenses: proj.healthcare_expenses ?? proj.special_expenses ?? 0,
         total_expenses: proj.total_expenses || 0,
         annual_contribution: proj.annual_contribution || 0,
         gap_excess: proj.gap_excess || 0,
@@ -891,7 +1068,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
               total_income: rest.total_income || 0,
               after_tax_income: rest.after_tax_income || 0,
               living_expenses: rest.living_expenses || 0,
-              special_expenses: rest.special_expenses || 0,
+              special_expenses: rest.healthcare_expenses ?? rest.special_expenses ?? 0,
               total_expenses: rest.total_expenses || 0,
               gap_excess: rest.gap_excess || 0,
               cumulative_liability: rest.cumulative_liability || 0,
@@ -954,7 +1131,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
   }
 
   if (loading && projections.length === 0) {
-    return <div className="p-6 text-center text-gray-600">Loading projections...</div>
+    return <div className="p-6 text-center text-sm text-muted-foreground">Loading projections…</div>
   }
 
   // Filter projections based on toggle
@@ -964,72 +1141,62 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Projections</h2>
+      {/* Header row */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">Projections</h2>
           {/* Scenario Selector */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Scenario:</label>
-            <select
-              value={selectedScenarioId || ''}
-              onChange={(e) => setSelectedScenarioId(parseInt(e.target.value))}
-              className="flex-1 sm:flex-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Scenario:</span>
+            <Select
+              value={selectedScenarioId ? String(selectedScenarioId) : ''}
+              onValueChange={(v) => setSelectedScenarioId(parseInt(v))}
+              disabled={scenarios.length === 0}
             >
-              {scenarios.length === 0 ? (
-                <option value="">No scenarios available</option>
-              ) : (
-                scenarios.map((scenario) => (
-                  <option key={scenario.id} value={scenario.id}>
-                    {scenario.scenario_name}
-                    {scenario.is_default ? ' (Default)' : ''}
-                  </option>
-                ))
-              )}
-            </select>
+              <SelectTrigger className="h-8 min-w-40 text-sm">
+                <SelectValue placeholder="No scenarios" />
+              </SelectTrigger>
+              <SelectContent>
+                {scenarios.map((scenario) => (
+                  <SelectItem key={scenario.id} value={String(scenario.id)}>
+                    {scenario.scenario_name}{scenario.is_default ? ' (Default)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-          <button
+        <div className="flex items-center gap-2">
+          <Button
             onClick={calculateAndSaveProjections}
             disabled={calculating || !selectedScenarioId}
-            className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 disabled:opacity-50"
+            size="sm"
           >
-            <Calculator className="w-4 h-4" />
-            {calculating ? 'Calculating...' : 'Calculate Projections'}
-          </button>
-          <button
-            onClick={() => setActiveSubTab('strategy-modeling')}
-            className="flex items-center gap-2 rounded-md bg-purple-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-200"
-          >
-            <Settings className="w-4 h-4" />
-            Strategy Modeling
-          </button>
+            <Calculator className="h-3.5 w-3.5" />
+            {calculating ? 'Calculating…' : 'Calculate Projections'}
+          </Button>
         </div>
       </div>
 
       {/* Sub-tabs */}
-      <div className="mb-4 border-b border-gray-200 overflow-x-auto overflow-y-hidden">
-        <nav className="-mb-px flex space-x-4 sm:space-x-8">
-          <button
-            onClick={() => setActiveSubTab('projections')}
-            className={`whitespace-nowrap border-b-2 px-2 sm:px-1 py-3 sm:py-4 text-sm font-medium ${
-              activeSubTab === 'projections'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
-            }`}
-          >
-            Projections
-          </button>
-          <button
-            onClick={() => setActiveSubTab('strategy-modeling')}
-            className={`whitespace-nowrap border-b-2 px-2 sm:px-1 py-3 sm:py-4 text-sm font-medium ${
-              activeSubTab === 'strategy-modeling'
-                ? 'border-purple-500 text-purple-600'
-                : 'border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900'
-            }`}
-          >
-            Strategy Modeling
-          </button>
+      <div className="mb-4 border-b overflow-x-auto overflow-y-hidden">
+        <nav className="-mb-px flex gap-6">
+          {([
+            { id: 'projections' as const, label: 'Projections' },
+            { id: 'strategy-modeling' as const, label: 'Withdrawal Strategy Modeling' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`whitespace-nowrap border-b-2 pb-3 pt-1 text-sm font-medium transition-colors ${
+                activeSubTab === tab.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </nav>
       </div>
 
@@ -1099,6 +1266,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           
           // Lifetime expenses
           const lifetimeExpenses = retirementProjections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
+          const lifetimeHealthcare = retirementProjections.reduce((sum, p) => sum + (p.healthcare_expenses || 0), 0)
+          const lifetimeLiving = retirementProjections.reduce((sum, p) => sum + (p.living_expenses || 0), 0)
           
           // Total withdrawals
           const totalWithdrawals = total401kWithdrawals + totalRothWithdrawals + totalTaxableWithdrawals + totalIraWithdrawals + totalHsaWithdrawals
@@ -1121,29 +1290,63 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
           }
 
           return (
-            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                Withdrawal Strategy: {getStrategyName()}{' '}
-                <button
+            <div className="mb-6 rounded-xl border bg-card p-4 shadow-sm">
+              {/* Strategy pill header */}
+              <div className="flex items-center gap-3 mb-5 flex-wrap">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Withdrawal Strategy</span>
+                <Badge variant="outline" className="font-medium text-sm px-3 py-0.5">
+                  {getStrategyName()}
+                </Badge>
+                <TooltipProvider>
+                  <Tooltip open={strategyExplanationOpen} onOpenChange={setStrategyExplanationOpen}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-full p-0.5 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        aria-label="How this strategy works"
+                        onMouseEnter={() => setStrategyExplanationOpen(true)}
+                        onMouseLeave={() => setStrategyExplanationOpen(false)}
+                        onClick={() => setStrategyExplanationOpen((prev) => !prev)}
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      align="start"
+                      sideOffset={8}
+                      className="max-w-sm sm:max-w-md text-left text-xs leading-relaxed whitespace-pre-line p-3"
+                    >
+                      {getStrategyExplanation(modelingStrategyType)}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-7 text-xs"
                   onClick={() => setShowStrategyPopup(true)}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
                 >
                   Change
-                </button>
-              </h3>
+                </Button>
+              </div>
+
+              {/* Primary Outcomes label */}
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Primary Outcomes</p>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                  <p className="text-xs font-medium text-blue-900 mb-1">Legacy Value</p>
-                  <p className="text-lg font-semibold text-blue-900">
+              {/* Primary metrics row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="rounded-xl border bg-card p-3 border-l-4 border-l-primary">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">End Networth</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums">
                     ${legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-xs text-blue-700 mt-1">Final net worth</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Final projected net worth</p>
                 </div>
                 
-                <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs font-medium text-green-900">Longevity</p>
+                <div className={`rounded-xl border bg-card p-3 border-l-4 ${zeroNetworthYear >= 0 ? 'border-l-destructive' : 'border-l-emerald-500'}`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Longevity</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1166,7 +1369,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                               
                               const totalAccountBalance = accountsForTooltip.reduce((sum, acc) => sum + (acc.balance || 0), 0)
                               const totalMonthlyExpenses = expensesForTooltip.reduce((sum, exp) => {
-                                const amount = (retirementAge || 65) >= 65 ? exp.amount_after_65 : exp.amount_before_65
+                                const amount = (retirementAge || DEFAULT_RETIREMENT_AGE) >= 65 ? exp.amount_after_65 : exp.amount_before_65
                                 return sum + (amount || 0)
                               }, 0)
                               const totalAnnualExpenses = totalMonthlyExpenses * 12
@@ -1214,7 +1417,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                                         <div className="ml-4 mt-1">
                                           {expensesForTooltip.map(exp => (
                                             <p key={exp.id} className="text-xs">
-                                              • {exp.expense_name}: ${((retirementAge || 65) >= 65 ? exp.amount_after_65 : exp.amount_before_65) || 0}/month
+                                              • {exp.expense_name}: ${((retirementAge || DEFAULT_RETIREMENT_AGE) >= 65 ? exp.amount_after_65 : exp.amount_before_65) || 0}/month
                                             </p>
                                           ))}
                                         </div>
@@ -1239,11 +1442,11 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                                     <h4 className="font-semibold text-yellow-400 mb-2">Assumptions</h4>
                                     <div className="space-y-1 text-gray-300">
                                       <p><span className="text-gray-500">Growth Rate (Pre-Retirement):</span> {((settings?.growth_rate_before_retirement || 0.1) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settings?.growth_rate_during_retirement || 0.05) * 100).toFixed(2)}%</p>
-                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settings?.inflation_rate || 0.04) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Growth Rate (During Retirement):</span> {((settings?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100).toFixed(2)}%</p>
+                                      <p><span className="text-gray-500">Inflation Rate:</span> {((settings?.inflation_rate || DEFAULT_INFLATION_RATE) * 100).toFixed(2)}%</p>
                                       <p><span className="text-gray-500">Taxes:</span> Using IRS brackets</p>
-                                      <p><span className="text-gray-500">SSA Start Age:</span> {settings?.ssa_start_age || settings?.retirement_age || 65} years</p>
-                                      <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || 'Single'}</p>
+                                      <p><span className="text-gray-500">SSA Start Age:</span> {settings?.ssa_start_age || settings?.retirement_age || DEFAULT_RETIREMENT_AGE} years</p>
+                                      <p><span className="text-gray-500">Filing Status:</span> {planDataForTooltip?.filing_status || DEFAULT_FILING_STATUS}</p>
                                       <p><span className="text-gray-500">Borrowing Enabled:</span> {settings?.enable_borrowing ? 'Yes' : 'No'}</p>
                                       {(planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly') && (
                                         <p className="text-xs text-yellow-400 mt-2">
@@ -1271,110 +1474,167 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <p className="text-lg font-semibold text-green-900">
+                  <p className={`mt-1 text-lg font-bold ${zeroNetworthYear >= 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {longevityDisplay}
                   </p>
                 </div>
                 
-                <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                  <p className="text-xs font-medium text-red-900 mb-1">Total Tax</p>
-                  <p className="text-lg font-semibold text-red-900">
+                <div className="rounded-xl border bg-card p-3 border-l-4 border-l-destructive">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Tax</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums text-destructive">
                     ${totalTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-xs text-red-700 mt-1">Lifetime taxes paid</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Lifetime taxes paid</p>
                 </div>
                 
-                <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                  <p className="text-xs font-medium text-purple-900 mb-1">Avg Annual Tax</p>
-                  <p className="text-lg font-semibold text-purple-900">
+                <div className="rounded-xl border bg-card p-3 border-l-4 border-l-amber-500">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg Annual Tax</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums">
                     ${avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-xs text-purple-700 mt-1">Per year average</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Per year average</p>
                 </div>
                 
-                <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                  <p className="text-xs font-medium text-yellow-900 mb-1">Tax Efficiency</p>
-                  <p className="text-lg font-semibold text-yellow-900">
-                    {taxEfficiency.toFixed(2)}%
+                <div className={`rounded-xl border bg-card p-3 border-l-4 ${taxEfficiency < 15 ? 'border-l-emerald-500' : taxEfficiency < 25 ? 'border-l-amber-500' : 'border-l-destructive'}`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tax Efficiency</p>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="cursor-help text-muted-foreground/60 hover:text-muted-foreground">
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          <p className="font-semibold mb-1">Tax Efficiency</p>
+                          <p>Total taxes paid ÷ Total gross income during retirement.</p>
+                          <p className="mt-1 text-muted-foreground">Lower is better. Under 15% is excellent; over 25% may warrant a Roth conversion or QCD strategy.</p>
+                          <p className="mt-1 font-mono">{totalTax > 0 ? `$${totalTax.toLocaleString(undefined,{maximumFractionDigits:0})} ÷ $${totalIncome.toLocaleString(undefined,{maximumFractionDigits:0})} = ${taxEfficiency.toFixed(1)}%` : 'N/A'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <p className="text-lg font-bold tabular-nums">
+                    {taxEfficiency.toFixed(1)}%
                   </p>
-                  <p className="text-xs text-yellow-700 mt-1">Tax as % of income</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Tax as % of gross income</p>
                 </div>
                 
-                <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
-                  <p className="text-xs font-medium text-orange-900 mb-1">Negative Years</p>
-                  <p className="text-lg font-semibold text-orange-900">
-                    {negativeYears} ({negativeYearsPercentage.toFixed(2)}%)
+                <div className={`rounded-xl border bg-card p-3 border-l-4 ${negativeYears === 0 ? 'border-l-emerald-500' : 'border-l-destructive'}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Shortfall Years</p>
+                  <p className={`mt-1 text-lg font-bold tabular-nums ${negativeYears > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {negativeYears} ({negativeYearsPercentage.toFixed(1)}%)
                   </p>
-                  <p className="text-xs text-orange-700 mt-1">Years with shortfall</p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Years income &lt; expenses</p>
                 </div>
               </div>
+
+              {/* Lifetime Totals label */}
+              <p className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Lifetime Totals</p>
               
-              {/* Lifetime Income, Expenses, Remaining Balances, and Total Withdrawals */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-200">
-                    <p className="text-xs font-medium text-indigo-900 mb-1">Lifetime Income</p>
-                    <p className="text-lg font-semibold text-indigo-900">
-                      ${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-indigo-700 mt-1">Total income during retirement</p>
-                  </div>
-                  
-                  <div className="bg-pink-50 rounded-lg p-3 border border-pink-200">
-                    <p className="text-xs font-medium text-pink-900 mb-1">Lifetime Expenses</p>
-                    <p className="text-lg font-semibold text-pink-900">
-                      ${lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-pink-700 mt-1">Total expenses during retirement</p>
-                  </div>
-                  
-                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
-                    <p className="text-xs font-medium text-emerald-900 mb-1">Remaining Account Balances</p>
-                    <p className="text-lg font-semibold text-emerald-900">
-                      ${totalRemainingBalances.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-emerald-700 mt-1">
-                      401k: ${remaining401k.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      IRA: ${remainingIra.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Roth: ${remainingRoth.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Taxable: ${remainingTaxable.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      HSA: ${remainingHsa.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Other: ${remainingOther.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                  
-                  <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-                    <p className="text-xs font-medium text-amber-900 mb-1">Total Withdrawals</p>
-                    <p className="text-lg font-semibold text-amber-900">
-                      ${totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      401k: ${total401kWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      IRA: ${totalIraWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Roth: ${totalRothWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      Taxable: ${totalTaxableWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                      HSA: ${totalHsaWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
+              {/* Secondary flow metrics — unified border-l styling */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-emerald-500">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lifetime Income</p>
+                  <p className="mt-1 text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    ${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Total gross income during retirement</p>
+                </div>
+                
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-destructive">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lifetime Expenses</p>
+                  <p className="mt-1 text-base font-bold tabular-nums text-destructive">
+                    ${lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-foreground/60 mt-0.5">Total expenses during retirement</p>
+                  {lifetimeHealthcare > 0 && (
+                    <div className="mt-2 flex gap-3 text-[11px] text-foreground/60">
+                      <span>Living: ${lifetimeLiving.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                      <span>Healthcare: ${lifetimeHealthcare.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-violet-500">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remaining Balances</p>
+                  <p className="mt-1 text-base font-bold tabular-nums">
+                    ${totalRemainingBalances.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-foreground/60 mt-1">Account balances at end of plan</p>
+                  {/* Mini stacked breakdown */}
+                  {totalRemainingBalances > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {[
+                        { label: '401k', value: remaining401k, color: 'bg-blue-500' },
+                        { label: 'IRA', value: remainingIra, color: 'bg-amber-500' },
+                        { label: 'Roth', value: remainingRoth, color: 'bg-emerald-500' },
+                        { label: 'Other', value: remainingTaxable + remainingHsa + remainingOther, color: 'bg-violet-400' },
+                      ].filter(x => x.value > 0).map(({ label, value, color }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <div className="h-1.5 rounded-full shrink-0" style={{ width: `${Math.max(4, (value / totalRemainingBalances) * 80)}px` }}>
+                            <div className={`h-full w-full rounded-full ${color}`} />
+                          </div>
+                          <span className="text-[10px] font-medium text-foreground/70">{label}</span>
+                          <span className="text-[10px] text-foreground/50 ml-auto">${(value / 1000).toFixed(0)}k</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-sky-500">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Withdrawals</p>
+                  <p className="mt-1 text-base font-bold tabular-nums">
+                    ${totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-[11px] text-foreground/60 mt-1">Retirement account withdrawals</p>
+                  {/* Mini stacked breakdown */}
+                  {totalWithdrawals > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {[
+                        { label: '401k', value: total401kWithdrawals, color: 'bg-blue-500' },
+                        { label: 'IRA', value: totalIraWithdrawals, color: 'bg-amber-500' },
+                        { label: 'Roth', value: totalRothWithdrawals, color: 'bg-emerald-500' },
+                        { label: 'Taxable', value: totalTaxableWithdrawals, color: 'bg-violet-400' },
+                      ].filter(x => x.value > 0).map(({ label, value, color }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <div className="h-1.5 rounded-full shrink-0" style={{ width: `${Math.max(4, (value / totalWithdrawals) * 80)}px` }}>
+                            <div className={`h-full w-full rounded-full ${color}`} />
+                          </div>
+                          <span className="text-[10px] font-medium text-foreground/70">{label}</span>
+                          <span className="text-[10px] text-foreground/50 ml-auto">${(value / 1000).toFixed(0)}k</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )
         })()}
 
-          {/* Controls for view mode, graph type, and column visibility */}
-          <div className="mb-4 flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
+          {/* Controls toolbar */}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            {/* Pre-retirement toggle */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="pre-retirement"
                 checked={showPreRetirement}
-                onChange={(e) => setShowPreRetirement(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                onCheckedChange={(v) => setShowPreRetirement(!!v)}
               />
-              <span>Show Pre-Retirement Years</span>
-            </label>
+              <Label htmlFor="pre-retirement" className="text-sm font-normal cursor-pointer">
+                Show Pre-Retirement Years
+              </Label>
+            </div>
+
+            <div className="ml-auto flex items-center gap-2 flex-wrap">
             {projections.length > 0 && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   // Export projections to CSV
                   const filteredProjs = projections.filter(p => {
@@ -1403,7 +1663,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     'Total Income',
                     'After-Tax Income',
                     'Living Expenses',
-                    'Special Expenses',
+                    'Healthcare Expenses',
                     'Total Expenses',
                     'Annual Contribution',
                     'Gap/Excess',
@@ -1537,7 +1797,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       (proj.total_income || 0).toFixed(2),
                       (proj.after_tax_income || 0).toFixed(2),
                       (proj.living_expenses || 0).toFixed(2),
-                      (proj.special_expenses || 0).toFixed(2),
+                      (proj.healthcare_expenses || 0).toFixed(2),
                       (proj.total_expenses || 0).toFixed(2),
                       (contribution || 0).toFixed(2),
                       (proj.gap_excess || 0).toFixed(2),
@@ -1584,290 +1844,195 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   link.click()
                   document.body.removeChild(link)
                 }}
-                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                className="h-8"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export to CSV
-              </button>
+                <Download className="h-3.5 w-3.5" />
+                Export CSV
+              </Button>
             )}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 text-sm rounded-l-md ${
-                    viewMode === 'table'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Table
-                </button>
-                <button
-                  onClick={() => setViewMode('graph')}
-                  className={`px-3 py-1 text-sm rounded-r-md ${
-                    (viewMode as 'table' | 'graph') === 'graph'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Graph
-                </button>
+
+            {/* Table / Graph segmented control */}
+            <div className="flex items-center rounded-lg border p-0.5 gap-0.5">
+              <Button
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5"
+                onClick={() => setViewMode('table')}
+              >
+                <Table2 className="h-3.5 w-3.5" />
+                Table
+              </Button>
+              <Button
+                variant={(viewMode as string) === 'graph' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5"
+                onClick={() => setViewMode('graph')}
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                Graph
+              </Button>
+            </div>
+
+            {/* Graph type picker (only when graph selected) */}
+            {(viewMode as string) === 'graph' && (
+              <div className="flex items-center rounded-lg border p-0.5 gap-0.5">
+                {(['line', 'area', 'bar'] as const).map((t) => (
+                  <Button
+                    key={t}
+                    variant={graphType === t ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-7 px-2.5 capitalize"
+                    onClick={() => setGraphType(t)}
+                  >
+                    {t}
+                  </Button>
+                ))}
               </div>
-              {(viewMode as 'table' | 'graph') === 'graph' && (
-                <div className="flex items-center space-x-2 border border-gray-300 rounded-md">
-                  <button
-                    onClick={() => setGraphType('line')}
-                    className={`px-3 py-1 text-sm rounded-l-md ${
-                      graphType === 'line'
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Line
-                  </button>
-                  <button
-                    onClick={() => setGraphType('area')}
-                    className={`px-3 py-1 text-sm ${
-                      graphType === 'area'
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Area
-                  </button>
-                  <button
-                    onClick={() => setGraphType('bar')}
-                    className={`px-3 py-1 text-sm rounded-r-md ${
-                      graphType === 'bar'
-                        ? 'bg-gray-200 text-gray-900'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Bar
-                  </button>
-                </div>
-              )}
-              <div className="relative">
-                <button
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  onClick={(e) => {
-                    const menu = e.currentTarget.nextElementSibling as HTMLElement
-                    menu?.classList.toggle('hidden')
+            )}
+
+            {/* Column visibility dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8">
+                  <Columns3 className="h-3.5 w-3.5" />
+                  Columns
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto">
+                <DropdownMenuLabel className="text-xs">Groups</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={Object.values(visibleColumns).every(v => v)}
+                  onCheckedChange={(allVisible) => {
+                    setVisibleColumns({
+                      year: allVisible, age: allVisible, event: allVisible,
+                      ssa: allVisible, dist401k: allVisible, distRoth: allVisible,
+                      distTaxable: allVisible, distHsa: allVisible, distIra: allVisible,
+                      distOther: allVisible, otherIncome: allVisible, totalIncome: allVisible,
+                      expenses: allVisible, contribution: allVisible, gapExcess: allVisible,
+                      networth: allVisible, balance401k: allVisible, balanceRoth: allVisible,
+                      balanceTaxable: allVisible, balanceHsa: allVisible, balanceIra: allVisible,
+                      balanceOther: allVisible,
+                    })
                   }}
                 >
-                  Show/Hide Columns
-                </button>
-                <div className="absolute right-0 mt-1 hidden w-64 rounded-md border border-gray-200 bg-white shadow-lg z-20 max-h-96 overflow-y-auto">
-                  <div className="p-2">
-                    <div className="mb-2 border-b pb-2">
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={Object.values(visibleColumns).every(v => v)}
-                          onChange={(e) => {
-                            const allVisible = e.target.checked
-                            setVisibleColumns({
-                              year: allVisible,
-                              age: allVisible,
-                              event: allVisible,
-                              ssa: allVisible,
-                              dist401k: allVisible,
-                              distRoth: allVisible,
-                              distTaxable: allVisible,
-                              distHsa: allVisible,
-                              distIra: allVisible,
-                              distOther: allVisible,
-                              otherIncome: allVisible,
-                              totalIncome: allVisible,
-                              expenses: allVisible,
-                              contribution: allVisible,
-                              gapExcess: allVisible,
-                              networth: allVisible,
-                              balance401k: allVisible,
-                              balanceRoth: allVisible,
-                              balanceTaxable: allVisible,
-                              balanceHsa: allVisible,
-                              balanceIra: allVisible,
-                              balanceOther: allVisible,
-                            })
-                          }}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span>Select All</span>
-                      </label>
-                    </div>
-                    <div className="mb-2 border-b pb-2 space-y-1">
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={incomeGroupExpanded}
-                          onChange={(e) => {
-                            const expanded = e.target.checked
-                            setIncomeGroupExpanded(expanded)
-                            if (expanded) {
-                              setVisibleColumns({
-                                ...visibleColumns,
-                                ssa: visibleColumns.ssa || true,
-                                dist401k: visibleColumns.dist401k || true,
-                                distRoth: visibleColumns.distRoth || true,
-                                distTaxable: visibleColumns.distTaxable || true,
-                                distHsa: visibleColumns.distHsa || true,
-                                distIra: visibleColumns.distIra || true,
-                                distOther: visibleColumns.distOther || true,
-                                otherIncome: visibleColumns.otherIncome || true,
-                              })
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span>Expand Income Group</span>
-                      </label>
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={balanceGroupExpanded}
-                          onChange={(e) => {
-                            const expanded = e.target.checked
-                            setBalanceGroupExpanded(expanded)
-                            if (expanded) {
-                              setVisibleColumns({
-                                ...visibleColumns,
-                                balance401k: visibleColumns.balance401k || true,
-                                balanceRoth: visibleColumns.balanceRoth || true,
-                                balanceTaxable: visibleColumns.balanceTaxable || true,
-                                balanceHsa: visibleColumns.balanceHsa || true,
-                                balanceIra: visibleColumns.balanceIra || true,
-                                balanceOther: visibleColumns.balanceOther || true,
-                              })
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span>Expand Balance Group</span>
-                      </label>
-                    </div>
-                    <div className="space-y-1">
-                      {Object.entries(visibleColumns).map(([key, value]) => {
-                        const isIncomeColumn = ['ssa', 'dist401k', 'distRoth', 'distTaxable', 'distHsa', 'distIra', 'distOther', 'otherIncome'].includes(key)
-                        const isBalanceColumn = ['balance401k', 'balanceRoth', 'balanceTaxable', 'balanceHsa', 'balanceIra', 'balanceOther'].includes(key)
-                        const shouldShow = key === 'event' || !((isIncomeColumn && !incomeGroupExpanded) || (isBalanceColumn && !balanceGroupExpanded))
-                        
-                        return (
-                          <label key={key} className={`flex items-center gap-2 text-xs text-gray-700 hover:bg-gray-50 px-2 py-1 rounded ${!shouldShow ? 'opacity-50' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={value}
-                              disabled={!shouldShow}
-                              onChange={(e) => setVisibleColumns({ ...visibleColumns, [key]: e.target.checked })}
-                              className="rounded border-gray-300 text-blue-600"
-                            />
-                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  Select All
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={incomeGroupExpanded}
+                  onCheckedChange={(expanded) => {
+                    setIncomeGroupExpanded(expanded)
+                    if (expanded) setVisibleColumns({ ...visibleColumns, ssa: true, dist401k: true, distRoth: true, distTaxable: true, distHsa: true, distIra: true, distOther: true, otherIncome: true })
+                  }}
+                >
+                  Expand Income Group
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={balanceGroupExpanded}
+                  onCheckedChange={(expanded) => {
+                    setBalanceGroupExpanded(expanded)
+                    if (expanded) setVisibleColumns({ ...visibleColumns, balance401k: true, balanceRoth: true, balanceTaxable: true, balanceHsa: true, balanceIra: true, balanceOther: true })
+                  }}
+                >
+                  Expand Balance Group
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">Columns</DropdownMenuLabel>
+                {Object.entries(visibleColumns).map(([key, value]) => {
+                  const isIncomeColumn = ['ssa', 'dist401k', 'distRoth', 'distTaxable', 'distHsa', 'distIra', 'distOther', 'otherIncome'].includes(key)
+                  const isBalanceColumn = ['balance401k', 'balanceRoth', 'balanceTaxable', 'balanceHsa', 'balanceIra', 'balanceOther'].includes(key)
+                  const shouldShow = key === 'event' || !((isIncomeColumn && !incomeGroupExpanded) || (isBalanceColumn && !balanceGroupExpanded))
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={key}
+                      checked={value}
+                      disabled={!shouldShow}
+                      className={!shouldShow ? 'opacity-40' : ''}
+                      onCheckedChange={(v) => setVisibleColumns({ ...visibleColumns, [key]: v })}
+                    >
+                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    </DropdownMenuCheckboxItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
             </div>
           </div>
 
           {/* Table or Graph View */}
           {viewMode === 'table' && (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border">
               <div className="inline-block min-w-full align-middle">
-                <table className="min-w-full divide-y divide-gray-200 border text-xs sm:text-sm">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
+                <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
+                  <thead className="bg-muted/40 sticky top-0 z-10">
                     <tr>
-                      {visibleColumns.year && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Year</th>}
-                      {visibleColumns.age && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Age</th>}
-                      {visibleColumns.event && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase">Event</th>}
+                      {visibleColumns.year && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Year</th>}
+                      {visibleColumns.age && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Age</th>}
+                      {visibleColumns.event && <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Event</th>}
                     
                     {/* Individual Income Columns (shown when expanded) */}
-                    {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">SSA</th>}
-                    {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">401k Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Roth Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Taxable Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">HSA Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">IRA Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Dist</th>}
-                    {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Income</th>}
+                    {incomeGroupExpanded && visibleColumns.ssa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">SSA</th>}
+                    {incomeGroupExpanded && visibleColumns.dist401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">401k Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roth Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Taxable Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">HSA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">IRA Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.distOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Other Dist</th>}
+                    {incomeGroupExpanded && visibleColumns.otherIncome && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Other Income</th>}
                     
                     {/* Total Income - Clickable to expand/collapse income columns */}
                     {visibleColumns.totalIncome && (
                       <th 
-                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase bg-blue-50 cursor-pointer hover:bg-blue-100 active:bg-blue-200"
+                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-primary/8 cursor-pointer hover:bg-primary/12 active:bg-primary/16 transition-colors"
                         onClick={() => {
                           setIncomeGroupExpanded(!incomeGroupExpanded)
                           if (!incomeGroupExpanded) {
-                            // When expanding, enable all income columns
-                            setVisibleColumns({
-                              ...visibleColumns,
-                              ssa: true,
-                              dist401k: true,
-                              distRoth: true,
-                              distTaxable: true,
-                              distHsa: true,
-                              distIra: true,
-                              distOther: true,
-                              otherIncome: true,
-                            })
+                            setVisibleColumns({ ...visibleColumns, ssa: true, dist401k: true, distRoth: true, distTaxable: true, distHsa: true, distIra: true, distOther: true, otherIncome: true })
                           }
                         }}
                       >
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <span>After-Tax Income</span>
-                          <span className="text-gray-700">{incomeGroupExpanded ? '▼' : '▶'}</span>
+                          <span className="text-muted-foreground text-[10px]">{incomeGroupExpanded ? '▼' : '▶'}</span>
                         </div>
                       </th>
                     )}
                     
-                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Expenses (incl. tax)</th>}
-                    {visibleColumns.contribution && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Contributions</th>}
-                    {visibleColumns.gapExcess && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Gap/Excess</th>}
+                    {visibleColumns.expenses && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Expenses</th>}
+                    {visibleColumns.contribution && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contributions</th>}
+                    {visibleColumns.gapExcess && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Gap/Excess</th>}
                     
                     {/* Networth - Clickable to expand/collapse balance columns */}
                     {visibleColumns.networth && (
                       <th 
-                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase cursor-pointer hover:bg-gray-100 active:bg-gray-200"
+                        className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:bg-muted/60 active:bg-muted transition-colors"
                         onClick={() => {
                           setBalanceGroupExpanded(!balanceGroupExpanded)
                           if (!balanceGroupExpanded) {
-                            // When expanding, enable all balance columns
-                            setVisibleColumns({
-                              ...visibleColumns,
-                              balance401k: true,
-                              balanceRoth: true,
-                              balanceTaxable: true,
-                              balanceHsa: true,
-                              balanceIra: true,
-                              balanceOther: true,
-                            })
+                            setVisibleColumns({ ...visibleColumns, balance401k: true, balanceRoth: true, balanceTaxable: true, balanceHsa: true, balanceIra: true, balanceOther: true })
                           }
                         }}
                       >
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <span>Networth</span>
-                          <span className="text-gray-700">{balanceGroupExpanded ? '▼' : '▶'}</span>
+                          <span className="text-muted-foreground text-[10px]">{balanceGroupExpanded ? '▼' : '▶'}</span>
                         </div>
                       </th>
                     )}
                     
-                    {/* Individual Balance Columns (shown when expanded, to the right of Networth) */}
-                    {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">401k Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Roth Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Taxable Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">HSA Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">IRA Bal</th>}
-                    {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs sm:text-sm font-semibold text-gray-700 uppercase">Other Bal</th>}
+                    {/* Individual Balance Columns */}
+                    {balanceGroupExpanded && visibleColumns.balance401k && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">401k Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceRoth && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roth Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Taxable Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceHsa && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">HSA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceIra && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">IRA Bal</th>}
+                    {balanceGroupExpanded && visibleColumns.balanceOther && <th className="px-2 sm:px-3 py-2 sm:py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Other Bal</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-border bg-card">
                   {filteredProjections.length === 0 ? (
                     <tr>
-                      <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-sm sm:text-base text-gray-700">
+                      <td colSpan={Object.values(visibleColumns).filter(v => v).length} className="px-4 py-8 text-center text-sm text-muted-foreground">
                         {projections.length === 0 
                           ? 'No projections yet. Configure your calculator settings, accounts, expenses, and income sources, then generate projections.'
                           : 'No projections match the current filter. Try enabling "Show Pre-Retirement Years".'}
@@ -1943,7 +2108,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     if (previous === null) return null
                     const change = current - previous
                     const growthRate = isRetired 
-                      ? (settings?.growth_rate_during_retirement || 0.05)
+                      ? (settings?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
                       : (settings?.growth_rate_before_retirement || 0.1)
                     
                     // Growth: previous balance * growth rate (applied first)
@@ -2046,13 +2211,13 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                   const networthChange = calculateNetworthChange()
                   
                   return (
-                  <tr key={`${proj.year}-${proj.age}`} className="hover:bg-gray-50">
-                    {visibleColumns.year && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.year}</td>}
-                    {visibleColumns.age && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.age || '-'}</td>}
-                    {visibleColumns.event && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">{proj.event || '-'}</td>}
+                  <tr key={`${proj.year}-${proj.age}`} className="hover:bg-muted/30 transition-colors">
+                    {visibleColumns.year && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-foreground">{proj.year}</td>}
+                    {visibleColumns.age && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-foreground">{proj.age || '-'}</td>}
+                    {visibleColumns.event && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium text-foreground">{proj.event || '-'}</td>}
                     
                     {/* Individual Income Columns (shown when expanded) */}
-                    {incomeGroupExpanded && visibleColumns.ssa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.ssa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {showIncome && ssaIncome > 0 ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2076,7 +2241,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.dist401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.dist401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2096,7 +2261,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2116,7 +2281,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2136,7 +2301,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2156,7 +2321,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2176,7 +2341,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.distOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.distOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2196,7 +2361,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {incomeGroupExpanded && visibleColumns.otherIncome && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {incomeGroupExpanded && visibleColumns.otherIncome && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       {isRetired ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2304,7 +2469,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                                     {(() => {
                                       const includeSpouseSsa = planDataForTooltip?.include_spouse || false
                                       const filingStatus = determineFilingStatus(includeSpouseSsa, settings?.filing_status)
-                                      const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+                                      const standardDeduction = getStandardDeduction(filingStatus)
                                       const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
                                       const taxableIncomeAfterDeduction = Math.max(0, ordinaryIncome - standardDeduction)
                                       const incomeTax = calculateProgressiveTax(taxableIncomeAfterDeduction, filingStatus)
@@ -2425,8 +2590,30 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </Tooltip>
                       ) : '-'}
                     </td>}
-                    {visibleColumns.expenses && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
-                      {isRetired ? `$${(proj.total_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '-'}
+                    {visibleColumns.expenses && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
+                      {isRetired ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-foreground/30">
+                              ${(proj.total_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="text-xs">
+                            <div className="space-y-1">
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground">Living:</span>
+                                <span>${(proj.living_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                              </div>
+                              {(proj.healthcare_expenses || 0) > 0 && (
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-muted-foreground">Healthcare:</span>
+                                  <span>${(proj.healthcare_expenses || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                </div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : '-'}
                     </td>}
                     {visibleColumns.contribution && (() => {
                       // Calculate contributions if not present in projection data
@@ -2520,7 +2707,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       }
                       
                       return (
-                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                           {!isRetired && (contribution || 0) > 0 
                             ? `$${(contribution || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}` 
                             : !isRetired ? '$0' : '-'}
@@ -2586,7 +2773,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                               // Calculate contributions from actual balance changes (same method as individual account tooltips)
                               const isRetired = retirementAge !== null && (proj.age || 0) >= retirementAge
                               const growthRate = isRetired 
-                                ? (settings?.growth_rate_during_retirement || 0.05)
+                                ? (settings?.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
                                 : (settings?.growth_rate_before_retirement || 0.1)
                               
                               // Calculate contributions for each account type from balance changes
@@ -2705,7 +2892,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balance401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balance401k && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2738,7 +2925,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceRoth && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2771,7 +2958,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceTaxable && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2807,7 +2994,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceHsa && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2840,7 +3027,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceIra && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2873,7 +3060,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         </TooltipContent>
                       </Tooltip>
                     </td>}
-                    {balanceGroupExpanded && visibleColumns.balanceOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">
+                    {balanceGroupExpanded && visibleColumns.balanceOther && <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-foreground">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
@@ -2924,7 +3111,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   {graphType === 'line' ? (
                     <LineChart data={filteredProjections}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis 
                         dataKey="age" 
                         label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -2945,12 +3132,12 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       <Legend />
                       <Line type="monotone" dataKey="networth" name="Net Worth" stroke="#2563eb" strokeWidth={2} dot={false} />
                       <Line type="monotone" dataKey="total_income" name="Total Income" stroke="#16a34a" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#dc2626" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="total_expenses" name="Total Expenses" stroke="#dc2626" strokeWidth={2} dot={false} />
                       <Line type="monotone" dataKey="tax" name="Tax" stroke="#ca8a04" strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                     </LineChart>
                   ) : graphType === 'area' ? (
                     <AreaChart data={filteredProjections}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis 
                         dataKey="age" 
                         label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -2976,7 +3163,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                     </AreaChart>
                   ) : (
                     <BarChart data={filteredProjections}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis 
                         dataKey="age" 
                         label={{ value: 'Age', position: 'insideBottom', offset: -5 }}
@@ -2997,7 +3184,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       />
                       <Legend />
                       <Bar dataKey="total_income" name="Total Income" fill="#16a34a" />
-                      <Bar dataKey="expenses" name="Expenses" fill="#dc2626" />
+                      <Bar dataKey="total_expenses" name="Total Expenses" fill="#dc2626" />
                       <Bar dataKey="tax" name="Tax" fill="#ca8a04" />
                     </BarChart>
                   )}
@@ -3042,7 +3229,33 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Strategy Type</label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Strategy Type</label>
+                    <TooltipProvider>
+                      <Tooltip open={strategyExplanationOpen} onOpenChange={setStrategyExplanationOpen}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center rounded-full p-0.5 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            aria-label="Strategy explanation"
+                            onMouseEnter={() => setStrategyExplanationOpen(true)}
+                            onMouseLeave={() => setStrategyExplanationOpen(false)}
+                            onClick={() => setStrategyExplanationOpen((prev) => !prev)}
+                          >
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="bottom"
+                          align="start"
+                          sideOffset={8}
+                          className="max-w-sm sm:max-w-md text-left text-xs leading-relaxed whitespace-pre-line p-3"
+                        >
+                          {getStrategyExplanation(modelingStrategyType)}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <select
                     value={modelingStrategyType}
                     onChange={(e) => setModelingStrategyType(e.target.value as any)}
@@ -3110,7 +3323,7 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                       step="1000"
                       min="0"
                       value={strategyParams.fixed_dollar_amount}
-                      onChange={(e) => setStrategyParams({ ...strategyParams, fixed_dollar_amount: parseFloat(e.target.value) || 50000 })}
+                      onChange={(e) => setStrategyParams({ ...strategyParams, fixed_dollar_amount: parseFloat(e.target.value) || DEFAULT_FIXED_DOLLAR_WITHDRAWAL })}
                       className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                     />
                     <p className="mt-1 text-xs text-gray-500">Fixed dollar amount to withdraw each year</p>
@@ -3188,8 +3401,8 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
       {/* Strategy Modeling Sub-tab */}
       {activeSubTab === 'strategy-modeling' && (
         <div>
-          {/* Strategy Comparison Table */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          {/* Strategy Comparison Table — print: 80% width to fit page */}
+          <div className="print-strategy-comparison-table rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Strategy Comparison</h3>
               <button
@@ -3295,7 +3508,36 @@ export default function DetailsTab({ planId }: DetailsTabProps) {
                         return (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="sticky left-0 bg-inherit px-4 py-3 text-sm font-medium text-gray-900 z-10">
-                              {strategy.strategyName}
+                              <div className="flex items-center gap-1.5">
+                                <span>{strategy.strategyName}</span>
+                                <TooltipProvider>
+                                  <Tooltip
+                                    open={strategyComparisonInfoOpenRow === index}
+                                    onOpenChange={(open) => setStrategyComparisonInfoOpenRow(open ? index : null)}
+                                  >
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="inline-flex items-center justify-center rounded-full p-0.5 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 shrink-0"
+                                        aria-label={`Explanation for ${strategy.strategyName}`}
+                                        onMouseEnter={() => setStrategyComparisonInfoOpenRow(index)}
+                                        onMouseLeave={() => setStrategyComparisonInfoOpenRow(null)}
+                                        onClick={() => setStrategyComparisonInfoOpenRow((prev) => (prev === index ? null : index))}
+                                      >
+                                        <Info className="h-4 w-4" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="right"
+                                      align="start"
+                                      sideOffset={8}
+                                      className="max-w-sm sm:max-w-md text-left text-xs leading-relaxed whitespace-pre-line p-3"
+                                    >
+                                      {getStrategyExplanation(strategy.strategyType as typeof modelingStrategyType)}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
                             </td>
                             <td className={`px-4 py-3 text-right text-sm ${!allLegacySame && strategy.legacyValue === bestLegacy ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}

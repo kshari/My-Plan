@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { requireAuth } from '@/lib/utils/auth'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PropertyForm from '@/components/property/property-form'
 
@@ -9,12 +9,7 @@ interface PropertyEditPageProps {
 
 export default async function PropertyEditPage({ params }: PropertyEditPageProps) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
+  const { supabase, user } = await requireAuth()
 
   const propertyId = parseInt(id)
   if (isNaN(propertyId)) {

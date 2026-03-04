@@ -1,4 +1,53 @@
 // Retirement projection calculation engine
+import {
+  DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
+  DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_RETIREMENT_AGE,
+  DEFAULT_LIFE_EXPECTANCY,
+  DEFAULT_FILING_STATUS,
+  DEFAULT_ENABLE_BORROWING,
+  DEFAULT_DEBT_INTEREST_RATE,
+  DEFAULT_MAX_PROJECTION_AGE,
+  SAFE_WITHDRAWAL_RATE,
+  DEFAULT_FIXED_DOLLAR_WITHDRAWAL,
+  GUARDRAIL_CEILING,
+  GUARDRAIL_FLOOR,
+  ROTH_CONVERSION_FRACTION,
+  ROTH_CONVERSION_MAX,
+  QCD_MAX_ANNUAL,
+  QCD_FRACTION_OF_RMD,
+  RMD_START_AGE,
+  RMD_LIFE_EXPECTANCY_FACTOR_AT_73,
+  MEDICARE_ELIGIBILITY_AGE,
+} from '@/lib/constants/retirement-defaults'
+import {
+  INCOME_TAX_BRACKETS,
+  CAPITAL_GAINS_BRACKETS,
+  DEFAULT_MARGINAL_TAX_RATE,
+  DEFAULT_ESTIMATED_TAX_RATE,
+  DEFAULT_ROTH_CONVERSION_TAX_RATE,
+  DEFAULT_TAXABLE_ACCOUNT_RATIO,
+  SSA_TAXABLE_PORTION,
+  getStandardDeduction,
+  type FilingStatus,
+} from '@/lib/constants/tax-brackets'
+import {
+  SSA_WAGE_BASE,
+  SSA_BEND_POINT_1,
+  SSA_BEND_POINT_2,
+  SSA_RATE_TIER_1,
+  SSA_RATE_TIER_2,
+  SSA_RATE_TIER_3,
+  SSA_SPOUSE_BENEFIT_MULTIPLIER,
+  SSA_MIN_BENEFIT_PLANNER,
+  SSA_MIN_BENEFIT_SPOUSE,
+  SSA_MAX_BENEFIT_PLANNER,
+  SSA_MAX_BENEFIT_SPOUSE,
+  SSA_DEFAULT_PLANNER_BENEFIT,
+  SSA_DEFAULT_SPOUSE_BENEFIT,
+  ssaClaimingMultiplier,
+} from '@/lib/constants/ssa-constants'
 
 /**
  * Calculate estimated SSA (Social Security) benefit based on annual income
@@ -19,28 +68,23 @@ export function calculateEstimatedSSA(annualIncome: number, isPlanner: boolean =
   // - For income $50k-$100k: ~30% replacement  
   // - For income above $100k: ~20% replacement (due to cap)
   
-  const maxSSAIncome = 168600 // 2024 Social Security wage base
-  const cappedIncome = Math.min(annualIncome, maxSSAIncome)
+  const cappedIncome = Math.min(annualIncome, SSA_WAGE_BASE)
   
   let estimatedSSA = 0
-  if (cappedIncome <= 50000) {
-    estimatedSSA = cappedIncome * 0.40
-  } else if (cappedIncome <= 100000) {
-    estimatedSSA = 50000 * 0.40 + (cappedIncome - 50000) * 0.30
+  if (cappedIncome <= SSA_BEND_POINT_1) {
+    estimatedSSA = cappedIncome * SSA_RATE_TIER_1
+  } else if (cappedIncome <= SSA_BEND_POINT_2) {
+    estimatedSSA = SSA_BEND_POINT_1 * SSA_RATE_TIER_1 + (cappedIncome - SSA_BEND_POINT_1) * SSA_RATE_TIER_2
   } else {
-    estimatedSSA = 50000 * 0.40 + 50000 * 0.30 + (cappedIncome - 100000) * 0.20
+    estimatedSSA = SSA_BEND_POINT_1 * SSA_RATE_TIER_1 + (SSA_BEND_POINT_2 - SSA_BEND_POINT_1) * SSA_RATE_TIER_2 + (cappedIncome - SSA_BEND_POINT_2) * SSA_RATE_TIER_3
   }
   
-  // Adjust for spouse (typically 50% of primary if lower earner, or their own benefit)
   if (!isPlanner) {
-    // Spouse benefit is typically 50% of primary or their own benefit, whichever is higher
-    // For quick start, we'll use 75% of primary as a reasonable estimate
-    estimatedSSA = estimatedSSA * 0.75
+    estimatedSSA = estimatedSSA * SSA_SPOUSE_BENEFIT_MULTIPLIER
   }
   
-  // Ensure minimum and maximum bounds
-  const minSSA = isPlanner ? 15000 : 10000
-  const maxSSA = isPlanner ? 45000 : 35000
+  const minSSA = isPlanner ? SSA_MIN_BENEFIT_PLANNER : SSA_MIN_BENEFIT_SPOUSE
+  const maxSSA = isPlanner ? SSA_MAX_BENEFIT_PLANNER : SSA_MAX_BENEFIT_SPOUSE
   return Math.max(minSSA, Math.min(maxSSA, estimatedSSA))
 }
 
@@ -109,12 +153,19 @@ export interface CalculatorSettings {
   withdrawal_priority?: WithdrawalPriority // Primary withdrawal strategy priority (for goal-based)
   withdrawal_secondary_priority?: WithdrawalPriority // Secondary priority for tie-breaking
   withdrawal_strategy_type?: WithdrawalStrategyType // Strategy type selection
+  // Healthcare premiums (annual, in today's dollars; inflated per year)
+  pre_medicare_annual_premium?: number
+  post_medicare_annual_premium?: number
   // Strategy-specific parameters
   fixed_percentage_rate?: number // For fixed percentage strategy (e.g., 0.04 for 4%)
   fixed_dollar_amount?: number // For fixed dollar strategy
   guardrails_ceiling?: number // For guardrails strategy (e.g., 0.06 for 6%)
   guardrails_floor?: number // For guardrails strategy (e.g., 0.03 for 3%)
   bracket_topping_threshold?: number // Tax bracket threshold for bracket-topping
+  /** Optional override: per-year decimal returns for pre-retirement years. Falls back to growth_rate_before_retirement for any year beyond the array length. */
+  pre_retirement_return_sequence?: number[]
+  /** Optional override: per-year decimal returns for retirement years (e.g. [-0.15, -0.05, 0.02] for stress test). Falls back to growth_rate_during_retirement for any year beyond the array length. */
+  retirement_return_sequence?: number[]
 }
 
 export interface ProjectionDetail {
@@ -134,6 +185,7 @@ export interface ProjectionDetail {
   total_income?: number
   after_tax_income?: number
   living_expenses?: number
+  healthcare_expenses?: number
   special_expenses?: number
   total_expenses?: number
   gap_excess?: number
@@ -341,48 +393,8 @@ function determineWithdrawalOrder(
 export function calculateProgressiveTax(taxableIncome: number, filingStatus: string): number {
   if (taxableIncome <= 0) return 0
   
-  // 2024 federal income tax brackets (after standard deduction)
-  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-    'Single': [
-      { min: 0, max: 11600, rate: 0.10 },
-      { min: 11600, max: 47150, rate: 0.12 },
-      { min: 47150, max: 100525, rate: 0.22 },
-      { min: 100525, max: 191950, rate: 0.24 },
-      { min: 191950, max: 243725, rate: 0.32 },
-      { min: 243725, max: 609350, rate: 0.35 },
-      { min: 609350, max: Infinity, rate: 0.37 }
-    ],
-    'Married Filing Jointly': [
-      { min: 0, max: 23200, rate: 0.10 },
-      { min: 23200, max: 94300, rate: 0.12 },
-      { min: 94300, max: 201050, rate: 0.22 },
-      { min: 201050, max: 383900, rate: 0.24 },
-      { min: 383900, max: 487450, rate: 0.32 },
-      { min: 487450, max: 731200, rate: 0.35 },
-      { min: 731200, max: Infinity, rate: 0.37 }
-    ],
-    'Married Filing Separately': [
-      { min: 0, max: 11600, rate: 0.10 },
-      { min: 11600, max: 47150, rate: 0.12 },
-      { min: 47150, max: 100525, rate: 0.22 },
-      { min: 100525, max: 191950, rate: 0.24 },
-      { min: 191950, max: 243725, rate: 0.32 },
-      { min: 243725, max: 365600, rate: 0.35 },
-      { min: 365600, max: Infinity, rate: 0.37 }
-    ],
-    'Head of Household': [
-      { min: 0, max: 16550, rate: 0.10 },
-      { min: 16550, max: 63100, rate: 0.12 },
-      { min: 63100, max: 100500, rate: 0.22 },
-      { min: 100500, max: 191950, rate: 0.24 },
-      { min: 191950, max: 243700, rate: 0.32 },
-      { min: 243700, max: 609350, rate: 0.35 },
-      { min: 609350, max: Infinity, rate: 0.37 }
-    ]
-  }
-  
-  const status = filingStatus || 'Single'
-  const bracketList = brackets[status] || brackets['Single']
+  const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
+  const bracketList = INCOME_TAX_BRACKETS[status] || INCOME_TAX_BRACKETS['Single']
   
   let tax = 0
   let remainingIncome = taxableIncome
@@ -411,39 +423,15 @@ export function determineFilingStatus(
   if (includeSpouseSsa) {
     return 'Married Filing Jointly'
   }
-  return settingsFilingStatus || 'Single'
+  return settingsFilingStatus || DEFAULT_FILING_STATUS
 }
 
 // Calculate long-term capital gains tax (2024 rates)
 export function calculateCapitalGainsTax(capitalGains: number, filingStatus: string): number {
   if (capitalGains <= 0) return 0
   
-  // 2024 long-term capital gains brackets
-  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-    'Single': [
-      { min: 0, max: 47025, rate: 0.00 }, // 0% for income up to $47,025
-      { min: 47025, max: 518900, rate: 0.15 }, // 15% for income $47,025 - $518,900
-      { min: 518900, max: Infinity, rate: 0.20 } // 20% for income above $518,900
-    ],
-    'Married Filing Jointly': [
-      { min: 0, max: 94350, rate: 0.00 }, // 0% for income up to $94,350
-      { min: 94350, max: 583750, rate: 0.15 }, // 15% for income $94,350 - $583,750
-      { min: 583750, max: Infinity, rate: 0.20 } // 20% for income above $583,750
-    ],
-    'Married Filing Separately': [
-      { min: 0, max: 47125, rate: 0.00 },
-      { min: 47125, max: 291850, rate: 0.15 },
-      { min: 291850, max: Infinity, rate: 0.20 }
-    ],
-    'Head of Household': [
-      { min: 0, max: 63100, rate: 0.00 },
-      { min: 63100, max: 523050, rate: 0.15 },
-      { min: 523050, max: Infinity, rate: 0.20 }
-    ]
-  }
-  
-  const status = filingStatus || 'Single'
-  const bracketList = brackets[status] || brackets['Single']
+  const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
+  const bracketList = CAPITAL_GAINS_BRACKETS[status] || CAPITAL_GAINS_BRACKETS['Single']
   
   let tax = 0
   let remainingGains = capitalGains
@@ -463,51 +451,11 @@ export function calculateCapitalGainsTax(capitalGains: number, filingStatus: str
 
 // Estimate marginal tax rate for additional income (simplified)
 function estimateMarginalTaxRate(currentTaxableIncome: number, filingStatus: string): number {
-  const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+  const standardDeduction = getStandardDeduction(filingStatus)
   const adjustedIncome = Math.max(0, currentTaxableIncome - standardDeduction)
   
-  // Use progressive brackets to find marginal rate
-  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-    'Single': [
-      { min: 0, max: 11600, rate: 0.10 },
-      { min: 11600, max: 47150, rate: 0.12 },
-      { min: 47150, max: 100525, rate: 0.22 },
-      { min: 100525, max: 191950, rate: 0.24 },
-      { min: 191950, max: 243725, rate: 0.32 },
-      { min: 243725, max: 609350, rate: 0.35 },
-      { min: 609350, max: Infinity, rate: 0.37 }
-    ],
-    'Married Filing Jointly': [
-      { min: 0, max: 23200, rate: 0.10 },
-      { min: 23200, max: 94300, rate: 0.12 },
-      { min: 94300, max: 201050, rate: 0.22 },
-      { min: 201050, max: 383900, rate: 0.24 },
-      { min: 383900, max: 487450, rate: 0.32 },
-      { min: 487450, max: 731200, rate: 0.35 },
-      { min: 731200, max: Infinity, rate: 0.37 }
-    ],
-    'Married Filing Separately': [
-      { min: 0, max: 11600, rate: 0.10 },
-      { min: 11600, max: 47150, rate: 0.12 },
-      { min: 47150, max: 100525, rate: 0.22 },
-      { min: 100525, max: 191950, rate: 0.24 },
-      { min: 191950, max: 243725, rate: 0.32 },
-      { min: 243725, max: 365600, rate: 0.35 },
-      { min: 365600, max: Infinity, rate: 0.37 }
-    ],
-    'Head of Household': [
-      { min: 0, max: 16550, rate: 0.10 },
-      { min: 16550, max: 63100, rate: 0.12 },
-      { min: 63100, max: 100500, rate: 0.22 },
-      { min: 100500, max: 191950, rate: 0.24 },
-      { min: 191950, max: 243700, rate: 0.32 },
-      { min: 243700, max: 609350, rate: 0.35 },
-      { min: 609350, max: Infinity, rate: 0.37 }
-    ]
-  }
-  
-  const status = filingStatus || 'Single'
-  const bracketList = brackets[status] || brackets['Single']
+  const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
+  const bracketList = INCOME_TAX_BRACKETS[status] || INCOME_TAX_BRACKETS['Single']
   
   for (const bracket of bracketList) {
     if (adjustedIncome >= bracket.min && adjustedIncome < bracket.max) {
@@ -515,39 +463,16 @@ function estimateMarginalTaxRate(currentTaxableIncome: number, filingStatus: str
     }
   }
   
-  return 0.22 // Default to 22% if not found
+  return DEFAULT_MARGINAL_TAX_RATE
 }
 
 // Estimate capital gains tax rate for additional gains
 function estimateCapitalGainsTaxRate(currentTaxableIncome: number, filingStatus: string): number {
-  const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+  const standardDeduction = getStandardDeduction(filingStatus)
   const adjustedIncome = Math.max(0, currentTaxableIncome - standardDeduction)
   
-  const brackets: Record<string, Array<{min: number, max: number, rate: number}>> = {
-    'Single': [
-      { min: 0, max: 47025, rate: 0.00 },
-      { min: 47025, max: 518900, rate: 0.15 },
-      { min: 518900, max: Infinity, rate: 0.20 }
-    ],
-    'Married Filing Jointly': [
-      { min: 0, max: 94350, rate: 0.00 },
-      { min: 94350, max: 583750, rate: 0.15 },
-      { min: 583750, max: Infinity, rate: 0.20 }
-    ],
-    'Married Filing Separately': [
-      { min: 0, max: 47125, rate: 0.00 },
-      { min: 47125, max: 291850, rate: 0.15 },
-      { min: 291850, max: Infinity, rate: 0.20 }
-    ],
-    'Head of Household': [
-      { min: 0, max: 63100, rate: 0.00 },
-      { min: 63100, max: 523050, rate: 0.15 },
-      { min: 523050, max: Infinity, rate: 0.20 }
-    ]
-  }
-  
-  const status = filingStatus || 'Single'
-  const bracketList = brackets[status] || brackets['Single']
+  const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
+  const bracketList = CAPITAL_GAINS_BRACKETS[status] || CAPITAL_GAINS_BRACKETS['Single']
   
   for (const bracket of bracketList) {
     if (adjustedIncome >= bracket.min && adjustedIncome < bracket.max) {
@@ -555,7 +480,7 @@ function estimateCapitalGainsTaxRate(currentTaxableIncome: number, filingStatus:
     }
   }
   
-  return 0.15 // Default to 15% if not found
+  return 0.15
 }
 
 /**
@@ -576,15 +501,12 @@ export function buildCalculatorSettings(
     retirement_start_year: settingsData?.retirement_start_year || (currentYear + yearsToRetirement),
     years_to_retirement: yearsToRetirement,
     annual_retirement_expenses: settingsData?.annual_retirement_expenses || annualExpenses,
-    growth_rate_before_retirement: parseFloat(settingsData?.growth_rate_before_retirement?.toString() || '0.1'),
-    growth_rate_during_retirement: parseFloat(settingsData?.growth_rate_during_retirement?.toString() || '0.05'),
-    inflation_rate: parseFloat(settingsData?.inflation_rate?.toString() || '0.04'),
-    enable_borrowing: settingsData?.enable_borrowing || false,
-    ssa_start_age: settingsData?.ssa_start_age || retirementAge, // Default to retirement age, not 62
-    // Filing status will be determined in calculateRetirementProjections based on includeSpouseSsa
-    // This is just a fallback value - the actual calculation uses: includeSpouseSsa ? 'Married Filing Jointly' : (settings.filing_status || 'Single')
-    // Set filing_status based on include_spouse to match snapshot logic
-    filing_status: (planData?.include_spouse ? 'Married Filing Jointly' : (planData?.filing_status as any)) || 'Single',
+    growth_rate_before_retirement: parseFloat(settingsData?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
+    growth_rate_during_retirement: parseFloat(settingsData?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
+    inflation_rate: parseFloat(settingsData?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
+    enable_borrowing: settingsData?.enable_borrowing || DEFAULT_ENABLE_BORROWING,
+    ssa_start_age: settingsData?.ssa_start_age || retirementAge,
+    filing_status: (planData?.include_spouse ? 'Married Filing Jointly' : (planData?.filing_status as any)) || DEFAULT_FILING_STATUS,
     withdrawal_strategy_type: (settingsData?.withdrawal_strategy_type as any) || 'amount_based_expense_coverage',
     withdrawal_priority: settingsData?.withdrawal_priority || 'default',
     withdrawal_secondary_priority: settingsData?.withdrawal_secondary_priority || 'tax_optimization',
@@ -593,6 +515,8 @@ export function buildCalculatorSettings(
     guardrails_ceiling: settingsData?.guardrails_ceiling ? parseFloat(settingsData.guardrails_ceiling.toString()) : undefined,
     guardrails_floor: settingsData?.guardrails_floor ? parseFloat(settingsData.guardrails_floor.toString()) : undefined,
     bracket_topping_threshold: settingsData?.bracket_topping_threshold ? parseFloat(settingsData.bracket_topping_threshold.toString()) : undefined,
+    pre_medicare_annual_premium: settingsData?.pre_medicare_annual_premium != null ? parseFloat(settingsData.pre_medicare_annual_premium.toString()) : undefined,
+    post_medicare_annual_premium: settingsData?.post_medicare_annual_premium != null ? parseFloat(settingsData.post_medicare_annual_premium.toString()) : undefined,
   }
 }
 
@@ -602,7 +526,7 @@ export function calculateRetirementProjections(
   expenses: Expense[],
   otherIncome: OtherIncome[],
   settings: CalculatorSettings,
-  projectionEndAge: number = 100,
+  projectionEndAge: number = DEFAULT_MAX_PROJECTION_AGE,
   spouseBirthYear?: number,
   spouseLifeExpectancy?: number,
   includePlannerSsa: boolean = true,
@@ -614,7 +538,7 @@ export function calculateRetirementProjections(
   const currentAge = currentYear - birthYear
   const retirementAge = settings.retirement_age
   const retirementStartYear = settings.retirement_start_year
-  const debtInterestRate = settings.debt_interest_rate || 0.06 // Default 6% annual interest
+  const debtInterestRate = settings.debt_interest_rate || DEFAULT_DEBT_INTEREST_RATE
   
   // Determine filing status early so it can be used throughout (for tax bracket estimation)
   const filingStatus = determineFilingStatus(includeSpouseSsa, settings.filing_status)
@@ -693,11 +617,22 @@ export function calculateRetirementProjections(
       // Use pre-retirement expenses adjusted for inflation
       livingExpenses = baseAnnualExpenses * inflationMultiplier
     }
+
+    // Healthcare is a separate expense from living expenses, inflated from today's dollars
+    let healthcareExpenses = 0
+    const preMedicarePremium = settings.pre_medicare_annual_premium ?? 0
+    const postMedicarePremium = settings.post_medicare_annual_premium ?? 0
+    if (preMedicarePremium > 0 || postMedicarePremium > 0) {
+      const basePremium = age < MEDICARE_ELIGIBILITY_AGE ? preMedicarePremium : postMedicarePremium
+      healthcareExpenses = basePremium * inflationMultiplier
+    }
     
-    // Calculate growth rate for this year
-    const growthRate = isRetired 
-      ? settings.growth_rate_during_retirement 
-      : settings.growth_rate_before_retirement
+    // Calculate growth rate for this year (per-year sequences override for Monte Carlo / stress tests)
+    const retSeq = settings.retirement_return_sequence
+    const preSeq = settings.pre_retirement_return_sequence
+    const growthRate = isRetired
+      ? (retSeq && yearsSinceRetirement < retSeq.length ? retSeq[yearsSinceRetirement] : settings.growth_rate_during_retirement)
+      : (preSeq && yearsFromNow < preSeq.length ? preSeq[yearsFromNow] : settings.growth_rate_before_retirement)
     
     // Calculate income sources
     let ssaIncome = 0
@@ -714,17 +649,14 @@ export function calculateRetirementProjections(
     // Planner SSA income (starts at configured age)
     // SSA reductions for early retirement are PERMANENT based on the age you START collecting
     // Default to retirement age if not explicitly set
-    const ssaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+    const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
     const ssaStartYear = birthYear + ssaStartAge
     if (includePlannerSsa && age >= ssaStartAge) {
       // Calculate base SSA amount at start age
       // If estimated amount provided, use it; otherwise use default $20k
-      const baseSsaAtStartAge = estimatedPlannerSsaAtStartAge || 20000
+      const baseSsaAtStartAge = estimatedPlannerSsaAtStartAge || SSA_DEFAULT_PLANNER_BENEFIT
       
-      // Apply age-based multiplier based on START age (permanent reduction for early claiming)
-      // If starting before 67 (full retirement age), reduce by ~6.67% per year early (simplified)
-      // Max reduction is 30% at age 62 (5 years early)
-      const ssaMultiplier = ssaStartAge < 67 ? Math.max(0.70, 1.0 - (67 - ssaStartAge) * 0.0667) : 1.0
+      const ssaMultiplier = ssaClaimingMultiplier(ssaStartAge)
       
       // Apply inflation from SSA start year to current year
       const yearsSinceSsaStart = year - ssaStartYear
@@ -744,16 +676,15 @@ export function calculateRetirementProjections(
       // Calculate spouse's age: current year - spouse birth year
       // Current year = birthYear + age, so spouse age = (birthYear + age) - effectiveSpouseBirthYear
       const spouseAge = (birthYear + age) - effectiveSpouseBirthYear
-      const spouseSsaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+      const spouseSsaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
       const spouseSsaStartYear = effectiveSpouseBirthYear + spouseSsaStartAge
       
       if (spouseAge >= spouseSsaStartAge && spouseAge <= effectiveSpouseLifeExpectancy) {
         // Calculate base SSA amount at start age
         // If estimated amount provided, use it; otherwise use default $15k
-        const baseSpouseSsaAtStartAge = estimatedSpouseSsaAtStartAge || 15000
+        const baseSpouseSsaAtStartAge = estimatedSpouseSsaAtStartAge || SSA_DEFAULT_SPOUSE_BENEFIT
         
-        // Apply age-based multiplier based on START age (permanent reduction for early claiming)
-        const spouseSsaMultiplier = spouseSsaStartAge < 67 ? Math.max(0.70, 1.0 - (67 - spouseSsaStartAge) * 0.0667) : 1.0
+        const spouseSsaMultiplier = ssaClaimingMultiplier(spouseSsaStartAge)
         
         // Apply inflation from spouse SSA start year to current year
         const yearsSinceSpouseSsaStart = year - spouseSsaStartYear
@@ -782,7 +713,8 @@ export function calculateRetirementProjections(
     // We need to estimate taxes first, then withdraw enough to cover both expenses and taxes
     // Initial estimate: assume we need to withdraw enough to cover expenses
     // Taxes will be calculated on withdrawals, so we need to account for that
-    const initialExpensesToCover = livingExpenses - totalSsaIncome - otherRecurringIncome
+    const totalLivingAndHealthcare = livingExpenses + healthcareExpenses
+    const initialExpensesToCover = totalLivingAndHealthcare - totalSsaIncome - otherRecurringIncome
     
     // Estimate taxes on initial withdrawal using IRS tax brackets
     // Estimate based on expected income level (SSA + other income + initial withdrawal estimate)
@@ -794,14 +726,14 @@ export function calculateRetirementProjections(
     const expensesToCover = initialExpensesToCover + estimatedTaxOnWithdrawals
     
     // Required Minimum Distribution (RMD) starts at age 73
-    const rmdAge = 73
+    const rmdAge = RMD_START_AGE
     const requiresRMD = age >= rmdAge
     
     // Calculate RMD if required (simplified: balance / life expectancy factor)
     // Life expectancy factor roughly: 27.4 at 73, decreases each year
     let requiredRMD = 0
     if (requiresRMD) {
-      const lifeExpectancyFactor = Math.max(1, 27.4 - (age - 73))
+      const lifeExpectancyFactor = Math.max(1, RMD_LIFE_EXPECTANCY_FACTOR_AT_73 - (age - RMD_START_AGE))
       const totalTraditionalBalance = accountBalances['401k'] + accountBalances['IRA']
       requiredRMD = totalTraditionalBalance / lifeExpectancyFactor
     }
@@ -864,22 +796,22 @@ export function calculateRetirementProjections(
       if (strategyType === 'amount_based_expense_coverage') {
         // Expense Based - Cover Expenses and Tax: Withdraw enough to cover expenses plus estimated tax
         useStrategyAmount = true
-        const totalExpenses = livingExpenses // special_expenses not currently implemented, always 0
+        const totalExpenses = totalLivingAndHealthcare
         const otherIncomeTotal = totalSsaIncome + otherRecurringIncome
         const expensesNeedingCoverage = Math.max(0, totalExpenses - otherIncomeTotal)
         
         // Estimate tax on withdrawal - use iterative approach to account for tax on withdrawal itself
         // Start with a rough estimate: assume 20% effective tax rate on withdrawal
-        let estimatedTax = expensesNeedingCoverage * 0.20
+        let estimatedTax = expensesNeedingCoverage * DEFAULT_ESTIMATED_TAX_RATE
         let grossWithdrawalNeeded = expensesNeedingCoverage + estimatedTax
         
         // Refine estimate: calculate actual tax on the withdrawal
         // Estimate taxable income from withdrawal (assume mostly from tax-deferred accounts)
         const estimatedTaxableIncome = otherRecurringIncome + grossWithdrawalNeeded * 0.7 // Assume 70% from tax-deferred
-        const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+        const standardDeduction = getStandardDeduction(filingStatus)
         const adjustedIncome = Math.max(0, estimatedTaxableIncome - standardDeduction)
         const estimatedTaxOnWithdrawal = calculateProgressiveTax(adjustedIncome, filingStatus)
-        const estimatedCapitalGains = grossWithdrawalNeeded * 0.3 // Assume 30% from taxable accounts
+        const estimatedCapitalGains = grossWithdrawalNeeded * DEFAULT_TAXABLE_ACCOUNT_RATIO
         const estimatedCapGainsTax = calculateCapitalGainsTax(estimatedCapitalGains, filingStatus)
         const taxOnOtherIncome = otherRecurringIncome > 0 ? calculateProgressiveTax(Math.max(0, otherRecurringIncome - standardDeduction), filingStatus) : 0
         estimatedTax = estimatedTaxOnWithdrawal + estimatedCapGainsTax - taxOnOtherIncome
@@ -890,32 +822,31 @@ export function calculateRetirementProjections(
         // 4% Rule: 4% of initial portfolio in year 1, then adjust for inflation
         useStrategyAmount = true
         if (isFirstRetirementYear) {
-          targetWithdrawalAmount = initialPortfolioValue * 0.04
+          targetWithdrawalAmount = initialPortfolioValue * SAFE_WITHDRAWAL_RATE
         } else {
-          // Find first year withdrawal and adjust for inflation
-          const firstYearWithdrawal = initialPortfolioValue * 0.04
+          const firstYearWithdrawal = initialPortfolioValue * SAFE_WITHDRAWAL_RATE
           targetWithdrawalAmount = firstYearWithdrawal * Math.pow(1 + settings.inflation_rate, yearsSinceRetirement - 1)
         }
       } else if (strategyType === 'amount_based_fixed_percentage') {
         // Fixed Percentage: Set percentage of current portfolio value
         useStrategyAmount = true
-        const percentage = settings.fixed_percentage_rate || 0.04
+        const percentage = settings.fixed_percentage_rate || SAFE_WITHDRAWAL_RATE
         targetWithdrawalAmount = totalNetworth * percentage
       } else if (strategyType === 'amount_based_fixed_dollar') {
         // Fixed Dollar: Specific dollar amount regardless of market
         useStrategyAmount = true
-        targetWithdrawalAmount = settings.fixed_dollar_amount || 50000
+        targetWithdrawalAmount = settings.fixed_dollar_amount || DEFAULT_FIXED_DOLLAR_WITHDRAWAL
       } else if (strategyType === 'amount_based_swp') {
         // SWP: Only withdraw earnings (dividends/interest)
         // Estimate earnings as a percentage of portfolio (simplified)
         useStrategyAmount = true
-        const earningsRate = settings.growth_rate_during_retirement || 0.05
+        const earningsRate = settings.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT
         targetWithdrawalAmount = totalNetworth * earningsRate
       } else if (strategyType === 'market_guardrails') {
         // Guardrails: Set ceiling and floor based on market performance
         useStrategyAmount = true
-        const ceiling = settings.guardrails_ceiling || 0.06
-        const floor = settings.guardrails_floor || 0.03
+        const ceiling = settings.guardrails_ceiling || GUARDRAIL_CEILING
+        const floor = settings.guardrails_floor || GUARDRAIL_FLOOR
         // Simplified: use base rate, adjust based on portfolio performance vs initial
         const baseRate = 0.045 // 4.5% base
         const portfolioPerformance = initialPortfolioValue > 0 ? totalNetworth / initialPortfolioValue : 1.0
@@ -1110,7 +1041,7 @@ export function calculateRetirementProjections(
       } else if (strategyType === 'market_floor_upside') {
         // Floor-and-Upside: Guaranteed income for essentials, portfolio for discretionary
         // Use SSA + other income for essentials, portfolio for remaining
-        const essentialExpenses = livingExpenses * 0.7 // Assume 70% are essential
+        const essentialExpenses = totalLivingAndHealthcare * 0.7 // Assume 70% are essential
         const guaranteedIncome = totalSsaIncome + otherRecurringIncome
         const essentialShortfall = Math.max(0, essentialExpenses - guaranteedIncome)
         const discretionaryNeed = remainingNeed - essentialShortfall
@@ -1160,23 +1091,19 @@ export function calculateRetirementProjections(
         // Roth Conversion Bridge: Convert Traditional to Roth before RMD age
         if (age < rmdAge) {
           // Convert a portion of traditional to Roth each year (simplified: convert 10% or $10k, whichever is less)
-          const conversionAmount = Math.min(10000, traditionalBalance * 0.1)
+          const conversionAmount = Math.min(ROTH_CONVERSION_MAX, traditionalBalance * ROTH_CONVERSION_FRACTION)
           if (conversionAmount > 0 && traditionalBalance > 0) {
-            // Move from traditional to Roth (this is a conversion, not a withdrawal)
-            // For simplicity, we'll treat this as a withdrawal from traditional and addition to Roth
-            // In reality, this would be a conversion with tax implications
             if (accountBalances['401k'] > 0) {
               const convertFrom401k = Math.min(conversionAmount * (accountBalances['401k'] / traditionalBalance), accountBalances['401k'])
               accountBalances['401k'] -= convertFrom401k
-              accountBalances['Roth IRA'] += convertFrom401k * 0.85 // Assume 15% tax on conversion
-              // The conversion itself is taxable
-              distribution401k += convertFrom401k * 0.15 // Tax portion
+              accountBalances['Roth IRA'] += convertFrom401k * (1 - DEFAULT_ROTH_CONVERSION_TAX_RATE)
+              distribution401k += convertFrom401k * DEFAULT_ROTH_CONVERSION_TAX_RATE
             }
             if (accountBalances['IRA'] > 0) {
               const convertFromIRA = Math.min(conversionAmount * (accountBalances['IRA'] / traditionalBalance), accountBalances['IRA'])
               accountBalances['IRA'] -= convertFromIRA
-              accountBalances['Roth IRA'] += convertFromIRA * 0.85
-              distributionIra += convertFromIRA * 0.15
+              accountBalances['Roth IRA'] += convertFromIRA * (1 - DEFAULT_ROTH_CONVERSION_TAX_RATE)
+              distributionIra += convertFromIRA * DEFAULT_ROTH_CONVERSION_TAX_RATE
             }
           }
         }
@@ -1253,7 +1180,7 @@ export function calculateRetirementProjections(
         // QCDs: After age 70½, send IRA distributions directly to charity
         if (age >= 70.5 && requiredRMD > 0) {
           // QCD can satisfy RMD up to $100k/year (simplified: use 50% of RMD for QCD)
-          const qcdAmount = Math.min(requiredRMD * 0.5, 100000)
+          const qcdAmount = Math.min(requiredRMD * QCD_FRACTION_OF_RMD, QCD_MAX_ANNUAL)
           if (accountBalances['IRA'] > 0) {
             const qcdFromIRA = Math.min(qcdAmount, accountBalances['IRA'])
             distributionIra += qcdFromIRA
@@ -1452,7 +1379,7 @@ export function calculateRetirementProjections(
     
     // Calculate taxable income after standard deduction
     // 2024 standard deductions: Single = $14,600, Married Filing Jointly = $29,200
-    const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+    const standardDeduction = getStandardDeduction(filingStatus)
     
     // Taxable income = distributions from traditional accounts + other recurring income - standard deduction
     // Note: SSA income may be partially taxable, but for simplicity we'll exclude it from taxable income
@@ -1478,7 +1405,7 @@ export function calculateRetirementProjections(
       while (iterations < maxIterations) {
         // Recalculate taxes with current distributions
         // Include taxable portion of SSA income
-        const taxableSsaPortion = totalSsaIncome * 0.5 // 50% of SSA is typically taxable
+        const taxableSsaPortion = totalSsaIncome * SSA_TAXABLE_PORTION // 50% of SSA is typically taxable
         const currentOrdinaryIncome = distribution401k + distributionIra + otherRecurringIncome + taxableSsaPortion
         const currentTaxableIncomeAfterDeduction = Math.max(0, currentOrdinaryIncome - standardDeduction)
         const currentIncomeTax = calculateProgressiveTax(currentTaxableIncomeAfterDeduction, filingStatus)
@@ -1490,7 +1417,7 @@ export function calculateRetirementProjections(
                                   distributionHsa + distributionIra + distributionOther + otherRecurringIncome
         
         const afterTaxIncome = currentTotalIncome - currentTax
-        const shortfall = livingExpenses - afterTaxIncome
+        const shortfall = totalLivingAndHealthcare - afterTaxIncome
         
         // If we're within $1 of covering expenses, we're done (allow small rounding)
         if (shortfall <= 1) {
@@ -1608,7 +1535,7 @@ export function calculateRetirementProjections(
       
       // Final tax recalculation after all withdrawals
       // Include taxable portion of SSA income in taxable income calculation
-      const taxableSsaPortion = totalSsaIncome * 0.5 // 50% of SSA is typically taxable
+      const taxableSsaPortion = totalSsaIncome * SSA_TAXABLE_PORTION // 50% of SSA is typically taxable
       const finalOrdinaryIncome = distribution401k + distributionIra + otherRecurringIncome + taxableSsaPortion
       const finalTaxableIncomeAfterDeduction = Math.max(0, finalOrdinaryIncome - standardDeduction)
       const finalIncomeTax = calculateProgressiveTax(finalTaxableIncomeAfterDeduction, filingStatus)
@@ -1642,7 +1569,7 @@ export function calculateRetirementProjections(
     // - Standard deduction is subtracted to get taxable income after deduction
     // Note: Taxable account withdrawals are capital gains (separate from ordinary income)
     // Reuse standardDeduction that was already calculated above
-    const taxableSsaPortion = totalSsaIncome * 0.5 // 50% of SSA is typically taxable
+    const taxableSsaPortion = totalSsaIncome * SSA_TAXABLE_PORTION // 50% of SSA is typically taxable
     const finalOrdinaryIncome = distribution401k + distributionIra + taxableSsaPortion + otherRecurringIncome
     const finalTaxableIncome = Math.max(0, finalOrdinaryIncome - standardDeduction)
     // Note: This represents taxable income after standard deduction
@@ -1652,13 +1579,13 @@ export function calculateRetirementProjections(
     // If not retired, calculate taxes normally
     if (!isRetired) {
       // 2024 standard deductions: Single = $14,600, Married Filing Jointly = $29,200
-      const standardDeduction = filingStatus === 'Married Filing Jointly' ? 29200 : 14600
+      const standardDeduction = getStandardDeduction(filingStatus)
       
       // Calculate taxable portion of SSA income
       // SSA is partially taxable: up to 50% or 85% depending on combined income
       // Combined income = AGI + nontaxable interest + 50% of SSA
       // Simplified: include 50% of SSA in taxable income (can be up to 85% for higher incomes)
-      const taxableSsaIncome = totalSsaIncome * 0.5 // 50% of SSA is typically taxable
+      const taxableSsaIncome = totalSsaIncome * SSA_TAXABLE_PORTION // 50% of SSA is typically taxable
       
       const finalOrdinaryIncome = distribution401k + distributionIra + otherRecurringIncome + taxableSsaIncome
       const finalTaxableIncomeAfterDeduction = Math.max(0, finalOrdinaryIncome - standardDeduction)
@@ -1691,7 +1618,7 @@ export function calculateRetirementProjections(
     // Before retirement: gap/excess is 0 (we're not drawing income for living expenses yet)
     // Note: Pre-retirement income (like early SSA) is tracked but doesn't create "excess" to reinvest
     const initialGapExcess = isRetired 
-      ? afterTaxIncome - livingExpenses
+      ? afterTaxIncome - totalLivingAndHealthcare
       : 0 // Before retirement, no gap/excess - income isn't being used for expenses
     
     // DEBT MANAGEMENT STRATEGY (only if enabled)
@@ -1807,7 +1734,7 @@ export function calculateRetirementProjections(
     
     // Determine event
     let event: string | undefined
-    const plannerSsaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+    const plannerSsaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
     if (age === retirementAge) {
       event = 'Retirement'
     } else if (age === plannerSsaStartAge) {
@@ -1827,7 +1754,7 @@ export function calculateRetirementProjections(
       // Calculate spouse's age: current year - spouse birth year
       // Current year = birthYear + age, so spouse age = (birthYear + age) - spouseBirthYear
       const spouseAge = (birthYear + age) - spouseBirthYear
-      const spouseSsaStartAge = settings.ssa_start_age || settings.retirement_age || 65
+      const spouseSsaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
       if (spouseAge === spouseSsaStartAge && !event) {
         event = 'Spouse SSA Eligibility'
       } else if (spouseAge === spouseSsaStartAge && event) {
@@ -1851,8 +1778,9 @@ export function calculateRetirementProjections(
       total_income: totalIncome,
       after_tax_income: afterTaxIncome,
       living_expenses: livingExpenses,
-      special_expenses: 0, // Can be added later for one-time expenses
-      total_expenses: livingExpenses,
+      healthcare_expenses: healthcareExpenses,
+      special_expenses: 0,
+      total_expenses: totalLivingAndHealthcare,
       gap_excess: gapExcess,
       cumulative_liability: cumulativeLiability,
       debt_balance: debtBalance,

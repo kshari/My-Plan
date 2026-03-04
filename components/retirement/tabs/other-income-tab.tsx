@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useOptionalDataService } from '@/lib/storage'
 import { Plus, Save } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface OtherIncome {
-  id?: number
+  id?: number | string
   income_source: string
   annual_amount: number
 }
@@ -15,6 +17,8 @@ interface OtherIncomeTabProps {
 }
 
 export default function OtherIncomeTab({ planId }: OtherIncomeTabProps) {
+  const dataService = useOptionalDataService()
+  const isLocal = dataService?.mode === 'local'
   const supabase = createClient()
   const [incomes, setIncomes] = useState<OtherIncome[]>([])
   const [loading, setLoading] = useState(false)
@@ -29,6 +33,18 @@ export default function OtherIncomeTab({ planId }: OtherIncomeTabProps) {
   const loadIncomes = async () => {
     setLoading(true)
     try {
+      if (isLocal && dataService) {
+        const data = await dataService.getOtherIncome()
+        setIncomes(
+          data.map((i) => ({
+            id: (i as { id?: number }).id ?? (i as { _localId?: string })._localId,
+            income_source: (i as { income_name?: string }).income_name ?? (i as { income_source?: string }).income_source ?? '',
+            annual_amount: (i as { amount?: number }).amount ?? (i as { annual_amount?: number }).annual_amount ?? 0,
+          }))
+        )
+        return
+      }
+
       const { data, error } = await supabase
         .from('rp_other_income')
         .select('*')
@@ -47,6 +63,19 @@ export default function OtherIncomeTab({ planId }: OtherIncomeTabProps) {
   const handleSave = async (income: OtherIncome) => {
     setSaving(true)
     try {
+      if (isLocal && dataService) {
+        const toSave = {
+          income_name: income.income_source,
+          amount: income.annual_amount,
+          ...(editingIncome?.id != null && { id: editingIncome.id }),
+        }
+        await dataService.saveOtherIncome(toSave as Parameters<typeof dataService.saveOtherIncome>[0])
+        setShowForm(false)
+        setEditingIncome(null)
+        loadIncomes()
+        return
+      }
+
       if (editingIncome?.id) {
         const { error } = await supabase
           .from('rp_other_income')
@@ -69,9 +98,15 @@ export default function OtherIncomeTab({ planId }: OtherIncomeTabProps) {
     }
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
     if (!confirm('Delete this income source?')) return
     try {
+      if (isLocal && dataService) {
+        await dataService.deleteOtherIncome(id)
+        loadIncomes()
+        return
+      }
+
       const { error } = await supabase
         .from('rp_other_income')
         .delete()
@@ -83,7 +118,7 @@ export default function OtherIncomeTab({ planId }: OtherIncomeTabProps) {
     }
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-600">Loading...</div>
+  if (loading) return <LoadingState />
 
   return (
     <div>
