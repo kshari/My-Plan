@@ -69,10 +69,10 @@ export function HomeContent({ userEmail }: HomeContentProps) {
               {initials}
             </div>
             <ThemeToggle />
-            <form action="/auth/signout" method="post">
+            <form action="/auth/signout" method="post" className="shrink-0">
               <button
                 type="submit"
-                className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+                className="whitespace-nowrap rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
               >
                 Sign out
               </button>
@@ -84,18 +84,18 @@ export function HomeContent({ userEmail }: HomeContentProps) {
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Hero */}
         <div className="mb-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
-            <LayoutDashboard className="h-3 w-3" />
-            Investment Planning Suite
-          </div>
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
             Welcome back
           </h1>
           <p className="mt-4 mx-auto max-w-xl text-lg text-muted-foreground">
             Your unified financial planning platform. Analyze portfolios, model real estate investments, and plan for retirement.
-          </p>
+          </p>    
         </div>
-
+          <div className="mb-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            Financial Planning Suite 
+          </h1>
+          </div>   
         {/* App cards */}
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {apps.map((app, i) => (
