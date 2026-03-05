@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Suspense, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -374,6 +375,23 @@ function LoginContent() {
                 </button>
               </div>
             </div>
+
+            {!isSignUp && (
+              <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-sm">
+                <Link
+                  href="/login/forgot-username"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Forgot username?
+                </Link>
+                <Link
+                  href="/login/forgot-password"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
 
             <Button
               type="submit"
