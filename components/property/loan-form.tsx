@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface LoanFormProps {
   scenarioId: number
@@ -22,7 +23,7 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
   const [purchasePrice, setPurchasePrice] = useState(initialData?.['Purchase Price']?.toString() || '')
   const [interestRate, setInterestRate] = useState(initialData?.['Interest Rate']?.toString() || '')
   const [monthlyMortgage, setMonthlyMortgage] = useState(initialData?.['Monthly Mortgage']?.toString() || '')
-  const [monthlyPrincipal, setMonthlyPrincipal] = useState(initialData?.['Monthly Principle']?.toString() || '')
+  const [monthlyPrincipal, setMonthlyPrincipal] = useState(initialData?.['Monthly Principal']?.toString() || '')
   const [monthlyInterest, setMonthlyInterest] = useState(initialData?.['Monthly Interest']?.toString() || '')
   const [closingCosts, setClosingCosts] = useState(initialData?.['Closing Costs']?.toString() || '')
 
@@ -65,19 +66,19 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
         'Purchase Price': purchasePrice ? parseFloat(purchasePrice) : null,
         'Interest Rate': interestRate ? parseFloat(interestRate) : null,
         'Monthly Mortgage': monthlyMortgage ? parseFloat(monthlyMortgage) : null,
-        'Monthly Principle': monthlyPrincipal ? parseFloat(monthlyPrincipal) : null,
+        'Monthly Principal': monthlyPrincipal ? parseFloat(monthlyPrincipal) : null,
         'Monthly Interest': monthlyInterest ? parseFloat(monthlyInterest) : null,
         'Closing Costs': closingCosts ? parseFloat(closingCosts) : null,
         'Annual Mortgage': monthlyMortgage ? parseFloat(monthlyMortgage) * 12 : null,
         'Annual Principal': monthlyPrincipal ? parseFloat(monthlyPrincipal) * 12 : null,
         'Annual Interest': monthlyInterest ? parseFloat(monthlyInterest) * 12 : null,
-        'Scanario': scenarioId,
+        'scenario_id': scenarioId,
       }
 
       const { data: existingLoan } = await supabase
         .from('pi_loans')
         .select('id')
-        .eq('Scanario', scenarioId)
+        .eq('scenario_id', scenarioId)
         .single()
 
       if (existingLoan) {
@@ -96,7 +97,7 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
       }
 
       router.refresh()
-      alert('Loan information saved successfully!')
+      toast.success('Loan information saved successfully!')
     } catch (error: any) {
       setError(error.message || 'Failed to save loan information')
     } finally {
@@ -107,14 +108,14 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-600">
+        <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="purchasePrice" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="purchasePrice" className="block text-sm font-medium text-foreground">
             Purchase Price ($)
           </label>
           <input
@@ -125,12 +126,12 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={purchasePrice}
             onChange={(e) => setPurchasePrice(e.target.value)}
             placeholder="0.00"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="loanTerm" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="loanTerm" className="block text-sm font-medium text-foreground">
             Loan Term (years)
           </label>
           <input
@@ -140,12 +141,12 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={loanTerm}
             onChange={(e) => setLoanTerm(e.target.value)}
             placeholder="30"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="downPaymentPercent" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="downPaymentPercent" className="block text-sm font-medium text-foreground">
             Down Payment Percentage (%)
           </label>
           <input
@@ -157,12 +158,12 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={downPaymentPercent}
             onChange={(e) => setDownPaymentPercent(e.target.value)}
             placeholder="20.00"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="downPaymentAmount" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="downPaymentAmount" className="block text-sm font-medium text-foreground">
             Down Payment Amount ($)
           </label>
           <input
@@ -173,12 +174,12 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={downPaymentAmount}
             onChange={(e) => setDownPaymentAmount(e.target.value)}
             placeholder="0.00"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="interestRate" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="interestRate" className="block text-sm font-medium text-foreground">
             Interest Rate (%)
           </label>
           <div className="mt-1 space-y-2">
@@ -200,13 +201,13 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
               value={interestRate}
               onChange={(e) => setInterestRate(e.target.value)}
               placeholder="4.50"
-              className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              className="block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
 
         <div>
-          <label htmlFor="closingCosts" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="closingCosts" className="block text-sm font-medium text-foreground">
             Closing Costs ($)
           </label>
           <input
@@ -217,12 +218,12 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={closingCosts}
             onChange={(e) => setClosingCosts(e.target.value)}
             placeholder="0.00"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="monthlyMortgage" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="monthlyMortgage" className="block text-sm font-medium text-foreground">
             Monthly Mortgage Payment ($)
           </label>
           <input
@@ -232,12 +233,12 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={monthlyMortgage}
             onChange={(e) => setMonthlyMortgage(e.target.value)}
             placeholder="0.00"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="monthlyPrincipal" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="monthlyPrincipal" className="block text-sm font-medium text-foreground">
             Monthly Principal ($)
           </label>
           <input
@@ -247,12 +248,12 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={monthlyPrincipal}
             onChange={(e) => setMonthlyPrincipal(e.target.value)}
             placeholder="0.00"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="monthlyInterest" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="monthlyInterest" className="block text-sm font-medium text-foreground">
             Monthly Interest ($)
           </label>
           <input
@@ -262,7 +263,7 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
             value={monthlyInterest}
             onChange={(e) => setMonthlyInterest(e.target.value)}
             placeholder="0.00"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>
@@ -271,14 +272,14 @@ export default function LoanForm({ scenarioId, propertyId, initialData }: LoanFo
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
+          className="rounded-md bg-muted px-4 py-2 text-sm font-medium hover:bg-muted/80"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {loading ? 'Saving...' : 'Save Loan Information'}
         </button>

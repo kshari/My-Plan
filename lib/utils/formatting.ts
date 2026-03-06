@@ -28,3 +28,16 @@ export function formatNumber(value: number, decimals = 0): string {
     maximumFractionDigits: decimals,
   })
 }
+
+/**
+ * Parse a YYYY-MM-DD date string as local date (not UTC).
+ * new Date("2025-03-06") is UTC midnight, which displays as the previous day in US timezones.
+ * Accepts string, number (timestamp), or Date for robustness (e.g. from chart labelFormatter).
+ */
+export function parseLocalDate(dateOnly: string | number | Date): Date {
+  if (typeof dateOnly === 'number') return new Date(dateOnly)
+  if (dateOnly instanceof Date) return dateOnly
+  const str = String(dateOnly)
+  const [y, m, d] = str.split('-').map(Number)
+  return new Date(y, (m ?? 1) - 1, d ?? 1)
+}

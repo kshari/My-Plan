@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { AppShell } from "@/components/layout/app-shell"
 
-export default async function PortfolioLayout({
+export default async function PulseLayout({
   children,
 }: {
   children: React.ReactNode

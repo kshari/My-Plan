@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, LayoutDashboard, TrendingUp, Building2, Target } from "lucide-react"
+import { Menu, LayoutDashboard, Building2, Target, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
@@ -17,9 +17,9 @@ interface AppShellProps {
 
 const bottomNavItems = [
   { href: "/", label: "Home", icon: LayoutDashboard, exact: true },
-  { href: "/apps/portfolio", label: "Portfolio", icon: TrendingUp, color: "text-blue-500" },
-  { href: "/apps/property", label: "Property", icon: Building2, color: "text-emerald-500" },
+  { href: "/apps/pulse", label: "Pulse", icon: Activity, color: "text-orange-500" },
   { href: "/apps/retirement", label: "Retire", icon: Target, color: "text-violet-500" },
+  { href: "/apps/property", label: "Property", icon: Building2, color: "text-emerald-500" },
 ]
 
 export function AppShell({ children, userEmail }: AppShellProps) {

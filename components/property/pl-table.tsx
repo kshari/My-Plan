@@ -205,90 +205,90 @@ export default function PLTable({ scenario, years }: PLTableProps) {
   const totalClosingCosts = loanClosingCosts + purchaseClosingCosts
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">Profit & Loss by Year</h3>
-      <div className="mb-4 rounded-lg bg-gray-50 p-4">
-        <div className="mb-2 font-semibold text-gray-900">Total Cash Invested</div>
+    <div className="rounded-xl border bg-card p-6">
+      <h3 className="mb-4 text-base font-semibold">Profit & Loss by Year</h3>
+      <div className="mb-4 rounded-lg bg-muted/30 p-4">
+        <div className="mb-2 font-semibold">Total Cash Invested</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           {hasLoan ? (
             <>
               <div>
-                <div className="text-gray-600">Down Payment</div>
-                <div className="font-medium text-gray-900">${downPaymentAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-muted-foreground">Down Payment</div>
+                <div className="font-medium">${downPaymentAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-gray-600">Loan Closing Costs</div>
-                <div className="font-medium text-gray-900">${loanClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-muted-foreground">Loan Closing Costs</div>
+                <div className="font-medium">${loanClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-gray-600">Purchase Closing Costs</div>
-                <div className="font-medium text-gray-900">${purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-muted-foreground">Purchase Closing Costs</div>
+                <div className="font-medium">${purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-gray-600">Total</div>
-                <div className="font-medium text-gray-900">${totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-muted-foreground">Total</div>
+                <div className="font-medium">${totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
             </>
           ) : (
             <>
               <div>
-                <div className="text-gray-600">Purchase Price</div>
-                <div className="font-medium text-gray-900">${purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-muted-foreground">Purchase Price</div>
+                <div className="font-medium">${purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-gray-600">Purchase Closing Costs</div>
-                <div className="font-medium text-gray-900">${purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-muted-foreground">Purchase Closing Costs</div>
+                <div className="font-medium">${purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-gray-600">Total</div>
-                <div className="font-medium text-gray-900">${totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-muted-foreground">Total</div>
+                <div className="font-medium">${totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
             </>
           )}
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-muted/50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Year</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Gross Income</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Operating Expenses</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">NOI</th>
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Interest</th>}
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Principal</th>}
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Net Income</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Cash Flow</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Cash on Cash Return (%)</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Equity</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">IRR (%)</th>
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Remaining Loan Balance</th>}
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Year</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Gross Income</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Operating Expenses</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">NOI</th>
+              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Interest</th>}
+              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Principal</th>}
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Net Income</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash Flow</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash on Cash Return (%)</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Equity</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">IRR (%)</th>
+              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Remaining Loan Balance</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y divide-border">
             {plData.map((row) => (
-              <tr key={row.year} className="hover:bg-gray-50">
-                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{row.year}</td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
+              <tr key={row.year} className="hover:bg-muted/50">
+                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">{row.year}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
                   ${row.grossIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
                   ${row.operatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                   ${row.noi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
+                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
                     ${row.interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 )}
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
+                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
                     ${row.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 )}
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                   ${row.netIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td className={`whitespace-nowrap px-6 py-4 text-right text-sm font-semibold ${row.cashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -297,14 +297,14 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                 <td className={`whitespace-nowrap px-6 py-4 text-right text-sm font-medium ${row.cashOnCashReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {row.cashOnCashReturn.toFixed(2)}%
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
                   ${row.equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td className={`whitespace-nowrap px-6 py-4 text-right text-sm font-medium ${row.irr >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {row.irr.toFixed(2)}%
                 </td>
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
+                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
                     ${Math.max(0, row.remainingLoanBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 )}

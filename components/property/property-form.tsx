@@ -5,6 +5,12 @@ import { createClient } from '@/lib/supabase/client'
 import { PROPERTY_TYPES } from '@/lib/constants/property-defaults'
 import { useRouter } from 'next/navigation'
 import { ErrorMessage } from '@/components/ui/error-message'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 
 interface PropertyFormProps {
   propertyId?: number
@@ -32,6 +38,12 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
   const [askingPrice, setAskingPrice] = useState(initialData?.['Asking Price']?.toString() || '')
   const [grossIncome, setGrossIncome] = useState(initialData?.['Gross Income']?.toString() || '')
   const [operatingExpenses, setOperatingExpenses] = useState(initialData?.['Operating Expenses']?.toString() || '')
+
+  const gross = parseFloat(grossIncome) || 0
+  const expenses = parseFloat(operatingExpenses) || 0
+  const noi = gross - expenses
+  const price = parseFloat(askingPrice) || 0
+  const capRate = price > 0 && noi > 0 ? (noi / price) * 100 : 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,132 +90,166 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && <ErrorMessage message={error} />}
 
-      <div>
-        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-          Address *
-        </label>
-        <input
-          id="address"
-          type="text"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          required
-          placeholder="123 Main St, City, State ZIP"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <label htmlFor="address" className="block text-sm font-medium text-foreground">
+            Address *
+          </label>
+          <input
+            id="address"
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            required
+            placeholder="123 Main St, City, State ZIP"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="type" className="block text-sm font-medium text-foreground">
+            Property Type
+          </label>
+          <select
+            id="type"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">Select property type</option>
+            {PROPERTY_TYPES.map((pt) => (
+              <option key={pt} value={pt}>{pt}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="numberOfUnits" className="block text-sm font-medium text-foreground">
+            Number of Units
+          </label>
+          <input
+            id="numberOfUnits"
+            type="number"
+            min="1"
+            value={numberOfUnits}
+            onChange={(e) => setNumberOfUnits(e.target.value)}
+            placeholder="1"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="hasHOA" className="block text-sm font-medium text-foreground">
+            Has HOA?
+          </label>
+          <select
+            id="hasHOA"
+            value={hasHOA === null ? '' : hasHOA ? 'yes' : 'no'}
+            onChange={(e) => setHasHOA(e.target.value === 'yes' ? true : e.target.value === 'no' ? false : null)}
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">Select</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="askingPrice" className="block text-sm font-medium text-foreground">
+            Asking Price ($)
+          </label>
+          <input
+            id="askingPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            value={askingPrice}
+            onChange={(e) => setAskingPrice(e.target.value)}
+            placeholder="0.00"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="type" className="block text-sm font-medium text-gray-700">
-          Property Type
-        </label>
-        <select
-          id="type"
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-        >
-          <option value="">Select property type</option>
-          {PROPERTY_TYPES.map((pt) => (
-            <option key={pt} value={pt}>{pt}</option>
-          ))}
-        </select>
-      </div>
+      <Accordion type="multiple" defaultValue={gross > 0 || expenses > 0 ? ['financials'] : []} className="mt-2">
+        <AccordionItem value="financials">
+          <AccordionTrigger className="text-base font-semibold">
+            Financial Information
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div>
+                <label htmlFor="grossIncome" className="block text-sm font-medium text-foreground">
+                  Gross Income ($/yr)
+                </label>
+                <input
+                  id="grossIncome"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={grossIncome}
+                  onChange={(e) => setGrossIncome(e.target.value)}
+                  placeholder="0.00"
+                  className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
 
-      <div>
-        <label htmlFor="numberOfUnits" className="block text-sm font-medium text-gray-700">
-          Number of Units
-        </label>
-        <input
-          id="numberOfUnits"
-          type="number"
-          min="1"
-          value={numberOfUnits}
-          onChange={(e) => setNumberOfUnits(e.target.value)}
-          placeholder="1"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-        />
-      </div>
+              <div>
+                <label htmlFor="operatingExpenses" className="block text-sm font-medium text-foreground">
+                  Operating Expenses ($/yr)
+                </label>
+                <input
+                  id="operatingExpenses"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={operatingExpenses}
+                  onChange={(e) => setOperatingExpenses(e.target.value)}
+                  placeholder="0.00"
+                  className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
 
-      <div>
-        <label htmlFor="hasHOA" className="block text-sm font-medium text-gray-700">
-          Has HOA?
-        </label>
-        <select
-          id="hasHOA"
-          value={hasHOA === null ? '' : hasHOA ? 'yes' : 'no'}
-          onChange={(e) => setHasHOA(e.target.value === 'yes' ? true : e.target.value === 'no' ? false : null)}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-        >
-          <option value="">Select</option>
-          <option value="yes">Yes</option>
-          <option value="no">No</option>
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor="askingPrice" className="block text-sm font-medium text-gray-700">
-          Asking Price ($)
-        </label>
-        <input
-          id="askingPrice"
-          type="number"
-          min="0"
-          step="0.01"
-          value={askingPrice}
-          onChange={(e) => setAskingPrice(e.target.value)}
-          placeholder="0.00"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="grossIncome" className="block text-sm font-medium text-gray-700">
-          Gross Income ($)
-        </label>
-        <input
-          id="grossIncome"
-          type="number"
-          min="0"
-          step="0.01"
-          value={grossIncome}
-          onChange={(e) => setGrossIncome(e.target.value)}
-          placeholder="0.00"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="operatingExpenses" className="block text-sm font-medium text-gray-700">
-          Operating Expenses ($)
-        </label>
-        <input
-          id="operatingExpenses"
-          type="number"
-          min="0"
-          step="0.01"
-          value={operatingExpenses}
-          onChange={(e) => setOperatingExpenses(e.target.value)}
-          placeholder="0.00"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-        />
-      </div>
+              {(gross > 0 || expenses > 0) && (
+                <div className="md:col-span-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border bg-muted/30 p-3">
+                      <p className="text-xs text-muted-foreground">Estimated NOI</p>
+                      <p className={`mt-1 text-sm font-semibold tabular-nums ${noi >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                        ${noi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    {capRate > 0 && (
+                      <div className="rounded-lg border bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground">Estimated Cap Rate</p>
+                        <p className="mt-1 text-sm font-semibold tabular-nums text-primary">
+                          {capRate.toFixed(2)}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <div className="flex justify-end gap-3 pt-4">
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
+          className="rounded-md bg-muted px-4 py-2 text-sm font-medium hover:bg-muted/80"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {loading ? 'Saving...' : propertyId ? 'Update Property' : 'Create Property'}
         </button>

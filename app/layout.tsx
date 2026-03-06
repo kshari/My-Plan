@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "My Plan — Investment Planning Platform",
-  description: "Unified platform for portfolio analysis, property investment, and retirement planning",
+  description: "Unified platform for personal finance education, property investment, and retirement planning",
 };
 
 export default function RootLayout({

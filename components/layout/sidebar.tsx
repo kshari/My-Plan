@@ -4,9 +4,9 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  TrendingUp,
   Building2,
   Target,
+  Activity,
   LayoutDashboard,
   LayoutGrid,
   LogOut,
@@ -27,22 +27,22 @@ const appNavItems = [
     exact: true,
   },
   {
-    href: "/apps/portfolio",
-    label: "Portfolio Analyzer",
-    icon: TrendingUp,
-    color: "text-blue-500",
-  },
-  {
-    href: "/apps/property",
-    label: "Property Investment",
-    icon: Building2,
-    color: "text-emerald-500",
+    href: "/apps/pulse",
+    label: "Financial Pulse",
+    icon: Activity,
+    color: "text-orange-500",
   },
   {
     href: "/apps/retirement",
     label: "Retirement Planner",
     icon: Target,
     color: "text-violet-500",
+  },
+  {
+    href: "/apps/property",
+    label: "Property Investment",
+    icon: Building2,
+    color: "text-emerald-500",
   },
 ]
 

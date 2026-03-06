@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Target, ArrowRight, LogIn, Map } from 'lucide-react'
+import { Target, ArrowRight, LogIn, Map, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import RetirementCalculator from '@/components/retirement/retirement-calculator'
@@ -16,7 +16,14 @@ export default function TryRetirementPage() {
 
   if (!started) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="min-h-screen flex flex-col bg-background">
+        <div className="flex justify-end px-4 py-3 border-b bg-background/80">
+          <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <Home className="h-4 w-4" />
+            Home
+          </Link>
+        </div>
+        <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-8 max-w-lg">
           <div className="flex justify-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-100 dark:bg-violet-900/30">
@@ -55,6 +62,7 @@ export default function TryRetirementPage() {
             </Button>
           </div>
         </div>
+        </div>
       </div>
     )
   }
@@ -85,6 +93,11 @@ export default function TryRetirementPage() {
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">Home</span>
+            </Link>
+            <span className="bg-border w-px self-stretch hidden sm:block" aria-hidden />
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
               <Target className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>

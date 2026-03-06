@@ -1,8 +1,18 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import {
   DEFAULT_INTEREST_RATE_MIN, DEFAULT_INTEREST_RATE_MAX,
   DEFAULT_DOWN_PAYMENT_PCT, DEFAULT_DOWN_PAYMENT_MIN, DEFAULT_DOWN_PAYMENT_MAX,
@@ -91,6 +101,23 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   const [savingScenarioId, setSavingScenarioId] = useState<number | null>(null)
   const [savingThresholds, setSavingThresholds] = useState(false)
   const [savingThresholdVariable, setSavingThresholdVariable] = useState<string | null>(null)
+  const [nameDialogOpen, setNameDialogOpen] = useState(false)
+  const [pendingScenarioName, setPendingScenarioName] = useState('')
+  const pendingSaveRef = useRef<{ scenario: any } | null>(null)
+
+  const handleSaveClick = (scenario: any) => {
+    pendingSaveRef.current = { scenario }
+    setPendingScenarioName(`Model Scenario ${scenario.id}`)
+    setNameDialogOpen(true)
+  }
+
+  const handleNameConfirm = () => {
+    if (pendingSaveRef.current && pendingScenarioName.trim()) {
+      saveScenario(pendingSaveRef.current.scenario, pendingScenarioName.trim())
+    }
+    setNameDialogOpen(false)
+    pendingSaveRef.current = null
+  }
 
   const scenarios = useMemo(() => {
     const askingPrice = property['Asking Price'] || DEFAULT_ASKING_PRICE
@@ -695,13 +722,13 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           'Purchase Price': scenario.purchasePrice,
           'Interest Rate': scenario.interestRate,
           'Monthly Mortgage': scenario.monthlyMortgage,
-          'Monthly Principle': scenario.firstYearPrincipal / 12,
+          'Monthly Principal': scenario.firstYearPrincipal / 12,
           'Monthly Interest': scenario.firstYearInterest / 12,
           'Closing Costs': loanClosingCosts,
           'Annual Mortgage': scenario.monthlyMortgage * 12,
           'Annual Principal': scenario.firstYearPrincipal,
           'Annual Interest': scenario.firstYearInterest,
-          'scanario': data.id,
+          'scenario_id': data.id,
         }
 
         const { error: loanError } = await supabase
@@ -714,10 +741,10 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         }
       }
 
-      alert(`Scenario "${scenarioData['Scenario Name']}" saved successfully!`)
+      toast.success(`Scenario "${scenarioData['Scenario Name']}" saved successfully!`)
       router.refresh()
     } catch (error: any) {
-      alert(`Failed to save scenario: ${error.message}`)
+      toast.error(`Failed to save scenario: ${error.message}`)
     } finally {
       setSavingScenarioId(null)
     }
@@ -726,7 +753,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   // Function to save a single threshold scenario
   const saveSingleThresholdScenario = async (threshold: { variable: string; thresholdValue: number | null; thresholdChange: number | null }) => {
     if (threshold.thresholdValue === null || threshold.thresholdChange === null) {
-      alert('Cannot save: No valid threshold value found')
+      toast.error('Cannot save: No valid threshold value found')
       return
     }
 
@@ -840,7 +867,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         })
 
         if (isDuplicate) {
-          alert('A scenario with the same name and details already exists. Please use a different name or modify the scenario details.')
+          toast.error('A scenario with the same name and details already exists. Please use a different name or modify the scenario details.')
           return
         }
       }
@@ -861,23 +888,23 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         'Purchase Price': purchasePrice,
         'Interest Rate': interestRate,
         'Monthly Mortgage': monthlyMortgage,
-        'Monthly Principle': firstYearPrincipal / 12,
+        'Monthly Principal': firstYearPrincipal / 12,
         'Monthly Interest': firstYearInterest / 12,
         'Closing Costs': loanClosingCosts,
         'Annual Mortgage': monthlyMortgage * 12,
         'Annual Principal': firstYearPrincipal,
         'Annual Interest': firstYearInterest,
-        'scanario': savedScenario.id,
+        'scenario_id': savedScenario.id,
       }
 
       await supabase
         .from('pi_loans')
         .insert([loanData])
 
-      alert(`Threshold scenario "${scenarioData['Scenario Name']}" saved successfully!`)
+      toast.success(`Threshold scenario "${scenarioData['Scenario Name']}" saved successfully!`)
       router.refresh()
     } catch (error: any) {
-      alert(`Failed to save threshold scenario: ${error.message}`)
+      toast.error(`Failed to save threshold scenario: ${error.message}`)
     } finally {
       setSavingThresholdVariable(null)
     }
@@ -980,7 +1007,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       }
 
       if (scenariosToSave.length === 0) {
-        alert('No positive threshold scenarios to save')
+        toast.error('No positive threshold scenarios to save')
         return
       }
 
@@ -1008,13 +1035,13 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       })
 
       if (scenariosToInsert.length === 0) {
-        alert('All threshold scenarios already exist. No new scenarios to save.')
+        toast.info('All threshold scenarios already exist. No new scenarios to save.')
         return
       }
 
       if (scenariosToInsert.length < scenariosToSave.length) {
         const skippedCount = scenariosToSave.length - scenariosToInsert.length
-        alert(`${skippedCount} duplicate scenario${skippedCount > 1 ? 's' : ''} skipped. Saving ${scenariosToInsert.length} new scenario${scenariosToInsert.length > 1 ? 's' : ''}.`)
+        toast.info(`${skippedCount} duplicate scenario${skippedCount > 1 ? 's' : ''} skipped. Saving ${scenariosToInsert.length} new scenario${scenariosToInsert.length > 1 ? 's' : ''}.`)
       }
 
       const { data: savedScenarios, error } = await supabase
@@ -1086,13 +1113,13 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           'Purchase Price': purchasePrice,
           'Interest Rate': interestRate,
           'Monthly Mortgage': monthlyMortgage,
-          'Monthly Principle': firstYearPrincipal / 12,
+          'Monthly Principal': firstYearPrincipal / 12,
           'Monthly Interest': firstYearInterest / 12,
           'Closing Costs': loanClosingCosts,
           'Annual Mortgage': monthlyMortgage * 12,
           'Annual Principal': firstYearPrincipal,
           'Annual Interest': firstYearInterest,
-          'scanario': savedScenario.id,
+          'scenario_id': savedScenario.id,
         }
 
         await supabase
@@ -1100,20 +1127,20 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           .insert([loanData])
       }
 
-      alert(`Successfully saved ${scenariosToInsert.length} positive threshold scenario${scenariosToInsert.length > 1 ? 's' : ''}!`)
+      toast.success(`Successfully saved ${scenariosToInsert.length} positive threshold scenario${scenariosToInsert.length > 1 ? 's' : ''}!`)
       router.refresh()
     } catch (error: any) {
-      alert(`Failed to save scenarios: ${error.message}`)
+      toast.error(`Failed to save scenarios: ${error.message}`)
     } finally {
       setSavingThresholds(false)
     }
   }
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow">
+    <div className="rounded-lg bg-card p-6 shadow">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">Model Scenarios</h3>
-        <p className="mt-1 text-sm text-gray-600">
+        <h3 className="text-lg font-semibold ">Model Scenarios</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
           Generated scenarios with varying purchase prices, interest rates, gross income, and operating expenses
         </p>
       </div>
@@ -1121,7 +1148,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         <div className="mb-6 space-y-6">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">Variable Ranges</h3>
+              <h3 className="text-lg font-semibold ">Variable Ranges</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -1138,14 +1165,14 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   setMaxDownPayment(String(DEFAULT_DOWN_PAYMENT_PCT))
                   setClosingCostPercent(String(DEFAULT_CLOSING_COST_PCT))
                 }}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                className="rounded-md bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/80"
               >
                 Reset to Property Baseline Values
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <label htmlFor="interestRateRange" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="interestRateRange" className="block text-sm font-medium text-foreground">
                   Interest Rate: {minIntRate}% - {maxIntRate}%
                 </label>
                 <div className="space-y-2">
@@ -1181,7 +1208,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="purchasePriceRange" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="purchasePriceRange" className="block text-sm font-medium text-foreground">
                   Purchase Price Change: {priceMinChange}% - {priceMaxChange}%
                 </label>
                 <div className="space-y-2">
@@ -1217,7 +1244,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="incomeRange" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="incomeRange" className="block text-sm font-medium text-foreground">
                   Income Change: {incomeMinChangeVal}% - {incomeMaxChangeVal}%
                 </label>
                 <div className="space-y-2">
@@ -1253,7 +1280,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="expensesRange" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="expensesRange" className="block text-sm font-medium text-foreground">
                   Expenses Change: {expensesMinChangeVal}% - {expensesMaxChangeVal}%
                 </label>
                 <div className="space-y-2">
@@ -1289,7 +1316,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="downPaymentRange" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="downPaymentRange" className="block text-sm font-medium text-foreground">
                   Down Payment: {minDownPaymentVal}% - {maxDownPaymentVal}%
                 </label>
                 <div className="space-y-2">
@@ -1325,7 +1352,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="closingCostPercent" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="closingCostPercent" className="block text-sm font-medium text-foreground">
                   Closing Costs: {closingCostPercent}% of Purchase Price
                 </label>
                 <input
@@ -1338,21 +1365,21 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   onChange={(e) => {
                     setClosingCostPercent(parseFloat(e.target.value).toFixed(2))
                   }}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-border">
             <div className="flex justify-between items-start mb-4">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Break-Even Threshold Analysis</h3>
-                <p className="text-sm text-gray-600 mb-3">
+                <h3 className="text-lg font-semibold  mb-2">Break-Even Threshold Analysis</h3>
+                <p className="text-sm text-muted-foreground mb-3">
                   This analysis shows the <strong>minimum or maximum value</strong> for each variable that would result in <strong>positive first-year cash flow</strong>, 
                   while keeping all other variables at their baseline values. Use this to understand how sensitive your investment is to changes in each factor.
                 </p>
-                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
                   <strong>Baseline Values:</strong> Purchase Price = ${askingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
                   Gross Income = ${baseGrossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
                   Operating Expenses = ${baseOperatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
@@ -1432,18 +1459,18 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 }
 
                 return (
-                  <div key={result.variable} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div key={result.variable} className="p-4 border border-border rounded-lg bg-muted/50">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <div className="font-semibold text-gray-900 mb-1">{result.variable}</div>
-                        <div className="text-xs text-gray-500 mb-2">{getVariableDescription()}</div>
+                        <div className="font-semibold  mb-1">{result.variable}</div>
+                        <div className="text-xs text-muted-foreground mb-2">{getVariableDescription()}</div>
                       </div>
                       {result.thresholdValue !== null && result.thresholdChange !== null && (
                         <button
                           type="button"
                           onClick={() => saveSingleThresholdScenario(result)}
                           disabled={savingThresholdVariable === result.variable}
-                          className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                         >
                           {savingThresholdVariable === result.variable ? 'Saving...' : 'Save'}
                         </button>
@@ -1451,10 +1478,10 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     </div>
                     {result.thresholdChange !== null ? (
                       <>
-                        <div className={`text-sm font-medium mb-1 ${result.thresholdChange !== null && result.thresholdChange < 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                        <div className={`text-sm font-medium mb-1 ${result.thresholdChange !== null && result.thresholdChange < 0 ? 'text-red-600' : 'text-foreground'}`}>
                           {getChangeLabel()}
                         </div>
-                        <div className={`text-sm mb-2 ${result.thresholdChange !== null && result.thresholdChange < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                        <div className={`text-sm mb-2 ${result.thresholdChange !== null && result.thresholdChange < 0 ? 'text-red-600' : ''}`}>
                           {result.variable === 'Interest Rate' || result.variable === 'Down Payment' ? (
                             <>{result.thresholdChange.toFixed(2)}%</>
                           ) : (
@@ -1463,10 +1490,10 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                         </div>
                         {result.thresholdValue !== null && (
                           <>
-                            <div className="text-sm font-medium text-gray-700 mb-1">
+                            <div className="text-sm font-medium text-foreground mb-1">
                               {getValueLabel()}
                             </div>
-                            <div className={`text-sm ${result.thresholdValue < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                            <div className={`text-sm ${result.thresholdValue < 0 ? 'text-red-600' : ''}`}>
                               {result.variable === 'Interest Rate' || result.variable === 'Down Payment' ? (
                                 <>{result.thresholdValue.toFixed(2)}%</>
                               ) : (
@@ -1493,9 +1520,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   type="checkbox"
                   checked={positiveCashFlowOnly}
                   onChange={(e) => setPositiveCashFlowOnly(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                 />
-                <label htmlFor="positiveCashFlowOnly" className="text-sm font-medium text-gray-700 cursor-pointer">
+                <label htmlFor="positiveCashFlowOnly" className="text-sm font-medium text-foreground cursor-pointer">
                   Show positive cash flow only
                 </label>
               </div>
@@ -1505,9 +1532,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   type="checkbox"
                   checked={includeLoan}
                   onChange={(e) => setIncludeLoan(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                 />
-                <label htmlFor="includeLoan" className="text-sm font-medium text-gray-700 cursor-pointer">
+                <label htmlFor="includeLoan" className="text-sm font-medium text-foreground cursor-pointer">
                   Include Loan
                 </label>
               </div>
@@ -1517,25 +1544,25 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   type="checkbox"
                   checked={includeAllCash}
                   onChange={(e) => setIncludeAllCash(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                 />
-                <label htmlFor="includeAllCash" className="text-sm font-medium text-gray-700 cursor-pointer">
+                <label htmlFor="includeAllCash" className="text-sm font-medium text-foreground cursor-pointer">
                   Include All Cash
                 </label>
               </div>
             </div>
             {includeLoan && (
-              <div className="flex items-center gap-6 border-t border-gray-200 pt-4">
-                <label className="text-sm font-medium text-gray-700">Loan Terms:</label>
+              <div className="flex items-center gap-6 border-t border-border pt-4">
+                <label className="text-sm font-medium text-foreground">Loan Terms:</label>
                 <div className="flex items-center space-x-2">
                   <input
                     id="includeLoanTerm15"
                     type="checkbox"
                     checked={includeLoanTerm15}
                     onChange={(e) => setIncludeLoanTerm15(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                   />
-                  <label htmlFor="includeLoanTerm15" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  <label htmlFor="includeLoanTerm15" className="text-sm font-medium text-foreground cursor-pointer">
                     15 years
                   </label>
                 </div>
@@ -1545,9 +1572,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     type="checkbox"
                     checked={includeLoanTerm20}
                     onChange={(e) => setIncludeLoanTerm20(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                   />
-                  <label htmlFor="includeLoanTerm20" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  <label htmlFor="includeLoanTerm20" className="text-sm font-medium text-foreground cursor-pointer">
                     20 years
                   </label>
                 </div>
@@ -1557,9 +1584,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     type="checkbox"
                     checked={includeLoanTerm30}
                     onChange={(e) => setIncludeLoanTerm30(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                   />
-                  <label htmlFor="includeLoanTerm30" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  <label htmlFor="includeLoanTerm30" className="text-sm font-medium text-foreground cursor-pointer">
                     30 years
                   </label>
                 </div>
@@ -1567,43 +1594,43 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-border">
             <div>
-              <label className="text-sm font-medium text-gray-500">Purchase Price Range</label>
-              <div className="mt-1 text-sm text-gray-900">
+              <label className="text-sm font-medium text-muted-foreground">Purchase Price Range</label>
+              <div className="mt-1 text-sm ">
                 ${minPurchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${maxPurchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Income Range</label>
-              <div className="mt-1 text-sm text-gray-900">
+              <label className="text-sm font-medium text-muted-foreground">Income Range</label>
+              <div className="mt-1 text-sm ">
                 ${minIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${maxIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Expenses Range</label>
-              <div className="mt-1 text-sm text-gray-900">
+              <label className="text-sm font-medium text-muted-foreground">Expenses Range</label>
+              <div className="mt-1 text-sm ">
                 ${minExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${maxExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Down Payment Range</label>
-              <div className="mt-1 text-sm text-gray-900">
+              <label className="text-sm font-medium text-muted-foreground">Down Payment Range</label>
+              <div className="mt-1 text-sm ">
                 {minDownPaymentVal}% - {maxDownPaymentVal}%
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-border">
             <div className="flex gap-6">
               <div>
-                <label className="text-sm font-medium text-gray-500">Minimum Cash Flow</label>
+                <label className="text-sm font-medium text-muted-foreground">Minimum Cash Flow</label>
                 <div className={`mt-1 text-lg font-semibold ${minCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   ${minCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Maximum Cash Flow</label>
+                <label className="text-sm font-medium text-muted-foreground">Maximum Cash Flow</label>
                 <div className={`mt-1 text-lg font-semibold ${maxCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   ${maxCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
@@ -1611,12 +1638,12 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 sticky top-0">
+        <div className="overflow-x-auto border border-border rounded-lg">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/50 sticky top-0">
               <tr>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[100px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
                   onClick={() => handleSort('purchasePrice')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1625,7 +1652,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[100px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
                   onClick={() => handleSort('grossIncome')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1634,7 +1661,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[100px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
                   onClick={() => handleSort('operatingExpenses')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1643,7 +1670,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[80px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[80px] border-r border-border"
                   onClick={() => handleSort('capRate')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1652,7 +1679,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[90px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[90px] border-r border-border"
                   onClick={() => handleSort('interestRate')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1661,7 +1688,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[80px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[80px] border-r border-border"
                   onClick={() => handleSort('loanTerm')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1670,7 +1697,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[100px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
                   onClick={() => handleSort('downPayment')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1679,7 +1706,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[100px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
                   onClick={() => handleSort('totalClosingCosts')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1688,7 +1715,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[100px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
                   onClick={() => handleSort('totalCashInvested')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1697,7 +1724,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[60px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[60px] border-r border-border"
                   onClick={() => handleSort('grm')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1706,7 +1733,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[60px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[60px] border-r border-border"
                   onClick={() => handleSort('dscr')}
                 >
                   <div className="flex items-center justify-end flex-wrap gap-1">
@@ -1715,7 +1742,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[110px] border-r border-gray-200"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[110px] border-r border-border"
                   onClick={() => handleSort('firstYearCashFlow')}
                 >
                   <TooltipProvider>
@@ -1737,7 +1764,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </TooltipProvider>
                 </th>
                 <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 select-none min-w-[100px]"
+                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px]"
                   onClick={() => handleSort('firstYearCoCR')}
                 >
                   <TooltipProvider>
@@ -1758,63 +1785,63 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                     </Tooltip>
                   </TooltipProvider>
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-700 min-w-[80px]">
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-foreground min-w-[80px]">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody className="divide-y divide-border bg-card">
               {sortedScenarios.map((scenario) => {
                 const purchasePriceChange = askingPrice > 0 ? ((scenario.purchasePrice - askingPrice) / askingPrice) * 100 : 0
                 const incomeChange = baseGrossIncome > 0 ? ((scenario.grossIncome - baseGrossIncome) / baseGrossIncome) * 100 : 0
                 const expensesChange = baseOperatingExpenses > 0 ? ((scenario.operatingExpenses - baseOperatingExpenses) / baseOperatingExpenses) * 100 : 0
                 
                 return (
-                <tr key={scenario.id} className="hover:bg-blue-50 transition-colors">
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 border-r border-gray-200">
+                <tr key={scenario.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium  border-r border-border">
                     <div className="font-semibold">${scenario.purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${purchasePriceChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{purchasePriceChange >= 0 ? '+' : ''}{purchasePriceChange.toFixed(2)}%</div>
+                    <div className={`text-xs mt-0.5 ${purchasePriceChange < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{purchasePriceChange >= 0 ? '+' : ''}{purchasePriceChange.toFixed(2)}%</div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 border-r border-gray-200">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium  border-r border-border">
                     <div className="font-semibold">${scenario.grossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${incomeChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(2)}%</div>
+                    <div className={`text-xs mt-0.5 ${incomeChange < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(2)}%</div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 border-r border-gray-200">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium  border-r border-border">
                     <div className="font-semibold">${scenario.operatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${expensesChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>{expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(2)}%</div>
+                    <div className={`text-xs mt-0.5 ${expensesChange < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(2)}%</div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-gray-900 border-r border-gray-200">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold  border-r border-border">
                     {scenario.capRate.toFixed(2)}%
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 border-r border-gray-200">
-                    {scenario.interestRate !== null ? `${scenario.interestRate.toFixed(2)}%` : <span className="text-gray-400">-</span>}
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
+                    {scenario.interestRate !== null ? `${scenario.interestRate.toFixed(2)}%` : <span className="text-muted-foreground/50">-</span>}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 border-r border-gray-200">
-                    {scenario.loanTerm !== null ? `${scenario.loanTerm} yrs` : <span className="text-gray-400">-</span>}
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
+                    {scenario.loanTerm !== null ? `${scenario.loanTerm} yrs` : <span className="text-muted-foreground/50">-</span>}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 border-r border-gray-200">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
                     {scenario.downPaymentAmount !== null ? (
                       <>
                         <div className="font-semibold">${scenario.downPaymentAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{scenario.downPaymentPercent}%</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{scenario.downPaymentPercent}%</div>
                       </>
-                    ) : <span className="text-gray-400">-</span>}
+                    ) : <span className="text-muted-foreground/50">-</span>}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 border-r border-gray-200">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
                     ${scenario.totalClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-gray-900 border-r border-gray-200">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold  border-r border-border">
                     ${scenario.totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 border-r border-gray-200">
-                    {scenario.grm > 0 ? scenario.grm.toFixed(2) + 'x' : <span className="text-gray-400">-</span>}
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
+                    {scenario.grm > 0 ? scenario.grm.toFixed(2) + 'x' : <span className="text-muted-foreground/50">-</span>}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700 border-r border-gray-200">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="cursor-help font-semibold">
-                            {scenario.dscr !== null ? scenario.dscr.toFixed(2) + 'x' : <span className="text-gray-400">-</span>}
+                            {scenario.dscr !== null ? scenario.dscr.toFixed(2) + 'x' : <span className="text-muted-foreground/50">-</span>}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -1830,7 +1857,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                       </Tooltip>
                     </TooltipProvider>
                   </td>
-                  <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-bold border-r border-gray-200 ${scenario.firstYearCashFlow >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                  <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-bold border-r border-border ${scenario.firstYearCashFlow >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1893,14 +1920,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-center">
                     <button
-                      onClick={() => {
-                        const scenarioName = prompt('Enter a name for this scenario:', `Model Scenario ${scenario.id}`)
-                        if (scenarioName) {
-                          saveScenario(scenario, scenarioName)
-                        }
-                      }}
+                      onClick={() => handleSaveClick(scenario)}
                       disabled={savingScenarioId === scenario.id}
-                      className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {savingScenarioId === scenario.id ? 'Saving...' : 'Save'}
                     </button>
@@ -1911,6 +1933,30 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           </table>
         </div>
       </div>
+
+      <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save Scenario</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="scenarioNameInput" className="text-sm font-medium text-muted-foreground">
+              Enter a name for this scenario
+            </label>
+            <Input
+              id="scenarioNameInput"
+              value={pendingScenarioName}
+              onChange={(e) => setPendingScenarioName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleNameConfirm() }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNameDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleNameConfirm} disabled={!pendingScenarioName.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

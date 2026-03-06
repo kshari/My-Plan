@@ -1,8 +1,9 @@
-import { requireAuth } from '@/lib/utils/auth'
+import { createClient } from '@/lib/supabase/server'
 import { HomeContent } from '@/components/home-content'
 
 export default async function Home() {
-  const { user } = await requireAuth()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  return <HomeContent userEmail={user.email ?? ''} />
+  return <HomeContent userEmail={user?.email ?? null} />
 }
