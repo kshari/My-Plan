@@ -9,6 +9,7 @@ import { Target, Building2, Shield, Eye, EyeOff, ChevronDown, ChevronUp, Lock, S
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { FeedbackButton } from '@/components/feedback/feedback-button'
 
 export default function LoginPage() {
   return (
@@ -472,6 +473,7 @@ function LoginContent() {
           </p>
         </div>
       </div>
+      <FeedbackButton />
     </div>
   )
 }

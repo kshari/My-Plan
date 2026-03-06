@@ -3,6 +3,12 @@
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PeerComparison } from '@/lib/hooks/use-benchmarks'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from '@/components/ui/tooltip'
 
 interface PeerComparisonGridProps {
   comparisons: PeerComparison[]
@@ -18,16 +24,18 @@ export function PeerComparisonGrid({ comparisons }: PeerComparisonGridProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {comparisons.map((c) => (
-        <PeerCard key={c.metric} comparison={c} />
-      ))}
-    </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {comparisons.map((c) => (
+          <PeerCard key={c.metric} comparison={c} />
+        ))}
+      </div>
+    </TooltipProvider>
   )
 }
 
 function PeerCard({ comparison }: { comparison: PeerComparison }) {
-  const { label, userValue, peerMedian, percentile, format, lowerIsBetter } = comparison
+  const { label, userValue, peerMedian, percentile, format, lowerIsBetter, mathTooltip } = comparison
   const isAboveMedian = lowerIsBetter ? percentile < 50 : percentile >= 50
 
   function fmt(value: number): string {
@@ -40,7 +48,7 @@ function PeerCard({ comparison }: { comparison: PeerComparison }) {
     return `${value.toFixed(1)}%`
   }
 
-  return (
+  const card = (
     <div className="rounded-xl border bg-card p-4 space-y-3">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       <div className="flex items-end justify-between gap-2">
@@ -58,6 +66,21 @@ function PeerCard({ comparison }: { comparison: PeerComparison }) {
       </div>
     </div>
   )
+
+  if (mathTooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="cursor-help">{card}</div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs whitespace-pre-line text-xs font-normal">
+          {mathTooltip}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return card
 }
 
 function PercentileBadge({ percentile, above }: { percentile: number; above: boolean }) {

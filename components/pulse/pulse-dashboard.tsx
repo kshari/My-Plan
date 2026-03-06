@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Activity, Settings, ClipboardCheck, Upload, X } from 'lucide-react'
+import { Activity, Settings, ClipboardCheck, Upload, X, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -209,26 +209,107 @@ export function PulseDashboard({ userId }: PulseDashboardProps) {
     )
   }
 
+  const fmt = (n: number) =>
+    n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000 ? `$${(n / 1_000).toFixed(1).replace(/\.0$/, '')}k`
+    : `$${n}`
+
+  const householdLabel = profile.household_type === 'single'
+    ? 'Single'
+    : profile.household_type === 'married'
+      ? `Married${profile.household_size > 2 ? `, ${profile.household_size}` : ''}`
+      : `Household ${profile.household_size}`
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Header + Pulse Check */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Financial Pulse</h1>
           <p className="text-sm text-muted-foreground">Know where you stand. See what&apos;s possible.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/apps/pulse/pulse-check">
-            <Button variant="outline" size="sm">
-              <ClipboardCheck className="h-4 w-4 mr-1.5" /> Pulse Check
-            </Button>
-          </Link>
-          <Link href="/apps/pulse/profile">
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-1.5" /> Edit Profile
-            </Button>
-          </Link>
+        <Link href="/apps/pulse/pulse-check" className="shrink-0">
+          <Button variant="outline" size="sm">
+            <ClipboardCheck className="h-4 w-4 mr-1.5" /> Pulse Check
+          </Button>
+        </Link>
+      </div>
+
+      {/* Assumptions banner with Edit Profile inside */}
+      <div className="rounded-xl border bg-muted/30 px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+            <div className="flex items-center gap-1.5">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+              <span className="text-muted-foreground">Age</span>
+              <span className="font-semibold">{profile.age}</span>
+            </div>
+            {profile.state && (
+              <div>
+                <span className="text-muted-foreground">State</span>
+                <span className="ml-1.5 font-semibold">{profile.state}</span>
+              </div>
+            )}
+            <div>
+              <span className="text-muted-foreground">Household</span>
+              <span className="ml-1.5 font-semibold">{householdLabel}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Filing</span>
+              <span className="ml-1.5 font-semibold">{profile.filing_status.replace(/_/g, ' ')}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Income</span>
+              <span className="ml-1.5 font-semibold">{profile.annual_gross_income > 0 ? fmt(profile.annual_gross_income) + '/yr' : '—'}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Retirement</span>
+              <span className="ml-1.5 font-semibold">{profile.total_retirement_savings > 0 ? fmt(profile.total_retirement_savings) : '—'}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Emergency</span>
+              <span className="ml-1.5 font-semibold">{profile.emergency_fund > 0 ? fmt(profile.emergency_fund) : '—'}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Expenses</span>
+              <span className="ml-1.5 font-semibold">{profile.monthly_expenses > 0 ? fmt(profile.monthly_expenses) + '/mo' : '—'}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Savings</span>
+              <span className="ml-1.5 font-semibold">{profile.monthly_savings > 0 ? fmt(profile.monthly_savings) + '/mo' : '—'}</span>
+            </div>
+            {(profile.home_value != null && profile.home_value > 0) && (
+              <div>
+                <span className="text-muted-foreground">Home equity</span>
+                <span className="ml-1.5 font-semibold">
+                  {fmt(Math.max(0, (profile.home_value ?? 0) - (profile.mortgage_balance ?? 0)))}
+                </span>
+              </div>
+            )}
+            {(profile.debts?.length > 0 && profile.debts.some((d) => d.balance > 0)) && (
+              <div>
+                <span className="text-muted-foreground">Debt</span>
+                <span className="ml-1.5 font-semibold">
+                  {fmt(profile.debts.reduce((s, d) => s + (d.balance ?? 0), 0))}
+                </span>
+              </div>
+            )}
+            {(profile.stock_investments > 0 || profile.real_estate_investments > 0) && (
+              <div>
+                <span className="text-muted-foreground">Investments</span>
+                <span className="ml-1.5 font-semibold">
+                  {[
+                    profile.stock_investments > 0 && fmt(profile.stock_investments),
+                    profile.real_estate_investments > 0 && fmt(profile.real_estate_investments),
+                  ].filter(Boolean).join(' + ')}
+                </span>
+              </div>
+            )}
         </div>
+        <Link href="/apps/pulse/profile" className="shrink-0 ml-auto">
+          <Button variant="outline" size="sm" className="h-8 text-xs">
+            <Settings className="h-3.5 w-3.5 mr-1" /> Edit Profile
+          </Button>
+        </Link>
       </div>
 
       {/* Import banner for existing users with local data */}
@@ -303,9 +384,11 @@ export function PulseDashboard({ userId }: PulseDashboardProps) {
 
       {/* Pulse Check History */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Financial Journal</h2>
-        <p className="text-sm text-muted-foreground mb-4">Your pulse check history — track your financial well-being over time.</p>
-        <PulseCheckHistory checks={pulseChecks} />
+        <PulseCheckHistory
+          checks={pulseChecks}
+          userId={userId}
+          onRefresh={loadData}
+        />
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { checkAdmin } from "@/lib/utils/auth"
 import { AppShell } from "@/components/layout/app-shell"
 
 export default async function PropertyLayout({
@@ -14,8 +15,10 @@ export default async function PropertyLayout({
 
   if (!user) redirect("/login")
 
+  const { isAdmin } = await checkAdmin(supabase, user.id)
+
   return (
-    <AppShell userEmail={user.email ?? ""}>
+    <AppShell userEmail={user.email ?? ""} isAdmin={isAdmin}>
       {children}
     </AppShell>
   )

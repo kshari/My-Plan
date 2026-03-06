@@ -8,6 +8,7 @@ import RetirementCalculator from '@/components/retirement/retirement-calculator'
 import { ScenarioProvider } from '@/components/retirement/scenario-context'
 import SnapshotTab from '@/components/retirement/tabs/snapshot-tab'
 import { PlanStructureContent } from '@/components/retirement/plan-structure-content'
+import { FeedbackButton } from '@/components/feedback/feedback-button'
 
 export default function TryRetirementPage() {
   const [started, setStarted] = useState(false)
@@ -63,6 +64,7 @@ export default function TryRetirementPage() {
           </div>
         </div>
         </div>
+        <FeedbackButton />
       </div>
     )
   }
@@ -173,6 +175,7 @@ export default function TryRetirementPage() {
           </>
         )}
       </div>
+      <FeedbackButton />
     </>
   )
 }

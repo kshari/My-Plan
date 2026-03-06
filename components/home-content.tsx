@@ -1,9 +1,10 @@
 "use client"
 
 import Link from 'next/link'
-import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight } from 'lucide-react'
+import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight, ShieldCheck } from 'lucide-react'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Button } from '@/components/ui/button'
+import { FeedbackButton } from '@/components/feedback/feedback-button'
 
 const apps = [
   {
@@ -49,9 +50,10 @@ const apps = [
 
 interface HomeContentProps {
   userEmail: string | null
+  isAdmin?: boolean
 }
 
-export function HomeContent({ userEmail }: HomeContentProps) {
+export function HomeContent({ userEmail, isAdmin = false }: HomeContentProps) {
   const isAuthenticated = !!userEmail
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : ''
 
@@ -66,8 +68,17 @@ export function HomeContent({ userEmail }: HomeContentProps) {
             <span className="font-bold tracking-tight">My Plan</span>
           </div>
           <div className="flex items-center gap-2">
-            {isAuthenticated ? (
+              {isAuthenticated ? (
               <>
+                {isAdmin && (
+                  <Link
+                    href="/apps/admin"
+                    className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Admin</span>
+                  </Link>
+                )}
                 <span className="hidden text-sm text-muted-foreground sm:block">
                   {userEmail}
                 </span>
@@ -184,6 +195,8 @@ export function HomeContent({ userEmail }: HomeContentProps) {
           Your financial data is private and never shared.
         </p>
       </main>
+
+      <FeedbackButton />
     </div>
   )
 }

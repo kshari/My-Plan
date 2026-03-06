@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Sidebar } from "@/components/layout/sidebar"
 import { useSidebarNav } from "@/components/layout/sidebar-context"
+import { FeedbackButton } from "@/components/feedback/feedback-button"
 
 interface AppShellProps {
   children: React.ReactNode
   userEmail: string
+  isAdmin?: boolean
 }
 
 const bottomNavItems = [
@@ -22,7 +24,7 @@ const bottomNavItems = [
   { href: "/apps/property", label: "Property", icon: Building2, color: "text-emerald-500" },
 ]
 
-export function AppShell({ children, userEmail }: AppShellProps) {
+export function AppShell({ children, userEmail, isAdmin = false }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const { nav } = useSidebarNav()
@@ -40,14 +42,14 @@ export function AppShell({ children, userEmail }: AppShellProps) {
       {/* Desktop sidebar — fixed */}
       <aside className="hidden lg:flex w-60 flex-col border-r border-border shrink-0">
         <div className="sticky top-0 h-screen overflow-y-auto">
-          <Sidebar userEmail={userEmail} />
+          <Sidebar userEmail={userEmail} isAdmin={isAdmin} />
         </div>
       </aside>
 
       {/* Mobile sheet sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-60 p-0 border-r">
-          <Sidebar userEmail={userEmail} onClose={() => setMobileOpen(false)} />
+          <Sidebar userEmail={userEmail} isAdmin={isAdmin} onClose={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 
@@ -134,6 +136,8 @@ export function AppShell({ children, userEmail }: AppShellProps) {
             })
           )}
         </nav>
+
+        <FeedbackButton />
       </div>
     </div>
   )

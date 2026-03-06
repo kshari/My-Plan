@@ -13,6 +13,7 @@ import { DidYouKnowCard } from '@/components/pulse/did-you-know-card'
 import { ExplorationProgress } from '@/components/pulse/exploration-progress'
 import { ProfileForm } from '@/components/pulse/profile-form'
 import { SCENARIO_METADATA } from '@/lib/constants/pulse-defaults'
+import { FeedbackButton } from '@/components/feedback/feedback-button'
 
 const LOCAL_KEY = 'fp_local_profile'
 
@@ -168,6 +169,7 @@ export default function TryPulsePage() {
           </Link>
         </div>
       </div>
+      <FeedbackButton />
     </div>
   )
 }

@@ -13,6 +13,8 @@ export interface PeerComparison {
   percentile: number
   format: 'currency' | 'months' | 'percent'
   lowerIsBetter?: boolean
+  /** Short formula/explanation for tooltip */
+  mathTooltip?: string
 }
 
 export function useBenchmarks(profile: DemographicProfile | null): PeerComparison[] {
@@ -24,6 +26,8 @@ export function useBenchmarks(profile: DemographicProfile | null): PeerCompariso
     const nwBench = findBenchmark(benchmarks, 'net_worth', profile.age)
     if (nwBench) {
       const nw = computeNetWorth(profile)
+      const assets = profile.total_retirement_savings + profile.emergency_fund + profile.stock_investments + profile.real_estate_investments + (profile.home_value ?? 0) + (profile.college_529_balance ?? 0)
+      const liabilities = (profile.mortgage_balance ?? 0) + profile.debts.reduce((sum, d) => sum + d.balance, 0)
       comparisons.push({
         metric: 'net_worth',
         label: 'Net Worth',
@@ -31,6 +35,7 @@ export function useBenchmarks(profile: DemographicProfile | null): PeerCompariso
         peerMedian: nwBench.percentile_50,
         percentile: Math.round(estimatePercentile(nw, nwBench)),
         format: 'currency',
+        mathTooltip: `Assets − Liabilities = Net worth\nAssets: retirement + emergency fund + investments + home value + 529 = $${assets.toLocaleString()}\nLiabilities: mortgage + debt balances = $${liabilities.toLocaleString()}\nPercentile: where your value falls vs peers in your age group (benchmark median).`,
       })
     }
 
@@ -43,6 +48,7 @@ export function useBenchmarks(profile: DemographicProfile | null): PeerCompariso
         peerMedian: retBench.percentile_50,
         percentile: Math.round(estimatePercentile(profile.total_retirement_savings, retBench)),
         format: 'currency',
+        mathTooltip: `Your total retirement savings (from profile).\nCompared to peer median for your age.\nPercentile = where you rank (e.g. 60th = you have more than 60% of peers).`,
       })
     }
 
@@ -56,12 +62,14 @@ export function useBenchmarks(profile: DemographicProfile | null): PeerCompariso
         peerMedian: emBench.percentile_50,
         percentile: Math.round(estimatePercentile(months, emBench)),
         format: 'months',
+        mathTooltip: `Emergency fund ÷ Monthly expenses = months of runway\n${profile.emergency_fund.toLocaleString()} ÷ ${profile.monthly_expenses.toLocaleString()} = ${months.toFixed(1)} mo\nCompared to peer median (${emBench.percentile_50} mo). Higher is better.`,
       })
     }
 
     const srBench = findBenchmark(benchmarks, 'savings_rate', profile.age)
     if (srBench && profile.annual_gross_income > 0) {
       const rate = (profile.monthly_savings / (profile.annual_gross_income / 12)) * 100
+      const monthlyGross = profile.annual_gross_income / 12
       comparisons.push({
         metric: 'savings_rate',
         label: 'Savings Rate',
@@ -69,6 +77,7 @@ export function useBenchmarks(profile: DemographicProfile | null): PeerCompariso
         peerMedian: srBench.percentile_50,
         percentile: Math.round(estimatePercentile(rate, srBench)),
         format: 'percent',
+        mathTooltip: `Monthly savings ÷ Monthly gross income × 100\n${profile.monthly_savings.toLocaleString()} ÷ ${monthlyGross.toLocaleString()} × 100 = ${rate.toFixed(1)}%\nCompared to peer median (${srBench.percentile_50}%). Higher is better.`,
       })
     }
 
@@ -85,6 +94,7 @@ export function useBenchmarks(profile: DemographicProfile | null): PeerCompariso
         percentile: Math.round(estimatePercentile(dti, dtiBench)),
         format: 'percent',
         lowerIsBetter: true,
+        mathTooltip: `Total monthly debt payments ÷ Monthly gross income × 100\n${totalPayments.toLocaleString()} ÷ ${monthlyGross.toLocaleString()} × 100 = ${dti.toFixed(1)}%\nCompared to peer median (${dtiBench.percentile_50}%). Lower is better.`,
       })
     }
 
