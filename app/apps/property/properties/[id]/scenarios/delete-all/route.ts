@@ -28,7 +28,7 @@ export const DELETE = withAuth(async (request, { user, supabase, params }) => {
   const { error: deleteLoansError } = await supabase
     .from('pi_loans')
     .delete()
-    .in('scanario', scenarioIds)
+    .in('scenario_id', scenarioIds)
 
   if (deleteLoansError) {
     console.error('Error deleting loans:', deleteLoansError)

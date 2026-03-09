@@ -5,10 +5,11 @@ import { Suspense, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Target, TrendingUp, Building2, Shield, Eye, EyeOff, ChevronDown, ChevronUp, Lock, ServerIcon, Globe, Lightbulb, Map, AlertTriangle } from 'lucide-react'
+import { Target, Building2, Shield, Eye, EyeOff, ChevronDown, ChevronUp, Lock, ServerIcon, Globe, Lightbulb, Map, AlertTriangle, Activity } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { FeedbackButton } from '@/components/feedback/feedback-button'
 
 export default function LoginPage() {
   return (
@@ -105,9 +106,9 @@ function LoginContent() {
 
   const features = [
     {
-      icon: TrendingUp,
-      title: 'Portfolio Analyzer (Under Development)',
-      description: 'Risk metrics, beta, delta, and CAGR for stocks & options',
+      icon: Activity,
+      title: 'Financial Pulse',
+      description: 'Personal finance education with benchmarking, What-If scenarios, and monthly reflection',
     },
     {
       icon: Building2,
@@ -117,7 +118,7 @@ function LoginContent() {
     {
       icon: Target,
       title: 'Retirement Planner',
-      description: 'Retirement projectoins, scenario modeling, risk and tax analysis',
+      description: 'Retirement projections, scenario modeling, risk and tax analysis',
     },
   ]
 
@@ -137,7 +138,7 @@ function LoginContent() {
             Your complete financial planning suite
           </h1>
           <p className="mt-4 text-lg text-slate-200">
-            Analyze portfolios, model real estate investments, and plan your retirement — all in one private, secure platform.
+            Build financial intuition, model real estate investments, and plan your retirement — all in one private, secure platform.
           </p>
 
           <div className="mt-10 space-y-5">
@@ -191,7 +192,7 @@ function LoginContent() {
               <div>
                 <p className="text-sm font-semibold text-white">One plan, complete picture</p>
                 <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
-                  Retirement, real estate, and portfolio analysis in one place — because your finances don&apos;t exist in silos.
+                  Personal finance education, real estate, and retirement planning in one place — because your finances don&apos;t exist in silos.
                 </p>
               </div>
             </div>
@@ -279,7 +280,7 @@ function LoginContent() {
                   <div>
                     <p className="text-sm font-semibold text-white">One plan, complete picture</p>
                     <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
-                      Retirement, real estate, and portfolio analysis in one place — because your finances don&apos;t exist in silos.
+                      Personal finance education, real estate, and retirement planning in one place — because your finances don&apos;t exist in silos.
                     </p>
                   </div>
                 </div>
@@ -417,19 +418,19 @@ function LoginContent() {
             </button>
           </div>
 
-          {/* Try without signing up — prominent */}
+          {/* Try without signing up */}
           <div className="mt-6 rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 px-4 py-3.5 text-center">
             <p className="text-xs text-violet-700 dark:text-violet-300 mb-2 font-medium">
               Not ready to create an account?
             </p>
             <a
-              href="/try/retirement"
+              href="/"
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-100 transition-colors"
             >
-              Try Retirement Planner — no account required →
+              Try without an account →
             </a>
-            <p className="text-[11px] text-violet-600/70 dark:text-violet-400/70 mt-1.5">
-              Data saved in your browser. Upgrade to an account any time.
+            <p className="text-[11px] text-violet-600/70 dark:text-violet-400/70 mt-2">
+              All tools available free. Data saved in your browser.
             </p>
           </div>
 
@@ -472,6 +473,7 @@ function LoginContent() {
           </p>
         </div>
       </div>
+      <FeedbackButton />
     </div>
   )
 }

@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { checkAdmin } from "@/lib/utils/auth"
 import { AppShell } from "@/components/layout/app-shell"
 
-export default async function PortfolioLayout({
+export default async function PulseLayout({
   children,
 }: {
   children: React.ReactNode
@@ -14,8 +15,10 @@ export default async function PortfolioLayout({
 
   if (!user) redirect("/login")
 
+  const { isAdmin } = await checkAdmin(supabase, user.id)
+
   return (
-    <AppShell userEmail={user.email ?? ""}>
+    <AppShell userEmail={user.email ?? ""} isAdmin={isAdmin}>
       {children}
     </AppShell>
   )

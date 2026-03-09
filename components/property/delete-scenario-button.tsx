@@ -2,6 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 interface DeleteScenarioButtonProps {
   propertyId: number
@@ -14,14 +26,6 @@ export default function DeleteScenarioButton({ propertyId, scenarioId, scenarioN
   const router = useRouter()
 
   const handleDelete = async () => {
-    const confirmMessage = scenarioName 
-      ? `Are you sure you want to delete "${scenarioName}"? This will also delete all associated loan information. This action cannot be undone.`
-      : 'Are you sure you want to delete this scenario? This will also delete all associated loan information. This action cannot be undone.'
-    
-    if (!confirm(confirmMessage)) {
-      return
-    }
-
     setLoading(true)
     try {
       const response = await fetch(`/apps/property/properties/${propertyId}/scenarios/${scenarioId}/delete`, {
@@ -36,18 +40,41 @@ export default function DeleteScenarioButton({ propertyId, scenarioId, scenarioN
       router.push(`/apps/property/properties/${propertyId}`)
       router.refresh()
     } catch (error: any) {
-      alert(error.message || 'Failed to delete scenario')
+      toast.error(error.message || 'Failed to delete scenario')
       setLoading(false)
     }
   }
 
   return (
-    <button
-      onClick={handleDelete}
-      disabled={loading}
-      className="text-red-600 hover:text-red-900 text-sm disabled:opacity-50"
-    >
-      {loading ? 'Deleting...' : 'Delete'}
-    </button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button
+          disabled={loading}
+          className="text-red-600 hover:text-red-900 text-sm disabled:opacity-50"
+        >
+          {loading ? 'Deleting...' : 'Delete'}
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete scenario?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {scenarioName
+              ? <>Are you sure you want to delete <strong>&quot;{scenarioName}&quot;</strong>? This will also delete all associated loan information.</>
+              : 'Are you sure you want to delete this scenario? This will also delete all associated loan information.'}
+            {' '}This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

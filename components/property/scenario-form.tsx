@@ -5,6 +5,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import AmortizationTable from '@/components/property/amortization-table'
 import { ErrorMessage } from '@/components/ui/error-message'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 
 interface ScenarioFormProps {
   propertyId: number
@@ -66,6 +72,29 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
   const [expensesIncrease, setExpensesIncrease] = useState(initialData?.['Expenses Increase']?.toString() || '0')
   const [propertyValueIncrease, setPropertyValueIncrease] = useState(initialData?.['Property Value Increase']?.toString() || '0')
 
+  // Expense breakdown fields
+  const [useExpenseBreakdown, setUseExpenseBreakdown] = useState(
+    !!initialData?.expense_breakdown
+  )
+  const [propertyTaxes, setPropertyTaxes] = useState(
+    initialData?.expense_breakdown?.property_taxes?.toString() || ''
+  )
+  const [insurance, setInsurance] = useState(
+    initialData?.expense_breakdown?.insurance?.toString() || ''
+  )
+  const [maintenance, setMaintenance] = useState(
+    initialData?.expense_breakdown?.maintenance?.toString() || ''
+  )
+  const [managementFee, setManagementFee] = useState(
+    initialData?.expense_breakdown?.management_fee?.toString() || ''
+  )
+  const [vacancyRate, setVacancyRate] = useState(
+    initialData?.expense_breakdown?.vacancy_rate?.toString() || ''
+  )
+  const [otherExpenses, setOtherExpenses] = useState(
+    initialData?.expense_breakdown?.other?.toString() || ''
+  )
+
   // Calculate net operating income (NOI) and net income
   useEffect(() => {
     const gross = parseFloat(grossIncome) || 0
@@ -121,6 +150,25 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
     }
   }, [purchasePrice, downPaymentPercent, initialData])
 
+  // Auto-calculate Operating Expenses from expense breakdown
+  useEffect(() => {
+    if (useExpenseBreakdown) {
+      const taxes = parseFloat(propertyTaxes) || 0
+      const ins = parseFloat(insurance) || 0
+      const maint = parseFloat(maintenance) || 0
+      const mgmt = parseFloat(managementFee) || 0
+      const vacancy = parseFloat(vacancyRate) || 0
+      const other = parseFloat(otherExpenses) || 0
+
+      const gross = parseFloat(grossIncome) || 0
+      const vacancyLoss = gross > 0 && vacancy > 0 ? gross * (vacancy / 100) : 0
+      const mgmtAmount = gross > 0 && mgmt > 0 ? gross * (mgmt / 100) : 0
+
+      const total = taxes + ins + maint + mgmtAmount + vacancyLoss + other
+      setOperatingExpenses(total.toFixed(2))
+    }
+  }, [useExpenseBreakdown, propertyTaxes, insurance, maintenance, managementFee, vacancyRate, otherExpenses, grossIncome])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -146,6 +194,14 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
         'Interest Rate': hasLoan && interestRate ? parseFloat(interestRate) : null,
         'Closing Costs': hasLoan && loanClosingCosts ? parseFloat(loanClosingCosts) : null,
         'Purchase Closing Costs': purchaseClosingCosts ? parseFloat(purchaseClosingCosts) : null,
+        'expense_breakdown': useExpenseBreakdown ? {
+          property_taxes: propertyTaxes ? parseFloat(propertyTaxes) : 0,
+          insurance: insurance ? parseFloat(insurance) : 0,
+          maintenance: maintenance ? parseFloat(maintenance) : 0,
+          management_fee: managementFee ? parseFloat(managementFee) : 0,
+          vacancy_rate: vacancyRate ? parseFloat(vacancyRate) : 0,
+          other: otherExpenses ? parseFloat(otherExpenses) : 0,
+        } : null,
       }
 
       if (scenarioId) {
@@ -176,15 +232,15 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
 
   return (
     <div className="w-full">
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-border">
         <nav className="-mb-px flex space-x-8">
           <button
             type="button"
             onClick={() => setActiveTab('details')}
             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
               activeTab === 'details'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
             }`}
           >
             Scenario Details
@@ -195,8 +251,8 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
             disabled={!hasLoan || !scenarioId}
             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
               activeTab === 'amortization'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
             } ${(!hasLoan || !scenarioId) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Amortization Schedule
@@ -209,7 +265,7 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
           {error && <ErrorMessage message={error} />}
 
           <div>
-            <label htmlFor="scenarioName" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="scenarioName" className="block text-sm font-medium text-foreground">
               Scenario Name
             </label>
             <input
@@ -218,16 +274,16 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
               value={scenarioName}
               onChange={(e) => setScenarioName(e.target.value)}
               placeholder="e.g., Base Case, Optimistic, Conservative"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="purchasePrice" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="purchasePrice" className="block text-sm font-medium text-foreground">
                 Purchase Price ($)
                 {propertyAskingPrice && (
-                  <span className="text-sm text-gray-500 ml-2">(Asking: ${propertyAskingPrice.toLocaleString()})</span>
+                  <span className="text-sm text-muted-foreground ml-2">(Asking: ${propertyAskingPrice.toLocaleString()})</span>
                 )}
               </label>
               <div className="mt-1 space-y-2">
@@ -248,13 +304,13 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
                   value={purchasePrice}
                   onChange={(e) => setPurchasePrice(e.target.value)}
                   placeholder="0.00"
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                  className="block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="grossIncome" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="grossIncome" className="block text-sm font-medium text-foreground">
                 Gross Income ($)
               </label>
               <input
@@ -265,12 +321,12 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
                 value={grossIncome}
                 onChange={(e) => setGrossIncome(e.target.value)}
                 placeholder="0.00"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label htmlFor="operatingExpenses" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="operatingExpenses" className="block text-sm font-medium text-foreground">
                 Operating Expenses ($)
               </label>
               <input
@@ -281,12 +337,13 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
                 value={operatingExpenses}
                 onChange={(e) => setOperatingExpenses(e.target.value)}
                 placeholder="0.00"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                readOnly={useExpenseBreakdown}
+                className={`mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring ${useExpenseBreakdown ? 'bg-muted' : ''}`}
               />
             </div>
 
             <div>
-              <label htmlFor="netOperatingIncome" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="netOperatingIncome" className="block text-sm font-medium text-foreground">
                 Net Operating Income (NOI) ($)
               </label>
               <input
@@ -322,12 +379,12 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
                 }}
                 placeholder="0.00"
                 readOnly={!scenarioId}
-                className={`mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 ${!scenarioId ? 'bg-gray-100' : ''}`}
+                className={`mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring ${!scenarioId ? 'bg-muted' : ''}`}
               />
             </div>
 
             <div>
-              <label htmlFor="netIncome" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="netIncome" className="block text-sm font-medium text-foreground">
                 Net Income ($)
               </label>
               <input
@@ -337,12 +394,12 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
                 value={netIncome}
                 onChange={(e) => setNetIncome(e.target.value)}
                 placeholder="0.00"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label htmlFor="capRate" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="capRate" className="block text-sm font-medium text-foreground">
                 Cap Rate (%)
               </label>
               <input
@@ -352,224 +409,375 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
                 value={capRate}
                 onChange={(e) => setCapRate(e.target.value)}
                 placeholder="0.00"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="taxableIncome" className="block text-sm font-medium text-gray-700">
-                Taxable Income After Depreciation ($)
-              </label>
-              <input
-                id="taxableIncome"
-                type="number"
-                step="0.01"
-                value={taxableIncome}
-                onChange={(e) => setTaxableIncome(e.target.value)}
-                placeholder="0.00"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
 
-          {/* Purchase Closing Costs Section */}
-          <div className="space-y-4 border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-semibold text-gray-900">Purchase Closing Costs</h3>
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-              <div>
-                <label htmlFor="purchaseClosingCosts" className="block text-sm font-medium text-gray-700">
-                  Purchase Closing Costs ($)
-                </label>
-                <input
-                  id="purchaseClosingCosts"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={purchaseClosingCosts}
-                  onChange={(e) => setPurchaseClosingCosts(e.target.value)}
-                  placeholder="0.00"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Annual Increases Section */}
-          <div className="space-y-4 border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-semibold text-gray-900">Annual Increases</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="incomeIncrease" className="block text-sm font-medium text-gray-700">
-                  Income Increase (%)
-                </label>
-                <input
-                  id="incomeIncrease"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={incomeIncrease}
-                  onChange={(e) => setIncomeIncrease(e.target.value)}
-                  placeholder="0.00"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="expensesIncrease" className="block text-sm font-medium text-gray-700">
-                  Expenses Increase (%)
-                </label>
-                <input
-                  id="expensesIncrease"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={expensesIncrease}
-                  onChange={(e) => setExpensesIncrease(e.target.value)}
-                  placeholder="0.00"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="propertyValueIncrease" className="block text-sm font-medium text-gray-700">
-                  Property Value Increase (%)
-                </label>
-                <input
-                  id="propertyValueIncrease"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={propertyValueIncrease}
-                  onChange={(e) => setPropertyValueIncrease(e.target.value)}
-                  placeholder="0.00"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Loan Section */}
-          <div className="space-y-4 border-t border-gray-200 pt-6">
-            <div className="flex items-center space-x-2">
-              <input
-                id="hasLoan"
-                type="checkbox"
-                checked={hasLoan}
-                onChange={(e) => setHasLoan(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="hasLoan" className="text-base font-medium text-gray-700 cursor-pointer">
-                Include Loan Information
-              </label>
-            </div>
-
-            {hasLoan && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6 border-l-2 border-gray-200">
-                <div>
-                  <label htmlFor="loanTerm" className="block text-sm font-medium text-gray-700">
-                    Loan Term (years)
-                  </label>
-                  <input
-                    id="loanTerm"
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={loanTerm}
-                    onChange={(e) => setLoanTerm(e.target.value)}
-                    placeholder="30"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="downPaymentPercent" className="block text-sm font-medium text-gray-700">
-                    Down Payment Percentage (%)
-                  </label>
-                  <input
-                    id="downPaymentPercent"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={downPaymentPercent}
-                    onChange={(e) => setDownPaymentPercent(e.target.value)}
-                    placeholder="20.00"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="downPaymentAmount" className="block text-sm font-medium text-gray-700">
-                    Down Payment Amount ($)
-                  </label>
-                  <input
-                    id="downPaymentAmount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={downPaymentAmount}
-                    onChange={(e) => setDownPaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="interestRate" className="block text-sm font-medium text-gray-700">
-                    Interest Rate (%)
-                  </label>
-                  <div className="mt-1 space-y-2">
+          <Accordion
+            type="multiple"
+            defaultValue={[
+              ...(initialData?.['Has Loan'] ? ['loan'] : []),
+              ...(initialData?.expense_breakdown ? ['expense-breakdown'] : []),
+            ]}
+            className="mt-2"
+          >
+            <AccordionItem value="expense-breakdown">
+              <AccordionTrigger className="text-base font-semibold">
+                Expense Breakdown
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center space-x-2">
                     <input
-                      type="range"
-                      id="interestRate"
-                      min={0}
-                      max={25}
-                      step={0.01}
-                      value={parseFloat(interestRate) || 0}
-                      onChange={(e) => setInterestRate(parseFloat(e.target.value).toFixed(2))}
-                      className="w-full"
+                      id="useExpenseBreakdown"
+                      type="checkbox"
+                      checked={useExpenseBreakdown}
+                      onChange={(e) => setUseExpenseBreakdown(e.target.checked)}
+                      className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                     />
+                    <label htmlFor="useExpenseBreakdown" className="text-sm font-medium cursor-pointer">
+                      Use itemized expense breakdown
+                    </label>
+                  </div>
+                  {useExpenseBreakdown && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="propertyTaxes" className="block text-sm font-medium text-foreground">
+                          Property Taxes ($/yr)
+                        </label>
+                        <input
+                          id="propertyTaxes"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={propertyTaxes}
+                          onChange={(e) => setPropertyTaxes(e.target.value)}
+                          placeholder="0.00"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="insurance" className="block text-sm font-medium text-foreground">
+                          Insurance ($/yr)
+                        </label>
+                        <input
+                          id="insurance"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={insurance}
+                          onChange={(e) => setInsurance(e.target.value)}
+                          placeholder="0.00"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="maintenance" className="block text-sm font-medium text-foreground">
+                          Maintenance / Repairs ($/yr)
+                        </label>
+                        <input
+                          id="maintenance"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={maintenance}
+                          onChange={(e) => setMaintenance(e.target.value)}
+                          placeholder="0.00"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="managementFee" className="block text-sm font-medium text-foreground">
+                          Management Fee (% of income)
+                        </label>
+                        <input
+                          id="managementFee"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={managementFee}
+                          onChange={(e) => setManagementFee(e.target.value)}
+                          placeholder="0"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="vacancyRate" className="block text-sm font-medium text-foreground">
+                          Vacancy Rate (%)
+                        </label>
+                        <input
+                          id="vacancyRate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={vacancyRate}
+                          onChange={(e) => setVacancyRate(e.target.value)}
+                          placeholder="5"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="otherExpenses" className="block text-sm font-medium text-foreground">
+                          Other Expenses ($/yr)
+                        </label>
+                        <input
+                          id="otherExpenses"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={otherExpenses}
+                          onChange={(e) => setOtherExpenses(e.target.value)}
+                          placeholder="0.00"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {useExpenseBreakdown && (
+                    <p className="text-xs text-muted-foreground">
+                      Operating Expenses will be auto-calculated from the breakdown above.
+                    </p>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="closing-costs">
+              <AccordionTrigger className="text-base font-semibold">
+                Purchase Closing Costs
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label htmlFor="purchaseClosingCosts" className="block text-sm font-medium text-foreground">
+                      Purchase Closing Costs ($)
+                    </label>
                     <input
+                      id="purchaseClosingCosts"
                       type="number"
                       min="0"
-                      max="25"
                       step="0.01"
-                      value={interestRate}
-                      onChange={(e) => setInterestRate(e.target.value)}
-                      placeholder="4.50"
-                      className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      value={purchaseClosingCosts}
+                      onChange={(e) => setPurchaseClosingCosts(e.target.value)}
+                      placeholder="0.00"
+                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                 </div>
+              </AccordionContent>
+            </AccordionItem>
 
+            <AccordionItem value="annual-increases">
+              <AccordionTrigger className="text-base font-semibold">
+                Annual Increases
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="incomeIncrease" className="block text-sm font-medium text-foreground">
+                      Income Increase (%)
+                    </label>
+                    <input
+                      id="incomeIncrease"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={incomeIncrease}
+                      onChange={(e) => setIncomeIncrease(e.target.value)}
+                      placeholder="0.00"
+                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="expensesIncrease" className="block text-sm font-medium text-foreground">
+                      Expenses Increase (%)
+                    </label>
+                    <input
+                      id="expensesIncrease"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={expensesIncrease}
+                      onChange={(e) => setExpensesIncrease(e.target.value)}
+                      placeholder="0.00"
+                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="propertyValueIncrease" className="block text-sm font-medium text-foreground">
+                      Property Value Increase (%)
+                    </label>
+                    <input
+                      id="propertyValueIncrease"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={propertyValueIncrease}
+                      onChange={(e) => setPropertyValueIncrease(e.target.value)}
+                      placeholder="0.00"
+                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="loan">
+              <AccordionTrigger className="text-base font-semibold">
+                Loan Information
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="hasLoan"
+                      type="checkbox"
+                      checked={hasLoan}
+                      onChange={(e) => setHasLoan(e.target.checked)}
+                      className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                    />
+                    <label htmlFor="hasLoan" className="text-sm font-medium cursor-pointer">
+                      Include Loan Information
+                    </label>
+                  </div>
+
+                  {hasLoan && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6 border-l-2 border-border">
+                      <div>
+                        <label htmlFor="loanTerm" className="block text-sm font-medium text-foreground">
+                          Loan Term (years)
+                        </label>
+                        <input
+                          id="loanTerm"
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={loanTerm}
+                          onChange={(e) => setLoanTerm(e.target.value)}
+                          placeholder="30"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="downPaymentPercent" className="block text-sm font-medium text-foreground">
+                          Down Payment Percentage (%)
+                        </label>
+                        <input
+                          id="downPaymentPercent"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={downPaymentPercent}
+                          onChange={(e) => setDownPaymentPercent(e.target.value)}
+                          placeholder="20.00"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="downPaymentAmount" className="block text-sm font-medium text-foreground">
+                          Down Payment Amount ($)
+                        </label>
+                        <input
+                          id="downPaymentAmount"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={downPaymentAmount}
+                          onChange={(e) => setDownPaymentAmount(e.target.value)}
+                          placeholder="0.00"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="interestRate" className="block text-sm font-medium text-foreground">
+                          Interest Rate (%)
+                        </label>
+                        <div className="mt-1 space-y-2">
+                          <input
+                            type="range"
+                            id="interestRate"
+                            min={0}
+                            max={25}
+                            step={0.01}
+                            value={parseFloat(interestRate) || 0}
+                            onChange={(e) => setInterestRate(parseFloat(e.target.value).toFixed(2))}
+                            className="w-full"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            max="25"
+                            step="0.01"
+                            value={interestRate}
+                            onChange={(e) => setInterestRate(e.target.value)}
+                            placeholder="4.50"
+                            className="block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="loanClosingCosts" className="block text-sm font-medium text-foreground">
+                          Loan Closing Costs ($)
+                        </label>
+                        <input
+                          id="loanClosingCosts"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={loanClosingCosts}
+                          onChange={(e) => setLoanClosingCosts(e.target.value)}
+                          placeholder="0.00"
+                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="taxable-income">
+              <AccordionTrigger className="text-base font-semibold">
+                Taxable Income
+              </AccordionTrigger>
+              <AccordionContent>
                 <div>
-                  <label htmlFor="loanClosingCosts" className="block text-sm font-medium text-gray-700">
-                    Loan Closing Costs ($)
+                  <label htmlFor="taxableIncome" className="block text-sm font-medium text-foreground">
+                    Taxable Income After Depreciation ($)
                   </label>
                   <input
-                    id="loanClosingCosts"
+                    id="taxableIncome"
                     type="number"
-                    min="0"
                     step="0.01"
-                    value={loanClosingCosts}
-                    onChange={(e) => setLoanClosingCosts(e.target.value)}
+                    value={taxableIncome}
+                    onChange={(e) => setTaxableIncome(e.target.value)}
                     placeholder="0.00"
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
-              </div>
-            )}
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div className="flex justify-end gap-3 pt-4">
             {scenarioId && (
               <button
                 type="button"
                 onClick={() => router.push(`/apps/property/properties/${propertyId}/scenarios/${scenarioId}`)}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                className="rounded-md bg-muted px-4 py-2 text-sm font-medium hover:bg-muted/80"
               >
                 Cancel
               </button>
@@ -577,7 +785,7 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
             <button
               type="submit"
               disabled={loading}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? 'Saving...' : scenarioId ? 'Update Scenario' : 'Create Scenario'}
             </button>

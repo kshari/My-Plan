@@ -26,7 +26,7 @@ export const DELETE = withAuth(async (request, { user, supabase, params }) => {
   const { error: deleteError } = await supabase
     .from('pi_loans')
     .delete()
-    .eq('scanario', scenarioIdNum)
+    .eq('scenario_id', scenarioIdNum)
 
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 })

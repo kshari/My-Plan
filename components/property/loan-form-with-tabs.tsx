@@ -29,15 +29,15 @@ export default function LoanFormWithTabs({
 
   return (
     <div className="w-full">
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-border">
         <nav className="-mb-px flex space-x-8">
           <button
             type="button"
             onClick={() => setActiveTab('loan-details')}
             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
               activeTab === 'loan-details'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
             }`}
           >
             Loan Details
@@ -47,8 +47,8 @@ export default function LoanFormWithTabs({
             onClick={() => setActiveTab('amortization')}
             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
               activeTab === 'amortization'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
             }`}
           >
             Amortization Schedule
