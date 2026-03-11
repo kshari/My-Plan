@@ -54,7 +54,7 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
   const [type, setType] = useState(initialData?.type || '')
   const [numberOfUnits, setNumberOfUnits] = useState(() => {
     const v = initialData?.['Number of Units']
-    if (v != null && v !== '') return String(v)
+    if (v != null) return String(v)
     if (initialData?.type === 'Single Family') return '1'
     return ''
   })
