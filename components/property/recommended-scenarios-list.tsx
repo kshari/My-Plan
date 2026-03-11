@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -14,6 +14,21 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import {
   DEFAULT_INTEREST_RATE_MIN, DEFAULT_INTEREST_RATE_MAX,
   DEFAULT_DOWN_PAYMENT_PCT, DEFAULT_DOWN_PAYMENT_MIN, DEFAULT_DOWN_PAYMENT_MAX,
   DEFAULT_CLOSING_COST_PCT, LOAN_TERMS, DEFAULT_LOAN_TERM,
@@ -23,22 +38,22 @@ import {
   SLIDER_RANGE_MIN, SLIDER_RANGE_MAX_PRICE, SLIDER_RANGE_MAX_INCOME_EXPENSE,
   MAX_INTEREST_RATE_SLIDER, MAX_DOWN_PAYMENT_SLIDER,
   DEFAULT_ASKING_PRICE, DEFAULT_GROSS_INCOME, DEFAULT_OPERATING_EXPENSES,
+  DEFAULT_ANALYSIS_INTEREST_RATE, DEFAULT_EXPENSE_RATIO,
   SCENARIO_COMPARISON_TOLERANCE, THRESHOLD_ANALYSIS_STEP, SLIDER_STEP,
   THRESHOLD_ANALYSIS_RANGE, THRESHOLD_ANALYSIS_MAX_RATE,
+  MONTHS_PER_YEAR,
 } from '@/lib/constants/property-defaults'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+  ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight,
+  CheckCircle2, AlertTriangle, TrendingUp, TrendingDown,
+} from 'lucide-react'
 
 interface Property {
   id: number
   'Asking Price': number | null
   'Gross Income': number | null
   'Operating Expenses': number | null
+  estimated_rent?: number | null
 }
 
 interface RecommendedScenariosListProps {
@@ -74,11 +89,78 @@ interface Scenario {
   firstYearCoCR: number
 }
 
+const fmt$ = (v: number) => `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+
+function parseValue(value: string, defaultValue: number): number {
+  if (value === '' || value === null || value === undefined) return defaultValue
+  const parsed = parseFloat(value)
+  return isNaN(parsed) ? defaultValue : parsed
+}
+
+function annualizePropertyIncome(property: Property): number {
+  const monthlyGross = property['Gross Income'] || 0
+  const monthlyRent = property.estimated_rent || 0
+  const income = monthlyGross > 0 ? monthlyGross : monthlyRent
+  return income > 0 ? income * MONTHS_PER_YEAR : DEFAULT_GROSS_INCOME
+}
+
+function annualizePropertyExpenses(property: Property): number {
+  const monthly = property['Operating Expenses'] || 0
+  return monthly > 0 ? monthly * MONTHS_PER_YEAR : DEFAULT_OPERATING_EXPENSES
+}
+
+function calculateLoanCashFlow(
+  purchasePrice: number,
+  annualNoi: number,
+  interestRate: number,
+  downPaymentPercent: number,
+  loanTerm: number,
+  closingCostPct: number,
+) {
+  const downPaymentAmount = purchasePrice * (downPaymentPercent / 100)
+  const loanPrincipal = purchasePrice - downPaymentAmount
+  const monthlyRate = interestRate / 100 / 12
+  const numPayments = loanTerm * 12
+  const monthlyMortgage = loanPrincipal > 0 && monthlyRate > 0
+    ? loanPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1)
+    : 0
+  const annualMortgage = monthlyMortgage * 12
+
+  let balance = loanPrincipal
+  let firstYearInterest = 0
+  let firstYearPrincipal = 0
+  for (let month = 1; month <= 12; month++) {
+    const interestPayment = balance * monthlyRate
+    const principalPayment = monthlyMortgage - interestPayment
+    firstYearInterest += interestPayment
+    firstYearPrincipal += principalPayment > balance ? balance : principalPayment
+    balance = Math.max(0, balance - principalPayment)
+  }
+
+  const purchaseClosingCosts = purchasePrice * (closingCostPct / 100)
+  const loanClosingCosts = loanPrincipal * (closingCostPct / 100)
+  const totalClosingCosts = purchaseClosingCosts + loanClosingCosts
+  const totalCashInvested = downPaymentAmount + purchaseClosingCosts
+
+  const annualDebtService = annualMortgage
+  const firstYearCashFlow = annualNoi - annualDebtService
+  const firstYearCoCR = totalCashInvested > 0 ? (firstYearCashFlow / totalCashInvested) * 100 : 0
+  const capRate = purchasePrice > 0 ? (annualNoi / purchasePrice) * 100 : 0
+  const dscr = annualMortgage > 0 ? annualNoi / annualMortgage : null
+  const grm = annualNoi > 0 ? purchasePrice / annualNoi : 0
+
+  return {
+    downPaymentAmount, loanPrincipal, monthlyMortgage, annualMortgage,
+    firstYearInterest, firstYearPrincipal, purchaseClosingCosts,
+    loanClosingCosts, totalClosingCosts, totalCashInvested,
+    firstYearCashFlow, firstYearCoCR, capRate, dscr, grm,
+  }
+}
+
 export default function RecommendedScenariosList({ property }: RecommendedScenariosListProps) {
   const router = useRouter()
   const supabase = createClient()
-  
-  // Input state for ranges
+
   const [minInterestRate, setMinInterestRate] = useState(String(DEFAULT_INTEREST_RATE_MIN))
   const [maxInterestRate, setMaxInterestRate] = useState(String(DEFAULT_INTEREST_RATE_MAX))
   const [purchasePriceMinChange, setPurchasePriceMinChange] = useState(String(SLIDER_RANGE_MIN))
@@ -104,13 +186,61 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   const [nameDialogOpen, setNameDialogOpen] = useState(false)
   const [pendingScenarioName, setPendingScenarioName] = useState('')
   const pendingSaveRef = useRef<{ scenario: any } | null>(null)
+  const [explorerOpen, setExplorerOpen] = useState(false)
+
+  const askingPrice = property['Asking Price'] || DEFAULT_ASKING_PRICE
+  const monthlyRent = property.estimated_rent || property['Gross Income'] || 0
+  const monthlyExpenses = property['Operating Expenses'] || 0
+  const baseGrossIncome = annualizePropertyIncome(property)
+  const baseOperatingExpenses = annualizePropertyExpenses(property)
+
+  const currentSummary = useMemo(() => {
+    const monthlyGross = property['Gross Income'] || 0
+    const monthlyExp = property['Operating Expenses'] || 0
+    const estRent = property.estimated_rent || 0
+    const hasActuals = monthlyGross > 0
+    const annualNoi = hasActuals
+      ? (monthlyGross - monthlyExp) * MONTHS_PER_YEAR
+      : 0
+    const estAnnualNoi = hasActuals
+      ? annualNoi
+      : estRent > 0 && monthlyExp > 0
+        ? (estRent - monthlyExp) * MONTHS_PER_YEAR
+        : estRent > 0
+          ? estRent * MONTHS_PER_YEAR * (1 - DEFAULT_EXPENSE_RATIO)
+          : monthlyExp > 0
+            ? -monthlyExp * MONTHS_PER_YEAR
+            : 0
+    const noiForCalcs = hasActuals ? annualNoi : estAnnualNoi
+
+    const downPct = DEFAULT_DOWN_PAYMENT_PCT / 100
+    const downPayment = askingPrice > 0 ? askingPrice * downPct : 0
+    const closingCosts = askingPrice * (DEFAULT_CLOSING_COST_PCT / 100)
+    const cashInvested = downPayment + closingCosts
+    const loanAmount = askingPrice * (1 - downPct)
+    let annualDebt = 0
+    if (loanAmount > 0) {
+      const monthlyRate = DEFAULT_ANALYSIS_INTEREST_RATE / 100 / MONTHS_PER_YEAR
+      const numPayments = DEFAULT_LOAN_TERM * MONTHS_PER_YEAR
+      const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1)
+      annualDebt = monthlyPayment * MONTHS_PER_YEAR
+    }
+    const annualCashFlow = noiForCalcs - annualDebt
+    const roi = cashInvested > 0 ? (annualCashFlow / cashInvested) * 100 : 0
+    const capRate = askingPrice > 0 && noiForCalcs > 0 ? (noiForCalcs / askingPrice) * 100 : 0
+
+    return {
+      noi: noiForCalcs, annualNoi, estAnnualNoi, capRate, roi,
+      firstYearCashFlow: annualCashFlow, firstYearCoCR: roi,
+      cashInvested, annualDebt, downPayment,
+    }
+  }, [property, askingPrice])
 
   const handleSaveClick = (scenario: any) => {
     pendingSaveRef.current = { scenario }
     setPendingScenarioName(`Model Scenario ${scenario.id}`)
     setNameDialogOpen(true)
   }
-
   const handleNameConfirm = () => {
     if (pendingSaveRef.current && pendingScenarioName.trim()) {
       saveScenario(pendingSaveRef.current.scenario, pendingScenarioName.trim())
@@ -119,62 +249,131 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
     pendingSaveRef.current = null
   }
 
-  const scenarios = useMemo(() => {
-    const askingPrice = property['Asking Price'] || DEFAULT_ASKING_PRICE
-    const baseGrossIncome = property['Gross Income'] || DEFAULT_GROSS_INCOME
-    const baseOperatingExpenses = property['Operating Expenses'] || DEFAULT_OPERATING_EXPENSES
+  // ── Parsed slider values ──
+  const minIntRate = parseValue(minInterestRate, DEFAULT_INTEREST_RATE_MIN)
+  const maxIntRate = parseValue(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)
+  const priceMinChange = parseValue(purchasePriceMinChange, DEFAULT_PRICE_CHANGE_MIN)
+  const priceMaxChange = parseValue(purchasePriceMaxChange, DEFAULT_PRICE_CHANGE_MAX)
+  const incomeMinChangeVal = parseValue(incomeMinChange, DEFAULT_INCOME_CHANGE_MIN)
+  const incomeMaxChangeVal = parseValue(incomeMaxChange, DEFAULT_INCOME_CHANGE_MAX)
+  const expensesMinChangeVal = parseValue(expensesMinChange, DEFAULT_EXPENSE_CHANGE_MIN)
+  const expensesMaxChangeVal = parseValue(expensesMaxChange, DEFAULT_EXPENSE_CHANGE_MAX)
+  const minDownPaymentVal = parseValue(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN)
+  const maxDownPaymentVal = parseValue(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)
+  // ── Break-even threshold analysis (uses same defaults as Section A) ──
+  const baselineRate = DEFAULT_ANALYSIS_INTEREST_RATE
+  const baselineDownPct = DEFAULT_DOWN_PAYMENT_PCT
+  const baselineLoanTerm = DEFAULT_LOAN_TERM
+  const baselineClosingPct = DEFAULT_CLOSING_COST_PCT
 
-    // Parse input values (handle 0 correctly by checking for NaN instead of falsy)
-    const parseValue = (value: string, defaultValue: number): number => {
-      if (value === '' || value === null || value === undefined) {
-        return defaultValue
-      }
-      const parsed = parseFloat(value)
-      return isNaN(parsed) ? defaultValue : parsed
+  const thresholds = useMemo(() => {
+    const calcCf = (priceChg: number, incomeChg: number, expChg: number, rate: number, dp: number) => {
+      const price = askingPrice * (1 + priceChg / 100)
+      const income = baseGrossIncome * (1 + incomeChg / 100)
+      const expenses = baseOperatingExpenses * (1 + expChg / 100)
+      const noi = income - expenses
+      const r = calculateLoanCashFlow(price, noi, rate, dp, baselineLoanTerm, baselineClosingPct)
+      return r.firstYearCashFlow
     }
 
-    const minIntRate = parseValue(minInterestRate, DEFAULT_INTEREST_RATE_MIN)
-    const maxIntRate = parseValue(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)
-    const priceMinChange = parseValue(purchasePriceMinChange, DEFAULT_PRICE_CHANGE_MIN)
-    const priceMaxChange = parseValue(purchasePriceMaxChange, DEFAULT_PRICE_CHANGE_MAX)
-    const incomeMinChangeVal = parseValue(incomeMinChange, DEFAULT_INCOME_CHANGE_MIN)
-    const incomeMaxChangeVal = parseValue(incomeMaxChange, DEFAULT_INCOME_CHANGE_MAX)
-    const expensesMinChangeVal = parseValue(expensesMinChange, DEFAULT_EXPENSE_CHANGE_MIN)
-    const expensesMaxChangeVal = parseValue(expensesMaxChange, DEFAULT_EXPENSE_CHANGE_MAX)
-    const minDownPaymentVal = parseValue(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN)
-    const maxDownPaymentVal = parseValue(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)
+    const results: { variable: string; label: string; description: string; thresholdValue: number | null; thresholdChange: number | null; currentValue: number; meetsThreshold: boolean }[] = []
 
+    // Purchase Price
+    let priceThreshold: number | null = null
+    for (let change = THRESHOLD_ANALYSIS_RANGE; change >= -THRESHOLD_ANALYSIS_RANGE; change -= THRESHOLD_ANALYSIS_STEP) {
+      if (calcCf(change, 0, 0, baselineRate, baselineDownPct) >= 0) { priceThreshold = change; break }
+    }
+    results.push({
+      variable: 'Purchase Price', label: 'Purchase Price',
+      description: 'Maximum purchase price for positive cash flow',
+      thresholdValue: priceThreshold !== null ? askingPrice * (1 + priceThreshold / 100) : null,
+      thresholdChange: priceThreshold,
+      currentValue: askingPrice,
+      meetsThreshold: priceThreshold !== null && priceThreshold >= 0,
+    })
+
+    // Monthly Rent
+    let incomeThreshold: number | null = null
+    for (let change = -THRESHOLD_ANALYSIS_RANGE; change <= THRESHOLD_ANALYSIS_RANGE; change += THRESHOLD_ANALYSIS_STEP) {
+      if (calcCf(0, change, 0, baselineRate, baselineDownPct) >= 0) { incomeThreshold = change; break }
+    }
+    results.push({
+      variable: 'Gross Income', label: 'Monthly Rent',
+      description: 'Minimum monthly rent for positive cash flow',
+      thresholdValue: incomeThreshold !== null ? baseGrossIncome * (1 + incomeThreshold / 100) : null,
+      thresholdChange: incomeThreshold,
+      currentValue: baseGrossIncome,
+      meetsThreshold: incomeThreshold !== null && incomeThreshold <= 0,
+    })
+
+    // Monthly Expenses
+    let expThreshold: number | null = null
+    for (let change = THRESHOLD_ANALYSIS_RANGE; change >= -THRESHOLD_ANALYSIS_RANGE; change -= THRESHOLD_ANALYSIS_STEP) {
+      if (calcCf(0, 0, change, baselineRate, baselineDownPct) >= 0) { expThreshold = change; break }
+    }
+    results.push({
+      variable: 'Operating Expenses', label: 'Monthly Expenses',
+      description: 'Maximum monthly expenses for positive cash flow',
+      thresholdValue: expThreshold !== null ? baseOperatingExpenses * (1 + expThreshold / 100) : null,
+      thresholdChange: expThreshold,
+      currentValue: baseOperatingExpenses,
+      meetsThreshold: expThreshold !== null && expThreshold >= 0,
+    })
+
+    // Interest Rate
+    let rateThreshold: number | null = null
+    for (let rate = THRESHOLD_ANALYSIS_MAX_RATE; rate >= 0; rate -= THRESHOLD_ANALYSIS_STEP) {
+      if (calcCf(0, 0, 0, rate, baselineDownPct) >= 0) { rateThreshold = rate; break }
+    }
+    results.push({
+      variable: 'Interest Rate', label: 'Interest Rate',
+      description: 'Maximum interest rate for positive cash flow',
+      thresholdValue: rateThreshold, thresholdChange: rateThreshold,
+      currentValue: baselineRate,
+      meetsThreshold: rateThreshold !== null && rateThreshold >= baselineRate,
+    })
+
+    // Down Payment
+    let dpThreshold: number | null = null
+    for (let dp = 0; dp <= MAX_DOWN_PAYMENT_SLIDER; dp += THRESHOLD_ANALYSIS_STEP) {
+      if (calcCf(0, 0, 0, baselineRate, dp) >= 0) { dpThreshold = dp; break }
+    }
+    results.push({
+      variable: 'Down Payment', label: 'Down Payment',
+      description: 'Minimum down payment for positive cash flow',
+      thresholdValue: dpThreshold, thresholdChange: dpThreshold,
+      currentValue: baselineDownPct,
+      meetsThreshold: dpThreshold !== null && dpThreshold <= baselineDownPct,
+    })
+
+    return results
+  }, [askingPrice, baseGrossIncome, baseOperatingExpenses, baselineRate, baselineDownPct, baselineLoanTerm, baselineClosingPct])
+
+  // ── Cartesian product scenarios ──
+  const scenarios = useMemo(() => {
+    const closingPct = parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
     const generatedScenarios: Scenario[] = []
     let scenarioId = 1
 
-    // Use only min and max values for each range, but avoid duplicates when min === max
     const purchasePriceMultipliers = priceMinChange === priceMaxChange
       ? [1 + (priceMinChange / 100)]
       : [1 + (priceMinChange / 100), 1 + (priceMaxChange / 100)]
-
-    const interestRates = minIntRate === maxIntRate
-      ? [minIntRate]
-      : [minIntRate, maxIntRate]
-
+    const interestRates = minIntRate === maxIntRate ? [minIntRate] : [minIntRate, maxIntRate]
     const grossIncomeMultipliers = incomeMinChangeVal === incomeMaxChangeVal
       ? [1 + (incomeMinChangeVal / 100)]
       : [1 + (incomeMinChangeVal / 100), 1 + (incomeMaxChangeVal / 100)]
-
     const operatingExpensesMultipliers = expensesMinChangeVal === expensesMaxChangeVal
       ? [1 + (expensesMinChangeVal / 100)]
       : [1 + (expensesMinChangeVal / 100), 1 + (expensesMaxChangeVal / 100)]
-
     const downPaymentPercents = minDownPaymentVal === maxDownPaymentVal
       ? [minDownPaymentVal]
       : [minDownPaymentVal, maxDownPaymentVal]
 
-    // Build loan terms array based on toggles
     const loanTerms: number[] = []
     if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
     if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
     if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
 
-    // Generate scenarios with loans - systematic combinations
     for (const priceMult of purchasePriceMultipliers) {
       for (const intRate of interestRates) {
         for (const incomeMult of grossIncomeMultipliers) {
@@ -185,75 +384,22 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
                 const grossIncome = baseGrossIncome * incomeMult
                 const operatingExpenses = baseOperatingExpenses * expMult
                 const noi = grossIncome - operatingExpenses
-                const downPaymentAmount = purchasePrice * (downPaymentPercent / 100)
-                const loanPrincipal = purchasePrice - downPaymentAmount
-                const interestRate = intRate
-
-            // Calculate monthly mortgage
-            const monthlyRate = interestRate / 100 / 12
-            const numPayments = loanTerm * 12
-            const monthlyMortgage = loanPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1)
-            const annualMortgage = monthlyMortgage * 12
-
-            // Calculate first year interest and principal
-            let balance = loanPrincipal
-            let firstYearInterest = 0
-            let firstYearPrincipal = 0
-            for (let month = 1; month <= 12; month++) {
-              const interestPayment = balance * monthlyRate
-              const principalPayment = monthlyMortgage - interestPayment
-              firstYearInterest += interestPayment
-              firstYearPrincipal += principalPayment > balance ? balance : principalPayment
-              balance = Math.max(0, balance - principalPayment)
-            }
-
-            // Closing costs (percentage of purchase price)
-            const closingCostPercentVal = parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
-            const purchaseClosingCosts = purchasePrice * (closingCostPercentVal / 100)
-            const loanClosingCosts = loanPrincipal * (closingCostPercentVal / 100)
-            const totalClosingCosts = purchaseClosingCosts + loanClosingCosts
-
-            // Total cash invested
-            const totalCashInvested = downPaymentAmount + loanClosingCosts + purchaseClosingCosts
-
-            // Metrics
-            const capRate = purchasePrice > 0 ? (noi / purchasePrice) * 100 : 0
-            const grm = grossIncome > 0 ? purchasePrice / grossIncome : 0
-            const dscr = annualMortgage > 0 ? noi / annualMortgage : null
-            const ltv = purchasePrice > 0 ? ((purchasePrice - downPaymentAmount) / purchasePrice) * 100 : null
-
-                // First year cash flow (closing costs are part of initial investment, not an expense)
-                const firstYearNetIncome = noi - firstYearInterest
-                const firstYearCashFlow = firstYearNetIncome - firstYearPrincipal
-                const firstYearCoCR = totalCashInvested > 0 ? (firstYearCashFlow / totalCashInvested) * 100 : 0
+                const r = calculateLoanCashFlow(purchasePrice, noi, intRate, downPaymentPercent, loanTerm, closingPct)
+                const ltv = purchasePrice > 0 ? ((purchasePrice - r.downPaymentAmount) / purchasePrice) * 100 : null
 
                 generatedScenarios.push({
                   id: scenarioId++,
                   name: `Scenario ${scenarioId - 1}`,
-                  purchasePrice,
-                  grossIncome,
-                  operatingExpenses,
-                  noi,
-                  capRate,
-                  hasLoan: true,
-                  interestRate,
-                  downPaymentPercent,
-                  downPaymentAmount,
-                  loanTerm,
-                  loanPrincipal,
-                  monthlyMortgage,
-                  annualMortgage,
-                  firstYearInterest,
-                  firstYearPrincipal,
-                  loanClosingCosts,
-                  purchaseClosingCosts,
-                  totalClosingCosts,
-                  totalCashInvested,
-                  grm,
-                  dscr,
-                  ltv,
-                  firstYearCashFlow,
-                  firstYearCoCR,
+                  purchasePrice, grossIncome, operatingExpenses, noi,
+                  capRate: r.capRate, hasLoan: true, interestRate: intRate,
+                  downPaymentPercent, downPaymentAmount: r.downPaymentAmount,
+                  loanTerm, loanPrincipal: r.loanPrincipal,
+                  monthlyMortgage: r.monthlyMortgage, annualMortgage: r.annualMortgage,
+                  firstYearInterest: r.firstYearInterest, firstYearPrincipal: r.firstYearPrincipal,
+                  loanClosingCosts: r.loanClosingCosts, purchaseClosingCosts: r.purchaseClosingCosts,
+                  totalClosingCosts: r.totalClosingCosts, totalCashInvested: r.totalCashInvested,
+                  grm: r.grm, dscr: r.dscr, ltv,
+                  firstYearCashFlow: r.firstYearCashFlow, firstYearCoCR: r.firstYearCoCR,
                 })
               }
             }
@@ -262,7 +408,6 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       }
     }
 
-    // Add scenarios without loans - systematic combinations
     for (const priceMult of purchasePriceMultipliers) {
       for (const incomeMult of grossIncomeMultipliers) {
         for (const expMult of operatingExpensesMultipliers) {
@@ -270,420 +415,76 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           const grossIncome = baseGrossIncome * incomeMult
           const operatingExpenses = baseOperatingExpenses * expMult
           const noi = grossIncome - operatingExpenses
-
-          // Closing costs (percentage of purchase price) - part of initial investment, not an expense
-          const closingCostPercentVal = parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
-          const purchaseClosingCosts = purchasePrice * (closingCostPercentVal / 100)
-          const loanClosingCosts = 0
-          const totalClosingCosts = purchaseClosingCosts
-
-          // Total cash invested (no loan)
+          const purchaseClosingCosts = purchasePrice * (closingPct / 100)
           const totalCashInvested = purchasePrice + purchaseClosingCosts
-
-          // Metrics
           const capRate = purchasePrice > 0 ? (noi / purchasePrice) * 100 : 0
           const grm = grossIncome > 0 ? purchasePrice / grossIncome : 0
-
-          // First year cash flow (no loan) - closing costs are part of initial investment, not an expense
           const firstYearCashFlow = noi
           const firstYearCoCR = totalCashInvested > 0 ? (firstYearCashFlow / totalCashInvested) * 100 : 0
 
           generatedScenarios.push({
-            id: scenarioId++,
-            name: `Scenario ${scenarioId - 1} (No Loan)`,
-            purchasePrice,
-            grossIncome,
-            operatingExpenses,
-            noi,
-            capRate,
-            hasLoan: false,
-            interestRate: null,
-            downPaymentPercent: null,
-            downPaymentAmount: null,
-            loanTerm: null,
-            loanPrincipal: null,
-            monthlyMortgage: null,
-            annualMortgage: null,
-            firstYearInterest: 0,
-            firstYearPrincipal: 0,
-            loanClosingCosts,
-            purchaseClosingCosts,
-            totalClosingCosts,
-            totalCashInvested,
-            grm,
-            dscr: null,
-            ltv: null,
-            firstYearCashFlow,
-            firstYearCoCR,
+            id: scenarioId++, name: `Scenario ${scenarioId - 1} (No Loan)`,
+            purchasePrice, grossIncome, operatingExpenses, noi, capRate,
+            hasLoan: false, interestRate: null, downPaymentPercent: null,
+            downPaymentAmount: null, loanTerm: null, loanPrincipal: null,
+            monthlyMortgage: null, annualMortgage: null,
+            firstYearInterest: 0, firstYearPrincipal: 0,
+            loanClosingCosts: 0, purchaseClosingCosts, totalClosingCosts: purchaseClosingCosts,
+            totalCashInvested, grm, dscr: null, ltv: null,
+            firstYearCashFlow, firstYearCoCR,
           })
         }
       }
     }
 
-    // Filter scenarios based on checkboxes
-    let filteredScenarios = generatedScenarios
-    
-    // Filter by loan status
-    if (!includeLoan && !includeAllCash) {
-      // If both are unchecked, show nothing
-      filteredScenarios = []
-    } else if (!includeLoan) {
-      // Only show all cash scenarios
-      filteredScenarios = filteredScenarios.filter(s => !s.hasLoan)
-    } else if (!includeAllCash) {
-      // Only show loan scenarios
-      filteredScenarios = filteredScenarios.filter(s => s.hasLoan)
-    }
-    // If both are checked, show all (no filter needed)
-    
-    // Filter by positive cash flow if checkbox is checked
-    if (positiveCashFlowOnly) {
-      filteredScenarios = filteredScenarios.filter(s => s.firstYearCashFlow >= 0)
-    }
+    let filtered = generatedScenarios
+    if (!includeLoan && !includeAllCash) filtered = []
+    else if (!includeLoan) filtered = filtered.filter(s => !s.hasLoan)
+    else if (!includeAllCash) filtered = filtered.filter(s => s.hasLoan)
+    if (positiveCashFlowOnly) filtered = filtered.filter(s => s.firstYearCashFlow >= 0)
+    return filtered
+  }, [askingPrice, baseGrossIncome, baseOperatingExpenses, priceMinChange, priceMaxChange, minIntRate, maxIntRate, incomeMinChangeVal, incomeMaxChangeVal, expensesMinChangeVal, expensesMaxChangeVal, minDownPaymentVal, maxDownPaymentVal, closingCostPercent, includeLoanTerm15, includeLoanTerm20, includeLoanTerm30, positiveCashFlowOnly, includeLoan, includeAllCash])
 
-    return filteredScenarios
-  }, [
-    property, 
-    minInterestRate, 
-    maxInterestRate, 
-    purchasePriceMinChange, 
-    purchasePriceMaxChange, 
-    incomeMinChange, 
-    incomeMaxChange, 
-    expensesMinChange, 
-    expensesMaxChange, 
-    minDownPayment, 
-    maxDownPayment, 
-    closingCostPercent,
-    includeLoanTerm15,
-    includeLoanTerm20,
-    includeLoanTerm30,
-    positiveCashFlowOnly, 
-    includeLoan, 
-    includeAllCash
-  ])
-
-  // Sort scenarios based on sortColumn and sortDirection
   const sortedScenarios = useMemo(() => {
     if (!sortColumn) return scenarios
-
-    const sorted = [...scenarios].sort((a, b) => {
-      let aValue: number
-      let bValue: number
-
+    return [...scenarios].sort((a, b) => {
+      let aV = 0, bV = 0
       switch (sortColumn) {
-        case 'purchasePrice':
-          aValue = a.purchasePrice
-          bValue = b.purchasePrice
-          break
-        case 'grossIncome':
-          aValue = a.grossIncome
-          bValue = b.grossIncome
-          break
-        case 'operatingExpenses':
-          aValue = a.operatingExpenses
-          bValue = b.operatingExpenses
-          break
-        case 'noi':
-          aValue = a.noi
-          bValue = b.noi
-          break
-        case 'capRate':
-          aValue = a.capRate
-          bValue = b.capRate
-          break
-        case 'interestRate':
-          aValue = a.interestRate ?? 0
-          bValue = b.interestRate ?? 0
-          break
-        case 'downPayment':
-          aValue = a.downPaymentAmount ?? 0
-          bValue = b.downPaymentAmount ?? 0
-          break
-        case 'totalClosingCosts':
-          aValue = a.totalClosingCosts
-          bValue = b.totalClosingCosts
-          break
-        case 'totalCashInvested':
-          aValue = a.totalCashInvested
-          bValue = b.totalCashInvested
-          break
-        case 'grm':
-          aValue = a.grm
-          bValue = b.grm
-          break
-        case 'dscr':
-          aValue = a.dscr ?? 0
-          bValue = b.dscr ?? 0
-          break
-        case 'ltv':
-          aValue = a.ltv ?? 0
-          bValue = b.ltv ?? 0
-          break
-        case 'firstYearCashFlow':
-          aValue = a.firstYearCashFlow
-          bValue = b.firstYearCashFlow
-          break
-        case 'firstYearCoCR':
-          aValue = a.firstYearCoCR
-          bValue = b.firstYearCoCR
-          break
-        case 'loanTerm':
-          aValue = a.loanTerm ?? 0
-          bValue = b.loanTerm ?? 0
-          break
-        default:
-          return 0
+        case 'purchasePrice': aV = a.purchasePrice; bV = b.purchasePrice; break
+        case 'grossIncome': aV = a.grossIncome; bV = b.grossIncome; break
+        case 'operatingExpenses': aV = a.operatingExpenses; bV = b.operatingExpenses; break
+        case 'capRate': aV = a.capRate; bV = b.capRate; break
+        case 'interestRate': aV = a.interestRate ?? 0; bV = b.interestRate ?? 0; break
+        case 'downPayment': aV = a.downPaymentAmount ?? 0; bV = b.downPaymentAmount ?? 0; break
+        case 'totalCashInvested': aV = a.totalCashInvested; bV = b.totalCashInvested; break
+        case 'dscr': aV = a.dscr ?? 0; bV = b.dscr ?? 0; break
+        case 'firstYearCashFlow': aV = a.firstYearCashFlow; bV = b.firstYearCashFlow; break
+        case 'firstYearCoCR': aV = a.firstYearCoCR; bV = b.firstYearCoCR; break
+        case 'loanTerm': aV = a.loanTerm ?? 0; bV = b.loanTerm ?? 0; break
+        default: return 0
       }
-
-      if (sortDirection === 'asc') {
-        return aValue - bValue
-      } else {
-        return bValue - aValue
-      }
+      return sortDirection === 'asc' ? aV - bV : bV - aV
     })
-
-    return sorted
   }, [scenarios, sortColumn, sortDirection])
 
   const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      // Toggle direction if clicking the same column
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      // Set new column and default to descending
-      setSortColumn(column)
-      setSortDirection('desc')
-    }
+    if (sortColumn === column) setSortDirection(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortColumn(column); setSortDirection('desc') }
   }
 
   const SortIcon = ({ column }: { column: string }) => {
-    if (sortColumn !== column) {
-      return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-    }
-    return sortDirection === 'asc' ? (
-      <ArrowUp className="ml-2 h-4 w-4" />
-    ) : (
-      <ArrowDown className="ml-2 h-4 w-4" />
-    )
+    if (sortColumn !== column) return <ArrowUpDown className="ml-1 h-3 w-3 opacity-30" />
+    return sortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
   }
 
-  // Calculate absolute values based on property and ranges
-  const askingPrice = property['Asking Price'] || DEFAULT_ASKING_PRICE
-  const baseGrossIncome = property['Gross Income'] || DEFAULT_GROSS_INCOME
-  const baseOperatingExpenses = property['Operating Expenses'] || DEFAULT_OPERATING_EXPENSES
-  
-  const parseValue = (value: string, defaultValue: number): number => {
-    if (value === '' || value === null || value === undefined) {
-      return defaultValue
-    }
-    const parsed = parseFloat(value)
-    return isNaN(parsed) ? defaultValue : parsed
-  }
-
-  const priceMinChange = parseValue(purchasePriceMinChange, DEFAULT_PRICE_CHANGE_MIN)
-  const priceMaxChange = parseValue(purchasePriceMaxChange, DEFAULT_PRICE_CHANGE_MAX)
-  const incomeMinChangeVal = parseValue(incomeMinChange, DEFAULT_INCOME_CHANGE_MIN)
-  const incomeMaxChangeVal = parseValue(incomeMaxChange, DEFAULT_INCOME_CHANGE_MAX)
-  const expensesMinChangeVal = parseValue(expensesMinChange, DEFAULT_EXPENSE_CHANGE_MIN)
-  const expensesMaxChangeVal = parseValue(expensesMaxChange, DEFAULT_EXPENSE_CHANGE_MAX)
-  const minDownPaymentVal = parseValue(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN)
-  const maxDownPaymentVal = parseValue(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)
-  const minIntRate = parseValue(minInterestRate, DEFAULT_INTEREST_RATE_MIN)
-  const maxIntRate = parseValue(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)
-
-  // Calculate threshold values where cash flow becomes positive for each variable (keeping others at baseline)
-  const calculatePositiveCashFlowThresholds = useMemo(() => {
-    const results: {
-      variable: string
-      thresholdValue: number | null
-      thresholdChange: number | null
-    }[] = []
-
-    // Get the first available loan term (or default to 30 if none selected)
-    const loanTerms: number[] = []
-    if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
-    if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
-    if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
-    const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : DEFAULT_LOAN_TERM
-
-    // Helper function to calculate cash flow for a scenario
-    const calculateCashFlow = (
-      purchasePriceChange: number,
-      incomeChange: number,
-      expensesChange: number,
-      interestRate: number,
-      downPaymentPercent: number,
-      loanTerm: number
-    ): number => {
-      const purchasePrice = askingPrice * (1 + purchasePriceChange / 100)
-      const grossIncome = baseGrossIncome * (1 + incomeChange / 100)
-      const operatingExpenses = baseOperatingExpenses * (1 + expensesChange / 100)
-      const noi = grossIncome - operatingExpenses
-      
-      const downPaymentAmount = purchasePrice * (downPaymentPercent / 100)
-      const loanPrincipal = purchasePrice - downPaymentAmount
-      
-      // Calculate monthly mortgage
-      const monthlyRate = interestRate / 100 / 12
-      const numPayments = loanTerm * 12
-      const monthlyMortgage = loanPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1)
-      
-      // Calculate first year interest and principal
-      let balance = loanPrincipal
-      let firstYearInterest = 0
-      let firstYearPrincipal = 0
-      for (let month = 1; month <= 12; month++) {
-        const interestPayment = balance * monthlyRate
-        const principalPayment = monthlyMortgage - interestPayment
-        firstYearInterest += interestPayment
-        firstYearPrincipal += principalPayment > balance ? balance : principalPayment
-        balance = Math.max(0, balance - principalPayment)
-      }
-      
-      // Closing costs (percentage of purchase price) - part of initial investment, not an expense
-      const closingCostPercentVal = parseValue(closingCostPercent, 3)
-      const purchaseClosingCosts = purchasePrice * (closingCostPercentVal / 100)
-      const loanClosingCosts = loanPrincipal * (closingCostPercentVal / 100)
-      
-      // First year cash flow (closing costs are part of initial investment, not an expense)
-      const firstYearNetIncome = noi - firstYearInterest
-      return firstYearNetIncome - firstYearPrincipal
-    }
-
-    // Test Purchase Price (with loan, using average interest rate and down payment)
-    const avgInterestRate = (minIntRate + maxIntRate) / 2
-    const avgDownPayment = (minDownPaymentVal + maxDownPaymentVal) / 2
-    let priceThreshold = null
-    // Search from high to low to find the highest price that gives positive cash flow
-    for (let change = THRESHOLD_ANALYSIS_RANGE; change >= -THRESHOLD_ANALYSIS_RANGE; change -= THRESHOLD_ANALYSIS_STEP) {
-      const cashFlow = calculateCashFlow(change, 0, 0, avgInterestRate, avgDownPayment, defaultLoanTerm)
-      if (cashFlow >= 0) {
-        priceThreshold = change
-        break
-      }
-    }
-    results.push({
-      variable: 'Purchase Price',
-      thresholdValue: priceThreshold !== null ? askingPrice * (1 + priceThreshold / 100) : null,
-      thresholdChange: priceThreshold
-    })
-
-    // Test Income - find minimum income change needed
-    let incomeThreshold = null
-    for (let change = -THRESHOLD_ANALYSIS_RANGE; change <= THRESHOLD_ANALYSIS_RANGE; change += THRESHOLD_ANALYSIS_STEP) {
-      const cashFlow = calculateCashFlow(0, change, 0, avgInterestRate, avgDownPayment, defaultLoanTerm)
-      if (cashFlow >= 0) {
-        incomeThreshold = change
-        break
-      }
-    }
-    results.push({
-      variable: 'Gross Income',
-      thresholdValue: incomeThreshold !== null ? baseGrossIncome * (1 + incomeThreshold / 100) : null,
-      thresholdChange: incomeThreshold
-    })
-
-    // Test Expenses - find maximum expense change allowed
-    let expensesThreshold = null
-    for (let change = THRESHOLD_ANALYSIS_RANGE; change >= -THRESHOLD_ANALYSIS_RANGE; change -= THRESHOLD_ANALYSIS_STEP) {
-      const cashFlow = calculateCashFlow(0, 0, change, avgInterestRate, avgDownPayment, defaultLoanTerm)
-      if (cashFlow >= 0) {
-        expensesThreshold = change
-        break
-      }
-    }
-    results.push({
-      variable: 'Operating Expenses',
-      thresholdValue: expensesThreshold !== null ? baseOperatingExpenses * (1 + expensesThreshold / 100) : null,
-      thresholdChange: expensesThreshold
-    })
-
-    // Test Interest Rate - find maximum interest rate allowed
-    let intRateThreshold = null
-    for (let rate = THRESHOLD_ANALYSIS_MAX_RATE; rate >= 0; rate -= THRESHOLD_ANALYSIS_STEP) {
-      const cashFlow = calculateCashFlow(0, 0, 0, rate, avgDownPayment, defaultLoanTerm)
-      if (cashFlow >= 0) {
-        intRateThreshold = rate
-        break
-      }
-    }
-    results.push({
-      variable: 'Interest Rate',
-      thresholdValue: intRateThreshold,
-      thresholdChange: intRateThreshold
-    })
-
-    // Test Down Payment - find minimum down payment needed
-    let dpThreshold = null
-    for (let dp = 0; dp <= MAX_DOWN_PAYMENT_SLIDER; dp += THRESHOLD_ANALYSIS_STEP) {
-      const cashFlow = calculateCashFlow(0, 0, 0, avgInterestRate, dp, defaultLoanTerm)
-      if (cashFlow >= 0) {
-        dpThreshold = dp
-        break
-      }
-    }
-    results.push({
-      variable: 'Down Payment',
-      thresholdValue: dpThreshold,
-      thresholdChange: dpThreshold
-    })
-
-    return results
-  }, [
-    property, 
-    minInterestRate, 
-    maxInterestRate, 
-    purchasePriceMinChange, 
-    purchasePriceMaxChange, 
-    incomeMinChange, 
-    incomeMaxChange, 
-    expensesMinChange, 
-    expensesMaxChange, 
-    minDownPayment, 
-    maxDownPayment, 
-    closingCostPercent,
-    includeLoanTerm15,
-    includeLoanTerm20,
-    includeLoanTerm30,
-    includeLoan,
-    includeAllCash
-  ])
-
-  const minPurchasePrice = askingPrice * (1 + (priceMinChange / 100))
-  const maxPurchasePrice = askingPrice * (1 + (priceMaxChange / 100))
-  const minIncome = baseGrossIncome * (1 + (incomeMinChangeVal / 100))
-  const maxIncome = baseGrossIncome * (1 + (incomeMaxChangeVal / 100))
-  const minExpenses = baseOperatingExpenses * (1 + (expensesMinChangeVal / 100))
-  const maxExpenses = baseOperatingExpenses * (1 + (expensesMaxChangeVal / 100))
-
-  // Calculate min and max cash flow from sorted scenarios
-  const minCashFlow = sortedScenarios.length > 0 ? Math.min(...sortedScenarios.map(s => s.firstYearCashFlow)) : 0
-  const maxCashFlow = sortedScenarios.length > 0 ? Math.max(...sortedScenarios.map(s => s.firstYearCashFlow)) : 0
-
-  // Helper function to parse values
-  const parseValueHelper = (value: string, defaultValue: number): number => {
-    if (value === '' || value === null || value === undefined) {
-      return defaultValue
-    }
-    const parsed = parseFloat(value)
-    return isNaN(parsed) ? defaultValue : parsed
-  }
-
-  // Function to save a scenario to the database
+  // ── Save functions ──
   const saveScenario = async (scenario: Scenario, scenarioName?: string) => {
     setSavingScenarioId(scenario.id)
     try {
-      const askingPrice = property['Asking Price'] || 0
-      const closingCostPercentVal = parseValueHelper(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
-      
-      // Calculate purchase closing costs
-      const purchaseClosingCosts = scenario.purchasePrice * (closingCostPercentVal / 100)
-      
-      // Calculate loan closing costs if there's a loan
-      const loanClosingCosts = scenario.hasLoan && scenario.loanPrincipal 
-        ? scenario.loanPrincipal * (closingCostPercentVal / 100)
-        : 0
+      const closingPct = parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
+      const purchaseClosingCosts = scenario.purchasePrice * (closingPct / 100)
+      const loanClosingCosts = scenario.hasLoan && scenario.loanPrincipal
+        ? scenario.loanPrincipal * (closingPct / 100) : 0
 
       const scenarioData: any = {
         'Scenario Name': scenarioName || `Model Scenario ${scenario.id}`,
@@ -692,9 +493,7 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         'Operating Expenses': scenario.operatingExpenses,
         'Cap Rate': scenario.capRate,
         'Net Income': scenario.hasLoan ? scenario.noi - scenario.firstYearInterest : scenario.noi,
-        'Income Increase': 0,
-        'Expenses Increase': 0,
-        'Property Value Increase': 0,
+        'Income Increase': 0, 'Expenses Increase': 0, 'Property Value Increase': 0,
         'Property ID': property.id,
         'Has Loan': scenario.hasLoan,
         'Loan Term': scenario.hasLoan && scenario.loanTerm ? scenario.loanTerm : null,
@@ -705,17 +504,11 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         'Purchase Closing Costs': purchaseClosingCosts,
       }
 
-      const { data, error } = await supabase
-        .from('pi_financial_scenarios')
-        .insert([scenarioData])
-        .select()
-        .single()
-
+      const { data, error } = await supabase.from('pi_financial_scenarios').insert([scenarioData]).select().single()
       if (error) throw error
 
-      // If scenario has a loan, save loan details
       if (scenario.hasLoan && scenario.loanTerm && scenario.interestRate && scenario.monthlyMortgage) {
-        const loanData: any = {
+        await supabase.from('pi_loans').insert([{
           'Loan Term': scenario.loanTerm,
           'Down Payment Percentage': scenario.downPaymentPercent,
           'Down Payment Amount': scenario.downPaymentAmount,
@@ -729,19 +522,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           'Annual Principal': scenario.firstYearPrincipal,
           'Annual Interest': scenario.firstYearInterest,
           'scenario_id': data.id,
-        }
-
-        const { error: loanError } = await supabase
-          .from('pi_loans')
-          .insert([loanData])
-
-        if (loanError) {
-          console.error('Loan insert error:', loanError)
-          throw new Error(`Failed to save loan information: ${loanError.message}`)
-        }
+        }])
       }
-
-      toast.success(`Scenario "${scenarioData['Scenario Name']}" saved successfully!`)
+      toast.success(`Scenario "${scenarioData['Scenario Name']}" saved!`)
       router.refresh()
     } catch (error: any) {
       toast.error(`Failed to save scenario: ${error.message}`)
@@ -750,1206 +533,519 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
     }
   }
 
-  // Function to save a single threshold scenario
   const saveSingleThresholdScenario = async (threshold: { variable: string; thresholdValue: number | null; thresholdChange: number | null }) => {
-    if (threshold.thresholdValue === null || threshold.thresholdChange === null) {
-      toast.error('Cannot save: No valid threshold value found')
-      return
-    }
-
+    if (threshold.thresholdValue === null) { toast.error('No valid threshold found'); return }
     setSavingThresholdVariable(threshold.variable)
     try {
-      const askingPrice = property['Asking Price'] || 0
-      const baseGrossIncome = property['Gross Income'] || 0
-      const baseOperatingExpenses = property['Operating Expenses'] || 0
-      const avgInterestRate = (parseValueHelper(minInterestRate, DEFAULT_INTEREST_RATE_MIN) + parseValueHelper(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)) / 2
-      const avgDownPayment = (parseValueHelper(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN) + parseValueHelper(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)) / 2
-      const closingCostPercentVal = parseValueHelper(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
-      
-      // Get the first available loan term (or default to 30 if none selected)
-      const loanTerms: number[] = []
-      if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
-      if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
-      if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
-      const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : DEFAULT_LOAN_TERM
-
       let purchasePrice = askingPrice
       let grossIncome = baseGrossIncome
       let operatingExpenses = baseOperatingExpenses
-      let interestRate = avgInterestRate
-      let downPaymentPercent = avgDownPayment
+      let interestRate = baselineRate
+      let downPaymentPercent = baselineDownPct
 
-      // Set the threshold value for the variable being tested
       switch (threshold.variable) {
-        case 'Purchase Price':
-          purchasePrice = threshold.thresholdValue
-          break
-        case 'Gross Income':
-          grossIncome = threshold.thresholdValue
-          break
-        case 'Operating Expenses':
-          operatingExpenses = threshold.thresholdValue
-          break
-        case 'Interest Rate':
-          interestRate = threshold.thresholdValue
-          break
-        case 'Down Payment':
-          downPaymentPercent = threshold.thresholdValue
-          break
+        case 'Purchase Price': purchasePrice = threshold.thresholdValue; break
+        case 'Gross Income': grossIncome = threshold.thresholdValue; break
+        case 'Operating Expenses': operatingExpenses = threshold.thresholdValue; break
+        case 'Interest Rate': interestRate = threshold.thresholdValue; break
+        case 'Down Payment': downPaymentPercent = threshold.thresholdValue; break
       }
 
       const noi = grossIncome - operatingExpenses
-      const downPaymentAmount = purchasePrice * (downPaymentPercent / 100)
-      const loanPrincipal = purchasePrice - downPaymentAmount
-      const purchaseClosingCosts = purchasePrice * (closingCostPercentVal / 100)
-      const loanClosingCosts = loanPrincipal * (closingCostPercentVal / 100)
-
-      // Calculate monthly mortgage
-      const monthlyRate = interestRate / 100 / 12
-      const numPayments = defaultLoanTerm * 12
-      const monthlyMortgage = loanPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1)
-
-      // Calculate first year interest and principal
-      let balance = loanPrincipal
-      let firstYearInterest = 0
-      let firstYearPrincipal = 0
-      for (let month = 1; month <= 12; month++) {
-        const interestPayment = balance * monthlyRate
-        const principalPayment = monthlyMortgage - interestPayment
-        firstYearInterest += interestPayment
-        firstYearPrincipal += principalPayment > balance ? balance : principalPayment
-        balance = Math.max(0, balance - principalPayment)
-      }
-
-      const capRate = purchasePrice > 0 ? (noi / purchasePrice) * 100 : 0
-      const netIncome = noi - firstYearInterest
-      const firstYearCashFlow = netIncome - firstYearPrincipal
-
-      // Round down payment percentage to integer since database column is smallint (integer only)
-      const roundedDownPaymentPercent = Math.round(downPaymentPercent)
+      const r = calculateLoanCashFlow(purchasePrice, noi, interestRate, downPaymentPercent, baselineLoanTerm, baselineClosingPct)
+      const roundedDp = Math.round(downPaymentPercent)
 
       const scenarioData: any = {
         'Scenario Name': `Threshold: ${threshold.variable}`,
-        'Purchase Price': purchasePrice,
-        'Gross Income': grossIncome,
-        'Operating Expenses': operatingExpenses,
-        'Cap Rate': capRate,
-        'Net Income': netIncome,
-        'Income Increase': 0,
-        'Expenses Increase': 0,
-        'Property Value Increase': 0,
-        'Property ID': property.id,
-        'Has Loan': true,
-        'Loan Term': defaultLoanTerm,
-        'Down Payment Percentage': roundedDownPaymentPercent,
-        'Down Payment Amount': downPaymentAmount,
-        'Interest Rate': interestRate,
-        'Closing Costs': loanClosingCosts,
-        'Purchase Closing Costs': purchaseClosingCosts,
+        'Purchase Price': purchasePrice, 'Gross Income': grossIncome, 'Operating Expenses': operatingExpenses,
+        'Cap Rate': r.capRate, 'Net Income': noi - r.firstYearInterest,
+        'Income Increase': 0, 'Expenses Increase': 0, 'Property Value Increase': 0,
+        'Property ID': property.id, 'Has Loan': true,
+        'Loan Term': baselineLoanTerm, 'Down Payment Percentage': roundedDp,
+        'Down Payment Amount': r.downPaymentAmount, 'Interest Rate': interestRate,
+        'Closing Costs': r.loanClosingCosts, 'Purchase Closing Costs': r.purchaseClosingCosts,
       }
 
-      // Check for duplicate scenario before saving
-      const { data: existingScenarios } = await supabase
+      const { data: existing } = await supabase
         .from('pi_financial_scenarios')
         .select('id, "Scenario Name", "Purchase Price", "Gross Income", "Operating Expenses", "Down Payment Percentage", "Interest Rate", "Loan Term"')
-        .eq('Property ID', property.id)
-        .eq('Scenario Name', scenarioData['Scenario Name'])
+        .eq('Property ID', property.id).eq('Scenario Name', scenarioData['Scenario Name'])
+      if (existing?.some((e: any) =>
+        Math.abs(e['Purchase Price'] - purchasePrice) < SCENARIO_COMPARISON_TOLERANCE &&
+        Math.abs(e['Gross Income'] - grossIncome) < SCENARIO_COMPARISON_TOLERANCE &&
+        Math.abs(e['Operating Expenses'] - operatingExpenses) < SCENARIO_COMPARISON_TOLERANCE
+      )) { toast.error('Duplicate scenario exists'); return }
 
-      if (existingScenarios && existingScenarios.length > 0) {
-        // Check if any existing scenario matches all key fields
-        const isDuplicate = existingScenarios.some((existing: any) => {
-          return Math.abs(existing['Purchase Price'] - scenarioData['Purchase Price']) < SCENARIO_COMPARISON_TOLERANCE &&
-                 Math.abs(existing['Gross Income'] - scenarioData['Gross Income']) < SCENARIO_COMPARISON_TOLERANCE &&
-                 Math.abs(existing['Operating Expenses'] - scenarioData['Operating Expenses']) < SCENARIO_COMPARISON_TOLERANCE &&
-                 Math.round(existing['Down Payment Percentage'] || 0) === roundedDownPaymentPercent &&
-                 Math.abs((existing['Interest Rate'] || 0) - interestRate) < SCENARIO_COMPARISON_TOLERANCE &&
-                 existing['Loan Term'] === defaultLoanTerm
-        })
-
-        if (isDuplicate) {
-          toast.error('A scenario with the same name and details already exists. Please use a different name or modify the scenario details.')
-          return
-        }
-      }
-
-      const { data: savedScenario, error } = await supabase
-        .from('pi_financial_scenarios')
-        .insert([scenarioData])
-        .select()
-        .single()
-
+      const { data: saved, error } = await supabase.from('pi_financial_scenarios').insert([scenarioData]).select().single()
       if (error) throw error
 
-      // Save loan details
-      const loanData: any = {
-        'Loan Term': defaultLoanTerm,
-        'Down Payment Percentage': roundedDownPaymentPercent,
-        'Down Payment Amount': downPaymentAmount,
-        'Purchase Price': purchasePrice,
-        'Interest Rate': interestRate,
-        'Monthly Mortgage': monthlyMortgage,
-        'Monthly Principal': firstYearPrincipal / 12,
-        'Monthly Interest': firstYearInterest / 12,
-        'Closing Costs': loanClosingCosts,
-        'Annual Mortgage': monthlyMortgage * 12,
-        'Annual Principal': firstYearPrincipal,
-        'Annual Interest': firstYearInterest,
-        'scenario_id': savedScenario.id,
-      }
+      await supabase.from('pi_loans').insert([{
+        'Loan Term': baselineLoanTerm, 'Down Payment Percentage': roundedDp,
+        'Down Payment Amount': r.downPaymentAmount, 'Purchase Price': purchasePrice,
+        'Interest Rate': interestRate, 'Monthly Mortgage': r.monthlyMortgage,
+        'Monthly Principal': r.firstYearPrincipal / 12, 'Monthly Interest': r.firstYearInterest / 12,
+        'Closing Costs': r.loanClosingCosts, 'Annual Mortgage': r.annualMortgage,
+        'Annual Principal': r.firstYearPrincipal, 'Annual Interest': r.firstYearInterest,
+        'scenario_id': saved.id,
+      }])
 
-      await supabase
-        .from('pi_loans')
-        .insert([loanData])
-
-      toast.success(`Threshold scenario "${scenarioData['Scenario Name']}" saved successfully!`)
+      toast.success(`Threshold scenario saved!`)
       router.refresh()
     } catch (error: any) {
-      toast.error(`Failed to save threshold scenario: ${error.message}`)
+      toast.error(`Failed to save: ${error.message}`)
     } finally {
       setSavingThresholdVariable(null)
     }
   }
 
-  // Function to save all positive threshold scenarios
   const savePositiveThresholdScenarios = async () => {
     setSavingThresholds(true)
     try {
-      const askingPrice = property['Asking Price'] || 0
-      const baseGrossIncome = property['Gross Income'] || 0
-      const baseOperatingExpenses = property['Operating Expenses'] || 0
-      const avgInterestRate = (parseValueHelper(minInterestRate, DEFAULT_INTEREST_RATE_MIN) + parseValueHelper(maxInterestRate, DEFAULT_INTEREST_RATE_MAX)) / 2
-      const avgDownPayment = (parseValueHelper(minDownPayment, DEFAULT_DOWN_PAYMENT_MIN) + parseValueHelper(maxDownPayment, DEFAULT_DOWN_PAYMENT_MAX)) / 2
-      const closingCostPercentVal = parseValueHelper(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
-      
-      // Get the first available loan term (or default to 30 if none selected)
-      const loanTerms: number[] = []
-      if (includeLoanTerm15) loanTerms.push(LOAN_TERMS[0])
-      if (includeLoanTerm20) loanTerms.push(LOAN_TERMS[1])
-      if (includeLoanTerm30) loanTerms.push(LOAN_TERMS[2])
-      const defaultLoanTerm = loanTerms.length > 0 ? loanTerms[0] : DEFAULT_LOAN_TERM
-
-      const scenariosToSave: any[] = []
-
-      for (const threshold of calculatePositiveCashFlowThresholds) {
-        if (threshold.thresholdValue === null || threshold.thresholdChange === null) continue
-
-        let purchasePrice = askingPrice
-        let grossIncome = baseGrossIncome
-        let operatingExpenses = baseOperatingExpenses
-        let interestRate = avgInterestRate
-        let downPaymentPercent = avgDownPayment
-
-        // Set the threshold value for the variable being tested
-        switch (threshold.variable) {
-          case 'Purchase Price':
-            purchasePrice = threshold.thresholdValue
-            break
-          case 'Gross Income':
-            grossIncome = threshold.thresholdValue
-            break
-          case 'Operating Expenses':
-            operatingExpenses = threshold.thresholdValue
-            break
-          case 'Interest Rate':
-            interestRate = threshold.thresholdValue
-            break
-          case 'Down Payment':
-            downPaymentPercent = threshold.thresholdValue
-            break
+      const toSave: any[] = []
+      for (const t of thresholds) {
+        if (t.thresholdValue === null) continue
+        let pp = askingPrice, gi = baseGrossIncome, oe = baseOperatingExpenses, ir = baselineRate, dp = baselineDownPct
+        switch (t.variable) {
+          case 'Purchase Price': pp = t.thresholdValue; break
+          case 'Gross Income': gi = t.thresholdValue; break
+          case 'Operating Expenses': oe = t.thresholdValue; break
+          case 'Interest Rate': ir = t.thresholdValue; break
+          case 'Down Payment': dp = t.thresholdValue; break
         }
-
-        const noi = grossIncome - operatingExpenses
-        const downPaymentAmount = purchasePrice * (downPaymentPercent / 100)
-        const loanPrincipal = purchasePrice - downPaymentAmount
-        const purchaseClosingCosts = purchasePrice * (closingCostPercentVal / 100)
-        const loanClosingCosts = loanPrincipal * (closingCostPercentVal / 100)
-
-        // Calculate monthly mortgage
-        const monthlyRate = interestRate / 100 / 12
-        const numPayments = defaultLoanTerm * 12
-        const monthlyMortgage = loanPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1)
-
-        // Calculate first year interest and principal
-        let balance = loanPrincipal
-        let firstYearInterest = 0
-        let firstYearPrincipal = 0
-        for (let month = 1; month <= 12; month++) {
-          const interestPayment = balance * monthlyRate
-          const principalPayment = monthlyMortgage - interestPayment
-          firstYearInterest += interestPayment
-          firstYearPrincipal += principalPayment > balance ? balance : principalPayment
-          balance = Math.max(0, balance - principalPayment)
-        }
-
-        const capRate = purchasePrice > 0 ? (noi / purchasePrice) * 100 : 0
-        const netIncome = noi - firstYearInterest
-        const firstYearCashFlow = netIncome - firstYearPrincipal
-
-        scenariosToSave.push({
-          'Scenario Name': `Threshold: ${threshold.variable}`,
-          'Purchase Price': purchasePrice,
-          'Gross Income': grossIncome,
-          'Operating Expenses': operatingExpenses,
-          'Cap Rate': capRate,
-          'Net Income': netIncome,
-          'Income Increase': 0,
-          'Expenses Increase': 0,
-          'Property Value Increase': 0,
-          'Property ID': property.id,
-          'Has Loan': true,
-          'Loan Term': defaultLoanTerm,
-          'Down Payment Percentage': downPaymentPercent,
-          'Down Payment Amount': downPaymentAmount,
-          'Interest Rate': interestRate,
-          'Closing Costs': loanClosingCosts,
-          'Purchase Closing Costs': purchaseClosingCosts,
+        const noi = gi - oe
+        const r = calculateLoanCashFlow(pp, noi, ir, dp, baselineLoanTerm, baselineClosingPct)
+        toSave.push({
+          scenario: { 'Scenario Name': `Threshold: ${t.variable}`, 'Purchase Price': pp, 'Gross Income': gi, 'Operating Expenses': oe,
+            'Cap Rate': r.capRate, 'Net Income': noi - r.firstYearInterest, 'Income Increase': 0, 'Expenses Increase': 0,
+            'Property Value Increase': 0, 'Property ID': property.id, 'Has Loan': true, 'Loan Term': baselineLoanTerm,
+            'Down Payment Percentage': Math.round(dp), 'Down Payment Amount': r.downPaymentAmount, 'Interest Rate': ir,
+            'Closing Costs': r.loanClosingCosts, 'Purchase Closing Costs': r.purchaseClosingCosts },
+          loan: { pp, dp, ir, r, lt: baselineLoanTerm },
         })
       }
+      if (toSave.length === 0) { toast.error('No thresholds to save'); return }
 
-      if (scenariosToSave.length === 0) {
-        toast.error('No positive threshold scenarios to save')
-        return
-      }
+      const names = toSave.map(s => s.scenario['Scenario Name'])
+      const { data: existing } = await supabase.from('pi_financial_scenarios')
+        .select('id, "Scenario Name", "Purchase Price", "Gross Income", "Operating Expenses"')
+        .eq('Property ID', property.id).in('Scenario Name', names)
+      const toInsert = toSave.filter(s => !(existing?.some((e: any) =>
+        e['Scenario Name'] === s.scenario['Scenario Name'] &&
+        Math.abs(e['Purchase Price'] - s.scenario['Purchase Price']) < SCENARIO_COMPARISON_TOLERANCE &&
+        Math.abs(e['Gross Income'] - s.scenario['Gross Income']) < SCENARIO_COMPARISON_TOLERANCE
+      )))
+      if (toInsert.length === 0) { toast.info('All thresholds already saved'); return }
 
-      // Check for duplicates before saving
-      const scenarioNames = scenariosToSave.map(s => s['Scenario Name'])
-      const { data: existingScenarios } = await supabase
-        .from('pi_financial_scenarios')
-        .select('id, "Scenario Name", "Purchase Price", "Gross Income", "Operating Expenses", "Down Payment Percentage", "Interest Rate", "Loan Term"')
-        .eq('Property ID', property.id)
-        .in('Scenario Name', scenarioNames)
-
-      // Filter out duplicates
-      const scenariosToInsert = scenariosToSave.filter((scenario: any) => {
-        if (!existingScenarios || existingScenarios.length === 0) return true
-        
-        return !existingScenarios.some((existing: any) => {
-          return existing['Scenario Name'] === scenario['Scenario Name'] &&
-                 Math.abs(existing['Purchase Price'] - scenario['Purchase Price']) < SCENARIO_COMPARISON_TOLERANCE &&
-                 Math.abs(existing['Gross Income'] - scenario['Gross Income']) < SCENARIO_COMPARISON_TOLERANCE &&
-                 Math.abs(existing['Operating Expenses'] - scenario['Operating Expenses']) < SCENARIO_COMPARISON_TOLERANCE &&
-                 Math.round(existing['Down Payment Percentage'] || 0) === Math.round(scenario['Down Payment Percentage'] || 0) &&
-                 Math.abs((existing['Interest Rate'] || 0) - (scenario['Interest Rate'] || 0)) < SCENARIO_COMPARISON_TOLERANCE &&
-                 existing['Loan Term'] === scenario['Loan Term']
-        })
-      })
-
-      if (scenariosToInsert.length === 0) {
-        toast.info('All threshold scenarios already exist. No new scenarios to save.')
-        return
-      }
-
-      if (scenariosToInsert.length < scenariosToSave.length) {
-        const skippedCount = scenariosToSave.length - scenariosToInsert.length
-        toast.info(`${skippedCount} duplicate scenario${skippedCount > 1 ? 's' : ''} skipped. Saving ${scenariosToInsert.length} new scenario${scenariosToInsert.length > 1 ? 's' : ''}.`)
-      }
-
-      const { data: savedScenarios, error } = await supabase
-        .from('pi_financial_scenarios')
-        .insert(scenariosToInsert)
-        .select()
-
+      const { data: saved, error } = await supabase.from('pi_financial_scenarios').insert(toInsert.map(s => s.scenario)).select()
       if (error) throw error
 
-      // Save loan details for each scenario
-      // Map saved scenarios back to their corresponding threshold data
-      const savedScenarioMap = new Map(savedScenarios.map((s: any) => [s['Scenario Name'], s]))
-      
-      for (let i = 0; i < scenariosToInsert.length; i++) {
-        const scenario = scenariosToInsert[i]
-        const savedScenario = savedScenarioMap.get(scenario['Scenario Name'])
-        if (!savedScenario) continue
-        
-        const thresholdIndex = scenariosToSave.findIndex((s: any) => 
-          s['Scenario Name'] === scenario['Scenario Name']
-        )
-        if (thresholdIndex === -1) continue
-        
-        const threshold = calculatePositiveCashFlowThresholds[thresholdIndex]
-        
-        if (threshold.thresholdValue === null) continue
-
-        let purchasePrice = askingPrice
-        let downPaymentPercent = avgDownPayment
-        let interestRate = avgInterestRate
-
-        switch (threshold.variable) {
-          case 'Purchase Price':
-            purchasePrice = threshold.thresholdValue
-            break
-          case 'Interest Rate':
-            interestRate = threshold.thresholdValue
-            break
-          case 'Down Payment':
-            downPaymentPercent = threshold.thresholdValue
-            break
-        }
-
-        // Round down payment percentage to integer since database column is smallint (integer only)
-        const roundedDownPaymentPercent = Math.round(downPaymentPercent)
-        const downPaymentAmount = purchasePrice * (roundedDownPaymentPercent / 100)
-        const loanPrincipal = purchasePrice - downPaymentAmount
-        const loanClosingCosts = loanPrincipal * (closingCostPercentVal / 100)
-
-        const monthlyRate = interestRate / 100 / 12
-        const numPayments = defaultLoanTerm * 12
-        const monthlyMortgage = loanPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1)
-
-        let balance = loanPrincipal
-        let firstYearInterest = 0
-        let firstYearPrincipal = 0
-        for (let month = 1; month <= 12; month++) {
-          const interestPayment = balance * monthlyRate
-          const principalPayment = monthlyMortgage - interestPayment
-          firstYearInterest += interestPayment
-          firstYearPrincipal += principalPayment > balance ? balance : principalPayment
-          balance = Math.max(0, balance - principalPayment)
-        }
-
-        const loanData: any = {
-          'Loan Term': defaultLoanTerm,
-          'Down Payment Percentage': roundedDownPaymentPercent,
-          'Down Payment Amount': downPaymentAmount,
-          'Purchase Price': purchasePrice,
-          'Interest Rate': interestRate,
-          'Monthly Mortgage': monthlyMortgage,
-          'Monthly Principal': firstYearPrincipal / 12,
-          'Monthly Interest': firstYearInterest / 12,
-          'Closing Costs': loanClosingCosts,
-          'Annual Mortgage': monthlyMortgage * 12,
-          'Annual Principal': firstYearPrincipal,
-          'Annual Interest': firstYearInterest,
-          'scenario_id': savedScenario.id,
-        }
-
-        await supabase
-          .from('pi_loans')
-          .insert([loanData])
+      for (const s of saved) {
+        const match = toInsert.find(t => t.scenario['Scenario Name'] === s['Scenario Name'])
+        if (!match) continue
+        const { pp, dp, ir, r, lt } = match.loan
+        await supabase.from('pi_loans').insert([{
+          'Loan Term': lt, 'Down Payment Percentage': Math.round(dp),
+          'Down Payment Amount': r.downPaymentAmount, 'Purchase Price': pp,
+          'Interest Rate': ir, 'Monthly Mortgage': r.monthlyMortgage,
+          'Monthly Principal': r.firstYearPrincipal / 12, 'Monthly Interest': r.firstYearInterest / 12,
+          'Closing Costs': r.loanClosingCosts, 'Annual Mortgage': r.annualMortgage,
+          'Annual Principal': r.firstYearPrincipal, 'Annual Interest': r.firstYearInterest,
+          'scenario_id': s.id,
+        }])
       }
-
-      toast.success(`Successfully saved ${scenariosToInsert.length} positive threshold scenario${scenariosToInsert.length > 1 ? 's' : ''}!`)
+      toast.success(`Saved ${saved.length} threshold scenario${saved.length > 1 ? 's' : ''}!`)
       router.refresh()
     } catch (error: any) {
-      toast.error(`Failed to save scenarios: ${error.message}`)
+      toast.error(`Failed: ${error.message}`)
     } finally {
       setSavingThresholds(false)
     }
   }
 
+  // ── Render ──
+  const isPositive = currentSummary.firstYearCashFlow >= 0
+  const minPurchasePrice = askingPrice * (1 + priceMinChange / 100)
+  const maxPurchasePrice = askingPrice * (1 + priceMaxChange / 100)
+
   return (
-    <div className="rounded-lg bg-card p-6 shadow">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold ">Model Scenarios</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Generated scenarios with varying purchase prices, interest rates, gross income, and operating expenses
+    <div className="space-y-6">
+      {/* ── Section A: Current Property Summary ── */}
+      <div className="rounded-xl border p-6">
+        <div className="flex items-center gap-3 mb-4">
+          {isPositive ? (
+            <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          ) : (
+            <AlertTriangle className="h-6 w-6 text-destructive shrink-0" />
+          )}
+          <div>
+            <h3 className="text-lg font-semibold">Current Property Analysis</h3>
+            <p className={cn('text-sm font-medium', isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
+              This property currently has {isPositive ? 'positive' : 'negative'} cash flow
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Price</p>
+            <p className="text-sm font-semibold tabular-nums">{fmt$(askingPrice)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Rent /mo</p>
+            <p className="text-sm font-semibold tabular-nums">{fmt$(monthlyRent)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Expenses /mo</p>
+            <p className="text-sm font-semibold tabular-nums">{fmt$(monthlyExpenses)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Annual NOI</p>
+            <p className={cn('text-sm font-semibold tabular-nums', currentSummary.noi < 0 && 'text-destructive')}>{fmt$(currentSummary.noi)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Year 1 Cash Flow</p>
+            <p className={cn('text-sm font-semibold tabular-nums', currentSummary.firstYearCashFlow < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400')}>
+              {fmt$(currentSummary.firstYearCashFlow)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Cap Rate</p>
+            <p className="text-sm font-semibold tabular-nums">{currentSummary.capRate > 0 ? `${currentSummary.capRate.toFixed(2)}%` : '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">ROI (CoCR)</p>
+            <p className={cn('text-sm font-semibold tabular-nums', currentSummary.firstYearCoCR < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400')}>
+              {currentSummary.firstYearCoCR.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Based on {DEFAULT_DOWN_PAYMENT_PCT}% down, {DEFAULT_LOAN_TERM} yr loan at {DEFAULT_ANALYSIS_INTEREST_RATE}%, {DEFAULT_CLOSING_COST_PCT}% closing costs
         </p>
       </div>
-      <div>
-        <div className="mb-6 space-y-6">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold ">Variable Ranges</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  // Reset to property baseline (0% changes)
-                  setMinInterestRate(String(DEFAULT_INTEREST_RATE_MIN))
-                  setMaxInterestRate(String(DEFAULT_INTEREST_RATE_MAX))
-                  setPurchasePriceMinChange('0')
-                  setPurchasePriceMaxChange('0')
-                  setIncomeMinChange('0')
-                  setIncomeMaxChange('0')
-                  setExpensesMinChange('0')
-                  setExpensesMaxChange('0')
-                  setMinDownPayment(String(DEFAULT_DOWN_PAYMENT_PCT))
-                  setMaxDownPayment(String(DEFAULT_DOWN_PAYMENT_PCT))
-                  setClosingCostPercent(String(DEFAULT_CLOSING_COST_PCT))
-                }}
-                className="rounded-md bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/80"
-              >
-                Reset to Property Baseline Values
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <label htmlFor="interestRateRange" className="block text-sm font-medium text-foreground">
-                  Interest Rate: {minIntRate}% - {maxIntRate}%
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    id="interestRateRange"
-                    min={0}
-                    max={MAX_INTEREST_RATE_SLIDER}
-                    step={SLIDER_STEP}
-                    value={minIntRate}
-                    onChange={(e) => {
-                      const newMin = parseFloat(e.target.value)
-                      if (newMin <= maxIntRate) {
-                        setMinInterestRate(newMin.toFixed(2))
-                      }
-                    }}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min={0}
-                    max={MAX_INTEREST_RATE_SLIDER}
-                    step={SLIDER_STEP}
-                    value={maxIntRate}
-                    onChange={(e) => {
-                      const newMax = parseFloat(e.target.value)
-                      if (newMax >= minIntRate) {
-                        setMaxInterestRate(newMax.toFixed(2))
-                      }
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label htmlFor="purchasePriceRange" className="block text-sm font-medium text-foreground">
-                  Purchase Price Change: {priceMinChange}% - {priceMaxChange}%
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    id="purchasePriceRange"
-                    min={SLIDER_RANGE_MIN}
-                    max={SLIDER_RANGE_MAX_PRICE}
-                    step={SLIDER_STEP}
-                    value={priceMinChange}
-                    onChange={(e) => {
-                      const newMin = parseInt(e.target.value)
-                      if (newMin <= priceMaxChange) {
-                        setPurchasePriceMinChange(newMin.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min={SLIDER_RANGE_MIN}
-                    max={SLIDER_RANGE_MAX_PRICE}
-                    step={SLIDER_STEP}
-                    value={priceMaxChange}
-                    onChange={(e) => {
-                      const newMax = parseInt(e.target.value)
-                      if (newMax >= priceMinChange) {
-                        setPurchasePriceMaxChange(newMax.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label htmlFor="incomeRange" className="block text-sm font-medium text-foreground">
-                  Income Change: {incomeMinChangeVal}% - {incomeMaxChangeVal}%
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    id="incomeRange"
-                    min={SLIDER_RANGE_MIN}
-                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
-                    step={SLIDER_STEP}
-                    value={incomeMinChangeVal}
-                    onChange={(e) => {
-                      const newMin = parseInt(e.target.value)
-                      if (newMin <= incomeMaxChangeVal) {
-                        setIncomeMinChange(newMin.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min={SLIDER_RANGE_MIN}
-                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
-                    step={SLIDER_STEP}
-                    value={incomeMaxChangeVal}
-                    onChange={(e) => {
-                      const newMax = parseInt(e.target.value)
-                      if (newMax >= incomeMinChangeVal) {
-                        setIncomeMaxChange(newMax.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label htmlFor="expensesRange" className="block text-sm font-medium text-foreground">
-                  Expenses Change: {expensesMinChangeVal}% - {expensesMaxChangeVal}%
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    id="expensesRange"
-                    min={SLIDER_RANGE_MIN}
-                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
-                    step={SLIDER_STEP}
-                    value={expensesMinChangeVal}
-                    onChange={(e) => {
-                      const newMin = parseInt(e.target.value)
-                      if (newMin <= expensesMaxChangeVal) {
-                        setExpensesMinChange(newMin.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min={SLIDER_RANGE_MIN}
-                    max={SLIDER_RANGE_MAX_INCOME_EXPENSE}
-                    step={SLIDER_STEP}
-                    value={expensesMaxChangeVal}
-                    onChange={(e) => {
-                      const newMax = parseInt(e.target.value)
-                      if (newMax >= expensesMinChangeVal) {
-                        setExpensesMaxChange(newMax.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label htmlFor="downPaymentRange" className="block text-sm font-medium text-foreground">
-                  Down Payment: {minDownPaymentVal}% - {maxDownPaymentVal}%
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    id="downPaymentRange"
-                    min={0}
-                    max={MAX_DOWN_PAYMENT_SLIDER}
-                    step={5}
-                    value={minDownPaymentVal}
-                    onChange={(e) => {
-                      const newMin = parseInt(e.target.value)
-                      if (newMin <= maxDownPaymentVal) {
-                        setMinDownPayment(newMin.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min={0}
-                    max={MAX_DOWN_PAYMENT_SLIDER}
-                    step={5}
-                    value={maxDownPaymentVal}
-                    onChange={(e) => {
-                      const newMax = parseInt(e.target.value)
-                      if (newMax >= minDownPaymentVal) {
-                        setMaxDownPayment(newMax.toString())
-                      }
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label htmlFor="closingCostPercent" className="block text-sm font-medium text-foreground">
-                  Closing Costs: {closingCostPercent}% of Purchase Price
-                </label>
-                <input
-                  type="range"
-                  id="closingCostPercent"
-                  min={0}
-                  max={10}
-                  step={0.5}
-                  value={parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)}
-                  onChange={(e) => {
-                    setClosingCostPercent(parseFloat(e.target.value).toFixed(2))
-                  }}
-                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-              </div>
-            </div>
+
+      {/* ── Section B: Break-Even Thresholds ── */}
+      <div className="rounded-xl border p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+          <div>
+            <h3 className="text-lg font-semibold">What Makes This Property Cash Flow Positive?</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Each card shows the break-even value for one variable (all others held at baseline).
+            </p>
           </div>
-
-          <div className="pt-4 border-t border-border">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold  mb-2">Break-Even Threshold Analysis</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  This analysis shows the <strong>minimum or maximum value</strong> for each variable that would result in <strong>positive first-year cash flow</strong>, 
-                  while keeping all other variables at their baseline values. Use this to understand how sensitive your investment is to changes in each factor.
-                </p>
-                <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                  <strong>Baseline Values:</strong> Purchase Price = ${askingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                  Gross Income = ${baseGrossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                  Operating Expenses = ${baseOperatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}, 
-                  Interest Rate = {((minIntRate + maxIntRate) / 2).toFixed(2)}%, 
-                  Down Payment = {((minDownPaymentVal + maxDownPaymentVal) / 2).toFixed(0)}%, 
-                  Loan Term = {(() => {
-                    const terms: number[] = []
-                    if (includeLoanTerm15) terms.push(LOAN_TERMS[0])
-                    if (includeLoanTerm20) terms.push(LOAN_TERMS[1])
-                    if (includeLoanTerm30) terms.push(LOAN_TERMS[2])
-                    return terms.length > 0 ? terms[0] : DEFAULT_LOAN_TERM
-                  })()} years
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={savePositiveThresholdScenarios}
-                disabled={savingThresholds || calculatePositiveCashFlowThresholds.filter(t => t.thresholdValue !== null).length === 0}
-                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed ml-4"
-              >
-                {savingThresholds ? 'Saving...' : 'Save All Threshold Scenarios'}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {calculatePositiveCashFlowThresholds.map((result) => {
-                const getVariableDescription = () => {
-                  switch (result.variable) {
-                    case 'Purchase Price':
-                      return 'Maximum purchase price that achieves positive cash flow'
-                    case 'Gross Income':
-                      return 'Minimum gross income needed for positive cash flow'
-                    case 'Operating Expenses':
-                      return 'Maximum operating expenses allowed for positive cash flow'
-                    case 'Interest Rate':
-                      return 'Maximum interest rate that achieves positive cash flow'
-                    case 'Down Payment':
-                      return 'Minimum down payment percentage needed for positive cash flow'
-                    default:
-                      return ''
-                  }
-                }
-
-                const getChangeLabel = () => {
-                  const isNegative = result.thresholdChange !== null && result.thresholdChange < 0
-                  
-                  switch (result.variable) {
-                    case 'Purchase Price':
-                      return isNegative ? '% Decrease from Baseline:' : '% Increase from Baseline:'
-                    case 'Gross Income':
-                      return isNegative ? '% Decrease from Baseline:' : '% Increase from Baseline:'
-                    case 'Operating Expenses':
-                      return isNegative ? '% Decrease from Baseline:' : '% Increase from Baseline:'
-                    case 'Interest Rate':
-                      return 'Interest Rate:'
-                    case 'Down Payment':
-                      return 'Down Payment:'
-                    default:
-                      return 'Change from Baseline:'
-                  }
-                }
-
-                const getValueLabel = () => {
-                  switch (result.variable) {
-                    case 'Purchase Price':
-                      return 'Threshold Purchase Price:'
-                    case 'Gross Income':
-                      return 'Threshold Gross Income:'
-                    case 'Operating Expenses':
-                      return 'Threshold Operating Expenses:'
-                    case 'Interest Rate':
-                      return 'Threshold Interest Rate:'
-                    case 'Down Payment':
-                      return 'Threshold Down Payment:'
-                    default:
-                      return 'Value:'
-                  }
-                }
-
-                return (
-                  <div key={result.variable} className="p-4 border border-border rounded-lg bg-muted/50">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="font-semibold  mb-1">{result.variable}</div>
-                        <div className="text-xs text-muted-foreground mb-2">{getVariableDescription()}</div>
-                      </div>
-                      {result.thresholdValue !== null && result.thresholdChange !== null && (
-                        <button
-                          type="button"
-                          onClick={() => saveSingleThresholdScenario(result)}
-                          disabled={savingThresholdVariable === result.variable}
-                          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                        >
-                          {savingThresholdVariable === result.variable ? 'Saving...' : 'Save'}
-                        </button>
-                      )}
-                    </div>
-                    {result.thresholdChange !== null ? (
-                      <>
-                        <div className={`text-sm font-medium mb-1 ${result.thresholdChange !== null && result.thresholdChange < 0 ? 'text-red-600' : 'text-foreground'}`}>
-                          {getChangeLabel()}
-                        </div>
-                        <div className={`text-sm mb-2 ${result.thresholdChange !== null && result.thresholdChange < 0 ? 'text-red-600' : ''}`}>
-                          {result.variable === 'Interest Rate' || result.variable === 'Down Payment' ? (
-                            <>{result.thresholdChange.toFixed(2)}%</>
-                          ) : (
-                            <>{result.thresholdChange >= 0 ? '+' : ''}{result.thresholdChange.toFixed(2)}%</>
-                          )}
-                        </div>
-                        {result.thresholdValue !== null && (
-                          <>
-                            <div className="text-sm font-medium text-foreground mb-1">
-                              {getValueLabel()}
-                            </div>
-                            <div className={`text-sm ${result.thresholdValue < 0 ? 'text-red-600' : ''}`}>
-                              {result.variable === 'Interest Rate' || result.variable === 'Down Payment' ? (
-                                <>{result.thresholdValue.toFixed(2)}%</>
-                              ) : (
-                                <>${result.thresholdValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <div className="text-sm text-red-600 font-medium">No positive cash flow threshold found within the tested range</div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center space-x-2">
-                <input
-                  id="positiveCashFlowOnly"
-                  type="checkbox"
-                  checked={positiveCashFlowOnly}
-                  onChange={(e) => setPositiveCashFlowOnly(e.target.checked)}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                />
-                <label htmlFor="positiveCashFlowOnly" className="text-sm font-medium text-foreground cursor-pointer">
-                  Show positive cash flow only
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  id="includeLoan"
-                  type="checkbox"
-                  checked={includeLoan}
-                  onChange={(e) => setIncludeLoan(e.target.checked)}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                />
-                <label htmlFor="includeLoan" className="text-sm font-medium text-foreground cursor-pointer">
-                  Include Loan
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  id="includeAllCash"
-                  type="checkbox"
-                  checked={includeAllCash}
-                  onChange={(e) => setIncludeAllCash(e.target.checked)}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                />
-                <label htmlFor="includeAllCash" className="text-sm font-medium text-foreground cursor-pointer">
-                  Include All Cash
-                </label>
-              </div>
-            </div>
-            {includeLoan && (
-              <div className="flex items-center gap-6 border-t border-border pt-4">
-                <label className="text-sm font-medium text-foreground">Loan Terms:</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    id="includeLoanTerm15"
-                    type="checkbox"
-                    checked={includeLoanTerm15}
-                    onChange={(e) => setIncludeLoanTerm15(e.target.checked)}
-                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                  />
-                  <label htmlFor="includeLoanTerm15" className="text-sm font-medium text-foreground cursor-pointer">
-                    15 years
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    id="includeLoanTerm20"
-                    type="checkbox"
-                    checked={includeLoanTerm20}
-                    onChange={(e) => setIncludeLoanTerm20(e.target.checked)}
-                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                  />
-                  <label htmlFor="includeLoanTerm20" className="text-sm font-medium text-foreground cursor-pointer">
-                    20 years
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    id="includeLoanTerm30"
-                    type="checkbox"
-                    checked={includeLoanTerm30}
-                    onChange={(e) => setIncludeLoanTerm30(e.target.checked)}
-                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                  />
-                  <label htmlFor="includeLoanTerm30" className="text-sm font-medium text-foreground cursor-pointer">
-                    30 years
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-border">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Purchase Price Range</label>
-              <div className="mt-1 text-sm ">
-                ${minPurchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${maxPurchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Income Range</label>
-              <div className="mt-1 text-sm ">
-                ${minIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${maxIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Expenses Range</label>
-              <div className="mt-1 text-sm ">
-                ${minExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${maxExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Down Payment Range</label>
-              <div className="mt-1 text-sm ">
-                {minDownPaymentVal}% - {maxDownPaymentVal}%
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-border">
-            <div className="flex gap-6">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Minimum Cash Flow</label>
-                <div className={`mt-1 text-lg font-semibold ${minCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${minCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Maximum Cash Flow</label>
-                <div className={`mt-1 text-lg font-semibold ${maxCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${maxCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
-              </div>
-            </div>
-          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={savePositiveThresholdScenarios}
+            disabled={savingThresholds || thresholds.filter(t => t.thresholdValue !== null).length === 0}
+          >
+            {savingThresholds ? 'Saving...' : 'Save All Thresholds'}
+          </Button>
         </div>
-        <div className="overflow-x-auto border border-border rounded-lg">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-muted/50 sticky top-0">
-              <tr>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
-                  onClick={() => handleSort('purchasePrice')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Purchase Price</span>
-                    <SortIcon column="purchasePrice" />
+        <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md mb-4">
+          <strong>Baseline:</strong>{' '}
+          Price = {fmt$(askingPrice)},{' '}
+          Rent = {fmt$(monthlyRent)}/mo ({fmt$(baseGrossIncome)}/yr),{' '}
+          Expenses = {fmt$(monthlyExpenses)}/mo ({fmt$(baseOperatingExpenses)}/yr),{' '}
+          Rate = {baselineRate}%,{' '}
+          Down Payment = {baselineDownPct}%,{' '}
+          Term = {baselineLoanTerm} yr
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {thresholds.map((t) => (
+            <div key={t.variable} className="rounded-xl border p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  {t.meetsThreshold ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  ) : t.thresholdValue !== null ? (
+                    t.variable === 'Purchase Price' || t.variable === 'Operating Expenses' || t.variable === 'Interest Rate'
+                      ? <TrendingDown className="h-4 w-4 text-destructive shrink-0" />
+                      : <TrendingUp className="h-4 w-4 text-destructive shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                  )}
+                  <div>
+                    <p className="font-semibold text-sm">{t.label}</p>
+                    <p className="text-xs text-muted-foreground">{t.description}</p>
                   </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
-                  onClick={() => handleSort('grossIncome')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Gross Income</span>
-                    <SortIcon column="grossIncome" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
-                  onClick={() => handleSort('operatingExpenses')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Operating Expenses</span>
-                    <SortIcon column="operatingExpenses" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[80px] border-r border-border"
-                  onClick={() => handleSort('capRate')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Cap Rate</span>
-                    <SortIcon column="capRate" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[90px] border-r border-border"
-                  onClick={() => handleSort('interestRate')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Interest Rate</span>
-                    <SortIcon column="interestRate" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[80px] border-r border-border"
-                  onClick={() => handleSort('loanTerm')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Loan Term</span>
-                    <SortIcon column="loanTerm" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
-                  onClick={() => handleSort('downPayment')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Down Payment</span>
-                    <SortIcon column="downPayment" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
-                  onClick={() => handleSort('totalClosingCosts')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Total Closing Costs</span>
-                    <SortIcon column="totalClosingCosts" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px] border-r border-border"
-                  onClick={() => handleSort('totalCashInvested')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">Total Cash Invested</span>
-                    <SortIcon column="totalCashInvested" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[60px] border-r border-border"
-                  onClick={() => handleSort('grm')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">GRM</span>
-                    <SortIcon column="grm" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[60px] border-r border-border"
-                  onClick={() => handleSort('dscr')}
-                >
-                  <div className="flex items-center justify-end flex-wrap gap-1">
-                    <span className="whitespace-normal">DSCR</span>
-                    <SortIcon column="dscr" />
-                  </div>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[110px] border-r border-border"
-                  onClick={() => handleSort('firstYearCashFlow')}
-                >
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center justify-end flex-wrap gap-1">
-                          <span className="whitespace-normal">Year 1 Cash Flow</span>
-                          <SortIcon column="firstYearCashFlow" />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-sm">
-                          Cash Flow = Net Income - Principal<br/>
-                          Net Income = NOI - Interest (if loan)<br/>
-                          NOI = Gross Income - Operating Expenses
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </th>
-                <th 
-                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer hover:bg-muted select-none min-w-[100px]"
-                  onClick={() => handleSort('firstYearCoCR')}
-                >
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center justify-end flex-wrap gap-1">
-                          <span className="whitespace-normal">Year 1 CoCR</span>
-                          <SortIcon column="firstYearCoCR" />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-sm">
-                          Cash on Cash Return = (Cash Flow / Total Cash Invested) × 100%<br/>
-                          Total Cash Invested = Down Payment + Closing Costs (with loan)<br/>
-                          Total Cash Invested = Purchase Price + Closing Costs (no loan)
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-foreground min-w-[80px]">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-card">
-              {sortedScenarios.map((scenario) => {
-                const purchasePriceChange = askingPrice > 0 ? ((scenario.purchasePrice - askingPrice) / askingPrice) * 100 : 0
-                const incomeChange = baseGrossIncome > 0 ? ((scenario.grossIncome - baseGrossIncome) / baseGrossIncome) * 100 : 0
-                const expensesChange = baseOperatingExpenses > 0 ? ((scenario.operatingExpenses - baseOperatingExpenses) / baseOperatingExpenses) * 100 : 0
-                
-                return (
-                <tr key={scenario.id} className="hover:bg-muted/50 transition-colors">
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium  border-r border-border">
-                    <div className="font-semibold">${scenario.purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${purchasePriceChange < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{purchasePriceChange >= 0 ? '+' : ''}{purchasePriceChange.toFixed(2)}%</div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium  border-r border-border">
-                    <div className="font-semibold">${scenario.grossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${incomeChange < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(2)}%</div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium  border-r border-border">
-                    <div className="font-semibold">${scenario.operatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                    <div className={`text-xs mt-0.5 ${expensesChange < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>{expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(2)}%</div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold  border-r border-border">
-                    {scenario.capRate.toFixed(2)}%
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
-                    {scenario.interestRate !== null ? `${scenario.interestRate.toFixed(2)}%` : <span className="text-muted-foreground/50">-</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
-                    {scenario.loanTerm !== null ? `${scenario.loanTerm} yrs` : <span className="text-muted-foreground/50">-</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
-                    {scenario.downPaymentAmount !== null ? (
-                      <>
-                        <div className="font-semibold">${scenario.downPaymentAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{scenario.downPaymentPercent}%</div>
-                      </>
-                    ) : <span className="text-muted-foreground/50">-</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
-                    ${scenario.totalClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold  border-r border-border">
-                    ${scenario.totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
-                    {scenario.grm > 0 ? scenario.grm.toFixed(2) + 'x' : <span className="text-muted-foreground/50">-</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-foreground border-r border-border">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help font-semibold">
-                            {scenario.dscr !== null ? scenario.dscr.toFixed(2) + 'x' : <span className="text-muted-foreground/50">-</span>}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-sm">
-                            DSCR = NOI / Annual Mortgage<br/>
-                            NOI = ${scenario.grossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${scenario.operatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${scenario.noi.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                            {scenario.annualMortgage !== null ? (
-                              <>Annual Mortgage = ${scenario.annualMortgage.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                              DSCR = ${scenario.noi.toLocaleString(undefined, { maximumFractionDigits: 0 })} / ${scenario.annualMortgage.toLocaleString(undefined, { maximumFractionDigits: 0 })} = {scenario.dscr?.toFixed(2)}x</>
-                            ) : 'No loan'}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </td>
-                  <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-bold border-r border-border ${scenario.firstYearCashFlow >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">
-                            ${scenario.firstYearCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-sm">
-                            {scenario.hasLoan ? (
-                              <>
-                                Cash Flow = Net Income - Principal<br/>
-                                Net Income = NOI - Interest<br/>
-                                NOI = ${scenario.grossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${scenario.operatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${scenario.noi.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                                Interest = ${scenario.firstYearInterest.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                                Net Income = ${scenario.noi.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${scenario.firstYearInterest.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${(scenario.noi - scenario.firstYearInterest).toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                                Principal = ${scenario.firstYearPrincipal.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                                Cash Flow = ${(scenario.noi - scenario.firstYearInterest).toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${scenario.firstYearPrincipal.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${scenario.firstYearCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                              </>
-                            ) : (
-                              <>
-                                Cash Flow = NOI (no loan)<br/>
-                                NOI = ${scenario.grossIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${scenario.operatingExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${scenario.noi.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                                Cash Flow = ${scenario.firstYearCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                              </>
-                            )}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </td>
-                  <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-bold ${scenario.firstYearCoCR >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">
-                            {scenario.firstYearCoCR.toFixed(2)}%
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-sm">
-                            CoCR = (Cash Flow / Total Cash Invested) × 100%<br/>
-                            Cash Flow = ${scenario.firstYearCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                            {scenario.hasLoan ? (
-                              <>
-                                Total Cash Invested = Down Payment + Loan Closing Costs + Purchase Closing Costs<br/>
-                                Total Cash Invested = ${scenario.downPaymentAmount?.toLocaleString(undefined, { maximumFractionDigits: 0 })} + ${scenario.loanClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })} + ${scenario.purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${scenario.totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                              </>
-                            ) : (
-                              <>
-                                Total Cash Invested = Purchase Price + Purchase Closing Costs<br/>
-                                Total Cash Invested = ${scenario.purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} + ${scenario.purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${scenario.totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br/>
-                              </>
-                            )}
-                            CoCR = (${scenario.firstYearCashFlow.toLocaleString(undefined, { maximumFractionDigits: 0 })} / ${scenario.totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}) × 100% = {scenario.firstYearCoCR.toFixed(2)}%
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleSaveClick(scenario)}
-                      disabled={savingScenarioId === scenario.id}
-                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {savingScenarioId === scenario.id ? 'Saving...' : 'Save'}
-                    </button>
-                  </td>
-                </tr>
-              )})}
-            </tbody>
-          </table>
+                </div>
+                {t.thresholdValue !== null && (
+                  <Button
+                    size="sm" variant="outline" className="shrink-0 h-7 text-xs"
+                    onClick={() => saveSingleThresholdScenario(t)}
+                    disabled={savingThresholdVariable === t.variable}
+                  >
+                    {savingThresholdVariable === t.variable ? '...' : 'Save'}
+                  </Button>
+                )}
+              </div>
+
+              {t.thresholdValue !== null ? (
+                <div className="space-y-1 mt-3">
+                  {t.variable === 'Interest Rate' ? (
+                    <p className="text-lg font-bold tabular-nums">{t.thresholdValue.toFixed(2)}%</p>
+                  ) : t.variable === 'Down Payment' ? (
+                    <>
+                      <p className="text-lg font-bold tabular-nums">{t.thresholdValue.toFixed(2)}%</p>
+                      <p className="text-sm text-muted-foreground tabular-nums">
+                        = {fmt$(askingPrice * (t.thresholdValue / 100))}
+                      </p>
+                    </>
+                  ) : t.variable === 'Purchase Price' ? (
+                    <p className="text-lg font-bold tabular-nums">{fmt$(t.thresholdValue)}</p>
+                  ) : (
+                    <>
+                      <p className="text-lg font-bold tabular-nums">{fmt$(t.thresholdValue)}/yr</p>
+                      <p className="text-sm text-muted-foreground tabular-nums">
+                        = {fmt$(t.thresholdValue / MONTHS_PER_YEAR)}/mo
+                      </p>
+                    </>
+                  )}
+                  {t.thresholdChange !== null && t.variable !== 'Interest Rate' && t.variable !== 'Down Payment' && (
+                    <p className={cn('text-xs tabular-nums', t.thresholdChange < 0 ? 'text-destructive' : 'text-muted-foreground')}>
+                      {t.thresholdChange >= 0 ? '+' : ''}{t.thresholdChange.toFixed(1)}% from baseline
+                    </p>
+                  )}
+                  {t.meetsThreshold ? (
+                    <Badge variant="secondary" className="text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 text-[10px] mt-1">
+                      Already meets threshold
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-destructive bg-destructive/10 text-[10px] mt-1">
+                      Needs adjustment
+                    </Badge>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-destructive font-medium mt-3">No positive threshold found in range</p>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* ── Section C: Scenario Explorer (collapsed by default) ── */}
+      <div className="rounded-xl border">
+        <button
+          type="button"
+          onClick={() => setExplorerOpen(!explorerOpen)}
+          className="flex items-center justify-between w-full p-4 text-left hover:bg-muted/30 transition-colors"
+        >
+          <div>
+            <h3 className="text-lg font-semibold">Explore All Scenario Combinations</h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Adjust variable ranges and generate a table of all combinations ({scenarios.length} scenarios)
+            </p>
+          </div>
+          {explorerOpen ? <ChevronDown className="h-5 w-5 shrink-0" /> : <ChevronRight className="h-5 w-5 shrink-0" />}
+        </button>
+
+        {explorerOpen && (
+          <div className="border-t p-4 space-y-6">
+            {/* Variable range sliders */}
+            <div className="flex justify-between items-center">
+              <h4 className="text-base font-semibold">Variable Ranges</h4>
+              <Button variant="outline" size="sm" onClick={() => {
+                setMinInterestRate(String(DEFAULT_INTEREST_RATE_MIN)); setMaxInterestRate(String(DEFAULT_INTEREST_RATE_MAX))
+                setPurchasePriceMinChange('0'); setPurchasePriceMaxChange('0')
+                setIncomeMinChange('0'); setIncomeMaxChange('0')
+                setExpensesMinChange('0'); setExpensesMaxChange('0')
+                setMinDownPayment(String(DEFAULT_DOWN_PAYMENT_PCT)); setMaxDownPayment(String(DEFAULT_DOWN_PAYMENT_PCT))
+                setClosingCostPercent(String(DEFAULT_CLOSING_COST_PCT))
+              }}>Reset</Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <SliderPair label={`Interest Rate: ${minIntRate}% - ${maxIntRate}%`} min={0} max={MAX_INTEREST_RATE_SLIDER} step={SLIDER_STEP}
+                minVal={minIntRate} maxVal={maxIntRate}
+                onMinChange={v => { if (v <= maxIntRate) setMinInterestRate(v.toFixed(2)) }}
+                onMaxChange={v => { if (v >= minIntRate) setMaxInterestRate(v.toFixed(2)) }} />
+              <SliderPair label={`Purchase Price Change: ${priceMinChange}% - ${priceMaxChange}%`} min={SLIDER_RANGE_MIN} max={SLIDER_RANGE_MAX_PRICE} step={SLIDER_STEP}
+                minVal={priceMinChange} maxVal={priceMaxChange}
+                onMinChange={v => { if (v <= priceMaxChange) setPurchasePriceMinChange(v.toFixed(2)) }}
+                onMaxChange={v => { if (v >= priceMinChange) setPurchasePriceMaxChange(v.toFixed(2)) }} />
+              <SliderPair label={`Rent Change: ${incomeMinChangeVal}% - ${incomeMaxChangeVal}%`} min={SLIDER_RANGE_MIN} max={SLIDER_RANGE_MAX_INCOME_EXPENSE} step={SLIDER_STEP}
+                minVal={incomeMinChangeVal} maxVal={incomeMaxChangeVal}
+                onMinChange={v => { if (v <= incomeMaxChangeVal) setIncomeMinChange(v.toFixed(2)) }}
+                onMaxChange={v => { if (v >= incomeMinChangeVal) setIncomeMaxChange(v.toFixed(2)) }} />
+              <SliderPair label={`Expenses Change: ${expensesMinChangeVal}% - ${expensesMaxChangeVal}%`} min={SLIDER_RANGE_MIN} max={SLIDER_RANGE_MAX_INCOME_EXPENSE} step={SLIDER_STEP}
+                minVal={expensesMinChangeVal} maxVal={expensesMaxChangeVal}
+                onMinChange={v => { if (v <= expensesMaxChangeVal) setExpensesMinChange(v.toFixed(2)) }}
+                onMaxChange={v => { if (v >= expensesMinChangeVal) setExpensesMaxChange(v.toFixed(2)) }} />
+              <SliderPair label={`Down Payment: ${minDownPaymentVal}% - ${maxDownPaymentVal}%`} min={0} max={MAX_DOWN_PAYMENT_SLIDER} step={SLIDER_STEP}
+                minVal={minDownPaymentVal} maxVal={maxDownPaymentVal}
+                onMinChange={v => { if (v <= maxDownPaymentVal) setMinDownPayment(v.toFixed(2)) }}
+                onMaxChange={v => { if (v >= minDownPaymentVal) setMaxDownPayment(v.toFixed(2)) }} />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Closing Costs: {closingCostPercent}%</label>
+                <input type="range" min={0} max={10} step={0.5} value={parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)}
+                  onChange={e => setClosingCostPercent(parseFloat(e.target.value).toFixed(2))}
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-600" />
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-4 pt-4 border-t">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={positiveCashFlowOnly} onChange={e => setPositiveCashFlowOnly(e.target.checked)} className="rounded border-input" />
+                Positive cash flow only
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={includeLoan} onChange={e => setIncludeLoan(e.target.checked)} className="rounded border-input" />
+                Include Loan
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={includeAllCash} onChange={e => setIncludeAllCash(e.target.checked)} className="rounded border-input" />
+                Include All Cash
+              </label>
+              {includeLoan && (
+                <>
+                  <span className="text-xs text-muted-foreground">Terms:</span>
+                  {LOAN_TERMS.map((term, i) => (
+                    <label key={term} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input type="checkbox"
+                        checked={i === 0 ? includeLoanTerm15 : i === 1 ? includeLoanTerm20 : includeLoanTerm30}
+                        onChange={e => i === 0 ? setIncludeLoanTerm15(e.target.checked) : i === 1 ? setIncludeLoanTerm20(e.target.checked) : setIncludeLoanTerm30(e.target.checked)}
+                        className="rounded border-input" />
+                      {term} yr
+                    </label>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Summary */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Price Range</p>
+                <p className="tabular-nums">{fmt$(minPurchasePrice)} - {fmt$(askingPrice * (1 + priceMaxChange / 100))}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Rent Range /yr</p>
+                <p className="tabular-nums">{fmt$(baseGrossIncome * (1 + incomeMinChangeVal / 100))} - {fmt$(baseGrossIncome * (1 + incomeMaxChangeVal / 100))}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Expenses Range /yr</p>
+                <p className="tabular-nums">{fmt$(baseOperatingExpenses * (1 + expensesMinChangeVal / 100))} - {fmt$(baseOperatingExpenses * (1 + expensesMaxChangeVal / 100))}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Down Payment</p>
+                <p className="tabular-nums">{minDownPaymentVal}% - {maxDownPaymentVal}%</p>
+              </div>
+            </div>
+
+            {/* Scenario Table */}
+            <div className="rounded-xl border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    {[
+                      { key: 'purchasePrice', label: 'Price' },
+                      { key: 'grossIncome', label: 'Rent /yr' },
+                      { key: 'operatingExpenses', label: 'Expenses /yr' },
+                      { key: 'capRate', label: 'Cap Rate' },
+                      { key: 'interestRate', label: 'Rate' },
+                      { key: 'loanTerm', label: 'Term' },
+                      { key: 'downPayment', label: 'Down Pmt' },
+                      { key: 'totalCashInvested', label: 'Cash In' },
+                      { key: 'dscr', label: 'DSCR' },
+                      { key: 'firstYearCashFlow', label: 'Yr 1 Cash Flow' },
+                      { key: 'firstYearCoCR', label: 'Yr 1 CoCR' },
+                    ].map(col => (
+                      <TableHead key={col.key} className="py-3 text-right">
+                        <button type="button" onClick={() => handleSort(col.key)}
+                          className="flex items-center gap-1 justify-end w-full text-xs font-semibold uppercase tracking-wider hover:text-foreground select-none">
+                          {col.label}<SortIcon column={col.key} />
+                        </button>
+                      </TableHead>
+                    ))}
+                    <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wider">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedScenarios.map(s => {
+                    const priceChg = askingPrice > 0 ? ((s.purchasePrice - askingPrice) / askingPrice) * 100 : 0
+                    const incChg = baseGrossIncome > 0 ? ((s.grossIncome - baseGrossIncome) / baseGrossIncome) * 100 : 0
+                    const expChg = baseOperatingExpenses > 0 ? ((s.operatingExpenses - baseOperatingExpenses) / baseOperatingExpenses) * 100 : 0
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell className="py-2 text-right tabular-nums">
+                          <div className="font-semibold text-sm">{fmt$(s.purchasePrice)}</div>
+                          <div className={cn('text-xs', priceChg < 0 ? 'text-destructive' : 'text-muted-foreground')}>{priceChg >= 0 ? '+' : ''}{priceChg.toFixed(1)}%</div>
+                        </TableCell>
+                        <TableCell className="py-2 text-right tabular-nums">
+                          <div className="font-semibold text-sm">{fmt$(s.grossIncome)}</div>
+                          <div className={cn('text-xs', incChg < 0 ? 'text-destructive' : 'text-muted-foreground')}>{incChg >= 0 ? '+' : ''}{incChg.toFixed(1)}%</div>
+                        </TableCell>
+                        <TableCell className="py-2 text-right tabular-nums">
+                          <div className="font-semibold text-sm">{fmt$(s.operatingExpenses)}</div>
+                          <div className={cn('text-xs', expChg < 0 ? 'text-destructive' : 'text-muted-foreground')}>{expChg >= 0 ? '+' : ''}{expChg.toFixed(1)}%</div>
+                        </TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-sm">{s.capRate.toFixed(2)}%</TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-sm">{s.interestRate != null ? `${s.interestRate.toFixed(2)}%` : '—'}</TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-sm">{s.loanTerm != null ? `${s.loanTerm} yr` : '—'}</TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-sm">{s.downPaymentAmount != null ? fmt$(s.downPaymentAmount) : '—'}</TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-sm font-semibold">{fmt$(s.totalCashInvested)}</TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-sm">
+                          {s.dscr != null ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help border-b border-dotted border-muted-foreground/50">{s.dscr.toFixed(2)}x</span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs text-xs whitespace-pre-line">
+                                DSCR = NOI / Annual Mortgage{'\n'}= {fmt$(s.noi)} / {fmt$(s.annualMortgage || 0)} = {s.dscr.toFixed(2)}x
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell className={cn('py-2 text-right tabular-nums text-sm font-bold', s.firstYearCashFlow >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive')}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dotted border-muted-foreground/50">{fmt$(s.firstYearCashFlow)}</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-sm text-xs whitespace-pre-line">
+                              {s.hasLoan
+                                ? `NOI ${fmt$(s.noi)} − Debt Service ${fmt$(s.annualMortgage || 0)} = ${fmt$(s.firstYearCashFlow)}`
+                                : `Cash Flow = NOI = ${fmt$(s.noi)}`}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell className={cn('py-2 text-right tabular-nums text-sm font-bold', s.firstYearCoCR >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive')}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dotted border-muted-foreground/50">{s.firstYearCoCR.toFixed(2)}%</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-sm text-xs whitespace-pre-line">
+                              CoCR = Cash Flow / Cash Invested{'\n'}= {fmt$(s.firstYearCashFlow)} / {fmt$(s.totalCashInvested)} = {s.firstYearCoCR.toFixed(2)}%
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell className="py-2 text-center">
+                          <Button size="sm" variant="outline" className="h-7 text-xs"
+                            onClick={() => handleSaveClick(s)} disabled={savingScenarioId === s.id}>
+                            {savingScenarioId === s.id ? '...' : 'Save'}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {sortedScenarios.length === 0 && (
+                    <TableRow><TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">No scenarios match current filters.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Save dialog */}
       <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save Scenario</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Save Scenario</DialogTitle></DialogHeader>
           <div className="space-y-2">
-            <label htmlFor="scenarioNameInput" className="text-sm font-medium text-muted-foreground">
-              Enter a name for this scenario
-            </label>
-            <Input
-              id="scenarioNameInput"
-              value={pendingScenarioName}
-              onChange={(e) => setPendingScenarioName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleNameConfirm() }}
-              autoFocus
-            />
+            <label htmlFor="scenarioNameInput" className="text-sm font-medium text-muted-foreground">Enter a name</label>
+            <Input id="scenarioNameInput" value={pendingScenarioName} onChange={e => setPendingScenarioName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleNameConfirm() }} autoFocus />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNameDialogOpen(false)}>Cancel</Button>
@@ -1957,6 +1053,24 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+function SliderPair({ label, min, max, step, minVal, maxVal, onMinChange, onMaxChange }: {
+  label: string; min: number; max: number; step: number
+  minVal: number; maxVal: number
+  onMinChange: (v: number) => void; onMaxChange: (v: number) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium">{label}</label>
+      <input type="range" min={min} max={max} step={step} value={minVal}
+        onChange={e => onMinChange(parseFloat(e.target.value))}
+        className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-600" />
+      <input type="range" min={min} max={max} step={step} value={maxVal}
+        onChange={e => onMaxChange(parseFloat(e.target.value))}
+        className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-600" />
     </div>
   )
 }

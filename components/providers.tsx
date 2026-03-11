@@ -3,6 +3,8 @@
 import { ThemeProvider } from "next-themes"
 import { Toaster } from "@/components/ui/sonner"
 import { SidebarNavProvider } from "@/components/layout/sidebar-context"
+import { AgentPanelProvider } from "@/components/agent/agent-panel-context"
+import { ScoringConfigProvider } from "@/components/property/scoring-context"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,10 +14,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <SidebarNavProvider>
-        {children}
-        <Toaster richColors position="top-right" />
-      </SidebarNavProvider>
+      <ScoringConfigProvider>
+        <SidebarNavProvider>
+          <AgentPanelProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </AgentPanelProvider>
+        </SidebarNavProvider>
+      </ScoringConfigProvider>
     </ThemeProvider>
   )
 }

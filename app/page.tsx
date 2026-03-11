@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { checkAdmin } from '@/lib/utils/auth'
+import { getFeatureFlags } from '@/lib/app-features'
 import { HomeContent } from '@/components/home-content'
 
 export default async function Home() {
@@ -7,10 +8,17 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let isAdmin = false
+  let features = { aiAgent: true as boolean }
   if (user) {
-    const adminCheck = await checkAdmin(supabase, user.id)
+    const [adminCheck, flags] = await Promise.all([
+      checkAdmin(supabase, user.id),
+      getFeatureFlags(supabase),
+    ])
     isAdmin = adminCheck.isAdmin
+    features = flags
   }
 
-  return <HomeContent userEmail={user?.email ?? null} isAdmin={isAdmin} />
+  return (
+    <HomeContent userEmail={user?.email ?? null} isAdmin={isAdmin} features={features} />
+  )
 }

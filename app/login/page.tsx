@@ -170,7 +170,7 @@ function LoginContent() {
               <div>
                 <p className="text-sm font-semibold text-white">Democratizing financial knowledge</p>
                 <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
-                  Great planning tools shouldn&apos;t require a wealth manager. We make professional-grade analysis accessible to everyone, for free.
+                  Great planning tools shouldn&apos;t require a wealth manager. We want to make professional-grade analysis accessible to everyone, for free.
                 </p>
               </div>
             </div>
@@ -197,6 +197,9 @@ function LoginContent() {
               </div>
             </div>
           </div>
+          <p className="text-sm text-slate-300 leading-relaxed mt-5">
+            You can contribute to this mission by trying the app, using the tools in your planning, and sharing feedback. Your participation helps us improve the product for everyone — use the feedback button in the app to send suggestions and report issues.
+          </p>
         </div>
 
         {/* Disclaimer */}
@@ -258,7 +261,7 @@ function LoginContent() {
                   <div>
                     <p className="text-sm font-semibold text-white">Democratizing financial knowledge</p>
                     <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
-                      Great planning tools shouldn&apos;t require a wealth manager. We make professional-grade analysis accessible to everyone, for free.
+                      Great planning tools shouldn&apos;t require a wealth manager. We want to make professional-grade analysis accessible to everyone, for free.
                     </p>
                   </div>
                 </div>
@@ -285,6 +288,9 @@ function LoginContent() {
                   </div>
                 </div>
               </div>
+              <p className="text-xs text-slate-300 leading-relaxed mt-4">
+                You can contribute to this mission by trying the app, using the tools in your planning, and sharing feedback. Your participation helps us improve for everyone — use the feedback button in the app to send suggestions and report issues.
+              </p>
               <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2.5 flex items-start gap-2">
                 <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-slate-400 leading-relaxed">

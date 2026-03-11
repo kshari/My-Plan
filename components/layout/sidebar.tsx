@@ -13,12 +13,16 @@ import {
   ChevronLeft,
   ChevronDown,
   ShieldCheck,
+  Bot,
+  FileUp,
+  BarChart3,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { useSidebarNav } from "@/components/layout/sidebar-context"
+import { useAgentPanel } from "@/components/agent/agent-panel-context"
 
 const appNavItems = [
   {
@@ -50,12 +54,14 @@ const appNavItems = [
 interface SidebarProps {
   userEmail: string
   isAdmin?: boolean
+  aiAgentEnabled?: boolean
   onClose?: () => void
 }
 
-export function Sidebar({ userEmail, isAdmin = false, onClose }: SidebarProps) {
+export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { nav } = useSidebarNav()
+  const { open: openAgent } = useAgentPanel()
 
   // null = auto-derive from context; true/false = user's manual override
   const [appsExpandedManual, setAppsExpandedManual] = useState<boolean | null>(null)
@@ -114,32 +120,95 @@ export function Sidebar({ userEmail, isAdmin = false, onClose }: SidebarProps) {
           )}
 
           {/* Expanded list */}
-          {appsExpanded && appNavItems.map((item) => {
-            const active = isActive(item)
-            return (
+          {appsExpanded && (
+            <>
+              {appNavItems.map((item) => {
+                const active = isActive(item)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        active ? "opacity-100" : "opacity-70",
+                        item.color
+                      )}
+                    />
+                    {item.label}
+                  </Link>
+                )
+              })}
+              {aiAgentEnabled && (
+                <button
+                  onClick={() => { openAgent(); onClose?.() }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors"
+                >
+                  <Bot className="h-4 w-4 shrink-0 opacity-70 text-sky-500" />
+                  AI Assistant
+                </button>
+              )}
+            </>
+          )}
+        </nav>
+
+        {/* Property Investment — Dashboard & Imports (visible when in property app) */}
+        {pathname.startsWith("/apps/property") && (
+          <>
+            <div className="px-3">
+              <Separator className="bg-sidebar-border" />
+            </div>
+            <nav className="space-y-0.5 px-3 py-3">
               <Link
-                key={item.href}
-                href={item.href}
+                href="/apps/property/dashboard"
                 onClick={onClose}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
+                  pathname === "/apps/property/dashboard"
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
                 )}
               >
-                <item.icon
-                  className={cn(
-                    "h-4 w-4 shrink-0",
-                    active ? "opacity-100" : "opacity-70",
-                    item.color
-                  )}
-                />
-                {item.label}
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                Dashboard
               </Link>
-            )
-          })}
-        </nav>
+              <Link
+                href="/apps/property/imports"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith("/apps/property/imports")
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                )}
+              >
+                <FileUp className="h-4 w-4 shrink-0" />
+                Imports
+              </Link>
+              <Link
+                href="/apps/property/analytics"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith("/apps/property/analytics")
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                )}
+              >
+                <BarChart3 className="h-4 w-4 shrink-0" />
+                Analytics
+              </Link>
+            </nav>
+          </>
+        )}
 
         {/* Retirement Planner — Plan Structure & Dashboard (visible when in retirement app, not in a plan) */}
         {pathname.startsWith("/apps/retirement") && !nav && (

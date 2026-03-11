@@ -6,6 +6,8 @@
 // ── Loan Defaults ──
 export const DEFAULT_INTEREST_RATE_MIN = 4.0
 export const DEFAULT_INTEREST_RATE_MAX = 7.0
+/** Default rate for dashboard ROI / quick analysis (e.g. 25% down model). */
+export const DEFAULT_ANALYSIS_INTEREST_RATE = 6.0
 export const DEFAULT_DOWN_PAYMENT_PCT = 25
 export const DEFAULT_DOWN_PAYMENT_MIN = 20
 export const DEFAULT_DOWN_PAYMENT_MAX = 30
@@ -30,6 +32,8 @@ export const SLIDER_RANGE_MAX_INCOME_EXPENSE = 20
 export const DEFAULT_ASKING_PRICE = 1_000_000
 export const DEFAULT_GROSS_INCOME = 120_000
 export const DEFAULT_OPERATING_EXPENSES = 40_000
+/** Default expense ratio (e.g. 40%) when deriving Est. NOI from estimated rent only. */
+export const DEFAULT_EXPENSE_RATIO = 0.4
 
 // ── Calculation Constants ──
 export const IRR_INITIAL_GUESS = 0.1
@@ -53,3 +57,11 @@ export const PROPERTY_TYPES = [
 ] as const
 
 export type PropertyType = (typeof PROPERTY_TYPES)[number]
+
+// ── Property status (for list filter and forms: Available, Sold, Leased) ──
+export const PROPERTY_STATUSES = ['Available', 'Sold', 'Leased'] as const
+export type PropertyStatus = (typeof PROPERTY_STATUSES)[number]
+
+/** @deprecated Use PROPERTY_STATUSES for new code. Kept for backward compatibility with existing listing_status values in DB. */
+export const LISTING_STATUSES = [...PROPERTY_STATUSES] as const
+export type ListingStatus = PropertyStatus
