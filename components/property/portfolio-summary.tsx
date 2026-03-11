@@ -87,9 +87,23 @@ interface PropertyPortfolioSummaryProps {
   properties: Property[]
 }
 
+interface PortfolioStats {
+  total: number
+  available: number
+  sold: number
+  leased: number
+  avgCapRate: number | null
+  avgCoCR: number | null
+  cashFlowPositive: number
+  cashFlowNegative: number
+  avgPricePerSqft: number | null
+  bestDeal: Property | null
+  totalPortfolioValue: number
+}
+
 export default function PropertyPortfolioSummary({ properties }: PropertyPortfolioSummaryProps) {
   const { config: scoringConfig } = useScoringConfig()
-  const stats = useMemo(() => {
+  const stats = useMemo<PortfolioStats>(() => {
     const available = properties.filter(
       (p) => !p.listing_status || p.listing_status === '' || p.listing_status === 'Available'
     )
