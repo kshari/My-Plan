@@ -3,7 +3,7 @@
  * Uses dynamic import to avoid bundling @mlc-ai/web-llm on the server.
  */
 
-type MLCEngine = Awaited<ReturnType<typeof import('@mlc-ai/web-llm')>['CreateMLCEngine']> extends Promise<infer T> ? T : never
+type MLCEngine = Awaited<ReturnType<typeof import('@mlc-ai/web-llm')['CreateMLCEngine']>>
 
 // Use f32 variant for broader GPU/driver compatibility (f16 shaders fail on some systems)
 const MODEL_ID = 'Llama-3.2-3B-Instruct-q4f32_1-MLC'
