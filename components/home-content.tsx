@@ -1,10 +1,14 @@
 "use client"
 
 import Link from 'next/link'
-import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight, ShieldCheck } from 'lucide-react'
+import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight, ShieldCheck, Bot } from 'lucide-react'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
+import { useAgentPanel } from '@/components/agent/agent-panel-context'
+import { AgentPanel } from '@/components/agent/agent-panel'
+import { cn } from '@/lib/utils'
+import type { FeatureFlags } from '@/lib/app-features'
 
 const apps = [
   {
@@ -51,15 +55,18 @@ const apps = [
 interface HomeContentProps {
   userEmail: string | null
   isAdmin?: boolean
+  features?: FeatureFlags
 }
 
-export function HomeContent({ userEmail, isAdmin = false }: HomeContentProps) {
+export function HomeContent({ userEmail, isAdmin = false, features }: HomeContentProps) {
   const isAuthenticated = !!userEmail
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : ''
+  const { mode: agentMode, open: openAgent } = useAgentPanel()
+  const aiAgentEnabled = features?.aiAgent !== false
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="sticky top-0 z-40 shrink-0 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
@@ -110,7 +117,12 @@ export function HomeContent({ userEmail, isAdmin = false }: HomeContentProps) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="flex flex-1 min-h-0 relative">
+        <main className={cn(
+          "flex-1 overflow-y-auto pb-20 lg:pb-0 min-w-0",
+          agentMode === 'fullscreen' && "hidden"
+        )}>
+          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
           {isAuthenticated ? (
             <>
@@ -194,8 +206,26 @@ export function HomeContent({ userEmail, isAdmin = false }: HomeContentProps) {
           <Shield className="h-3 w-3" />
           Your financial data is private and never shared.
         </p>
-      </main>
+          </div>
+        </main>
 
+        {isAuthenticated && aiAgentEnabled && agentMode !== 'hidden' && <AgentPanel />}
+      </div>
+
+      {isAuthenticated && aiAgentEnabled && agentMode === 'hidden' && (
+        <button
+          onClick={openAgent}
+          className={cn(
+            "fixed bottom-32 right-4 z-50 lg:bottom-[4.5rem] lg:right-6",
+            "flex h-11 w-11 items-center justify-center rounded-full",
+            "bg-sky-500 text-white shadow-lg hover:bg-sky-600 hover:scale-105 active:scale-95",
+            "transition-all duration-150"
+          )}
+          aria-label="Open AI Assistant"
+        >
+          <Bot className="h-5 w-5" />
+        </button>
+      )}
       <FeedbackButton />
     </div>
   )

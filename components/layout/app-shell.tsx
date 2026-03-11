@@ -3,18 +3,22 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, LayoutDashboard, Building2, Target, Activity } from "lucide-react"
+import { Menu, LayoutDashboard, Building2, Target, Activity, Bot } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Sidebar } from "@/components/layout/sidebar"
 import { useSidebarNav } from "@/components/layout/sidebar-context"
 import { FeedbackButton } from "@/components/feedback/feedback-button"
+import { useAgentPanel } from "@/components/agent/agent-panel-context"
+import { AgentPanel } from "@/components/agent/agent-panel"
+import type { FeatureFlags } from "@/lib/app-features"
 
 interface AppShellProps {
   children: React.ReactNode
   userEmail: string
   isAdmin?: boolean
+  features?: FeatureFlags
 }
 
 const bottomNavItems = [
@@ -24,37 +28,38 @@ const bottomNavItems = [
   { href: "/apps/property", label: "Property", icon: Building2, color: "text-emerald-500" },
 ]
 
-export function AppShell({ children, userEmail, isAdmin = false }: AppShellProps) {
+export function AppShell({ children, userEmail, isAdmin = false, features }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const { nav } = useSidebarNav()
+  const { mode: agentMode, open: openAgent } = useAgentPanel()
+  const aiAgentEnabled = features?.aiAgent !== false
 
   const isActive = (item: (typeof bottomNavItems)[0]) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href)
 
-  // Flatten contextual nav items (first 4 non-disabled) for mobile bottom bar
   const mobileContextItems = nav
     ? nav.sections.flatMap((s) => s.items).filter((i) => !i.disabled).slice(0, 4)
     : null
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar — fixed */}
       <aside className="hidden lg:flex w-60 flex-col border-r border-border shrink-0">
         <div className="sticky top-0 h-screen overflow-y-auto">
-          <Sidebar userEmail={userEmail} isAdmin={isAdmin} />
+          <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} />
         </div>
       </aside>
 
       {/* Mobile sheet sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-60 p-0 border-r">
-          <Sidebar userEmail={userEmail} isAdmin={isAdmin} onClose={() => setMobileOpen(false)} />
+          <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} onClose={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 
       {/* Content area */}
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {/* Mobile top bar */}
         <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 lg:hidden">
           <Button
@@ -68,15 +73,22 @@ export function AppShell({ children, userEmail, isAdmin = false }: AppShellProps
           <span className="font-semibold text-sm">My Plan</span>
         </header>
 
-        {/* Main content — leaves room for bottom nav on mobile */}
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
-          {children}
-        </main>
+        {/* Main + optional docked panel */}
+        <div className="flex flex-1 min-h-0 relative">
+          {/* Main content — hidden when agent is fullscreen */}
+          {agentMode !== 'fullscreen' && (
+            <main className="flex-1 overflow-y-auto pb-20 lg:pb-0 min-w-0">
+              {children}
+            </main>
+          )}
+
+          {/* Agent panel — docked or fullscreen (only when feature enabled) */}
+          {aiAgentEnabled && agentMode !== 'hidden' && <AgentPanel />}
+        </div>
 
         {/* Mobile bottom navigation */}
         <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center border-t bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 lg:hidden">
           {mobileContextItems ? (
-            // ── Contextual plan tabs ──
             mobileContextItems.map((item) => {
               const Icon = item.icon
               const active = nav!.activeId === item.id
@@ -105,7 +117,6 @@ export function AppShell({ children, userEmail, isAdmin = false }: AppShellProps
               )
             })
           ) : (
-            // ── App switcher (default) ──
             bottomNavItems.map((item) => {
               const active = isActive(item)
               return (
@@ -137,6 +148,21 @@ export function AppShell({ children, userEmail, isAdmin = false }: AppShellProps
           )}
         </nav>
 
+        {/* Agent FAB — only when panel is hidden and feature enabled */}
+        {aiAgentEnabled && agentMode === 'hidden' && (
+          <button
+            onClick={openAgent}
+            className={cn(
+              "fixed bottom-32 right-4 z-50 lg:bottom-[4.5rem] lg:right-6",
+              "flex h-11 w-11 items-center justify-center rounded-full",
+              "bg-sky-500 text-white shadow-lg hover:bg-sky-600 hover:scale-105 active:scale-95",
+              "transition-all duration-150"
+            )}
+            aria-label="Open AI Assistant"
+          >
+            <Bot className="h-5 w-5" />
+          </button>
+        )}
         <FeedbackButton />
       </div>
     </div>

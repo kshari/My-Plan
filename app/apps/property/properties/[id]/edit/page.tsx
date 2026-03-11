@@ -30,12 +30,29 @@ export default async function PropertyEditPage({ params }: PropertyEditPageProps
 
   const initialData = {
     address: property.address,
+    city: property.city ?? null,
+    county: property.county ?? null,
     type: property.type,
     'Number of Units': property['Number of Units'],
     'Has HOA': property['Has HOA'],
+    swimming_pool: property.swimming_pool ?? null,
     'Asking Price': property['Asking Price'],
     'Gross Income': property['Gross Income'],
     'Operating Expenses': property['Operating Expenses'],
+    listing_status: property.listing_status ?? null,
+    source: property.source ?? null,
+    mls_number: property.mls_number ?? null,
+    listing_url: property.listing_url ?? null,
+    bedrooms: property.bedrooms ?? null,
+    bathrooms: property.bathrooms ?? null,
+    sqft: property.sqft ?? null,
+    lot_size: property.lot_size ?? null,
+    community: property.community ?? null,
+    plan_name: property.plan_name ?? null,
+    estimated_rent: property.estimated_rent ?? null,
+    estimated_cash_flow: property.estimated_cash_flow ?? null,
+    notes: property.notes ?? null,
+    additional_info: property.additional_info ?? null,
   }
 
   return (
