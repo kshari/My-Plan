@@ -11,10 +11,10 @@ import {
 import { useFontScale, type FontScale } from './font-scale-provider'
 
 export const SCALES: { value: FontScale; label: string }[] = [
-  { value: '1',     label: 'Normal' },
-  { value: '1.125', label: 'Large' },
-  { value: '1.25',  label: 'Extra Large' },
-  { value: '1.375', label: 'Huge' },
+  { value: '1',     label: 'Small' },
+  { value: '1.125', label: 'Normal' },
+  { value: '1.25',  label: 'Large' },
+  { value: '1.375', label: 'Extra Large' },
   { value: '1.5',   label: 'Maximum' },
 ]
 
@@ -31,7 +31,7 @@ export function FontScaleToggle({ variant = 'sidebar' }: FontScaleToggleProps) {
   const atMax = idx === SCALES.length - 1
   const currentLabel = SCALES[idx]?.label ?? 'Normal'
 
-  /** Clicking the label/icon cycles forward and wraps back to Normal at max. */
+  /** Clicking the label/icon cycles forward and wraps back to Small at max. */
   function cycleForward() {
     setFontScale(SCALES[(idx + 1) % SCALES.length].value)
   }
@@ -58,7 +58,7 @@ export function FontScaleToggle({ variant = 'sidebar' }: FontScaleToggleProps) {
 
   const content = (
     <div className={wrapperClass}>
-      {/* ALargeSmall icon + label — click cycles through sizes, wraps to Normal */}
+      {/* ALargeSmall icon + label — click cycles through sizes, wraps to Small */}
       <Button
         variant="ghost"
         size="sm"
