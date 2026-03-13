@@ -2,8 +2,9 @@ import { withAuth } from '@/lib/utils/route-handler'
 import { buildAgentContext } from '@/lib/agent/context-builder'
 import { resolveContextScope } from '@/lib/agent/context-scope'
 import { getDecryptedCredential, getGeminiAccessToken, getPreferredGeminiModel, getPreferredModel } from '@/lib/agent/credentials'
-import { AGENT_TOOLS_OPENAI } from '@/lib/agent/tools'
+import { AGENT_TOOLS_OPENAI, TOOL_CATEGORIES } from '@/lib/agent/tools'
 import type { AgentAction } from '@/lib/agent/actions'
+import { executeReadOrCalcTool } from '@/lib/agent/tool-executor'
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
 
@@ -13,11 +14,31 @@ const SYSTEM_PROMPT = `You are a helpful financial assistant for the My Plan app
 2. **Retirement Planner** – plans (birth_year, life_expectancy, spouse info), accounts (401k, IRA, etc. with balances and contributions), expenses (before/after 65), other income (Social Security, pensions with start/end ages), scenarios.
 3. **Property Investment** – properties (address, type, asking price, income, expenses), financial scenarios.
 
-Rules:
-- Answer questions using the exact numbers from the user's data provided below.
-- When the user clearly asks to change, update, or set a value, use the appropriate tool. Each tool call will be shown to the user for confirmation before it is applied.
-- Do NOT call a tool unless the user explicitly requests a change.
-- Reference IDs from the context when calling tools (plan_id, account_id, expense_id, income_id, property_id).`
+## Tools
+
+You have access to tools in three categories:
+
+**Read tools** – fetch additional data from the database. Use when the user asks about data that may not be fully in the context (e.g. full pulse check history, detailed projection rows, all property scenarios).
+
+**Calculation tools** – run the app's financial engines. ALWAYS use these instead of doing math yourself when the user asks for:
+- Future value projections → calculate_future_value
+- Retirement readiness, "will I run out of money", income in retirement → calculate_retirement_projection
+- Retirement risk, probability of success, worst-case scenarios → run_monte_carlo
+- Property cap rate, ROI, cash-on-cash, investment score → calculate_property_metrics
+- Tax estimates, effective/marginal rate → calculate_tax_estimate
+- Debt payoff timelines, avalanche vs snowball → calculate_debt_payoff
+
+**Mutation tools** – update user data. Only call these when the user explicitly asks to change, update, set, or modify a value. The user will be shown a confirmation dialog before any change is applied.
+
+## Rules
+
+- Answer using exact numbers from context or tool results.
+- When calculations are needed, call the appropriate tool and use its result in your answer. Do NOT compute these by hand.
+- Only call mutation tools when the user explicitly requests a change.
+- Reference IDs from the context when calling tools (plan_id, account_id, expense_id, income_id, property_id).
+- Be concise and specific. If data is missing or insufficient, say so and suggest what the user should add.`
+
+const MAX_TOOL_ITERATIONS = 5
 
 interface HistoryMessage {
   role: 'user' | 'assistant'
@@ -63,6 +84,14 @@ function toolCallToAction(name: string, args: Record<string, unknown>): AgentAct
   }
 }
 
+function parseArgs(raw: unknown): Record<string, unknown> {
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) as Record<string, unknown> } catch { return {} }
+  }
+  if (raw && typeof raw === 'object') return raw as Record<string, unknown>
+  return {}
+}
+
 function geminiRestFunctionDeclarations() {
   return AGENT_TOOLS_OPENAI.map((t) => ({
     name: t.function.name,
@@ -70,7 +99,7 @@ function geminiRestFunctionDeclarations() {
     parameters: {
       type: 'OBJECT',
       properties: t.function.parameters.properties,
-      required: t.function.parameters.required,
+      required: (t.function.parameters as { required?: string[] }).required ?? [],
     },
   }))
 }
@@ -78,6 +107,12 @@ function geminiRestFunctionDeclarations() {
 interface GeminiPart {
   text?: string
   functionCall?: { name: string; args: Record<string, unknown> }
+  functionResponse?: { name: string; response: { content: unknown } }
+}
+
+interface GeminiContent {
+  role: string
+  parts: GeminiPart[]
 }
 
 interface GeminiResponse {
@@ -98,17 +133,19 @@ function claudeToolDefinitions() {
     input_schema: {
       type: 'object' as const,
       properties: t.function.parameters.properties,
-      required: t.function.parameters.required,
+      required: (t.function.parameters as { required?: string[] }).required ?? [],
     },
   }))
 }
 
 interface ClaudeContentBlock {
-  type: 'text' | 'tool_use'
+  type: 'text' | 'tool_use' | 'tool_result'
   text?: string
   id?: string
   name?: string
   input?: Record<string, unknown>
+  tool_use_id?: string
+  content?: string
 }
 
 interface ClaudeResponse {
@@ -148,43 +185,23 @@ export const POST = withAuth(async (request, { user, supabase }) => {
 
   if (provider === 'openai') {
     apiKey = await getDecryptedCredential(supabase, user.id, 'openai')
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'No OpenAI API key configured. Add your key in AI Settings.' },
-        { status: 400 }
-      )
-    }
+    if (!apiKey) return NextResponse.json({ error: 'No OpenAI API key configured. Add your key in AI Settings.' }, { status: 400 })
   } else if (provider === 'claude') {
     claudeApiKey = await getDecryptedCredential(supabase, user.id, 'claude')
-    if (!claudeApiKey) {
-      return NextResponse.json(
-        { error: 'No Claude API key configured. Add your key in AI Settings.' },
-        { status: 400 }
-      )
-    }
+    if (!claudeApiKey) return NextResponse.json({ error: 'No Claude API key configured. Add your key in AI Settings.' }, { status: 400 })
   } else if (provider === 'gemini-api-key') {
     geminiApiKey = await getDecryptedCredential(supabase, user.id, 'gemini-api-key')
-    if (!geminiApiKey) {
-      return NextResponse.json(
-        { error: 'No Gemini API key configured. Add your key in AI Settings.' },
-        { status: 400 }
-      )
-    }
+    if (!geminiApiKey) return NextResponse.json({ error: 'No Gemini API key configured. Add your key in AI Settings.' }, { status: 400 })
   } else {
     geminiAccessToken = await getGeminiAccessToken(supabase, user.id)
-    if (!geminiAccessToken) {
-      return NextResponse.json(
-        { error: 'Google account not connected. Connect your Google account in AI Settings.' },
-        { status: 400 }
-      )
-    }
+    if (!geminiAccessToken) return NextResponse.json({ error: 'Google account not connected. Connect your Google account in AI Settings.' }, { status: 400 })
   }
 
   const scope = resolveContextScope(currentPage, message)
   const context = await buildAgentContext(supabase, user.id, scope)
 
   const pageAwareness = scope.pageDescription
-    ? `\nThe user is currently viewing: ${scope.pageDescription}\nFocus your answers on the data relevant to this page. If the user asks about other areas, you may reference that data too.`
+    ? `\nThe user is currently viewing: ${scope.pageDescription}\nFocus your answers on the data relevant to this page.`
     : ''
   const systemContent = `${SYSTEM_PROMPT}${pageAwareness}\n\n## User data (use exact numbers in answers)\n\n${context}`
 
@@ -195,18 +212,17 @@ export const POST = withAuth(async (request, { user, supabase }) => {
 
   const decisionsBefore: string[] = [
     `provider=${provider}`,
-    `auth=${provider === 'openai' || provider === 'gemini-api-key' || provider === 'claude' ? 'api_key' : 'oauth'}`,
     `page=${currentPage || '/'}`,
     `scope_domains=${scope.domains.join(',')}`,
     ...(scope.focusedPlanId ? [`focused_plan=${scope.focusedPlanId}`] : []),
     ...(scope.focusedPropertyId ? [`focused_property=${scope.focusedPropertyId}`] : []),
-    `page_description=${scope.pageDescription}`,
     `context_length=${context.length}`,
   ]
 
   let reply = ''
   let modelUsed = ''
   let toolCallsUsed = false
+  let toolCallCount = 0
   const pendingActions: { type: string; payload: Record<string, unknown>; description: string }[] = []
   let status: 'success' | 'partial' | 'error' = 'success'
   let errorMessage: string | null = null
@@ -214,135 +230,187 @@ export const POST = withAuth(async (request, { user, supabase }) => {
   let outputTokens: number | null = null
 
   try {
+    // ── OpenAI ──────────────────────────────────────────────────────────────
     if (provider === 'openai') {
       const openai = new OpenAI({ apiKey: apiKey! })
       modelUsed = 'gpt-4o-mini'
+
       const msgs: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemContent },
-        ...history.slice(-20).map((h) => ({
-          role: h.role as 'user' | 'assistant',
-          content: h.content,
-        })),
+        ...history.slice(-20).map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
         { role: 'user', content: message },
       ]
-      const completion = await openai.chat.completions.create({
-        model: modelUsed,
-        messages: msgs,
-        tools: AGENT_TOOLS_OPENAI,
-        tool_choice: 'auto',
-      })
-      const choice = completion.choices?.[0]
-      if (completion.usage) {
-        inputTokens = completion.usage.prompt_tokens ?? null
-        outputTokens = completion.usage.completion_tokens ?? null
-      }
-      if (!choice) {
-        errorMessage = 'No completion choice'
-        status = 'error'
-      } else if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls?.length) {
-        toolCallsUsed = true
-        for (const tc of choice.message.tool_calls) {
-          const fn = 'function' in tc ? tc.function : null
-          if (!fn) continue
-          const args = (typeof fn.arguments === 'string'
-            ? (() => { try { return JSON.parse(fn.arguments) as Record<string, unknown> } catch { return {} } })()
-            : {}) as Record<string, unknown>
-          const action = toolCallToAction(fn.name, args)
-          if (action) {
-            pendingActions.push({
-              type: action.type,
-              payload: action.payload,
-              description: `${fn.name}(${JSON.stringify(args)})`,
-            })
-          }
-        }
-        reply = choice.message.content ?? 'I\'d like to make the following changes. Please confirm.'
-      } else {
-        reply = choice.message?.content ?? ''
-      }
-    } else if (provider === 'claude') {
-      const preferredClaudeModel = await getPreferredModel(supabase, user.id, 'claude')
-      modelUsed = preferredClaudeModel ?? 'claude-sonnet-4-20250514'
 
-      const claudeMsgs = [
-        ...history.slice(-20).map((h) => ({
-          role: h.role as 'user' | 'assistant',
-          content: h.content,
-        })),
-        { role: 'user' as const, content: message },
+      for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+        const completion = await openai.chat.completions.create({
+          model: modelUsed,
+          messages: msgs,
+          tools: AGENT_TOOLS_OPENAI,
+          tool_choice: 'auto',
+        })
+
+        if (completion.usage) {
+          inputTokens = (inputTokens ?? 0) + (completion.usage.prompt_tokens ?? 0)
+          outputTokens = (outputTokens ?? 0) + (completion.usage.completion_tokens ?? 0)
+        }
+
+        const choice = completion.choices?.[0]
+        if (!choice) { errorMessage = 'No completion choice'; status = 'error'; break }
+
+        if (choice.finish_reason === 'tool_calls' && choice.message.tool_calls?.length) {
+          toolCallsUsed = true
+          msgs.push(choice.message)
+
+          const toolResults: OpenAI.Chat.ChatCompletionToolMessageParam[] = []
+          let hasMutate = false
+
+          for (const tc of choice.message.tool_calls) {
+            const fn = 'function' in tc ? tc.function : null
+            if (!fn) continue
+            toolCallCount++
+
+            const args = parseArgs(fn.arguments)
+            const category = TOOL_CATEGORIES[fn.name]
+
+            if (category === 'mutate') {
+              hasMutate = true
+              const action = toolCallToAction(fn.name, args)
+              if (action) {
+                pendingActions.push({ type: action.type, payload: action.payload, description: `${fn.name}(${JSON.stringify(args)})` })
+              }
+              // Feed a placeholder result back so the message array stays valid
+              toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify({ queued: true }) })
+            } else {
+              // read / calculate — execute immediately
+              const result = await executeReadOrCalcTool(fn.name, args, supabase, user.id)
+              toolResults.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) })
+            }
+          }
+
+          msgs.push(...toolResults)
+
+          if (hasMutate) {
+            // Get a summarising reply from the model for the mutations
+            const finalCompletion = await openai.chat.completions.create({
+              model: modelUsed,
+              messages: msgs,
+              tools: AGENT_TOOLS_OPENAI,
+              tool_choice: 'none',
+            })
+            reply = finalCompletion.choices?.[0]?.message?.content ?? 'I\'d like to make the following changes. Please confirm.'
+            break
+          }
+          // Continue loop for read/calc results
+        } else {
+          reply = choice.message?.content ?? ''
+          break
+        }
+      }
+
+    // ── Claude ───────────────────────────────────────────────────────────────
+    } else if (provider === 'claude') {
+      const preferredModel = await getPreferredModel(supabase, user.id, 'claude')
+      modelUsed = preferredModel ?? 'claude-sonnet-4-20250514'
+
+      type ClaudeMsgParam = { role: 'user' | 'assistant'; content: string | ClaudeContentBlock[] }
+      const claudeMsgs: ClaudeMsgParam[] = [
+        ...history.slice(-20).map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+        { role: 'user', content: message },
       ]
 
-      const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': claudeApiKey!,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: modelUsed,
-          max_tokens: 4096,
-          system: systemContent,
-          messages: claudeMsgs,
-          tools: claudeToolDefinitions(),
-        }),
-      })
+      for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey!, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: modelUsed,
+            max_tokens: 4096,
+            system: systemContent,
+            messages: claudeMsgs,
+            tools: claudeToolDefinitions(),
+          }),
+        })
 
-      if (!claudeRes.ok) {
-        const errBody = await claudeRes.json().catch(() => ({})) as { error?: { message?: string } }
-        throw new Error(errBody.error?.message || `Claude API error (${claudeRes.status})`)
-      }
+        if (!claudeRes.ok) {
+          const errBody = await claudeRes.json().catch(() => ({})) as { error?: { message?: string } }
+          throw new Error(errBody.error?.message || `Claude API error (${claudeRes.status})`)
+        }
 
-      const claudeData = (await claudeRes.json()) as ClaudeResponse
-      const blocks = claudeData.content ?? []
+        const claudeData = (await claudeRes.json()) as ClaudeResponse
+        if (claudeData.usage) {
+          inputTokens = (inputTokens ?? 0) + (claudeData.usage.input_tokens ?? 0)
+          outputTokens = (outputTokens ?? 0) + (claudeData.usage.output_tokens ?? 0)
+        }
 
-      let textReply = ''
-      for (const block of blocks) {
-        if (block.type === 'text' && block.text) {
-          textReply += block.text
-        } else if (block.type === 'tool_use' && block.name) {
+        const blocks = claudeData.content ?? []
+        const textBlocks = blocks.filter((b) => b.type === 'text')
+        const toolUseBlocks = blocks.filter((b) => b.type === 'tool_use')
+
+        if (toolUseBlocks.length > 0) {
           toolCallsUsed = true
-          const args = (block.input ?? {}) as Record<string, unknown>
-          const action = toolCallToAction(block.name, args)
-          if (action) {
-            pendingActions.push({
-              type: action.type,
-              payload: action.payload,
-              description: `${block.name}(${JSON.stringify(args)})`,
-            })
+          claudeMsgs.push({ role: 'assistant', content: blocks })
+
+          const toolResults: ClaudeContentBlock[] = []
+          let hasMutate = false
+
+          for (const block of toolUseBlocks) {
+            if (!block.name) continue
+            toolCallCount++
+            const args = (block.input ?? {}) as Record<string, unknown>
+            const category = TOOL_CATEGORIES[block.name]
+
+            if (category === 'mutate') {
+              hasMutate = true
+              const action = toolCallToAction(block.name, args)
+              if (action) {
+                pendingActions.push({ type: action.type, payload: action.payload, description: `${block.name}(${JSON.stringify(args)})` })
+              }
+              toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ queued: true }) })
+            } else {
+              const result = await executeReadOrCalcTool(block.name, args, supabase, user.id)
+              toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) })
+            }
           }
+
+          claudeMsgs.push({ role: 'user', content: toolResults })
+
+          if (hasMutate) {
+            // Ask Claude to summarise the pending mutations
+            const summaryRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey!, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({
+                model: modelUsed,
+                max_tokens: 1024,
+                system: systemContent,
+                messages: claudeMsgs,
+              }),
+            })
+            if (summaryRes.ok) {
+              const summaryData = (await summaryRes.json()) as ClaudeResponse
+              const summaryText = summaryData.content?.find((b) => b.type === 'text')?.text ?? ''
+              reply = summaryText || 'I\'d like to make the following changes. Please confirm.'
+            } else {
+              reply = textBlocks.map((b) => b.text ?? '').join('') || 'I\'d like to make the following changes. Please confirm.'
+            }
+            break
+          }
+        } else {
+          reply = textBlocks.map((b) => b.text ?? '').join('')
+          break
         }
       }
 
-      if (pendingActions.length && !textReply) {
-        reply = 'I\'d like to make the following changes. Please confirm.'
-      } else {
-        reply = textReply
-      }
-
-      if (claudeData.usage) {
-        inputTokens = claudeData.usage.input_tokens ?? null
-        outputTokens = claudeData.usage.output_tokens ?? null
-      }
+    // ── Gemini ────────────────────────────────────────────────────────────────
     } else {
       const preferredModel = await getPreferredGeminiModel(supabase, user.id, provider === 'gemini-api-key' ? 'gemini-api-key' : 'gemini')
       modelUsed = preferredModel ?? 'gemini-2.0-flash'
-      const geminiContents = [
-        ...history.slice(-20).map((h) => ({
-          role: h.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: h.content }],
-        })),
-        { role: 'user', parts: [{ text: message }] },
-      ]
 
       const useApiKey = provider === 'gemini-api-key'
-      const url = useApiKey
-        ? `https://generativelanguage.googleapis.com/v1beta/models/${modelUsed}:generateContent?key=${encodeURIComponent(geminiApiKey!)}`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${modelUsed}:generateContent`
+      const urlBase = `https://generativelanguage.googleapis.com/v1beta/models/${modelUsed}:generateContent`
+      const url = useApiKey ? `${urlBase}?key=${encodeURIComponent(geminiApiKey!)}` : urlBase
 
-      const geminiHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
+      const geminiHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
       if (!useApiKey) {
         geminiHeaders.Authorization = `Bearer ${geminiAccessToken!}`
         const clientId = process.env.GOOGLE_CLIENT_ID ?? ''
@@ -350,54 +418,78 @@ export const POST = withAuth(async (request, { user, supabase }) => {
         if (projectNumber) geminiHeaders['x-goog-user-project'] = projectNumber
       }
 
-      const geminiRes = await fetch(url, {
-        method: 'POST',
-        headers: geminiHeaders,
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemContent }] },
-          contents: geminiContents,
-          tools: [{ functionDeclarations: geminiRestFunctionDeclarations() }],
-        }),
-      })
+      const geminiContents: GeminiContent[] = [
+        ...history.slice(-20).map((h) => ({
+          role: h.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: h.content }],
+        })),
+        { role: 'user', parts: [{ text: message }] },
+      ]
 
-      if (!geminiRes.ok) {
-        const errBody = await geminiRes.json().catch(() => ({})) as { error?: { message?: string } }
-        throw new Error(errBody.error?.message || `Gemini API error (${geminiRes.status})`)
-      }
+      for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+        const geminiRes = await fetch(url, {
+          method: 'POST',
+          headers: geminiHeaders,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemContent }] },
+            contents: geminiContents,
+            tools: [{ functionDeclarations: geminiRestFunctionDeclarations() }],
+          }),
+        })
 
-      const geminiData = (await geminiRes.json()) as GeminiResponse
-      const candidate = geminiData.candidates?.[0]
-      const parts = candidate?.content?.parts ?? []
-
-      let textReply = ''
-      const fnCalls: { name: string; args: Record<string, unknown> }[] = []
-      for (const part of parts) {
-        if (part.text) textReply += part.text
-        if (part.functionCall) fnCalls.push(part.functionCall)
-      }
-
-      if (fnCalls.length) {
-        toolCallsUsed = true
-        for (const fc of fnCalls) {
-          const args = fc.args ?? {}
-          const action = toolCallToAction(fc.name, args)
-          if (action) {
-            pendingActions.push({
-              type: action.type,
-              payload: action.payload,
-              description: `${fc.name}(${JSON.stringify(args)})`,
-            })
-          }
+        if (!geminiRes.ok) {
+          const errBody = await geminiRes.json().catch(() => ({})) as { error?: { message?: string } }
+          throw new Error(errBody.error?.message || `Gemini API error (${geminiRes.status})`)
         }
-        reply = textReply || 'I\'d like to make the following changes. Please confirm.'
-      } else {
-        reply = textReply
-      }
 
-      const usage = geminiData.usageMetadata
-      if (usage) {
-        inputTokens = usage.promptTokenCount ?? null
-        outputTokens = usage.candidatesTokenCount ?? null
+        const geminiData = (await geminiRes.json()) as GeminiResponse
+        const usage = geminiData.usageMetadata
+        if (usage) {
+          inputTokens = (inputTokens ?? 0) + (usage.promptTokenCount ?? 0)
+          outputTokens = (outputTokens ?? 0) + (usage.candidatesTokenCount ?? 0)
+        }
+
+        const candidate = geminiData.candidates?.[0]
+        const parts = candidate?.content?.parts ?? []
+        const textParts = parts.filter((p) => p.text)
+        const fnCalls = parts.filter((p) => p.functionCall).map((p) => p.functionCall!)
+
+        if (fnCalls.length > 0) {
+          toolCallsUsed = true
+          // Append model turn
+          geminiContents.push({ role: 'model', parts })
+
+          const toolResultParts: GeminiPart[] = []
+          let hasMutate = false
+
+          for (const fc of fnCalls) {
+            toolCallCount++
+            const args = fc.args ?? {}
+            const category = TOOL_CATEGORIES[fc.name]
+
+            if (category === 'mutate') {
+              hasMutate = true
+              const action = toolCallToAction(fc.name, args)
+              if (action) {
+                pendingActions.push({ type: action.type, payload: action.payload, description: `${fc.name}(${JSON.stringify(args)})` })
+              }
+              toolResultParts.push({ functionResponse: { name: fc.name, response: { content: { queued: true } } } })
+            } else {
+              const result = await executeReadOrCalcTool(fc.name, args, supabase, user.id)
+              toolResultParts.push({ functionResponse: { name: fc.name, response: { content: result } } })
+            }
+          }
+
+          geminiContents.push({ role: 'user', parts: toolResultParts })
+
+          if (hasMutate) {
+            reply = textParts.map((p) => p.text ?? '').join('') || 'I\'d like to make the following changes. Please confirm.'
+            break
+          }
+        } else {
+          reply = textParts.map((p) => p.text ?? '').join('')
+          break
+        }
       }
     }
   } catch (e: unknown) {
@@ -410,7 +502,7 @@ export const POST = withAuth(async (request, { user, supabase }) => {
   const actionsRequested = pendingActions.map((a) => a.type)
 
   decisionsBefore.push(`model=${modelUsed}`)
-  const decisionsAfter: string[] = []
+  const decisionsAfter: string[] = [`tool_iterations=${toolCallCount}`]
   if (status === 'error') {
     decisionsAfter.push(`outcome=error: ${errorMessage ?? 'unknown'}`)
   } else {
@@ -419,7 +511,7 @@ export const POST = withAuth(async (request, { user, supabase }) => {
   }
   const resultSummary = status === 'error'
     ? `error: ${(errorMessage ?? 'unknown').slice(0, 500)}`
-    : `reply: ${reply.length} chars${pendingActions.length ? `, ${pendingActions.length} pending action(s)` : ''}`
+    : `reply: ${reply.length} chars${pendingActions.length ? `, ${pendingActions.length} pending action(s)` : ''}${toolCallCount > 0 ? `, ${toolCallCount} tool call(s)` : ''}`
 
   await supabase.from('agent_request_logs').insert({
     user_id: user.id,

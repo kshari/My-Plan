@@ -1,8 +1,43 @@
 /**
- * Tool definitions for OpenAI / Gemini so the model can request app updates.
- * Keep in sync with lib/agent/actions.ts allowlist.
+ * Tool definitions for OpenAI / Gemini / Claude so the model can request app
+ * updates, read data, and trigger calculations.
+ *
+ * Keep in sync with lib/agent/actions.ts allowlist (mutate category) and
+ * lib/agent/tool-executor.ts (read/calculate categories).
+ *
+ * category:
+ *   'mutate'    — writes data; surfaced to user for confirmation before applying
+ *   'read'      — fetches data from the DB; executed automatically in the tool loop
+ *   'calculate' — runs a computation; executed automatically in the tool loop
  */
+
+export type ToolCategory = 'mutate' | 'read' | 'calculate'
+
+export const TOOL_CATEGORIES: Record<string, ToolCategory> = {
+  // mutate
+  update_fp_profile: 'mutate',
+  update_rp_plan: 'mutate',
+  update_rp_account: 'mutate',
+  update_rp_expense: 'mutate',
+  update_rp_other_income: 'mutate',
+  create_rp_scenario: 'mutate',
+  update_pi_property: 'mutate',
+  // read
+  get_pulse_check_history: 'read',
+  get_retirement_scenario_projection: 'read',
+  get_property_financial_scenarios: 'read',
+  // calculate
+  calculate_future_value: 'calculate',
+  calculate_retirement_projection: 'calculate',
+  run_monte_carlo: 'calculate',
+  calculate_property_metrics: 'calculate',
+  calculate_tax_estimate: 'calculate',
+  calculate_debt_payoff: 'calculate',
+}
+
 export const AGENT_TOOLS_OPENAI = [
+  // ── Mutate ──────────────────────────────────────────────────────────────────
+
   {
     type: 'function' as const,
     function: {
@@ -167,6 +202,187 @@ export const AGENT_TOOLS_OPENAI = [
           },
         },
         required: ['property_id', 'updates'],
+      },
+    },
+  },
+
+  // ── Read ─────────────────────────────────────────────────────────────────────
+
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_pulse_check_history',
+      description:
+        'Retrieve the full pulse check history for the user (net worth snapshots, mood, resilience scores). ' +
+        'The conversation context only shows the latest 5; call this tool when the user asks about trends or history beyond that.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: {
+            type: 'number',
+            description: 'Maximum number of records to return. Defaults to 50.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_retirement_scenario_projection',
+      description:
+        'Retrieve the stored year-by-year retirement projection details for a specific plan and scenario. ' +
+        'Returns cash flow, net worth, tax, and income breakdowns per year. ' +
+        'Use this before running a new projection to check if data already exists.',
+      parameters: {
+        type: 'object',
+        properties: {
+          plan_id: { type: 'number', description: 'Retirement plan ID from context' },
+          scenario_id: { type: 'number', description: 'Scenario ID from context' },
+        },
+        required: ['plan_id', 'scenario_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_property_financial_scenarios',
+      description:
+        'Retrieve all financial scenarios (loan terms, down payments, price assumptions) for a property. ' +
+        'Returns full scenario rows so you can discuss or compare them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          property_id: { type: 'number', description: 'Property ID from context' },
+        },
+        required: ['property_id'],
+      },
+    },
+  },
+
+  // ── Calculate ────────────────────────────────────────────────────────────────
+
+  {
+    type: 'function' as const,
+    function: {
+      name: 'calculate_future_value',
+      description:
+        'Calculate the future value of a lump-sum investment with optional monthly contributions using compound interest. ' +
+        'Returns the future value, total contributions, and total growth.',
+      parameters: {
+        type: 'object',
+        properties: {
+          principal: { type: 'number', description: 'Starting amount in dollars' },
+          annual_rate: { type: 'number', description: 'Annual growth rate as a decimal (e.g. 0.07 for 7%)' },
+          years: { type: 'number', description: 'Number of years to project' },
+          monthly_contribution: {
+            type: 'number',
+            description: 'Optional monthly contribution amount in dollars. Defaults to 0.',
+          },
+        },
+        required: ['principal', 'annual_rate', 'years'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'calculate_retirement_projection',
+      description:
+        'Run the full retirement projection engine for the given plan and scenario using the user\'s actual data. ' +
+        'Returns key metrics: confidence score, portfolio value at retirement, estimated monthly income, ' +
+        'years money lasts, and total taxes paid. Call this for questions about retirement readiness, ' +
+        '"when can I retire", or "will I run out of money".',
+      parameters: {
+        type: 'object',
+        properties: {
+          plan_id: { type: 'number', description: 'Retirement plan ID from context' },
+          scenario_id: { type: 'number', description: 'Scenario ID from context' },
+        },
+        required: ['plan_id', 'scenario_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'run_monte_carlo',
+      description:
+        'Run a Monte Carlo simulation (randomized market return scenarios) for the given retirement plan and scenario. ' +
+        'Returns success rate, percentile outcomes (P5/P25/median/P75/P95 net worth), and stress test results. ' +
+        'Use this when the user asks about retirement risk, probability of running out of money, or worst-case scenarios.',
+      parameters: {
+        type: 'object',
+        properties: {
+          plan_id: { type: 'number', description: 'Retirement plan ID from context' },
+          scenario_id: { type: 'number', description: 'Scenario ID from context' },
+          num_simulations: {
+            type: 'number',
+            description: 'Number of simulations to run. Defaults to 500 for speed; max 1000.',
+          },
+        },
+        required: ['plan_id', 'scenario_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'calculate_property_metrics',
+      description:
+        'Calculate investment metrics for a property: cap rate, NOI, cash-on-cash return (CoCR), ' +
+        'gross rent multiplier (GRM), 1% rule ratio, and an investment score (0–100). ' +
+        'Requires the user to have at least one financial scenario saved for the property.',
+      parameters: {
+        type: 'object',
+        properties: {
+          property_id: { type: 'number', description: 'Property ID from context' },
+        },
+        required: ['property_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'calculate_tax_estimate',
+      description:
+        'Estimate federal income tax liability for a given gross income and filing status. ' +
+        'Returns taxable income, effective tax rate, marginal tax rate, tax owed, and bracket breakdown. ' +
+        'Uses 2024 tax brackets. Does NOT account for state taxes, itemized deductions, or credits beyond the standard deduction.',
+      parameters: {
+        type: 'object',
+        properties: {
+          gross_income: { type: 'number', description: 'Annual gross income in dollars' },
+          filing_status: {
+            type: 'string',
+            enum: ['single', 'married_filing_jointly', 'married_filing_separately', 'head_of_household'],
+            description: 'IRS filing status',
+          },
+        },
+        required: ['gross_income', 'filing_status'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'calculate_debt_payoff',
+      description:
+        'Calculate how long it will take to pay off the user\'s debts and the total interest paid, ' +
+        'comparing avalanche (highest-rate first) and snowball (lowest-balance first) strategies. ' +
+        'Reads debt data from the user\'s Financial Pulse profile.',
+      parameters: {
+        type: 'object',
+        properties: {
+          extra_monthly_payment: {
+            type: 'number',
+            description: 'Optional extra amount to add to minimum payments each month. Defaults to 0.',
+          },
+        },
+        required: [],
       },
     },
   },

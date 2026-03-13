@@ -6,9 +6,11 @@ export const APP_ENVIRONMENTS: AppEnvironment[] = ['local', 'staging', 'producti
 
 export type FeatureFlags = {
   aiAgent: boolean
+  /** When true, hybrid router uses WebLLM to classify prompts. When false, uses rule-based classifier. */
+  routerLlmClassification: boolean
 }
 
-const FEATURE_IDS = ['ai_agent'] as const
+const FEATURE_IDS = ['ai_agent', 'router_llm_classification'] as const
 
 /**
  * Current app environment. Set APP_ENV (or NEXT_PUBLIC_APP_ENV) to
@@ -44,5 +46,6 @@ export async function getFeatureFlags(
 
   return {
     aiAgent: map.get('ai_agent') ?? true,
+    routerLlmClassification: map.get('router_llm_classification') ?? true,
   }
 }

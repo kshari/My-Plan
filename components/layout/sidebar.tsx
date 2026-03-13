@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { FontScaleToggle } from "@/components/layout/font-scale-toggle"
 import { useSidebarNav } from "@/components/layout/sidebar-context"
 import { useAgentPanel } from "@/components/agent/agent-panel-context"
 
@@ -388,6 +389,7 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
       {/* User section */}
       <div className="shrink-0 border-t border-sidebar-border px-3 py-3 space-y-0.5">
         <ThemeToggle />
+        <FontScaleToggle />
         <Separator className="my-1 bg-sidebar-border" />
         <div className="flex items-center gap-3 rounded-lg px-3 py-2">
           <Avatar className="h-7 w-7 shrink-0">

@@ -9,6 +9,7 @@ import { ScenarioProvider } from '@/components/retirement/scenario-context'
 import SnapshotTab from '@/components/retirement/tabs/snapshot-tab'
 import { PlanStructureContent } from '@/components/retirement/plan-structure-content'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
+import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
 
 export default function TryRetirementPage() {
   const [started, setStarted] = useState(false)
@@ -18,7 +19,8 @@ export default function TryRetirementPage() {
   if (!started) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <div className="flex justify-end px-4 py-3 border-b bg-background/80">
+        <div className="flex justify-end items-center gap-2 px-4 py-3 border-b bg-background/80">
+          <FontScaleToggle variant="inline" />
           <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <Home className="h-4 w-4" />
             Home
@@ -109,6 +111,7 @@ export default function TryRetirementPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <FontScaleToggle variant="inline" />
             <Button
               variant="ghost"
               size="sm"

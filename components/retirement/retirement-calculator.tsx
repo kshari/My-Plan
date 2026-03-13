@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useOptionalDataService } from '@/lib/storage'
@@ -10,11 +11,12 @@ import {
   Sparkles,
   Check,
   BarChart2,
+  Info,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { formatCurrencyShort as fmt } from '@/lib/utils/formatting'
 import { MEDICARE_ELIGIBILITY_AGE, SSA_EARLIEST_ELIGIBILITY_AGE } from '@/lib/constants/retirement-defaults'
@@ -376,6 +378,28 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
   const statusColor = result.onTrack ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
   const statusBg = result.onTrack ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-amber-50 dark:bg-amber-950/30'
   const statusBorder = result.onTrack ? 'border-emerald-200 dark:border-emerald-800' : 'border-amber-200 dark:border-amber-800'
+  const [showHowCalculated, setShowHowCalculated] = useState(false)
+
+  // Returns the Fidelity 401(k) avg balance benchmark label for a given age
+  function savingsBenchmarkForAge(age: number): { range: string; avg: string } {
+    if (age < 30) return { range: '25–29', avg: '$24,000' }
+    if (age < 35) return { range: '30–34', avg: '$45,700' }
+    if (age < 40) return { range: '35–39', avg: '$73,200' }
+    if (age < 45) return { range: '40–44', avg: '$109,100' }
+    if (age < 50) return { range: '45–49', avg: '$152,100' }
+    if (age < 55) return { range: '50–54', avg: '$199,900' }
+    if (age < 60) return { range: '55–59', avg: '$244,900' }
+    return { range: '60–64', avg: '$246,500' }
+  }
+
+  // Returns the BLS CE Survey avg monthly spending benchmark for a given age
+  function expensesBenchmarkForAge(age: number): { range: string; monthly: string; annual: string } {
+    if (age < 35) return { range: '25–34', monthly: '~$5,700/mo', annual: '~$68k/yr' }
+    if (age < 45) return { range: '35–44', monthly: '~$7,200/mo', annual: '~$86k/yr' }
+    if (age < 55) return { range: '45–54', monthly: '~$7,600/mo', annual: '~$91k/yr' }
+    if (age < 65) return { range: '55–64', monthly: '~$6,500/mo', annual: '~$78k/yr' }
+    return { range: '65+', monthly: '~$4,800/mo', annual: '~$58k/yr' }
+  }
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
@@ -389,7 +413,7 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
             <div>
               <h3 className="text-base font-semibold">How much do I need to retire?</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Quick calculation based on {loadedFromDb ? 'your saved assumptions' : 'quick assumptions below'}
+                Quick calculation based on {loadedFromDb ? 'your saved assumptions below' : 'default assumptions below'}. Figures are in today&apos;s dollars, but are adjusted for inflation in calculations.
               </p>
             </div>
           </div>
@@ -410,72 +434,78 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
 
         {/* Answer */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 sm:gap-8">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="cursor-help">
-                <p className="text-xs text-muted-foreground mb-0.5">You need approximately</p>
-                <p className={`text-3xl sm:text-4xl font-bold tracking-tight ${statusColor}`}>
-                  {fmt(result.nestEggNeeded)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  saved by age {assumptions.retirementAge} to fund retirement through age {assumptions.lifeExpectancy}
-                </p>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-md p-4 space-y-2 text-left leading-relaxed">
-              <p className="font-semibold text-sm">How this amount is calculated</p>
-              <div className="space-y-1.5 text-[11px]">
-                <p>
-                  <span className="opacity-70">1.</span>{' '}
-                  Your monthly living expenses ({fmt(assumptions.monthlyExpenses)}/mo = {fmt(assumptions.monthlyExpenses * 12)}/yr, excluding healthcare) are
-                  grown by {assumptions.inflationRate}% inflation over {result.yearsToRetirement} years
-                  to <strong>{fmt(result.expensesAtRetirement)}/yr</strong> at retirement.
-                </p>
-                <p>
-                  <span className="opacity-70">2.</span>{' '}
-                  Healthcare premiums are added:{' '}
-                  {result.yearsPreMedicare > 0 && (
-                    <><strong>{fmt(assumptions.preMedicareAnnualPremium)}/yr</strong> pre-Medicare (ages {assumptions.retirementAge}–{Math.min(assumptions.retirementAge + result.yearsPreMedicare, MEDICARE_ELIGIBILITY_AGE) - 1}){result.yearsPostMedicare > 0 ? ', then ' : ''}</>
-                  )}
-                  {result.yearsPostMedicare > 0 && (
-                    <><strong>{fmt(assumptions.postMedicareAnnualPremium)}/yr</strong> after Medicare ({MEDICARE_ELIGIBILITY_AGE}+)</>
-                  )}
-                  . Total healthcare: <strong>{fmt(result.totalHealthcareCost)}</strong> over retirement.
-                </p>
-                <p>
-                  <span className="opacity-70">3.</span>{' '}
-                  {assumptions.includeSsa ? (
-                    assumptions.retirementAge < result.ssaStartAge ? (
-                      <>Social Security ({fmt(result.annualSsa)}/yr) begins at age <strong>{result.ssaStartAge}</strong> — you&apos;ll have <strong>{result.yearsBeforeSsa} years without SSA income</strong> (ages {assumptions.retirementAge}–{result.ssaStartAge - 1}) where expenses must be fully self-funded.</>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">You need approximately</p>
+            <p className={`text-3xl sm:text-4xl font-bold tracking-tight ${statusColor}`}>
+              {fmt(result.nestEggNeeded)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              saved by age {assumptions.retirementAge} to fund retirement through age {assumptions.lifeExpectancy}
+            </p>
+            {/* How is this calculated — visible next to the amount */}
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setShowHowCalculated((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showHowCalculated ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                How is this calculated?
+              </button>
+              {showHowCalculated && (
+                <div className="mt-2 rounded-lg bg-background/80 border border-border/60 p-3 space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                  <p>
+                    <span className="opacity-70">1.</span>{' '}
+                    Your monthly living expenses ({fmt(assumptions.monthlyExpenses)}/mo = {fmt(assumptions.monthlyExpenses * 12)}/yr, excluding healthcare) are
+                    grown by {assumptions.inflationRate}% inflation over {result.yearsToRetirement} years
+                    to <strong className="text-foreground">{fmt(result.expensesAtRetirement)}/yr</strong> at retirement.
+                  </p>
+                  <p>
+                    <span className="opacity-70">2.</span>{' '}
+                    Healthcare premiums are added:{' '}
+                    {result.yearsPreMedicare > 0 && (
+                      <><strong className="text-foreground">{fmt(assumptions.preMedicareAnnualPremium)}/yr</strong> pre-Medicare (ages {assumptions.retirementAge}–{Math.min(assumptions.retirementAge + result.yearsPreMedicare, MEDICARE_ELIGIBILITY_AGE) - 1}){result.yearsPostMedicare > 0 ? ', then ' : ''}</>
+                    )}
+                    {result.yearsPostMedicare > 0 && (
+                      <><strong className="text-foreground">{fmt(assumptions.postMedicareAnnualPremium)}/yr</strong> after Medicare ({MEDICARE_ELIGIBILITY_AGE}+)</>
+                    )}
+                    . Total healthcare: <strong className="text-foreground">{fmt(result.totalHealthcareCost)}</strong> over retirement.
+                  </p>
+                  <p>
+                    <span className="opacity-70">3.</span>{' '}
+                    {assumptions.includeSsa ? (
+                      assumptions.retirementAge < result.ssaStartAge ? (
+                        <>Social Security ({fmt(result.annualSsa)}/yr) begins at age <strong className="text-foreground">{result.ssaStartAge}</strong> — you&apos;ll have <strong className="text-foreground">{result.yearsBeforeSsa} years without SSA income</strong> (ages {assumptions.retirementAge}–{result.ssaStartAge - 1}) where expenses must be fully self-funded.</>
+                      ) : (
+                        <>Social Security ({fmt(result.annualSsa)}/yr) starts immediately at retirement, offsetting expenses each year.</>
+                      )
                     ) : (
-                      <>Social Security ({fmt(result.annualSsa)}/yr) starts immediately at retirement, offsetting expenses each year.</>
-                    )
-                  ) : (
-                    <>Social Security is not included — all retirement expenses must be self-funded.</>
-                  )}
-                </p>
-                <p>
-                  <span className="opacity-70">4.</span>{' '}
-                  A year-by-year simulation calculates the present value of the net annual shortfall
-                  (expenses + healthcare − SSA) over {result.retirementYears} years, using a{' '}
-                  <strong>{(assumptions.growthRateDuringRetirement - assumptions.inflationRate).toFixed(1)}% real return</strong>{' '}
-                  ({assumptions.growthRateDuringRetirement}% growth − {assumptions.inflationRate}% inflation).
-                </p>
-                <p>
-                  <span className="opacity-70">5.</span>{' '}
-                  Your current savings ({fmt(assumptions.currentSavings)}) plus annual contributions ({fmt(assumptions.annualContribution)}/yr)
-                  grow at {assumptions.growthRatePreRetirement}% for {result.yearsToRetirement} years,
-                  projecting to <strong>{fmt(result.projectedNestEgg)}</strong> by retirement.
-                </p>
-                <p className="pt-1 border-t border-current/10">
-                  {result.onTrack
-                    ? <>You are projected to have a <strong className="text-emerald-300">surplus of {fmt(result.surplus)}</strong>.</>
-                    : <>You have a projected <strong className="text-amber-300">shortfall of {fmt(Math.abs(result.surplus))}</strong>. Save an extra {fmt(result.monthlyAdjustment)}/mo to close the gap.</>
-                  }
-                </p>
-              </div>
-            </TooltipContent>
-          </Tooltip>
+                      <>Social Security is not included — all retirement expenses must be self-funded.</>
+                    )}
+                  </p>
+                  <p>
+                    <span className="opacity-70">4.</span>{' '}
+                    A year-by-year simulation calculates the present value of the net annual shortfall
+                    (expenses + healthcare − SSA) over {result.retirementYears} years, using a{' '}
+                    <strong className="text-foreground">{(assumptions.growthRateDuringRetirement - assumptions.inflationRate).toFixed(1)}% real return</strong>{' '}
+                    ({assumptions.growthRateDuringRetirement}% growth − {assumptions.inflationRate}% inflation).
+                  </p>
+                  <p>
+                    <span className="opacity-70">5.</span>{' '}
+                    Your current savings ({fmt(assumptions.currentSavings)}) plus annual contributions ({fmt(assumptions.annualContribution)}/yr)
+                    grow at {assumptions.growthRatePreRetirement}% for {result.yearsToRetirement} years,
+                    projecting to <strong className="text-foreground">{fmt(result.projectedNestEgg)}</strong> by retirement.
+                  </p>
+                  <p className="pt-1.5 mt-1.5 border-t border-border">
+                    {result.onTrack
+                      ? <>You are projected to have a <strong className="text-emerald-600 dark:text-emerald-400">surplus of {fmt(result.surplus)}</strong>.</>
+                      : <>You have a projected <strong className="text-amber-600 dark:text-amber-400">shortfall of {fmt(Math.abs(result.surplus))}</strong>. Save an extra {fmt(result.monthlyAdjustment)}/mo to close the gap.</>
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
             <div className="rounded-lg bg-background/60 px-3 py-2">
               <p className="text-[11px] text-muted-foreground">On track to have</p>
@@ -512,13 +542,74 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
           <span>Age <strong className="text-foreground">{assumptions.age}</strong></span>
           <span>Retire at <strong className="text-foreground">{assumptions.retirementAge}</strong></span>
-          <span>Saved <strong className="text-foreground">{fmt(assumptions.currentSavings)}</strong></span>
+          <span className="inline-flex items-center gap-1">
+            Saved <strong className="text-foreground">{fmt(assumptions.currentSavings)}</strong>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="Savings benchmark info">
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
+                <p className="font-semibold mb-1">Savings benchmark (your age: {assumptions.age})</p>
+                <p>Avg 401(k) balance ages {savingsBenchmarkForAge(assumptions.age).range}: <span className="font-medium">{savingsBenchmarkForAge(assumptions.age).avg}</span> (Fidelity Q4 2024).</p>
+                <p className="mt-2 text-xs border-t border-background/20 pt-2">Fidelity rule of thumb: 1× salary by 30 · 3× by 40 · 6× by 50 · 8× by 60 · 10× by 67.</p>
+                <p className="mt-1 text-background/80 text-xs">These are 401(k)-only averages. Total savings including IRAs, brokerage accounts, etc. are typically higher. Your target depends on your income and lifestyle goals.</p>
+              </TooltipContent>
+            </Tooltip>
+          </span>
           <span>Contributing <strong className="text-foreground">{fmt(assumptions.annualContribution)}/yr</strong></span>
-          <span>Living Expenses <strong className="text-foreground">{fmt(assumptions.monthlyExpenses * 12)}/yr</strong></span>
+          <span className="inline-flex items-center gap-1">
+            Living Expenses <strong className="text-foreground">{fmt(assumptions.monthlyExpenses * 12)}/yr</strong>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="Living expenses benchmark info">
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
+                <p className="font-semibold mb-1">Spending benchmark (your age: {assumptions.age})</p>
+                <p>Avg household spending ages {expensesBenchmarkForAge(assumptions.age).range}: <span className="font-medium">{expensesBenchmarkForAge(assumptions.age).monthly}</span> ({expensesBenchmarkForAge(assumptions.age).annual}) (BLS Consumer Expenditure Survey).</p>
+                <p className="mt-2 text-xs border-t border-background/20 pt-2">Does not include healthcare premiums, which are tracked separately in this calculator.</p>
+                <p className="mt-1 text-background/80 text-xs">National averages include housing costs. Your number may differ based on location, household size, and lifestyle.</p>
+              </TooltipContent>
+            </Tooltip>
+          </span>
           {assumptions.includeSsa && (
-            <span>SSA <strong className="text-foreground">{fmt(assumptions.ssaAnnualBenefit)}/yr at {assumptions.ssaStartAge}</strong></span>
+            <span className="inline-flex items-center gap-1">
+              SSA <strong className="text-foreground">{fmt(assumptions.ssaAnnualBenefit)}/yr at {assumptions.ssaStartAge}</strong>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="SSA benchmark info">
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
+                  <p className="font-semibold mb-1">SSA benchmark defaults</p>
+                  <p>Your SSA: <span className="font-medium">$23,100/yr</span> — avg retired worker $1,924/mo (SSA Monthly Snapshot, Oct 2024).</p>
+                  <p className="mt-1">Spouse SSA: <span className="font-medium">$20,500/yr</span> — avg women retired worker ~$1,714/mo (SSA Statistical Supplement 2024).</p>
+                  <p className="mt-1">Benefits grow at <span className="font-medium">2.5%/yr COLA</span> (SSA 2025 cost-of-living adjustment).</p>
+                </TooltipContent>
+              </Tooltip>
+            </span>
           )}
-          <span>Healthcare <strong className="text-foreground">{fmt(assumptions.preMedicareAnnualPremium)}/yr → {fmt(assumptions.postMedicareAnnualPremium)}/yr</strong></span>
+          <span className="inline-flex items-center gap-1">
+            Healthcare <strong className="text-foreground">{fmt(assumptions.preMedicareAnnualPremium)}/yr → {fmt(assumptions.postMedicareAnnualPremium)}/yr</strong>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors" aria-label="Healthcare benchmark info">
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
+                <p className="font-semibold mb-1">Healthcare benchmark defaults (premiums only)</p>
+                <p>Pre-Medicare: <span className="font-medium">$20,400/yr</span> — ACA benchmark silver plan, unsubsidized age 60 (CMS/KFF 2024).</p>
+                <p className="mt-1">Post-Medicare: <span className="font-medium">$4,500/yr</span> — Part B ($185/mo) + Medigap Plan G avg (~$192/mo) (CMS 2025).</p>
+                <p className="mt-1">Premiums grow at <span className="font-medium">5%/yr</span> (KFF 2024 Employer Health Benefits Survey).</p>
+                <p className="mt-2 border-t border-background/20 pt-2 text-background/80">Premiums only. Out-of-pocket costs (co-pays, deductibles, dental, vision) should be in monthly living expenses. Premiums inflate faster (~5%/yr) than general expenses (~3%) and drop at 65 when Medicare kicks in — keeping them separate models this accurately.</p>
+              </TooltipContent>
+            </Tooltip>
+          </span>
           <span>Growth <strong className="text-foreground">{assumptions.growthRatePreRetirement}%→{assumptions.growthRateDuringRetirement}%</strong></span>
           <span>Inflation <strong className="text-foreground">{assumptions.inflationRate}%</strong></span>
         </div>
@@ -542,6 +633,7 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
           }}
           onResetToDefaults={handleResetToDefaults}
           resetDisabled={saving}
+          hideHowCalculated
         />
       </div>
 

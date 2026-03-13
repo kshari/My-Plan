@@ -13,6 +13,7 @@ import { DidYouKnowCard } from '@/components/pulse/did-you-know-card'
 import { ExplorationProgress } from '@/components/pulse/exploration-progress'
 import { ProfileForm } from '@/components/pulse/profile-form'
 import { SCENARIO_METADATA } from '@/lib/constants/pulse-defaults'
+import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
 
 const LOCAL_KEY = 'fp_local_profile'
@@ -75,6 +76,7 @@ export default function TryPulsePage() {
           <Link href="/login">
             <Button variant="outline" size="sm">Sign In</Button>
           </Link>
+          <FontScaleToggle variant="inline" />
         </div>
       </header>
 

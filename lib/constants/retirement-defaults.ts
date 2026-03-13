@@ -30,13 +30,21 @@ export const DEFAULT_INFLATION_RATE_PCT = DEFAULT_INFLATION_RATE * 100          
 // ── SSA ──
 export const DEFAULT_SSA_START_AGE = 65
 export const SSA_EARLIEST_ELIGIBILITY_AGE = 62
-export const DEFAULT_SSA_ANNUAL_BENEFIT = 22_000
-export const DEFAULT_SPOUSE_SSA_BENEFIT = 16_000
+// SSA avg retired worker $1,924/mo (SSA Monthly Statistical Snapshot, Oct 2024 — ssa.gov)
+export const DEFAULT_SSA_ANNUAL_BENEFIT = 23_100
+// SSA avg women retired worker ~$1,714/mo (SSA Statistical Supplement 2024 — ssa.gov)
+export const DEFAULT_SPOUSE_SSA_BENEFIT = 20_500
 
 // ── Healthcare / Medicare ──
 export const MEDICARE_ELIGIBILITY_AGE = 65
-export const DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM = 24_000  // ACA marketplace / COBRA estimate
-export const DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM = 6_000   // Medicare Part B + supplement estimate
+// ACA benchmark silver plan, unsubsidized ~$1,700/mo for age 60 (CMS/KFF 2024 QHP Premiums Report)
+export const DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM = 20_400
+// Medicare Part B $185/mo + Medigap Plan G avg ~$192/mo = $377/mo (CMS 2025; Medigap avg 2025)
+export const DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM = 4_500
+/** Annual premium inflation rate for healthcare costs in the projection engine.
+ *  5% = conservative midpoint of KFF 2024 Employer Health Benefits Survey
+ *  (5-yr trend ~4.4%/yr) and ACA marketplace historical increases (~7%/yr). */
+export const DEFAULT_HEALTHCARE_INFLATION_RATE = 0.05
 
 // ── Savings & spending (for the quick calculator) ──
 export const DEFAULT_CURRENT_SAVINGS = 200_000

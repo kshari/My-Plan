@@ -20,6 +20,7 @@ import {
   RMD_START_AGE,
   RMD_LIFE_EXPECTANCY_FACTOR_AT_73,
   MEDICARE_ELIGIBILITY_AGE,
+  DEFAULT_HEALTHCARE_INFLATION_RATE,
 } from '@/lib/constants/retirement-defaults'
 import {
   INCOME_TAX_BRACKETS,
@@ -46,6 +47,7 @@ import {
   SSA_MAX_BENEFIT_SPOUSE,
   SSA_DEFAULT_PLANNER_BENEFIT,
   SSA_DEFAULT_SPOUSE_BENEFIT,
+  SSA_COLA_RATE,
   ssaClaimingMultiplier,
 } from '@/lib/constants/ssa-constants'
 
@@ -57,8 +59,7 @@ import {
  */
 export function calculateEstimatedSSA(annualIncome: number, isPlanner: boolean = true): number {
   if (!annualIncome || annualIncome <= 0) {
-    // Use default estimates if no income provided
-    return isPlanner ? 20000 : 15000
+    return isPlanner ? SSA_DEFAULT_PLANNER_BENEFIT : SSA_DEFAULT_SPOUSE_BENEFIT
   }
   
   // Simplified SSA estimation based on income
@@ -624,7 +625,8 @@ export function calculateRetirementProjections(
     const postMedicarePremium = settings.post_medicare_annual_premium ?? 0
     if (preMedicarePremium > 0 || postMedicarePremium > 0) {
       const basePremium = age < MEDICARE_ELIGIBILITY_AGE ? preMedicarePremium : postMedicarePremium
-      healthcareExpenses = basePremium * inflationMultiplier
+      const healthcareInflationMultiplier = Math.pow(1 + DEFAULT_HEALTHCARE_INFLATION_RATE, yearsFromNow)
+      healthcareExpenses = basePremium * healthcareInflationMultiplier
     }
     
     // Calculate growth rate for this year (per-year sequences override for Monte Carlo / stress tests)
@@ -658,9 +660,9 @@ export function calculateRetirementProjections(
       
       const ssaMultiplier = ssaClaimingMultiplier(ssaStartAge)
       
-      // Apply inflation from SSA start year to current year
+      // Apply SSA COLA from SSA start year to current year (2.5% per SSA 2025 COLA)
       const yearsSinceSsaStart = year - ssaStartYear
-      const inflationFromSsaStart = Math.pow(1 + settings.inflation_rate, Math.max(0, yearsSinceSsaStart))
+      const inflationFromSsaStart = Math.pow(1 + SSA_COLA_RATE, Math.max(0, yearsSinceSsaStart))
       
       ssaIncome = baseSsaAtStartAge * ssaMultiplier * inflationFromSsaStart
     }
@@ -686,9 +688,9 @@ export function calculateRetirementProjections(
         
         const spouseSsaMultiplier = ssaClaimingMultiplier(spouseSsaStartAge)
         
-        // Apply inflation from spouse SSA start year to current year
+        // Apply SSA COLA from spouse SSA start year to current year (2.5% per SSA 2025 COLA)
         const yearsSinceSpouseSsaStart = year - spouseSsaStartYear
-        const inflationFromSpouseSsaStart = Math.pow(1 + settings.inflation_rate, Math.max(0, yearsSinceSpouseSsaStart))
+        const inflationFromSpouseSsaStart = Math.pow(1 + SSA_COLA_RATE, Math.max(0, yearsSinceSpouseSsaStart))
         
         spouseSsaIncome = baseSpouseSsaAtStartAge * spouseSsaMultiplier * inflationFromSpouseSsaStart
       }

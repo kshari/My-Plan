@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
+import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
 
 export default function LoginPage() {
   return (
@@ -219,7 +220,12 @@ function LoginContent() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 lg:px-16 bg-background">
+      <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-12 lg:px-16 bg-background">
+        {/* Text size — above form for accessibility */}
+        <div className="absolute top-4 right-6 lg:top-6 lg:right-10 flex items-center justify-end">
+          <FontScaleToggle variant="inline" />
+        </div>
+
         {/* Mobile brand */}
         <div className="mb-6 flex items-center gap-2 lg:hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-white">

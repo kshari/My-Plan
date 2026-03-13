@@ -38,10 +38,17 @@ export const SSA_MIN_BENEFIT_SPOUSE  = 10_000
 export const SSA_MAX_BENEFIT_PLANNER = 45_000
 export const SSA_MAX_BENEFIT_SPOUSE  = 35_000
 
-/** Default annual SSA benefit when no estimate is available (planner) */
-export const SSA_DEFAULT_PLANNER_BENEFIT = 20_000
-/** Default annual SSA benefit when no estimate is available (spouse) */
-export const SSA_DEFAULT_SPOUSE_BENEFIT = 15_000
+/** Default annual SSA benefit when no estimate is available (planner).
+ *  Based on SSA avg retired worker $1,924/mo (SSA Monthly Statistical Snapshot, Oct 2024 — ssa.gov). */
+export const SSA_DEFAULT_PLANNER_BENEFIT = 23_100
+/** Default annual SSA benefit when no estimate is available (spouse).
+ *  Based on SSA avg women retired worker ~$1,714/mo (SSA Statistical Supplement 2024 — ssa.gov). */
+export const SSA_DEFAULT_SPOUSE_BENEFIT = 20_500
+
+/** Annual COLA applied to SSA benefits in the projection engine.
+ *  2.5% = SSA 2025 Cost-of-Living Adjustment (ssa.gov/OACT/COLA/colaseries.html).
+ *  10-year historical average is ~2.6%. */
+export const SSA_COLA_RATE = 0.025
 
 /**
  * Calculate the SSA claiming multiplier for a given start age.

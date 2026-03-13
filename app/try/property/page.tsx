@@ -9,6 +9,7 @@ import FinancialMetrics from '@/components/property/financial-metrics'
 import PLTable from '@/components/property/pl-table'
 import { PROPERTY_TYPES } from '@/lib/constants/property-defaults'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
+import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
 
 const LOCAL_KEY = 'pi_try_data'
 
@@ -167,6 +168,7 @@ export default function TryPropertyPage() {
           <Link href="/login">
             <Button variant="outline" size="sm">Sign In</Button>
           </Link>
+          <FontScaleToggle variant="inline" />
         </div>
       </header>
 

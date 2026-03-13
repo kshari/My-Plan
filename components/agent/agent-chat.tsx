@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
-import { Send, Bot, User, Settings2, Loader2, Trash2, Check, X, Download, MonitorSmartphone, FlaskConical, ChevronDown, ChevronUp } from 'lucide-react'
+import { Send, Bot, User, Settings2, Loader2, Trash2, Check, X, Download, MonitorSmartphone, FlaskConical, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -23,8 +23,9 @@ import {
   getModelId,
   type WebLLMStatus,
 } from '@/lib/agent/webllm-engine'
+import { classifyPrompt } from '@/lib/agent/prompt-router'
 
-export type AgentProvider = 'webllm' | 'openai' | 'gemini' | 'gemini-api-key' | 'claude'
+export type AgentProvider = 'webllm' | 'openai' | 'gemini' | 'gemini-api-key' | 'claude' | 'auto'
 
 interface PendingAction {
   type: string
@@ -38,6 +39,8 @@ interface Message {
   content: string
   pendingActions?: PendingAction[]
   actionsApplied?: string[]
+  /** Which backend handled this message (shown as a badge). */
+  routedVia?: 'local' | 'openai' | 'gemini' | 'gemini-api-key' | 'claude'
 }
 
 interface AgentChatProps {
@@ -48,10 +51,12 @@ export function AgentChat({ mode }: AgentChatProps) {
   const embedded = mode === 'docked' || mode === 'fullscreen'
   const pathname = usePathname()
   const [provider, setProvider] = useState<AgentProvider>('openai')
+  const [autoCloudProvider, setAutoCloudProvider] = useState<Exclude<AgentProvider, 'webllm' | 'auto'>>('openai')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [configuredProviders, setConfiguredProviders] = useState<{ provider: string }[]>([])
+  const [routerLlmClassification, setRouterLlmClassification] = useState(true)
   const [showCredentials, setShowCredentials] = useState(false)
   const [showExperimentalDetails, setShowExperimentalDetails] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -80,20 +85,60 @@ export function AgentChat({ mode }: AgentChatProps) {
     }
   }, [])
 
+  const fetchConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/agent/config')
+      if (res.ok) {
+        const data = await res.json()
+        setRouterLlmClassification(data.routerLlmClassification ?? true)
+      }
+    } catch {
+      // keep default (true = LLM)
+    }
+  }, [])
+
   useEffect(() => {
     fetchCredentials()
-  }, [fetchCredentials])
+    fetchConfig()
+  }, [fetchCredentials, fetchConfig])
 
   const canUseProvider = useCallback(
     (p: AgentProvider) => {
       if (p === 'webllm') return webgpuSupported
+      if (p === 'auto') return webgpuSupported && configuredProviders.length > 0
       return configuredProviders.some((c) => c.provider === p)
     },
     [configuredProviders, webgpuSupported]
   )
 
   const providerLabel = (p: AgentProvider) =>
-    p === 'webllm' ? 'Local (WebLLM)' : p === 'openai' ? 'OpenAI (API Key)' : p === 'gemini' ? 'Gemini (OAuth)' : p === 'gemini-api-key' ? 'Gemini (API Key)' : 'Claude (API Key)'
+    p === 'webllm' ? 'Local (WebLLM)' : p === 'openai' ? 'OpenAI (API Key)' : p === 'gemini' ? 'Gemini (OAuth)' : p === 'gemini-api-key' ? 'Gemini (API Key)' : p === 'claude' ? 'Claude (API Key)' : 'Auto (Hybrid)'
+
+  const routedViaLabel = (r: Message['routedVia']): string => {
+    if (!r) return ''
+    if (r === 'local') return 'Local'
+    if (r === 'openai') return 'OpenAI'
+    if (r === 'gemini') return 'Gemini OAuth'
+    if (r === 'gemini-api-key') return 'Gemini'
+    if (r === 'claude') return 'Claude'
+    return ''
+  }
+
+  // Resolve which cloud provider to use for complex messages in auto mode.
+  // Prefers the user's explicit autoCloudProvider selection; falls back to
+  // the first configured provider if that selection has not been set up yet.
+  const resolveCloudProvider = useCallback((): AgentProvider | null => {
+    // If the explicitly selected cloud provider is configured, use it
+    if (configuredProviders.some((c) => c.provider === autoCloudProvider)) {
+      return autoCloudProvider
+    }
+    // Fallback: first available configured provider
+    const order: AgentProvider[] = ['openai', 'claude', 'gemini-api-key', 'gemini']
+    for (const p of order) {
+      if (configuredProviders.some((c) => c.provider === p)) return p
+    }
+    return null
+  }, [configuredProviders, autoCloudProvider])
 
   const buildHistory = useCallback((): { role: 'user' | 'assistant'; content: string }[] => {
     return messages
@@ -178,7 +223,7 @@ export function AgentChat({ mode }: AgentChatProps) {
 
     const assistantId = crypto.randomUUID()
     streamingMsgId.current = assistantId
-    setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }])
+    setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '', routedVia: 'local' as const }])
 
     try {
       const result = await chatWithWebLLM(engine, {
@@ -269,7 +314,32 @@ export function AgentChat({ mode }: AgentChatProps) {
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', content: text }])
     setLoading(true)
 
-    if (provider === 'webllm') {
+    // Resolve effective provider: for 'auto', classify the prompt
+    let effectiveProvider: AgentProvider = provider
+    if (provider === 'auto') {
+      const complexity = await classifyPrompt(text, messages.length, routerLlmClassification)
+      if (complexity === 'simple' && webgpuSupported && isEngineReady()) {
+        effectiveProvider = 'webllm'
+      } else if (complexity === 'simple' && webgpuSupported) {
+        // WebLLM not loaded yet — prefer cloud if available, else load WebLLM
+        const cloud = resolveCloudProvider()
+        effectiveProvider = cloud ?? 'webllm'
+      } else {
+        // complex — use cloud
+        const cloud = resolveCloudProvider()
+        if (!cloud) {
+          setMessages((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), role: 'assistant', content: 'Auto mode requires at least one cloud provider configured. Add an API key in AI Settings.' },
+          ])
+          setLoading(false)
+          return
+        }
+        effectiveProvider = cloud
+      }
+    }
+
+    if (effectiveProvider === 'webllm') {
       if (!webgpuSupported) {
         setMessages((prev) => [
           ...prev,
@@ -286,13 +356,13 @@ export function AgentChat({ mode }: AgentChatProps) {
       return
     }
 
-    if (!canUseProvider(provider)) {
+    if (!canUseProvider(effectiveProvider)) {
       const hint =
-        provider === 'gemini'
+        effectiveProvider === 'gemini'
           ? 'Connect your Google account in the settings below to use Gemini (OAuth).'
-          : provider === 'gemini-api-key'
+          : effectiveProvider === 'gemini-api-key'
             ? 'Add your Gemini API key in the settings below to use Gemini (API Key).'
-            : provider === 'claude'
+            : effectiveProvider === 'claude'
               ? 'Add your Claude API key in the settings below to use Claude.'
               : 'Add your OpenAI API key in the settings below.'
       setMessages((prev) => [
@@ -307,7 +377,12 @@ export function AgentChat({ mode }: AgentChatProps) {
       const res = await fetch('/api/agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, provider: provider === 'gemini-api-key' ? 'gemini-api-key' : provider, history: buildHistory(), currentPage: pathname }),
+        body: JSON.stringify({
+          message: text,
+          provider: effectiveProvider === 'gemini-api-key' ? 'gemini-api-key' : effectiveProvider,
+          history: buildHistory(),
+          currentPage: pathname,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -324,6 +399,7 @@ export function AgentChat({ mode }: AgentChatProps) {
           role: 'assistant',
           content: data.reply ?? '',
           pendingActions: data.pendingActions,
+          routedVia: effectiveProvider as Message['routedVia'],
         },
       ])
     } catch (e) {
@@ -334,7 +410,7 @@ export function AgentChat({ mode }: AgentChatProps) {
     } finally {
       setLoading(false)
     }
-  }, [input, loading, provider, canUseProvider, buildHistory, webgpuSupported, sendWebLLMMessage, pathname])
+  }, [input, loading, provider, canUseProvider, buildHistory, webgpuSupported, sendWebLLMMessage, pathname, messages.length, resolveCloudProvider, routerLlmClassification])
 
   const clearChat = useCallback(() => {
     setMessages([])
@@ -384,9 +460,15 @@ export function AgentChat({ mode }: AgentChatProps) {
                 My Plan does not pay for or operate any AI service. You bring your own provider, and all costs
                 (if any) are between you and the provider. Here's how each option works:
               </p>
-              <ul className="space-y-2 mt-1.5">
-                <li>
-                  <span className="font-medium">Local (WebLLM)</span> — Runs a small language model entirely
+                <ul className="space-y-2 mt-1.5">
+                  <li>
+                    <span className="font-medium">Auto (Hybrid)</span> — Automatically routes each message: simple lookups
+                    and definitions go to the local WebLLM model (no data leaves your device); complex questions like projections,
+                    simulations, and analysis go to your configured cloud provider.
+                    Requires WebGPU support and at least one cloud API key.
+                  </li>
+                  <li>
+                    <span className="font-medium">Local (WebLLM)</span> — Runs a small language model entirely
                   in your browser using WebGPU. No data ever leaves your device. Requires Chrome 113+ or
                   Edge 113+ and a capable GPU. The model (~1.5 GB) is downloaded once and cached.
                 </li>
@@ -429,6 +511,12 @@ export function AgentChat({ mode }: AgentChatProps) {
               <SelectValue placeholder="Choose AI Provider" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="auto" disabled={!webgpuSupported || configuredProviders.length === 0}>
+                <span className="flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5" />
+                  {providerLabel('auto')}
+                </span>
+              </SelectItem>
               <SelectItem value="webllm" disabled={!webgpuSupported}>
                 <span className="flex items-center gap-1.5">
                   <MonitorSmartphone className="h-3.5 w-3.5" />
@@ -443,6 +531,35 @@ export function AgentChat({ mode }: AgentChatProps) {
           </Select>
         </div>
 
+        {/* Cloud provider selector — only shown in auto mode */}
+        {provider === 'auto' && (
+          <div className="w-full sm:w-auto space-y-1">
+            <label className="text-xs font-medium text-muted-foreground block">Cloud provider (complex)</label>
+            <Select
+              value={autoCloudProvider}
+              onValueChange={(v) => setAutoCloudProvider(v as Exclude<AgentProvider, 'webllm' | 'auto'>)}
+            >
+              <SelectTrigger className="w-[180px]" size="default">
+                <SelectValue placeholder="Choose cloud provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai" disabled={!configuredProviders.some((c) => c.provider === 'openai')}>
+                  {providerLabel('openai')}
+                </SelectItem>
+                <SelectItem value="claude" disabled={!configuredProviders.some((c) => c.provider === 'claude')}>
+                  {providerLabel('claude')}
+                </SelectItem>
+                <SelectItem value="gemini-api-key" disabled={!configuredProviders.some((c) => c.provider === 'gemini-api-key')}>
+                  {providerLabel('gemini-api-key')}
+                </SelectItem>
+                <SelectItem value="gemini" disabled={!configuredProviders.some((c) => c.provider === 'gemini')}>
+                  {providerLabel('gemini')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {provider === 'webllm' && !webgpuSupported && (
           <span className="text-xs text-red-600 dark:text-red-400">WebGPU not supported</span>
         )}
@@ -455,9 +572,21 @@ export function AgentChat({ mode }: AgentChatProps) {
         {provider === 'webllm' && webllmReady && (
           <span className="text-xs text-green-600 dark:text-green-400">Model ready</span>
         )}
-        {provider !== 'webllm' && !canUseProvider(provider) && (
+        {provider !== 'webllm' && provider !== 'auto' && !canUseProvider(provider) && (
           <span className="text-xs text-amber-600 dark:text-amber-500">
             {provider === 'gemini' ? 'Connect Google below' : 'Add API key in AI Settings'}
+          </span>
+        )}
+        {provider === 'auto' && !webgpuSupported && (
+          <span className="text-xs text-amber-600 dark:text-amber-500">WebGPU required for local routing</span>
+        )}
+        {provider === 'auto' && webgpuSupported && configuredProviders.length === 0 && (
+          <span className="text-xs text-amber-600 dark:text-amber-500">Add a cloud API key for complex questions</span>
+        )}
+        {provider === 'auto' && webgpuSupported && configuredProviders.length > 0 && (
+          <span className="text-xs text-green-600 dark:text-green-400">
+            Simple → Local · Complex → {providerLabel(resolveCloudProvider() as AgentProvider ?? autoCloudProvider)}
+            {' '}· Router: {routerLlmClassification ? 'LLM' : 'rules'}
           </span>
         )}
 
@@ -530,6 +659,11 @@ export function AgentChat({ mode }: AgentChatProps) {
                 {!webllmReady && ' Click "Load Model" to download the model first (~1.5 GB one-time).'}
               </p>
             )}
+            {provider === 'auto' && (
+              <p className="text-xs text-muted-foreground">
+                Simple questions (fact lookups, definitions) → Local model. Complex questions (projections, analysis, simulations) → Cloud.
+              </p>
+            )}
           </div>
         )}
         {messages.map((m) => (
@@ -550,6 +684,12 @@ export function AgentChat({ mode }: AgentChatProps) {
                 {m.actionsApplied?.length ? (
                   <p className="text-xs mt-1 opacity-80">Applied: {m.actionsApplied.join(', ')}</p>
                 ) : null}
+                {m.role === 'assistant' && m.routedVia && (
+                  <p className="text-[10px] mt-1 opacity-50 flex items-center gap-0.5">
+                    {m.routedVia === 'local' ? <MonitorSmartphone className="h-2.5 w-2.5" /> : <Zap className="h-2.5 w-2.5" />}
+                    {routedViaLabel(m.routedVia)}
+                  </p>
+                )}
               </div>
               {m.role === 'user' && (
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">

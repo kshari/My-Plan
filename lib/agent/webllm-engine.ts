@@ -73,6 +73,47 @@ export function resetEngine() {
   }
 }
 
+const ROUTER_SYSTEM_PROMPT = `You are a routing classifier for a financial planning assistant. Your only job is to classify user messages.
+
+Respond with exactly one word — either "simple" or "complex" — with no punctuation, explanation, or extra text.
+
+simple = greeting, chitchat, single fact lookup ("what is my income?"), definition ("what is a Roth IRA?"), or clarification of the previous reply.
+complex = anything requiring calculation, projection, simulation, Monte Carlo, data update/mutation, multi-step analysis, comparison across domains, tax estimate, debt payoff, property metrics, or retirement readiness.
+
+When in doubt, respond "complex".`
+
+/**
+ * Use the loaded WebLLM engine to classify a prompt as 'simple' | 'complex'.
+ * Sends a short non-streaming completion — typically resolves in <300 ms once
+ * the engine is warm.
+ *
+ * Returns null if the engine is not ready (caller should fall back to rules).
+ */
+export async function classifyPromptWithWebLLM(
+  message: string,
+): Promise<'simple' | 'complex' | null> {
+  if (!engineInstance) return null
+
+  try {
+    const response = await (engineInstance as any).chat.completions.create({
+      messages: [
+        { role: 'system', content: ROUTER_SYSTEM_PROMPT },
+        { role: 'user', content: message },
+      ],
+      stream: false,
+      max_tokens: 3,
+      temperature: 0,
+    })
+    const text = (response.choices?.[0]?.message?.content ?? '').trim().toLowerCase()
+    if (text.startsWith('simple')) return 'simple'
+    if (text.startsWith('complex')) return 'complex'
+    // Unexpected output — fall back
+    return null
+  } catch {
+    return null
+  }
+} 
+
 const SYSTEM_PROMPT = `You are a helpful financial assistant for the My Plan app. You help users understand and manage their data across three apps:
 
 1. Financial Pulse – profile (age, income, savings, expenses, debts, subscriptions), pulse checks (net worth snapshots, mood).
@@ -82,7 +123,8 @@ const SYSTEM_PROMPT = `You are a helpful financial assistant for the My Plan app
 Rules:
 - Answer questions using the exact numbers from the user's data provided below.
 - Be concise and specific.
-- If you don't know or the data doesn't contain the answer, say so.`
+- If you don't know or the data doesn't contain the answer, say so.
+- You run locally in the browser and cannot perform complex calculations, run simulations, or modify data. For projections, Monte Carlo simulations, tax calculations, or data updates, suggest the user switch to a cloud provider (OpenAI, Claude, or Gemini).`
 
 export interface WebLLMChatOptions {
   message: string
