@@ -45,28 +45,35 @@
 ## SSA (Social Security) — Calculator Defaults
 `lib/constants/retirement-defaults.ts`
 
+> **Sources:** SSA Monthly Statistical Snapshot, Oct 2024 (ssa.gov/policy/docs/quickfacts/stat_snapshot/2024-10.html); SSA Annual Statistical Supplement 2024 (ssa.gov/policy/docs/statcomps/supplement/2024/5a.html)
+
 | Variable | Default | Description |
 |---|---|---|
 | `DEFAULT_SSA_START_AGE` | **65** | Age to start SSA income |
 | `SSA_EARLIEST_ELIGIBILITY_AGE` | **62** | Earliest age to claim SSA (minimum enforced in calculator) |
-| `DEFAULT_SSA_ANNUAL_BENEFIT` | **$22,000** | Planner's estimated annual SSA |
-| `DEFAULT_SPOUSE_SSA_BENEFIT` | **$16,000** | Spouse's estimated annual SSA |
+| `DEFAULT_SSA_ANNUAL_BENEFIT` | **$23,100** | Avg retired worker $1,924/mo (SSA Monthly Snapshot, Oct 2024) |
+| `DEFAULT_SPOUSE_SSA_BENEFIT` | **$20,500** | Avg women retired worker ~$1,714/mo (SSA Statistical Supplement 2024) |
 
 ---
 
 ## Healthcare / Medicare — Calculator Defaults
 `lib/constants/retirement-defaults.ts`
 
+> **Sources:** CMS/KFF Plan Year 2024 QHP Premiums Report (cms.gov/files/document/2024-qhp-premiums-choice-report.pdf); CMS 2025 Medicare Parts A & B Premiums fact sheet (cms.gov/newsroom/fact-sheets/2025-medicare-parts-b-premiums-and-deductibles); Medigap Plan G average premiums 2025
+
 | Variable | Default | Description |
 |---|---|---|
 | `MEDICARE_ELIGIBILITY_AGE` | **65** | Age Medicare coverage begins |
-| `DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM` | **$15,000** | ACA marketplace / COBRA estimate per year before Medicare |
-| `DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM` | **$4,200** | Medicare Part B + supplement estimate per year |
+| `DEFAULT_PRE_MEDICARE_ANNUAL_PREMIUM` | **$20,400** | ACA benchmark silver plan, unsubsidized ~$1,700/mo for age 60 (CMS/KFF 2024) |
+| `DEFAULT_POST_MEDICARE_ANNUAL_PREMIUM` | **$4,500** | Medicare Part B $185/mo + Medigap Plan G avg ~$192/mo = $377/mo (CMS/Medigap 2025) |
+| `DEFAULT_HEALTHCARE_INFLATION_RATE` | **5%** (0.05) | Annual premium inflation applied in projection engine — midpoint of KFF 2024 Employer Survey (~4.4%/yr) and ACA marketplace trend (~7%/yr) |
 
 ---
 
 ## SSA — Calculation Engine Constants
 `lib/constants/ssa-constants.ts`
+
+> **Sources:** SSA Monthly Statistical Snapshot, Oct 2024; SSA Annual Statistical Supplement 2024 (same sources as Calculator Defaults above)
 
 | Variable | Default | Description |
 |---|---|---|
@@ -87,8 +94,9 @@
 | `SSA_MIN_BENEFIT_SPOUSE` | **$10,000** | Minimum spouse SSA floor |
 | `SSA_MAX_BENEFIT_PLANNER` | **$45,000** | Maximum planner SSA cap |
 | `SSA_MAX_BENEFIT_SPOUSE` | **$35,000** | Maximum spouse SSA cap |
-| `SSA_DEFAULT_PLANNER_BENEFIT` | **$20,000** | Fallback planner benefit (no estimate) |
-| `SSA_DEFAULT_SPOUSE_BENEFIT` | **$15,000** | Fallback spouse benefit (no estimate) |
+| `SSA_DEFAULT_PLANNER_BENEFIT` | **$23,100** | Fallback planner benefit — avg retired worker $1,924/mo (SSA, Oct 2024) |
+| `SSA_DEFAULT_SPOUSE_BENEFIT` | **$20,500** | Fallback spouse benefit — avg women retired worker ~$1,714/mo (SSA 2024) |
+| `SSA_COLA_RATE` | **2.5%** (0.025) | Annual COLA applied to SSA in projection engine — SSA 2025 COLA (ssa.gov/OACT/COLA/colaseries.html); 10-yr avg ~2.6% |
 
 ---
 
@@ -160,10 +168,11 @@
 
 | Variable | Default | Description |
 |---|---|---|
-| `SCORE_WEIGHT_LONGEVITY` | **60%** (0.60) | Longevity weight in overall score |
+| `SCORE_WEIGHT_LONGEVITY` | **50%** (0.50) | Longevity weight in overall score |
 | `SCORE_WEIGHT_TAX_EFFICIENCY` | **15%** (0.15) | Tax efficiency weight |
-| `SCORE_WEIGHT_INFLATION_MEDICAL` | **10%** (0.10) | Inflation/medical weight |
-| `SCORE_WEIGHT_CASHFLOW` | **5%** (0.05) | Cashflow weight |
+| `SCORE_WEIGHT_INFLATION` | **10%** (0.10) | Inflation weight |
+| `SCORE_WEIGHT_MEDICAL` | **10%** (0.10) | Medical weight |
+| `SCORE_WEIGHT_CASHFLOW` | **15%** (0.15) | Cashflow weight |
 | `SCORE_WEIGHT_SCENARIO_LONGEVITY` | **50%** (0.50) | Scenario sustainability weight |
 | `SCORE_WEIGHT_SCENARIO_SCORE` | **25%** (0.25) | Scenario individual score weight |
 
