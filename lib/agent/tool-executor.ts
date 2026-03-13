@@ -10,7 +10,6 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { futureValue } from '@/lib/utils/calculations'
 import {
   calculateRetirementProjections,
   buildCalculatorSettings,
@@ -21,7 +20,7 @@ import {
 } from '@/lib/utils/retirement-projections'
 import { runMonteCarloSimulation } from '@/lib/utils/monte-carlo'
 import { computeInvestmentScore, DEFAULT_SCORING_CONFIG } from '@/lib/property/scoring'
-import { simulateDebtPayoff } from '@/lib/utils/pulse-calculations'
+import { simulateDebtPayoff, futureValue } from '@/lib/utils/pulse-calculations'
 import { getStandardDeduction } from '@/lib/constants/tax-brackets'
 import {
   DEFAULT_RETIREMENT_AGE,
@@ -288,7 +287,7 @@ export async function toolCalculateRetirementProjection(
   const totalTaxes = projections.reduce((s, p) => s + (p.tax ?? 0), 0)
   const avgMonthlyRetirementIncome =
     retirementProjections.length > 0
-      ? retirementProjections.reduce((s, p) => s + (p.income ?? 0), 0) /
+      ? retirementProjections.reduce((s, p) => s + (p.total_income ?? 0), 0) /
         retirementProjections.length /
         12
       : 0

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { checkAdmin } from '@/lib/utils/auth'
-import { getFeatureFlags } from '@/lib/app-features'
+import { getFeatureFlags, type FeatureFlags } from '@/lib/app-features'
 import { HomeContent } from '@/components/home-content'
 
 export default async function Home() {
@@ -8,7 +8,7 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let isAdmin = false
-  let features = { aiAgent: true as boolean }
+  let features: FeatureFlags = { aiAgent: true, routerLlmClassification: true }
   if (user) {
     const [adminCheck, flags] = await Promise.all([
       checkAdmin(supabase, user.id),
