@@ -52,6 +52,8 @@ export interface CalculatorAssumptionsFormProps {
   resetDisabled?: boolean
   /** When true, do not show the "How this is calculated" block (e.g. when the parent shows it near the amount). */
   hideHowCalculated?: boolean
+  /** Called when the form is expanded — allows the parent to scroll-anchor. */
+  onExpand?: () => void
 }
 
 const rowButtonClass =
@@ -70,6 +72,7 @@ export function CalculatorAssumptionsForm({
   onResetToDefaults,
   resetDisabled = false,
   hideHowCalculated = false,
+  onExpand,
 }: CalculatorAssumptionsFormProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
 
@@ -85,7 +88,11 @@ export function CalculatorAssumptionsForm({
         <div className="flex w-full items-center flex-wrap gap-x-8 gap-y-2 min-w-0">
           <button
             type="button"
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => {
+              const opening = !expanded
+              setExpanded(opening)
+              if (opening) onExpand?.()
+            }}
             className={`flex items-center gap-1.5 ${rowButtonClass}`}
           >
             <span>Change assumptions</span>

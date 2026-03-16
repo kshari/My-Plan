@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -220,6 +220,11 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
   const [autoSaved, setAutoSaved] = useState(false)
   const [loadedFromDb, setLoadedFromDb] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const calcTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Debounced result — only recompute hero numbers after the user stops typing (500 ms).
+  // This prevents rapid re-renders that shift card height and scroll position mid-edit.
+  const [result, setResult] = useState(() => computeResult(assumptions))
+  const cardRef = useRef<HTMLDivElement>(null)
 
   // Load persisted assumptions on mount
   useEffect(() => {
@@ -317,7 +322,12 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
     [persistAssumptions]
   )
 
-  const result = useMemo(() => computeResult(assumptions), [assumptions])
+  // Debounce hero recalculation — fires 500 ms after the user stops changing values
+  useEffect(() => {
+    if (calcTimer.current) clearTimeout(calcTimer.current)
+    calcTimer.current = setTimeout(() => setResult(computeResult(assumptions)), 500)
+    return () => { if (calcTimer.current) clearTimeout(calcTimer.current) }
+  }, [assumptions])
 
   const handleResetToDefaults = async () => {
     setAssumptions(DEFAULT_RETIREMENT_ASSUMPTIONS)
@@ -464,7 +474,7 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
   }
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div ref={cardRef} className="rounded-xl border bg-card overflow-hidden">
       {/* Hero answer */}
       <div className={`px-6 py-6 ${statusBg} border-b ${statusBorder}`}>
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -696,6 +706,13 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
           onResetToDefaults={handleResetToDefaults}
           resetDisabled={saving}
           hideHowCalculated
+          onExpand={() => {
+            // Scroll the card into view when the form expands so the page
+            // moves predictably downward rather than jumping.
+            setTimeout(() => {
+              cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+            }, 0)
+          }}
         />
       </div>
 
