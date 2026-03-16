@@ -46,6 +46,10 @@ export interface CalculatorAssumptionsFormProps {
   formId?: string
   /** If true, form is always expanded (e.g. when used as the main Plan Inputs form). */
   defaultExpanded?: boolean
+  /** Controlled expanded state — when provided, the parent owns open/close. */
+  expanded?: boolean
+  /** Called when the user toggles open/close — paired with `expanded` for controlled mode. */
+  onExpandedChange?: (open: boolean) => void
   /** When provided, shows "Change to default assumptions" on the same line as "Change assumptions". */
   onResetToDefaults?: () => void
   /** Disable the reset button (e.g. while saving). */
@@ -69,12 +73,23 @@ export function CalculatorAssumptionsForm({
   saving = false,
   formId = 'calc',
   defaultExpanded = false,
+  expanded: controlledExpanded,
+  onExpandedChange,
   onResetToDefaults,
   resetDisabled = false,
   hideHowCalculated = false,
   onExpand,
 }: CalculatorAssumptionsFormProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded)
+  // Use controlled state when provided, otherwise fall back to internal state
+  const expanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded
+  const setExpanded = (open: boolean) => {
+    if (controlledExpanded !== undefined) {
+      onExpandedChange?.(open)
+    } else {
+      setInternalExpanded(open)
+    }
+  }
 
   const update = <K extends keyof RetirementAssumptions>(key: K, val: RetirementAssumptions[K]) => {
     onChange({ ...assumptions, [key]: val })

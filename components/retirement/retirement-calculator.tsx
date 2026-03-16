@@ -12,6 +12,7 @@ import {
   Check,
   BarChart2,
   Info,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -219,12 +220,20 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
   const [savingPlan, setSavingPlan] = useState(false)
   const [autoSaved, setAutoSaved] = useState(false)
   const [loadedFromDb, setLoadedFromDb] = useState(false)
+  const [formExpanded, setFormExpanded] = useState(false)
+  const [resultStale, setResultStale] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const calcTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Debounced result — only recompute hero numbers after the user stops typing (500 ms).
   // This prevents rapid re-renders that shift card height and scroll position mid-edit.
   const [result, setResult] = useState(() => computeResult(assumptions))
   const cardRef = useRef<HTMLDivElement>(null)
+
+  const recalculate = useCallback(() => {
+    if (calcTimer.current) clearTimeout(calcTimer.current)
+    setResult(computeResult(assumptions))
+    setResultStale(false)
+  }, [assumptions])
 
   // Load persisted assumptions on mount
   useEffect(() => {
@@ -322,12 +331,22 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
     [persistAssumptions]
   )
 
-  // Debounce hero recalculation — fires 500 ms after the user stops changing values
+  // Debounce hero recalculation — fires 500 ms after the user stops changing values.
+  // While the form is expanded, skip the update (hero is off-screen) and mark stale instead.
+  // When the form closes, immediately recalculate so the hero is fresh.
   useEffect(() => {
+    if (formExpanded) {
+      if (calcTimer.current) clearTimeout(calcTimer.current)
+      setResultStale(true)
+      return
+    }
     if (calcTimer.current) clearTimeout(calcTimer.current)
-    calcTimer.current = setTimeout(() => setResult(computeResult(assumptions)), 500)
+    calcTimer.current = setTimeout(() => {
+      setResult(computeResult(assumptions))
+      setResultStale(false)
+    }, 500)
     return () => { if (calcTimer.current) clearTimeout(calcTimer.current) }
-  }, [assumptions])
+  }, [assumptions, formExpanded])
 
   const handleResetToDefaults = async () => {
     setAssumptions(DEFAULT_RETIREMENT_ASSUMPTIONS)
@@ -497,6 +516,17 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
               <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
                 <Check className="h-3 w-3" />Saved
               </span>
+            )}
+            {resultStale && (
+              <button
+                type="button"
+                onClick={recalculate}
+                className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                title="Assumptions changed — tap to update"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Update
+              </button>
             )}
             <Badge variant="outline" className={`${statusColor} border-current text-xs`}>
               {result.onTrack ? 'On track' : 'Needs attention'}
@@ -695,6 +725,15 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
             if (saveTimer.current) clearTimeout(saveTimer.current)
             saveTimer.current = setTimeout(() => persistAssumptions(next), DEBOUNCE_SAVE_MS)
           }}
+          expanded={formExpanded}
+          onExpandedChange={(open) => {
+            setFormExpanded(open)
+            if (open) {
+              setTimeout(() => {
+                cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+              }, 0)
+            }
+          }}
           result={{
             annualSsa: result.annualSsa,
             expensesAtRetirement: result.expensesAtRetirement,
@@ -706,13 +745,6 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
           onResetToDefaults={handleResetToDefaults}
           resetDisabled={saving}
           hideHowCalculated
-          onExpand={() => {
-            // Scroll the card into view when the form expands so the page
-            // moves predictably downward rather than jumping.
-            setTimeout(() => {
-              cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-            }, 0)
-          }}
         />
       </div>
 
