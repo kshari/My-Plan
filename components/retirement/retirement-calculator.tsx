@@ -20,6 +20,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { toast } from 'sonner'
 import { formatCurrencyShort as fmt } from '@/lib/utils/formatting'
 import { MEDICARE_ELIGIBILITY_AGE, SSA_EARLIEST_ELIGIBILITY_AGE } from '@/lib/constants/retirement-defaults'
+import { calculateRetirementProjections, type Account, type Expense, type OtherIncome, type CalculatorSettings } from '@/lib/utils/retirement-projections'
 import { DEBOUNCE_SAVE_MS, SAVED_INDICATOR_MS } from '@/lib/constants/timing'
 import type { RetirementAssumptions } from '@/lib/types/retirement-assumptions'
 import { DEFAULT_RETIREMENT_ASSUMPTIONS } from '@/lib/types/retirement-assumptions'
@@ -75,20 +76,80 @@ function computeResult(a: RetirementAssumptions) {
     nestEggNeeded += yearNetNeed * discountFactor
   }
 
-  // Project savings by retirement
+  // Project savings by retirement (quick calculator model)
   const r = a.growthRatePreRetirement / 100
   const fvSavings = a.currentSavings * Math.pow(1 + r, yearsToRetirement)
   const fvContributions = r > 0
     ? a.annualContribution * ((Math.pow(1 + r, yearsToRetirement) - 1) / r)
     : a.annualContribution * yearsToRetirement
-  const projectedNestEgg = fvSavings + fvContributions
+  const projectedNestEggQuick = fvSavings + fvContributions
 
-  const surplus = projectedNestEgg - nestEggNeeded
+  // Drive "On track to have" from the same projection engine used by Quick Projections.
+  // This keeps the card value aligned with the projection table's retirement-year net worth.
+  let projectedNestEggFromProjection = projectedNestEggQuick
+  try {
+    const currentYear = new Date().getFullYear()
+    const birthYear = currentYear - a.age
+    const spouseBirthYear = a.includeSpouse ? currentYear - a.spouseAge : undefined
+
+    const accounts: Account[] = [{
+      account_name: 'Retirement Savings',
+      owner: 'Planner',
+      balance: a.currentSavings,
+      account_type: '401k',
+      annual_contribution: a.annualContribution,
+    }]
+
+    const expenses: Expense[] = [{
+      expense_name: 'Living Expenses',
+      amount_before_65: a.monthlyExpenses,
+      amount_after_65: a.monthlyExpenses,
+    }]
+
+    const otherIncome: OtherIncome[] = []
+    const settings: CalculatorSettings = {
+      current_year: currentYear,
+      retirement_age: a.retirementAge,
+      retirement_start_year: currentYear + yearsToRetirement,
+      years_to_retirement: yearsToRetirement,
+      annual_retirement_expenses: annualExpenses,
+      growth_rate_before_retirement: a.growthRatePreRetirement / 100,
+      growth_rate_during_retirement: a.growthRateDuringRetirement / 100,
+      inflation_rate: inflRate,
+      ssa_start_age: a.ssaStartAge,
+      pre_medicare_annual_premium: a.preMedicareAnnualPremium,
+      post_medicare_annual_premium: a.postMedicareAnnualPremium,
+      enable_borrowing: false,
+    }
+
+    const projections = calculateRetirementProjections(
+      birthYear,
+      accounts,
+      expenses,
+      otherIncome,
+      settings,
+      a.lifeExpectancy,
+      spouseBirthYear,
+      a.includeSpouse ? a.lifeExpectancy : undefined,
+      a.includeSsa,
+      a.includeSsa && a.includeSpouse,
+      a.includeSsa ? a.ssaAnnualBenefit : undefined,
+      (a.includeSsa && a.includeSpouse) ? a.spouseSsaBenefit : undefined,
+    )
+
+    const retirementProjection = projections.find((p) => p.age === a.retirementAge) ?? projections.find((p) => (p.age ?? 0) >= a.retirementAge)
+    projectedNestEggFromProjection = retirementProjection?.networth ?? projectedNestEggQuick
+  } catch {
+    // Keep quick-calculator value as fallback if projection engine fails.
+    projectedNestEggFromProjection = projectedNestEggQuick
+  }
+
+  const surplus = projectedNestEggFromProjection - nestEggNeeded
   const onTrack = surplus >= 0
 
   // Simulate how many years the projected nest egg would last
   let yearsLast = 0
-  let balance = projectedNestEgg
+  let balance = projectedNestEggQuick
   for (let yr = 0; yr < retirementYears + 20; yr++) {
     const currentAge = a.retirementAge + yr
     const inflationFactor = Math.pow(1 + inflRate, yearsToRetirement + yr)
@@ -122,7 +183,8 @@ function computeResult(a: RetirementAssumptions) {
 
   return {
     nestEggNeeded: Math.round(nestEggNeeded),
-    projectedNestEgg: Math.round(projectedNestEgg),
+    projectedNestEgg: Math.round(projectedNestEggQuick),
+    projectedNestEggFromProjection: Math.round(projectedNestEggFromProjection),
     surplus: Math.round(surplus),
     onTrack,
     yearsLast: Math.min(yearsLast, retirementYears),
@@ -509,7 +571,7 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
           <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
             <div className="rounded-lg bg-background/60 px-3 py-2">
               <p className="text-[11px] text-muted-foreground">On track to have</p>
-              <p className="font-semibold">{fmt(result.projectedNestEgg)}</p>
+              <p className="font-semibold">{fmt(result.projectedNestEggFromProjection)}</p>
             </div>
             <div className="rounded-lg bg-background/60 px-3 py-2">
               <p className="text-[11px] text-muted-foreground">{result.onTrack ? 'Surplus' : 'Gap'}</p>

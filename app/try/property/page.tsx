@@ -10,6 +10,7 @@ import PLTable from '@/components/property/pl-table'
 import { PROPERTY_TYPES } from '@/lib/constants/property-defaults'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
 import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
+import { ClearDataDialog } from '@/components/layout/clear-data-dialog'
 
 const LOCAL_KEY = 'pi_try_data'
 
@@ -165,10 +166,16 @@ export default function TryPropertyPage() {
             <span className="font-bold tracking-tight">Property Investment</span>
             <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">Try Mode</span>
           </div>
-          <Link href="/login">
-            <Button variant="outline" size="sm">Sign In</Button>
-          </Link>
-          <FontScaleToggle variant="inline" />
+          <div className="flex items-center gap-2">
+            <ClearDataDialog
+              onConfirm={resetAll}
+              description="All property investment data saved in this browser will be permanently deleted."
+            />
+            <FontScaleToggle variant="inline" />
+            <Link href="/login">
+              <Button variant="outline" size="sm">Sign In</Button>
+            </Link>
+          </div>
         </div>
       </header>
 
