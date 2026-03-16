@@ -208,9 +208,11 @@ function computeResult(a: RetirementAssumptions) {
 
 interface RetirementCalculatorProps {
   onCalculateProjections?: () => void
+  /** When true, projections are currently displayed — Update should also refresh them. */
+  projectionsVisible?: boolean
 }
 
-export default function RetirementCalculator({ onCalculateProjections }: RetirementCalculatorProps) {
+export default function RetirementCalculator({ onCalculateProjections, projectionsVisible = false }: RetirementCalculatorProps) {
   const router = useRouter()
   const supabase = createClient()
   const dataService = useOptionalDataService()
@@ -330,6 +332,18 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
     },
     [persistAssumptions]
   )
+
+  // Full update: persist, recalc hero, refresh projections if visible
+  const handleUpdate = useCallback(async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    await persistAssumptions(assumptions)
+    if (calcTimer.current) clearTimeout(calcTimer.current)
+    setResult(computeResult(assumptions))
+    setResultStale(false)
+    if (projectionsVisible && onCalculateProjections) {
+      onCalculateProjections()
+    }
+  }, [assumptions, persistAssumptions, projectionsVisible, onCalculateProjections])
 
   // Debounce hero recalculation — fires 500 ms after the user stops changing values.
   // While the form is expanded, skip the update (hero is off-screen) and mark stale instead.
@@ -517,17 +531,6 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
                 <Check className="h-3 w-3" />Saved
               </span>
             )}
-            {resultStale && (
-              <button
-                type="button"
-                onClick={recalculate}
-                className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
-                title="Assumptions changed — tap to update"
-              >
-                <RefreshCw className="h-3 w-3" />
-                Update
-              </button>
-            )}
             <Badge variant="outline" className={`${statusColor} border-current text-xs`}>
               {result.onTrack ? 'On track' : 'Needs attention'}
             </Badge>
@@ -544,8 +547,8 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
             <p className="text-xs text-muted-foreground mt-1">
               saved by age {assumptions.retirementAge} to fund retirement through age {assumptions.lifeExpectancy}
             </p>
-            {/* How is this calculated — visible next to the amount */}
-            <div className="mt-3">
+            {/* How is this calculated / Update — visible next to the amount */}
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
               <button
                 type="button"
                 onClick={() => setShowHowCalculated((v) => !v)}
@@ -554,7 +557,19 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
                 {showHowCalculated ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 How is this calculated?
               </button>
-              {showHowCalculated && (
+              {resultStale && (
+                <button
+                  type="button"
+                  onClick={handleUpdate}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                  title="Assumptions changed — tap to update"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Update
+                </button>
+              )}
+            </div>
+            {showHowCalculated && (
                 <div className="mt-2 rounded-lg bg-background/80 border border-border/60 p-3 space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
                   <p>
                     <span className="opacity-70">1.</span>{' '}
@@ -607,7 +622,6 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
                 </div>
               )}
             </div>
-          </div>
           <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
             <div className="rounded-lg bg-background/60 px-3 py-2">
               <p className="text-[11px] text-muted-foreground">On track to have</p>
@@ -745,6 +759,8 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
           onResetToDefaults={handleResetToDefaults}
           resetDisabled={saving}
           hideHowCalculated
+          onUpdate={handleUpdate}
+          updateLabel={projectionsVisible ? 'Update Calculator & Projections' : 'Update Calculator'}
         />
       </div>
 
@@ -761,6 +777,9 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
             <Button onClick={async () => {
               if (saveTimer.current) clearTimeout(saveTimer.current)
               await persistAssumptions(assumptions)
+              if (calcTimer.current) clearTimeout(calcTimer.current)
+              setResult(computeResult(assumptions))
+              setResultStale(false)
               onCalculateProjections()
             }}>
               <BarChart2 className="h-3.5 w-3.5" />

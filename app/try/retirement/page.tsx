@@ -169,7 +169,7 @@ export default function TryRetirementPage() {
         {/* Calculator */}
         {!showPlanStructure && (
           <>
-            <RetirementCalculator key={resetKey} onCalculateProjections={() => {
+            <RetirementCalculator key={resetKey} projectionsVisible={showProjections} onCalculateProjections={() => {
               setShowProjections(true)
               setProjectionsRefreshKey(k => k + 1)
             }} />

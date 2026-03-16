@@ -11,6 +11,7 @@ import {
   HeartPulse,
   Info,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -58,6 +59,10 @@ export interface CalculatorAssumptionsFormProps {
   hideHowCalculated?: boolean
   /** Called when the form is expanded — allows the parent to scroll-anchor. */
   onExpand?: () => void
+  /** When provided, shows an "Update" button at the bottom of the expanded form. */
+  onUpdate?: () => void
+  /** Label for the update button (defaults to "Update"). */
+  updateLabel?: string
 }
 
 const rowButtonClass =
@@ -79,6 +84,8 @@ export function CalculatorAssumptionsForm({
   resetDisabled = false,
   hideHowCalculated = false,
   onExpand,
+  onUpdate,
+  updateLabel = 'Update',
 }: CalculatorAssumptionsFormProps) {
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded)
   // Use controlled state when provided, otherwise fall back to internal state
@@ -356,6 +363,18 @@ export function CalculatorAssumptionsForm({
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
+                </Button>
+              </div>
+            </>
+          )}
+
+          {!showSaveButton && onUpdate && (
+            <>
+              <Separator />
+              <div className="flex justify-end">
+                <Button onClick={onUpdate} className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  {updateLabel}
                 </Button>
               </div>
             </>
