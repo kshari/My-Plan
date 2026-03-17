@@ -109,7 +109,7 @@ function LoginContent() {
     {
       icon: Activity,
       title: 'Financial Pulse',
-      description: 'Personal finance education with benchmarking, What-If scenarios, and monthly reflection',
+      description: 'Personal finance education with benchmarking, Financial Learning Lab, and monthly reflection',
     },
     {
       icon: Building2,

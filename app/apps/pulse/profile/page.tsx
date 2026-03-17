@@ -74,7 +74,7 @@ export default function ProfilePage() {
       </Link>
       <h1 className="text-2xl font-bold tracking-tight mb-1">Your Financial Profile</h1>
       <p className="text-sm text-muted-foreground mb-6">
-        This powers your benchmarks and What-If scenarios. Changes auto-save.
+        This powers your benchmarks and Financial Learning Lab. Changes auto-save.
       </p>
       <ProfileForm profile={profile} onChange={handleChange} />
     </div>

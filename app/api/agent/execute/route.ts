@@ -1,8 +1,14 @@
 import { withAuth } from '@/lib/utils/route-handler'
 import { executeAgentAction, parseAgentActions } from '@/lib/agent/actions'
 import { NextResponse } from 'next/server'
+import { checkBotId } from 'botid/server'
 
 export const POST = withAuth(async (request, { user, supabase }) => {
+  const botCheck = await checkBotId()
+  if (botCheck.isBot) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+  }
+
   let body: unknown
   try {
     body = await request.json()

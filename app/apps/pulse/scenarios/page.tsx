@@ -12,7 +12,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 export default function ScenariosPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold tracking-tight mb-1">What-If Scenarios</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-1">Financial Learning Lab</h1>
       <p className="text-sm text-muted-foreground mb-8">
         Drag sliders, watch charts move, build financial intuition. Each scenario teaches a core personal finance concept.
       </p>

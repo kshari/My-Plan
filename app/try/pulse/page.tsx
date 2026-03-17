@@ -103,7 +103,7 @@ export default function TryPulsePage() {
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Try Financial Pulse</h1>
             <p className="mx-auto max-w-md text-muted-foreground">
-              Enter a few financial details below to see how you compare to peers and explore interactive What-If scenarios.
+              Enter a few financial details below to see how you compare to peers and explore the interactive Financial Learning Lab.
             </p>
             <Button size="lg" className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setShowProfile(true)}>
               Get Started
@@ -151,7 +151,7 @@ export default function TryPulsePage() {
 
         {/* Scenarios — always shown */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">What-If Scenarios</h2>
+          <h2 className="text-lg font-semibold mb-3">Financial Learning Lab</h2>
           <p className="text-sm text-muted-foreground mb-4">Drag sliders, watch charts move, build financial intuition.</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {SCENARIO_METADATA.map((s) => {
