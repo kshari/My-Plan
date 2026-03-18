@@ -339,6 +339,18 @@ export function PulseDashboard({ userId }: PulseDashboardProps) {
               >
                 Dismiss
               </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  try { localStorage.removeItem('fp_local_profile') } catch {}
+                  handleDismissImport()
+                  toast.success('Try mode data cleared.')
+                }}
+                className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                Clear Data
+              </Button>
             </div>
           </div>
           <button

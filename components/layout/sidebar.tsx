@@ -20,10 +20,8 @@ import {
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { toast } from 'sonner'
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { FontScaleToggle } from "@/components/layout/font-scale-toggle"
-import { ClearDataDialog } from "@/components/layout/clear-data-dialog"
 import { useSidebarNav } from "@/components/layout/sidebar-context"
 import { useAgentPanel } from "@/components/agent/agent-panel-context"
 
@@ -415,13 +413,6 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
             Sign out
           </button>
         </form>
-        <ClearDataDialog
-          variant="sidebar"
-          onConfirm={() => {
-            try { localStorage.removeItem('rp_local_plan') } catch {}
-            toast.success('Browser data cleared.')
-          }}
-        />
       </div>
     </div>
   )

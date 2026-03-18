@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Printer, Clock, CheckCircle } from 'lucide-react'
 import { ScenarioProvider } from '@/components/retirement/scenario-context'
 import SnapshotTab from '@/components/retirement/tabs/snapshot-tab'
@@ -163,11 +164,26 @@ export default function PlanPrintAllView({
 }: PlanPrintAllViewProps) {
   const [countdown, setCountdown] = useState<number | null>(Math.ceil(AUTO_PRINT_DELAY_MS / 1000))
   const cancelledRef = useRef(false)
-  const hasPrintedRef = useRef(false)
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+
+  // Create a dedicated container as a direct child of <body> so the portal
+  // lives outside the AppShell's overflow:hidden / h-screen wrappers.
+  useEffect(() => {
+    const el = document.createElement('div')
+    el.id = 'print-all-portal-root'
+    document.body.appendChild(el)
+    setPortalTarget(el)
+    return () => { el.remove() }
+  }, [])
+
+  // While this component is mounted, add a class to <body> so the print
+  // stylesheet can hide the app shell and reset layout constraints.
+  useEffect(() => {
+    document.body.classList.add('print-all-active')
+    return () => document.body.classList.remove('print-all-active')
+  }, [])
 
   const doPrint = () => {
-    if (hasPrintedRef.current) return
-    hasPrintedRef.current = true
     window.print()
   }
 
@@ -188,7 +204,7 @@ export default function PlanPrintAllView({
       if (remaining <= 0) {
         clearInterval(interval)
         setCountdown(null)
-        doPrint()
+        window.print()
       }
     }, 1000)
     return () => clearInterval(interval)
@@ -211,13 +227,14 @@ export default function PlanPrintAllView({
   ]
   const pagesToRender = pageOrder.filter(id => selectedPages.includes(id))
 
-  return (
+  const content = (
     <>
       {/* Print + screen CSS */}
       <style>{`
-        /* ── Screen: full-screen overlay covering sidebar ───────────── */
+        /* ── Screen ──────────────────────────────────────────────────── */
         @media screen {
-          #print-all-overlay {
+          /* Portal root covers the full viewport on screen */
+          #print-all-portal-root {
             position: fixed;
             inset: 0;
             z-index: 9999;
@@ -225,7 +242,7 @@ export default function PlanPrintAllView({
             overflow-y: auto;
           }
 
-          /* On screen the tab wrapper looks like a card */
+          /* Card appearance for each tab */
           .print-tab-content {
             border-radius: 0.75rem;
             border: 1px solid var(--border, #e5e7eb);
@@ -234,69 +251,88 @@ export default function PlanPrintAllView({
             padding: 1.5rem;
           }
 
-          /* Document header and opening disclaimer are print-only — hide on screen */
+          /* Print-only elements hidden on screen */
           .print-header,
           .print-disclaimer:first-of-type { display: none; }
         }
 
-        /* ── Print: hide everything except our overlay ────────────── */
+        /* ── Print ──────────────────────────────────────────────────── */
         @media print {
-          /* Make <html> the containing block for the absolute overlay */
-          html { position: relative !important; }
-
-          /* 1. Blank the entire page */
-          body * { visibility: hidden !important; }
-
-          /* 2. Make only our overlay (and all its children) visible */
-          #print-all-overlay,
-          #print-all-overlay * { visibility: visible !important; }
-
-          /* 3. But keep the screen-only controls hidden */
-          .no-print,
-          .no-print * { visibility: hidden !important; display: none !important; }
-
-          /* Ensure the document header and disclaimer ARE visible in print */
-          .print-header,
-          .print-disclaimer {
-            visibility: visible !important;
+          /* Reset html/body so nothing clips content height */
+          html, body {
             display: block !important;
+            height: auto !important;
+            width: 100% !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
           }
 
-          /* 4. Stretch the overlay to fill the full page width,
-                bypassing the flex sidebar layout */
-          #print-all-overlay {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
+          /* Hide every direct child of body EXCEPT our portal root */
+          body > *:not(#print-all-portal-root) {
+            display: none !important;
+          }
+
+          /* Our portal root takes normal static flow */
+          #print-all-portal-root {
+            display: block !important;
+            position: static !important;
             width: 100% !important;
             height: auto !important;
             overflow: visible !important;
             background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            z-index: auto !important;
           }
 
-          /* 5. Remove card frames from each tab section */
+          /* Screen-only controls */
+          .no-print { display: none !important; }
+
+          /* Print-only header and disclaimer */
+          .print-header,
+          .print-disclaimer {
+            display: block !important;
+          }
+
+          /* Remove card frames */
           .print-tab-content {
             border: none !important;
             box-shadow: none !important;
             border-radius: 0 !important;
             padding: 0 !important;
             background: transparent !important;
-          }
-
-          /* 6. Let all inner content expand — remove overflow & height clipping */
-          .print-tab-content,
-          .print-tab-content * {
             overflow: visible !important;
             max-height: none !important;
           }
 
-          /* Hide position:fixed overlays (e.g. TaxEfficiencyTab disclaimer banner).
-             Fixed elements repeat on every print page — we don't want that. */
-          .fixed { display: none !important; visibility: hidden !important; }
+          /* Let block-level descendants expand — but leave SVG/canvas alone */
+          .print-tab-content div:not(.recharts-wrapper):not(.recharts-responsive-container),
+          .print-tab-content section,
+          .print-tab-content article,
+          .print-tab-content ul,
+          .print-tab-content ol,
+          .print-tab-content p {
+            overflow: visible !important;
+            max-height: none !important;
+          }
 
-          /* 7. Page breaks between sections */
+          /* Recharts charts: keep explicit height and overflow for SVG clipping */
+          .print-tab-content .recharts-responsive-container {
+            overflow: hidden !important;
+          }
+          .print-tab-content svg {
+            overflow: hidden !important;
+          }
+
+          /* Kill ALL position:fixed elements (disclaimers, navs, FABs, banners).
+             Fixed elements either repeat on every page or consume a full page. */
+          [style*="position: fixed"],
+          [style*="position:fixed"],
+          .fixed {
+            display: none !important;
+          }
+
+          /* Page breaks between sections */
           .page-break-before {
             page-break-before: always;
             break-before: page;
@@ -304,7 +340,7 @@ export default function PlanPrintAllView({
           .print-section-header { page-break-inside: avoid; }
           tr { page-break-inside: avoid; }
 
-          /* Withdrawal strategy comparison table: scale to fit PDF page width */
+          /* Withdrawal strategy comparison table */
           .print-strategy-comparison-table {
             width: 100% !important;
             max-width: 100% !important;
@@ -326,16 +362,14 @@ export default function PlanPrintAllView({
             font-size: inherit !important;
           }
 
-          /* SSA Cumulative Benefits chart: force new page so chart is not split */
+          /* SSA Cumulative Benefits chart: start on a new page */
           .print-ssa-cumulative-chart {
             page-break-before: always;
             padding-top: 1.5rem;
           }
 
-          /* 8. Page margins */
           @page { margin: 1.5cm; }
 
-          /* 9. Print colour accuracy */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -343,120 +377,113 @@ export default function PlanPrintAllView({
         }
       `}</style>
 
-      <div id="print-all-overlay">
-        <div className="max-w-5xl mx-auto px-6 pb-12">
+      <div className="max-w-5xl mx-auto px-6 pb-12">
 
-          {/* ── Static controls at the TOP (screen only) ── */}
-          <PrintControls
-            planName={planName}
-            pagesToRender={pagesToRender}
-            generatedAt={generatedAt}
-            countdown={countdown}
-            onPrint={doPrint}
-            onDismissCountdown={cancelAutoprint}
-            position="top"
-          />
+        {/* ── Static controls at the TOP (screen only) ── */}
+        <PrintControls
+          planName={planName}
+          pagesToRender={pagesToRender}
+          generatedAt={generatedAt}
+          countdown={countdown}
+          onPrint={doPrint}
+          onDismissCountdown={cancelAutoprint}
+          position="top"
+        />
 
-          {/* ── Print-only document header ── */}
-          <div className="print-header pt-6 pb-3 mb-4 border-b-2 border-gray-800">
-            <h1 className="text-2xl font-bold text-gray-900">{planName}</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Retirement Plan Report &nbsp;·&nbsp;
-              {new Date(generatedAt).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric',
-              })}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {pagesToRender.length} section{pagesToRender.length !== 1 ? 's' : ''}: {pagesToRender.map(id => PAGE_META[id]?.label).filter(Boolean).join(' · ')}
-            </p>
-          </div>
-
-          {/* ── Print-only opening disclaimer ── */}
-          <div className="print-disclaimer mb-6 rounded-lg border border-gray-300 bg-gray-50 px-4 py-3">
-            <p className="text-xs text-gray-600 italic">
-              <strong>Disclaimer:</strong> This report is for informational and planning purposes only.
-              Projections are estimates based on the assumptions entered and do not constitute financial advice.
-              Past performance does not guarantee future results. Consult a licensed financial advisor before
-              making investment decisions.
-            </p>
-          </div>
-
-          {/* ── All selected pages rendered in order ── */}
-          <ScenarioProvider planId={planId}>
-            {pagesToRender.map((pageId, index) => {
-              const meta = PAGE_META[pageId]
-              if (!meta) return null
-
-              return (
-                <div key={pageId} className="print-page-section">
-                  <SectionDivider
-                    label={meta.label}
-                    description={meta.description}
-                    index={index}
-                  />
-
-                  {/* Tab content rendered exactly as in the app */}
-                  <div className="mt-4 print-tab-content">
-                    {pageId === 'quick-analysis' && (
-                      <SnapshotTab
-                        planId={planId}
-                        onSwitchToAdvanced={() => {/* no-op in print context */}}
-                        onSwitchToPlanSetup={() => {/* no-op in print context */}}
-                      />
-                    )}
-                    {/* Projections — default columns, table view */}
-                    {pageId === 'details' && (
-                      <DetailsTab planId={planId} initialSubTab="projections" initialAllColumns initialViewMode="table" />
-                    )}
-                    {/* Withdrawal Strategy Modeling sub-tab */}
-                    {pageId === 'strategy-modeling' && (
-                      <DetailsTab planId={planId} initialSubTab="strategy-modeling" />
-                    )}
-                    {/* Scenario Modeling — net worth view */}
-                    {pageId === 'scenario-modeling' && (
-                      <ScenarioModelingTab planId={planId} initialModelType="networth" />
-                    )}
-                    {/* Scenario Modeling — monthly income view */}
-                    {pageId === 'scenario-modeling-income' && (
-                      <ScenarioModelingTab planId={planId} initialModelType="monthly_income" />
-                    )}
-                    {/* Monte Carlo — auto-runs the simulation once analysis is loaded */}
-                    {pageId === 'monte-carlo' && <AnalysisTab planId={planId} autoRunMonteCarlo />}
-                    {/* Roth Conversion — pre-expands the Total Net Savings details section */}
-                    {pageId === 'roth-conversion' && <TaxEfficiencyTab planId={planId} initialShowRothDetails />}
-                    {/* SSA Withdrawal Analysis standalone */}
-                    {pageId === 'ssa-analysis' && <SSAWithdrawalAnalysisTab planId={planId} />}
-                    {pageId === 'plan-details' && <PlanDetailsTab planId={planId} />}
-                    {pageId === 'other-income' && <OtherIncomeTab planId={planId} />}
-                    {pageId === 'other-tools' && <OtherToolsTab planId={planId} />}
-                  </div>
-                </div>
-              )
+        {/* ── Print-only document header ── */}
+        <div className="print-header pt-6 pb-3 mb-4 border-b-2 border-gray-800">
+          <h1 className="text-2xl font-bold text-gray-900">{planName}</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Retirement Plan Report &nbsp;·&nbsp;
+            {new Date(generatedAt).toLocaleDateString('en-US', {
+              year: 'numeric', month: 'long', day: 'numeric',
             })}
-          </ScenarioProvider>
-
-          {/* ── Closing disclaimer (print + screen) ── */}
-          <div className="mt-8 pt-4 border-t border-gray-200 print-disclaimer">
-            <p className="text-xs text-gray-400 italic">
-              <strong>Disclaimer:</strong> This report is for informational and planning purposes only.
-              Projections are estimates based on the assumptions entered and do not constitute financial advice.
-              Past performance does not guarantee future results. Consult a licensed financial advisor before
-              making investment decisions.
-            </p>
-          </div>
-
-          {/* ── Static controls at the BOTTOM (screen only) ── */}
-          <PrintControls
-            planName={planName}
-            pagesToRender={pagesToRender}
-            generatedAt={generatedAt}
-            countdown={countdown}
-            onPrint={doPrint}
-            onDismissCountdown={cancelAutoprint}
-            position="bottom"
-          />
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            {pagesToRender.length} section{pagesToRender.length !== 1 ? 's' : ''}: {pagesToRender.map(id => PAGE_META[id]?.label).filter(Boolean).join(' · ')}
+          </p>
         </div>
+
+        {/* ── Print-only opening disclaimer ── */}
+        <div className="print-disclaimer mb-6 rounded-lg border border-gray-300 bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-600 italic">
+            <strong>Disclaimer:</strong> This report is for informational and planning purposes only.
+            Projections are estimates based on the assumptions entered and do not constitute financial advice.
+            Past performance does not guarantee future results. Consult a licensed financial advisor before
+            making investment decisions.
+          </p>
+        </div>
+
+        {/* ── All selected pages rendered in order ── */}
+        <ScenarioProvider planId={planId}>
+          {pagesToRender.map((pageId, index) => {
+            const meta = PAGE_META[pageId]
+            if (!meta) return null
+
+            return (
+              <div key={pageId} className="print-page-section">
+                <SectionDivider
+                  label={meta.label}
+                  description={meta.description}
+                  index={index}
+                />
+
+                <div className="mt-4 print-tab-content">
+                  {pageId === 'quick-analysis' && (
+                    <SnapshotTab
+                      planId={planId}
+                      onSwitchToAdvanced={() => {}}
+                      onSwitchToPlanSetup={() => {}}
+                    />
+                  )}
+                  {pageId === 'details' && (
+                    <DetailsTab planId={planId} initialSubTab="projections" initialAllColumns initialViewMode="table" />
+                  )}
+                  {pageId === 'strategy-modeling' && (
+                    <DetailsTab planId={planId} initialSubTab="strategy-modeling" />
+                  )}
+                  {pageId === 'scenario-modeling' && (
+                    <ScenarioModelingTab planId={planId} initialModelType="networth" />
+                  )}
+                  {pageId === 'scenario-modeling-income' && (
+                    <ScenarioModelingTab planId={planId} initialModelType="monthly_income" />
+                  )}
+                  {pageId === 'monte-carlo' && <AnalysisTab planId={planId} autoRunMonteCarlo />}
+                  {pageId === 'roth-conversion' && <TaxEfficiencyTab planId={planId} initialShowRothDetails />}
+                  {pageId === 'ssa-analysis' && <SSAWithdrawalAnalysisTab planId={planId} />}
+                  {pageId === 'plan-details' && <PlanDetailsTab planId={planId} />}
+                  {pageId === 'other-income' && <OtherIncomeTab planId={planId} />}
+                  {pageId === 'other-tools' && <OtherToolsTab planId={planId} />}
+                </div>
+              </div>
+            )
+          })}
+        </ScenarioProvider>
+
+        {/* ── Closing disclaimer (print + screen) ── */}
+        <div className="mt-8 pt-4 border-t border-gray-200 print-disclaimer">
+          <p className="text-xs text-gray-400 italic">
+            <strong>Disclaimer:</strong> This report is for informational and planning purposes only.
+            Projections are estimates based on the assumptions entered and do not constitute financial advice.
+            Past performance does not guarantee future results. Consult a licensed financial advisor before
+            making investment decisions.
+          </p>
+        </div>
+
+        {/* ── Static controls at the BOTTOM (screen only) ── */}
+        <PrintControls
+          planName={planName}
+          pagesToRender={pagesToRender}
+          generatedAt={generatedAt}
+          countdown={countdown}
+          onPrint={doPrint}
+          onDismissCountdown={cancelAutoprint}
+          position="bottom"
+        />
       </div>
     </>
   )
+
+  if (!portalTarget) return null
+  return createPortal(content, portalTarget)
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getLocalPlanData, migrateLocalToSupabase } from '@/lib/storage/migration'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import { Upload, X, Loader2 } from 'lucide-react'
 
 /**
@@ -76,6 +77,19 @@ export default function LocalDataMigrationPrompt() {
         </Button>
         <Button size="sm" variant="ghost" onClick={handleDismiss} disabled={migrating}>
           Not now
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={migrating}
+          onClick={() => {
+            try { localStorage.removeItem('rp_local_plan') } catch {}
+            setHasLocalData(false)
+            toast.success('Try mode data cleared.')
+          }}
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          Clear Data
         </Button>
       </div>
     </div>
