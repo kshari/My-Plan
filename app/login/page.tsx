@@ -87,8 +87,11 @@ function LoginContent() {
           password,
         })
         if (error) throw error
-        router.push(nextParam)
-        router.refresh()
+        // Hard navigate so the browser sends the fresh session cookie to the
+        // server in the very first request — avoids the race where router.push()
+        // lands before the cookie is readable server-side, showing the
+        // unauthenticated page briefly.
+        window.location.href = nextParam
       }
     } catch (error: any) {
       toast.error(error.message || 'Authentication failed')
