@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, Check, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,11 +12,45 @@ interface JoinTeamClientProps {
   alreadyMember: boolean
 }
 
+const REDIRECT_SECONDS = 3
+
 export default function JoinTeamClient({ token, teamName, memberCount, alreadyMember }: JoinTeamClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [joined, setJoined] = useState(alreadyMember)
+  const [teamId, setTeamId] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Start the countdown + redirect whenever joined becomes true
+  useEffect(() => {
+    if (!joined) return
+
+    setCountdown(REDIRECT_SECONDS)
+
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownRef.current!)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current) }
+  }, [joined])
+
+  // Navigate once countdown hits 0
+  useEffect(() => {
+    if (countdown === 0) {
+      const destination = teamId
+        ? `/apps/property/teams/${teamId}`
+        : '/apps/property/teams'
+      router.push(destination)
+    }
+  }, [countdown, teamId, router])
 
   async function handleJoin() {
     setLoading(true)
@@ -29,8 +63,8 @@ export default function JoinTeamClient({ token, teamName, memberCount, alreadyMe
       })
       const json = await res.json()
       if (!res.ok) { setError(json.error ?? 'Failed to join team'); return }
+      setTeamId(json.teamId)
       setJoined(true)
-      setTimeout(() => router.push(`/apps/property/teams/${json.teamId}`), 1500)
     } catch {
       setError('Unexpected error. Please try again.')
     } finally {
@@ -57,8 +91,28 @@ export default function JoinTeamClient({ token, teamName, memberCount, alreadyMe
             <div>
               <h1 className="text-xl font-bold">You&apos;re in!</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                You&apos;ve {alreadyMember ? 'already joined' : 'joined'} <strong>{teamName}</strong>. Redirecting…
+                You&apos;ve {alreadyMember ? 'already joined' : 'joined'} <strong>{teamName}</strong>.
               </p>
+            </div>
+
+            {/* Countdown ring */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative flex h-14 w-14 items-center justify-center">
+                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 56 56">
+                  <circle cx="28" cy="28" r="24" fill="none" stroke="currentColor" strokeWidth="4" className="text-emerald-100 dark:text-emerald-900/40" />
+                  <circle
+                    cx="28" cy="28" r="24" fill="none" stroke="currentColor" strokeWidth="4"
+                    strokeDasharray={`${2 * Math.PI * 24}`}
+                    strokeDashoffset={`${2 * Math.PI * 24 * ((countdown ?? REDIRECT_SECONDS) / REDIRECT_SECONDS)}`}
+                    strokeLinecap="round"
+                    className="text-emerald-500 transition-all duration-1000 ease-linear"
+                  />
+                </svg>
+                <span className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {countdown ?? REDIRECT_SECONDS}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">Redirecting to Property Teams…</p>
             </div>
           </>
         ) : (

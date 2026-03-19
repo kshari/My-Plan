@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Target, Building2, Shield, Eye, EyeOff, ChevronDown, ChevronUp, Lock, ServerIcon, Globe, Lightbulb, Map, AlertTriangle, Activity } from 'lucide-react'
+import { Target, Building2, Shield, Eye, EyeOff, ChevronDown, ChevronUp, Lock, ServerIcon, Globe, Lightbulb, Map, AlertTriangle, Activity, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -55,10 +55,15 @@ function LoginContent() {
   const router = useRouter()
   const supabase = createClient()
 
-  // Open sign-up form when coming from ?signup=1 (e.g. from local mode "Sign up" links)
+  // Decode the post-login destination and context flags
+  const nextParam = searchParams.get('next') ?? '/'
+  const isInvite = searchParams.get('invite') === '1'
+
+  // Open sign-up form when coming from ?signup=1
+  // Invite links default to sign-in (user may already have an account)
   useEffect(() => {
     if (searchParams.get('signup') === '1') setIsSignUp(true)
-  }, [searchParams])
+  }, [searchParams, isInvite])
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,7 +75,8 @@ function LoginContent() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            // After email confirmation, send user to their intended destination
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`,
           },
         })
         if (error) throw error
@@ -81,7 +87,7 @@ function LoginContent() {
           password,
         })
         if (error) throw error
-        router.push('/')
+        router.push(nextParam)
         router.refresh()
       }
     } catch (error: any) {
@@ -96,7 +102,10 @@ function LoginContent() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          // Pass next through so the OAuth callback redirects correctly
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam)}`,
+        },
       })
       if (error) throw error
     } catch (error: any) {
@@ -309,6 +318,36 @@ function LoginContent() {
         </div>
 
         <div className="w-full max-w-sm">
+          {/* Invitation context banner */}
+          {isInvite && (
+            <div className="mb-5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3.5 flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
+                <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">You&apos;ve been invited to a team</p>
+                <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-0.5 leading-relaxed">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(false)}
+                    className={`underline underline-offset-2 transition-colors ${!isSignUp ? 'font-semibold text-emerald-800 dark:text-emerald-200' : 'hover:text-emerald-900 dark:hover:text-emerald-200'}`}
+                  >
+                    Sign in
+                  </button>
+                  {' '}or{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(true)}
+                    className={`underline underline-offset-2 transition-colors ${isSignUp ? 'font-semibold text-emerald-800 dark:text-emerald-200' : 'hover:text-emerald-900 dark:hover:text-emerald-200'}`}
+                  >
+                    create a free account
+                  </button>
+                  {' '}to accept the invitation and collaborate on shared properties.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="mb-6">
             <h2 className="text-2xl font-bold tracking-tight">
               {isSignUp ? 'Create your account' : 'Welcome back'}

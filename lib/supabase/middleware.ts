@@ -48,18 +48,24 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/signup') &&
-    !request.nextUrl.pathname.startsWith('/try')
+    !request.nextUrl.pathname.startsWith('/try') &&
+    !request.nextUrl.pathname.startsWith('/teams/join')
   ) {
-    // no user, potentially respond by redirecting the user to the login page
+    // no user — redirect to login and preserve intended destination as ?next=
     const url = request.nextUrl.clone()
+    const next = request.nextUrl.pathname + request.nextUrl.search
     url.pathname = '/login'
+    url.search = `?next=${encodeURIComponent(next)}`
     return NextResponse.redirect(url)
   }
 
-  // If user is authenticated and trying to access login, redirect to home
+  // If user is authenticated and trying to access login, redirect to intended
+  // destination (honoring ?next=) or fall back to home
   if (user && request.nextUrl.pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    const next = request.nextUrl.searchParams.get('next')
+    url.pathname = next && next.startsWith('/') ? next.split('?')[0] : '/'
+    url.search = next && next.includes('?') ? next.slice(next.indexOf('?')) : ''
     return NextResponse.redirect(url)
   }
 
