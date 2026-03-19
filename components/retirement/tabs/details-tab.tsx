@@ -1268,6 +1268,7 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
           const lifetimeExpenses = retirementProjections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
           const lifetimeHealthcare = retirementProjections.reduce((sum, p) => sum + (p.healthcare_expenses || 0), 0)
           const lifetimeLiving = retirementProjections.reduce((sum, p) => sum + (p.living_expenses || 0), 0)
+          const lifetimeSsaIncome = retirementProjections.reduce((sum, p) => sum + (p.ssa_income || 0), 0)
           
           // Total withdrawals
           const totalWithdrawals = total401kWithdrawals + totalRothWithdrawals + totalTaxableWithdrawals + totalIraWithdrawals + totalHsaWithdrawals
@@ -1542,6 +1543,12 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                     ${totalIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
                   <p className="text-[11px] text-foreground/60 mt-0.5">Total gross income during retirement</p>
+                  {lifetimeSsaIncome > 0 && (
+                    <div className="mt-2 flex gap-3 text-[11px] text-foreground/60">
+                      <span>SSA: ${lifetimeSsaIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                      <span>Other: ${(totalIncome - lifetimeSsaIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="rounded-xl border bg-muted/20 p-3 border-l-4 border-l-destructive">

@@ -726,7 +726,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                     <div className={`text-5xl font-bold tabular-nums leading-none ${srColor}`}>
                       {sr.toFixed(0)}%
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1.5 font-medium">Success rate</div>
+                    <div className="text-xs text-muted-foreground mt-1.5 font-medium">Probabilistic success rate</div>
                   </div>
 
                   {/* Context */}

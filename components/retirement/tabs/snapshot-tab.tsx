@@ -827,7 +827,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
     
     const calculationDetails = {
       monthlyIncomeCalculation: `Estimated income at retirement = first year of retirement after-tax income\n\nFirst year annual (after-tax): $${annualIncomeAtRetirementStart.toLocaleString(undefined, { maximumFractionDigits: 0 })}\nMonthly = Annual ÷ 12: $${Math.round(avgMonthlyIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nThis is your estimated after-tax income at the start of retirement (first year).`,
-      confidenceScoreCalculation: `Confidence Score = (1 - Shortfall Ratio) × 100\n\nTotal retirement years: ${totalYears}\nYears with shortfall (gap < -$1,000): ${yearsWithShortfall}\nShortfall ratio: ${(shortfallRatio * 100).toFixed(2)}%\n\nConfidence Score: ${confidenceScore}%\n\nThis score indicates the likelihood your plan will succeed based on how often you face income shortfalls.`,
+      confidenceScoreCalculation: `Plan Viability Score = (1 - Shortfall Ratio) × 100\n\nTotal retirement years: ${totalYears}\nYears with shortfall (gap < -$1,000): ${yearsWithShortfall}\nShortfall ratio: ${(shortfallRatio * 100).toFixed(2)}%\n\nPlan Viability Score: ${confidenceScore}%\n\n⚠️ This score is deterministic — it assumes your configured return rate holds every year with no volatility. A score of 100% means your plan is fully funded under steady returns, not that it is guaranteed.\n\nFor a probability-weighted view that accounts for market ups and downs, run the Monte Carlo simulation in the Analysis tab.`,
       yearsMoneyLastsCalculation: (() => {
         const retirementAge = settings.retirement_age
         if (fundsRunOutAge) {
@@ -840,7 +840,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
           return `Full Plan - Assets last beyond life expectancy\n\nRetirement Age: ${retirementAge}\nLife Expectancy: Age ${lifeExpectancy}\nNetworth at Life Expectancy: $${networthAtLifeExpectancy.toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nYour plan is fully funded. Assets will last beyond your life expectancy with an estimated $${networthAtLifeExpectancy.toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining at age ${lifeExpectancy}.`
         }
       })(),
-      statusCalculation: `Status is determined by Confidence Score:\n\n• On Track: Confidence Score ≥ 80%\n• Close: Confidence Score 60-79%\n• At Risk: Confidence Score < 60%\n\nYour score: ${confidenceScore}%\nYour status: ${status === 'on-track' ? 'On Track' : status === 'close' ? 'Close' : 'At Risk'}`,
+      statusCalculation: `Status is determined by Plan Viability Score:\n\n• On Track: Plan Viability Score ≥ 80%\n• Close: Plan Viability Score 60-79%\n• At Risk: Plan Viability Score < 60%\n\nYour score: ${confidenceScore}%\nYour status: ${status === 'on-track' ? 'On Track' : status === 'close' ? 'Close' : 'At Risk'}\n\n⚠️ This uses deterministic (flat-return) projections. Run Monte Carlo in the Analysis tab for a probability-weighted success rate.`,
       expenseCalculation: `Expense Calculation at Retirement Start:\n\nCurrent Year Expenses: $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\nYears to Retirement: ${yearsToRetirement}\nInflation Rate: ${(inflationRateDecimal * 100).toFixed(2)}%\n\nExpenses at Retirement Start = Current Expenses × (1 + Inflation Rate)^Years to Retirement\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} × (1 + ${(inflationRateDecimal * 100).toFixed(2)}%)^${yearsToRetirement}\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} × ${Math.pow(1 + inflationRateDecimal, yearsToRetirement).toFixed(4)}\nExpenses at Retirement Start = $${Math.round(expensesAtRetirementStart).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\n\nFirst Year Retirement Expenses: $${Math.round(firstYearLivingExpenses).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\n\nExpenses continue to inflate each year after retirement at ${(inflationRateDecimal * 100).toFixed(2)}% per year.`,
       legacyValueCalculation,
     }
@@ -1402,10 +1402,10 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                   </div>
                 </div>
 
-                {/* Confidence Score - Main Message */}
+                {/* Plan Viability Score - Main Message */}
                 <div className="mb-6">
                   <div className="flex items-center justify-center gap-2 mb-3">
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Confidence Score</h3>
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Plan Viability Score</h3>
                     {results.calculationDetails && (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1433,8 +1433,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                       />
                     </div>
                     <p className="text-xs text-gray-600 mt-1">
-                      {results.confidenceScore}% likelihood your plan will succeed
+                      {results.confidenceScore}% of retirement years are fully funded at your assumed return rate
                     </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5 italic">Assumes steady returns — run Monte Carlo for market-risk analysis</p>
                   </div>
                 </div>
 

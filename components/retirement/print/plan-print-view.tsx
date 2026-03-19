@@ -129,9 +129,9 @@ function PlanSummarySection({ metrics }: { metrics: Record<string, unknown> | nu
       <StatGrid
         stats={[
           {
-            label: 'Confidence Score',
+            label: 'Plan Viability Score',
             value: score(metrics.confidence_score as number),
-            sub: 'Retirement readiness',
+            sub: 'Steady-return projection',
           },
           {
             label: 'Monthly Income',
