@@ -16,6 +16,7 @@ import {
   Bot,
   FileUp,
   BarChart3,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -180,6 +181,19 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
                 Dashboard
+              </Link>
+              <Link
+                href="/apps/property/teams"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith("/apps/property/teams")
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                )}
+              >
+                <Users className="h-4 w-4 shrink-0" />
+                Teams
               </Link>
               <Link
                 href="/apps/property/imports"

@@ -6,6 +6,7 @@ import PropertyDetails from '@/components/property/property-details'
 import FinancialScenariosList from '@/components/property/financial-scenarios-list'
 import DeletePropertyButton from '@/components/property/delete-property-button'
 import { PropertyPdfDialog } from '@/components/property/property-pdf-dialog'
+import ShareBackButton from '@/components/property/teams/share-back-button'
 import { TrendingUp, DollarSign, BarChart3, Layers } from 'lucide-react'
 
 interface PropertyDetailPageProps {
@@ -33,6 +34,16 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     .select('*')
     .eq('Property ID', propertyId)
     .order('created_at', { ascending: false })
+
+  // Fetch user's teams for Share to Team button
+  const { data: memberships } = await supabase
+    .from('team_members')
+    .select('team_id, teams(id, name)')
+    .eq('user_id', user.id)
+
+  const teams = (memberships ?? [])
+    .filter(m => m.teams)
+    .map(m => m.teams as unknown as { id: string; name: string })
 
   const scenarioCount = scenarios?.length || 0
   let bestCapRate = 0
@@ -111,6 +122,9 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
             scenarioId={bestScenarioId}
             propertyName={property.address || undefined}
           />
+          {teams.length > 0 && (
+            <ShareBackButton propertyId={propertyId} teams={teams} />
+          )}
           <Link
             href={`/apps/property/properties/${propertyId}/edit`}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"

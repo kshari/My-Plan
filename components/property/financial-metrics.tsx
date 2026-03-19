@@ -1,6 +1,8 @@
 'use client'
 
 import { IRR_INITIAL_GUESS, IRR_TOLERANCE, IRR_MAX_ITERATIONS } from '@/lib/constants/property-defaults'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Info } from 'lucide-react'
 
 interface FinancialMetricsProps {
   scenario: any
@@ -102,22 +104,44 @@ export default function FinancialMetrics({ scenario, loan, showTitle = true }: F
     firstYearIRR = calculateIRR(cashFlows)
   }
 
-  const metrics = [
-    { label: 'Cap Rate', value: `${capRate.toFixed(2)}%`, highlight: true },
-    ...(firstYearIRR !== 0
-      ? [{ label: 'Year 1 IRR', value: `${firstYearIRR.toFixed(2)}%`, highlight: false }]
-      : []),
-    ...(hasLoan && debtServiceCoverageRatio !== null
-      ? [{ label: 'DSCR', value: `${debtServiceCoverageRatio.toFixed(2)}x`, highlight: false }]
-      : []),
-    ...(hasLoan
-      ? [{ label: 'Loan-to-Value', value: `${loanToValue.toFixed(2)}%`, highlight: false }]
-      : []),
-    { label: 'Gross Rent Multiplier', value: `${grossRentMultiplier.toFixed(2)}x`, highlight: false },
+  const metrics: { label: string; value: string; highlight: boolean; tip: string }[] = [
+    {
+      label: 'Cap Rate',
+      value: `${capRate.toFixed(2)}%`,
+      highlight: true,
+      tip: `Net Operating Income ÷ Purchase Price.\nMeasures the unleveraged return on the property. Higher is better.\n\nRule of thumb: ≥ 8% excellent · 5–8% good · < 5% low yield.\n\nYour NOI: $${noi.toLocaleString(undefined, { maximumFractionDigits: 0 })} ÷ $${purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${capRate.toFixed(2)}%`,
+    },
+    ...(firstYearIRR !== 0 ? [{
+      label: 'Year 1 IRR',
+      value: `${firstYearIRR.toFixed(2)}%`,
+      highlight: false,
+      tip: `Internal Rate of Return assuming the property is sold at the end of Year 1.\nCombines cash flow + equity position into a single annualised return.\n\nRule of thumb: ≥ 15% excellent · 10–15% good · < 10% low.\nCompare against other investments — stocks historically return ~10%/yr.`,
+    }] : []),
+    ...(hasLoan && debtServiceCoverageRatio !== null ? [{
+      label: 'DSCR',
+      value: `${debtServiceCoverageRatio.toFixed(2)}x`,
+      highlight: false,
+      tip: `Debt Service Coverage Ratio = NOI ÷ Annual Mortgage Payments.\nShows whether rental income covers the loan payments.\n\nRule of thumb: ≥ 1.25 strong · 1.0–1.25 tight · < 1.0 income doesn't cover debt (negative cash flow).\n\nLenders typically require ≥ 1.2 for investment property loans.`,
+    }] : []),
+    ...(hasLoan ? [{
+      label: 'Loan-to-Value',
+      value: `${loanToValue.toFixed(2)}%`,
+      highlight: false,
+      tip: `Loan Amount ÷ Purchase Price.\nIndicates how much of the property is financed vs. owned outright.\n\nRule of thumb: ≤ 75% conservative · 75–80% typical investment · > 80% higher risk, PMI may apply.\n\nLower LTV = more equity, less risk, better loan terms.`,
+    }] : []),
+    {
+      label: 'Gross Rent Multiplier',
+      value: `${grossRentMultiplier.toFixed(2)}x`,
+      highlight: false,
+      tip: `Purchase Price ÷ Annual Gross Income.\nA quick way to compare properties — lower means better value relative to income.\n\nRule of thumb: ≤ 8 excellent · 8–12 good · > 15 expensive relative to rent.\n\nDoes not account for expenses or financing — use alongside Cap Rate.`,
+    },
     {
       label: 'Total Cash Invested',
       value: `$${totalCashInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       highlight: false,
+      tip: hasLoan
+        ? `Down payment + loan closing costs + purchase closing costs.\nThis is the actual cash you need out-of-pocket at closing.\n\nUsed as the denominator in Cash-on-Cash Return and ROI calculations.`
+        : `Full purchase price + purchase closing costs.\nSince no loan is included, you're paying all-cash.\n\nUsed as the denominator in ROI calculations.`,
     },
   ]
 
@@ -125,7 +149,19 @@ export default function FinancialMetrics({ scenario, loan, showTitle = true }: F
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {metrics.map((m) => (
         <div key={m.label} className="rounded-lg border bg-muted/30 p-3">
-          <p className="text-xs text-muted-foreground">{m.label}</p>
+          <div className="flex items-center gap-1">
+            <p className="text-xs text-muted-foreground">{m.label}</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0" aria-label={`About ${m.label}`}>
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-left leading-relaxed whitespace-pre-line text-xs">
+                {m.tip}
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className={`mt-1 text-sm font-semibold tabular-nums ${m.highlight ? 'text-primary' : ''}`}>
             {m.value}
           </p>

@@ -4,17 +4,29 @@ import { useState } from 'react'
 import { Target, ArrowRight, LogIn, Map, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import RetirementCalculator from '@/components/retirement/retirement-calculator'
 import { ScenarioProvider } from '@/components/retirement/scenario-context'
 import SnapshotTab from '@/components/retirement/tabs/snapshot-tab'
 import { PlanStructureContent } from '@/components/retirement/plan-structure-content'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
 import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
+import { ClearDataDialog } from '@/components/layout/clear-data-dialog'
 
 export default function TryRetirementPage() {
   const [started, setStarted] = useState(false)
   const [showProjections, setShowProjections] = useState(false)
   const [showPlanStructure, setShowPlanStructure] = useState(false)
+  const [resetKey, setResetKey] = useState(0)
+  const [projectionsRefreshKey, setProjectionsRefreshKey] = useState(0)
+
+  function clearData() {
+    try { localStorage.removeItem('rp_local_plan') } catch {}
+    setShowProjections(false)
+    setShowPlanStructure(false)
+    setResetKey(k => k + 1)
+    toast.success('Browser data cleared. Calculator reset to defaults.')
+  }
 
   if (!started) {
     return (
@@ -121,6 +133,10 @@ export default function TryRetirementPage() {
               <Map className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Plan Structure</span>
             </Button>
+            <ClearDataDialog
+              onConfirm={clearData}
+              description="All retirement data saved in this browser will be permanently deleted and the calculator will reset to defaults."
+            />
             <Button variant="ghost" size="sm" asChild>
               <Link href="/login">Sign In</Link>
             </Button>
@@ -153,7 +169,10 @@ export default function TryRetirementPage() {
         {/* Calculator */}
         {!showPlanStructure && (
           <>
-            <RetirementCalculator onCalculateProjections={() => setShowProjections(true)} />
+            <RetirementCalculator key={resetKey} projectionsVisible={showProjections} onCalculateProjections={() => {
+              setShowProjections(true)
+              setProjectionsRefreshKey(k => k + 1)
+            }} />
 
             {/* Quick Projections */}
             {showProjections && (
@@ -162,6 +181,7 @@ export default function TryRetirementPage() {
                   <div className="p-4 sm:p-6">
                     <SnapshotTab
                       planId={0}
+                      refreshKey={projectionsRefreshKey}
                       onSwitchToAdvanced={() => {
                         setShowPlanStructure(true)
                         setShowProjections(false)

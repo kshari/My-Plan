@@ -1,10 +1,16 @@
 import { withAuth } from '@/lib/utils/route-handler'
 import { NextResponse } from 'next/server'
+import { checkBotId } from 'botid/server'
 
 const PROVIDERS = ['webllm', 'openai', 'gemini', 'gemini-api-key', 'claude'] as const
 const STATUSES = ['success', 'partial', 'error'] as const
 
 export const POST = withAuth(async (request, { user, supabase }) => {
+  const botCheck = await checkBotId()
+  if (botCheck.isBot) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+  }
+
   let body: {
     provider?: string
     model?: string

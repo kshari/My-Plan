@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { checkBotId } from 'botid/server'
 
 const VALID_COLUMNS = new Set([
   'address', 'city', 'county', 'type', 'Number of Units', 'Has HOA', 'swimming_pool', 'Asking Price',
@@ -22,6 +23,11 @@ export type RowResult = {
  * Returns per-row results so the client can show why rows were skipped.
  */
 export async function POST(request: Request) {
+  const botCheck = await checkBotId()
+  if (botCheck.isBot) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {

@@ -7,6 +7,7 @@ import type { AgentAction } from '@/lib/agent/actions'
 import { executeReadOrCalcTool } from '@/lib/agent/tool-executor'
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
+import { checkBotId } from 'botid/server'
 
 const SYSTEM_PROMPT = `You are a helpful financial assistant for the My Plan app. You help users understand and manage their data across three apps:
 
@@ -158,6 +159,11 @@ interface ClaudeResponse {
 }
 
 export const POST = withAuth(async (request, { user, supabase }) => {
+  const botCheck = await checkBotId()
+  if (botCheck.isBot) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+  }
+
   const start = Date.now()
   let body: { message?: string; provider?: string; history?: HistoryMessage[]; currentPage?: string }
   try {

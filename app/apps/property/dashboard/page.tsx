@@ -3,6 +3,8 @@ import { PAGE_CONTAINER } from '@/lib/constants/css'
 import Link from 'next/link'
 import PropertyList from '@/components/property/property-list'
 import PropertyPortfolioSummary from '@/components/property/portfolio-summary'
+import SharePropertiesDialog from '@/components/property/teams/share-properties-dialog'
+import { Share2 } from 'lucide-react'
 
 interface DashboardPageProps {
   searchParams: Promise<{ load?: string }>
@@ -12,7 +14,7 @@ export default async function PropertyDashboardPage({ searchParams }: DashboardP
   const params = await searchParams
   const { supabase, user } = await requireAuth()
 
-  const [{ data: properties, error }, { data: loads }] = await Promise.all([
+  const [{ data: properties, error }, { data: loads }, { data: memberships }] = await Promise.all([
     supabase
       .from('pi_properties')
       .select('*')
@@ -23,7 +25,24 @@ export default async function PropertyDashboardPage({ searchParams }: DashboardP
       .select('id, name')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('team_members')
+      .select('team_id, teams(id, name)')
+      .eq('user_id', user.id),
   ])
+
+  const teams = (memberships ?? [])
+    .filter(m => m.teams)
+    .map(m => m.teams as unknown as { id: string; name: string })
+
+  const propertySummaries = (properties ?? []).map(p => ({
+    id: p.id,
+    address: p.address,
+    city: p.city,
+    type: p.type,
+    listing_status: p.listing_status,
+    'Asking Price': p['Asking Price'],
+  }))
 
   return (
     <div className={PAGE_CONTAINER}>
@@ -38,6 +57,19 @@ export default async function PropertyDashboardPage({ searchParams }: DashboardP
           )}
         </div>
         <div className="flex items-center gap-2">
+          {teams.length > 0 && propertySummaries.length > 0 && teams.map(team => (
+            <SharePropertiesDialog
+              key={team.id}
+              teamId={team.id}
+              properties={propertySummaries}
+              trigger={
+                <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent transition-colors">
+                  <Share2 className="h-4 w-4" />
+                  Share to {team.name}
+                </button>
+              }
+            />
+          ))}
           <Link
             href="/apps/property/imports/upload"
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium shadow-xs hover:bg-accent transition-colors"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -12,6 +12,7 @@ import {
   Check,
   BarChart2,
   Info,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +21,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { toast } from 'sonner'
 import { formatCurrencyShort as fmt } from '@/lib/utils/formatting'
 import { MEDICARE_ELIGIBILITY_AGE, SSA_EARLIEST_ELIGIBILITY_AGE } from '@/lib/constants/retirement-defaults'
+import { calculateRetirementProjections, type Account, type Expense, type OtherIncome, type CalculatorSettings } from '@/lib/utils/retirement-projections'
 import { DEBOUNCE_SAVE_MS, SAVED_INDICATOR_MS } from '@/lib/constants/timing'
 import type { RetirementAssumptions } from '@/lib/types/retirement-assumptions'
 import { DEFAULT_RETIREMENT_ASSUMPTIONS } from '@/lib/types/retirement-assumptions'
@@ -75,20 +77,80 @@ function computeResult(a: RetirementAssumptions) {
     nestEggNeeded += yearNetNeed * discountFactor
   }
 
-  // Project savings by retirement
+  // Project savings by retirement (quick calculator model)
   const r = a.growthRatePreRetirement / 100
   const fvSavings = a.currentSavings * Math.pow(1 + r, yearsToRetirement)
   const fvContributions = r > 0
     ? a.annualContribution * ((Math.pow(1 + r, yearsToRetirement) - 1) / r)
     : a.annualContribution * yearsToRetirement
-  const projectedNestEgg = fvSavings + fvContributions
+  const projectedNestEggQuick = fvSavings + fvContributions
 
-  const surplus = projectedNestEgg - nestEggNeeded
+  // Drive "On track to have" from the same projection engine used by Quick Projections.
+  // This keeps the card value aligned with the projection table's retirement-year net worth.
+  let projectedNestEggFromProjection = projectedNestEggQuick
+  try {
+    const currentYear = new Date().getFullYear()
+    const birthYear = currentYear - a.age
+    const spouseBirthYear = a.includeSpouse ? currentYear - a.spouseAge : undefined
+
+    const accounts: Account[] = [{
+      account_name: 'Retirement Savings',
+      owner: 'Planner',
+      balance: a.currentSavings,
+      account_type: '401k',
+      annual_contribution: a.annualContribution,
+    }]
+
+    const expenses: Expense[] = [{
+      expense_name: 'Living Expenses',
+      amount_before_65: a.monthlyExpenses,
+      amount_after_65: a.monthlyExpenses,
+    }]
+
+    const otherIncome: OtherIncome[] = []
+    const settings: CalculatorSettings = {
+      current_year: currentYear,
+      retirement_age: a.retirementAge,
+      retirement_start_year: currentYear + yearsToRetirement,
+      years_to_retirement: yearsToRetirement,
+      annual_retirement_expenses: annualExpenses,
+      growth_rate_before_retirement: a.growthRatePreRetirement / 100,
+      growth_rate_during_retirement: a.growthRateDuringRetirement / 100,
+      inflation_rate: inflRate,
+      ssa_start_age: a.ssaStartAge,
+      pre_medicare_annual_premium: a.preMedicareAnnualPremium,
+      post_medicare_annual_premium: a.postMedicareAnnualPremium,
+      enable_borrowing: false,
+    }
+
+    const projections = calculateRetirementProjections(
+      birthYear,
+      accounts,
+      expenses,
+      otherIncome,
+      settings,
+      a.lifeExpectancy,
+      spouseBirthYear,
+      a.includeSpouse ? a.lifeExpectancy : undefined,
+      a.includeSsa,
+      a.includeSsa && a.includeSpouse,
+      a.includeSsa ? a.ssaAnnualBenefit : undefined,
+      (a.includeSsa && a.includeSpouse) ? a.spouseSsaBenefit : undefined,
+    )
+
+    const retirementProjection = projections.find((p) => p.age === a.retirementAge) ?? projections.find((p) => (p.age ?? 0) >= a.retirementAge)
+    projectedNestEggFromProjection = retirementProjection?.networth ?? projectedNestEggQuick
+  } catch {
+    // Keep quick-calculator value as fallback if projection engine fails.
+    projectedNestEggFromProjection = projectedNestEggQuick
+  }
+
+  const surplus = projectedNestEggFromProjection - nestEggNeeded
   const onTrack = surplus >= 0
 
   // Simulate how many years the projected nest egg would last
   let yearsLast = 0
-  let balance = projectedNestEgg
+  let balance = projectedNestEggQuick
   for (let yr = 0; yr < retirementYears + 20; yr++) {
     const currentAge = a.retirementAge + yr
     const inflationFactor = Math.pow(1 + inflRate, yearsToRetirement + yr)
@@ -122,7 +184,8 @@ function computeResult(a: RetirementAssumptions) {
 
   return {
     nestEggNeeded: Math.round(nestEggNeeded),
-    projectedNestEgg: Math.round(projectedNestEgg),
+    projectedNestEgg: Math.round(projectedNestEggQuick),
+    projectedNestEggFromProjection: Math.round(projectedNestEggFromProjection),
     surplus: Math.round(surplus),
     onTrack,
     yearsLast: Math.min(yearsLast, retirementYears),
@@ -145,9 +208,11 @@ function computeResult(a: RetirementAssumptions) {
 
 interface RetirementCalculatorProps {
   onCalculateProjections?: () => void
+  /** When true, projections are currently displayed — Update should also refresh them. */
+  projectionsVisible?: boolean
 }
 
-export default function RetirementCalculator({ onCalculateProjections }: RetirementCalculatorProps) {
+export default function RetirementCalculator({ onCalculateProjections, projectionsVisible = false }: RetirementCalculatorProps) {
   const router = useRouter()
   const supabase = createClient()
   const dataService = useOptionalDataService()
@@ -157,7 +222,20 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
   const [savingPlan, setSavingPlan] = useState(false)
   const [autoSaved, setAutoSaved] = useState(false)
   const [loadedFromDb, setLoadedFromDb] = useState(false)
+  const [formExpanded, setFormExpanded] = useState(false)
+  const [resultStale, setResultStale] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const calcTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Debounced result — only recompute hero numbers after the user stops typing (500 ms).
+  // This prevents rapid re-renders that shift card height and scroll position mid-edit.
+  const [result, setResult] = useState(() => computeResult(assumptions))
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  const recalculate = useCallback(() => {
+    if (calcTimer.current) clearTimeout(calcTimer.current)
+    setResult(computeResult(assumptions))
+    setResultStale(false)
+  }, [assumptions])
 
   // Load persisted assumptions on mount
   useEffect(() => {
@@ -255,7 +333,34 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
     [persistAssumptions]
   )
 
-  const result = useMemo(() => computeResult(assumptions), [assumptions])
+  // Full update: persist, recalc hero, refresh projections if visible
+  const handleUpdate = useCallback(async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    await persistAssumptions(assumptions)
+    if (calcTimer.current) clearTimeout(calcTimer.current)
+    setResult(computeResult(assumptions))
+    setResultStale(false)
+    if (projectionsVisible && onCalculateProjections) {
+      onCalculateProjections()
+    }
+  }, [assumptions, persistAssumptions, projectionsVisible, onCalculateProjections])
+
+  // Debounce hero recalculation — fires 500 ms after the user stops changing values.
+  // While the form is expanded, skip the update (hero is off-screen) and mark stale instead.
+  // When the form closes, immediately recalculate so the hero is fresh.
+  useEffect(() => {
+    if (formExpanded) {
+      if (calcTimer.current) clearTimeout(calcTimer.current)
+      setResultStale(true)
+      return
+    }
+    if (calcTimer.current) clearTimeout(calcTimer.current)
+    calcTimer.current = setTimeout(() => {
+      setResult(computeResult(assumptions))
+      setResultStale(false)
+    }, 500)
+    return () => { if (calcTimer.current) clearTimeout(calcTimer.current) }
+  }, [assumptions, formExpanded])
 
   const handleResetToDefaults = async () => {
     setAssumptions(DEFAULT_RETIREMENT_ASSUMPTIONS)
@@ -402,7 +507,7 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
   }
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div ref={cardRef} className="rounded-xl border bg-card overflow-hidden">
       {/* Hero answer */}
       <div className={`px-6 py-6 ${statusBg} border-b ${statusBorder}`}>
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -442,8 +547,8 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
             <p className="text-xs text-muted-foreground mt-1">
               saved by age {assumptions.retirementAge} to fund retirement through age {assumptions.lifeExpectancy}
             </p>
-            {/* How is this calculated — visible next to the amount */}
-            <div className="mt-3">
+            {/* How is this calculated / Update — visible next to the amount */}
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
               <button
                 type="button"
                 onClick={() => setShowHowCalculated((v) => !v)}
@@ -452,7 +557,19 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
                 {showHowCalculated ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 How is this calculated?
               </button>
-              {showHowCalculated && (
+              {resultStale && (
+                <button
+                  type="button"
+                  onClick={handleUpdate}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                  title="Assumptions changed — tap to update"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Update
+                </button>
+              )}
+            </div>
+            {showHowCalculated && (
                 <div className="mt-2 rounded-lg bg-background/80 border border-border/60 p-3 space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
                   <p>
                     <span className="opacity-70">1.</span>{' '}
@@ -505,11 +622,10 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
                 </div>
               )}
             </div>
-          </div>
           <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
             <div className="rounded-lg bg-background/60 px-3 py-2">
               <p className="text-[11px] text-muted-foreground">On track to have</p>
-              <p className="font-semibold">{fmt(result.projectedNestEgg)}</p>
+              <p className="font-semibold">{fmt(result.projectedNestEggFromProjection)}</p>
             </div>
             <div className="rounded-lg bg-background/60 px-3 py-2">
               <p className="text-[11px] text-muted-foreground">{result.onTrack ? 'Surplus' : 'Gap'}</p>
@@ -623,6 +739,15 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
             if (saveTimer.current) clearTimeout(saveTimer.current)
             saveTimer.current = setTimeout(() => persistAssumptions(next), DEBOUNCE_SAVE_MS)
           }}
+          expanded={formExpanded}
+          onExpandedChange={(open) => {
+            setFormExpanded(open)
+            if (open) {
+              setTimeout(() => {
+                cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+              }, 0)
+            }
+          }}
           result={{
             annualSsa: result.annualSsa,
             expensesAtRetirement: result.expensesAtRetirement,
@@ -634,6 +759,8 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
           onResetToDefaults={handleResetToDefaults}
           resetDisabled={saving}
           hideHowCalculated
+          onUpdate={handleUpdate}
+          updateLabel={projectionsVisible ? 'Update Calculator & Projections' : 'Update Calculator'}
         />
       </div>
 
@@ -650,6 +777,9 @@ export default function RetirementCalculator({ onCalculateProjections }: Retirem
             <Button onClick={async () => {
               if (saveTimer.current) clearTimeout(saveTimer.current)
               await persistAssumptions(assumptions)
+              if (calcTimer.current) clearTimeout(calcTimer.current)
+              setResult(computeResult(assumptions))
+              setResultStale(false)
               onCalculateProjections()
             }}>
               <BarChart2 className="h-3.5 w-3.5" />

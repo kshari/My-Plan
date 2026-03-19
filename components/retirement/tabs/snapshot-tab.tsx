@@ -72,9 +72,11 @@ interface SnapshotTabProps {
   planId: number
   onSwitchToAdvanced?: () => void
   onSwitchToPlanSetup?: () => void
+  /** Increment this value to force the tab to re-load and recalculate projections. */
+  refreshKey?: number
 }
 
-export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlanSetup }: SnapshotTabProps) {
+export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlanSetup, refreshKey = 0 }: SnapshotTabProps) {
   const supabase = createClient()
   const dataService = useOptionalDataService()
   const isLocal = dataService?.mode === 'local'
@@ -143,7 +145,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
 
   useEffect(() => {
     checkExistingData()
-  }, [planId, selectedScenarioId])
+  }, [planId, selectedScenarioId, refreshKey])
 
   const saveMetrics = async (r: {
     confidenceScore: number

@@ -14,7 +14,7 @@ const apps = [
   {
     id: 'pulse',
     name: 'Financial Pulse',
-    description: 'Interactive personal finance education with benchmarking, What-If scenarios, and monthly reflection.',
+    description: 'Interactive personal finance education with benchmarking, the Financial Learning Lab, and monthly reflection.',
     icon: Activity,
     authHref: '/apps/pulse/dashboard',
     tryHref: '/try/pulse',

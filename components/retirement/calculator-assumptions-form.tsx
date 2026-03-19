@@ -11,6 +11,7 @@ import {
   HeartPulse,
   Info,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -46,12 +47,22 @@ export interface CalculatorAssumptionsFormProps {
   formId?: string
   /** If true, form is always expanded (e.g. when used as the main Plan Inputs form). */
   defaultExpanded?: boolean
+  /** Controlled expanded state — when provided, the parent owns open/close. */
+  expanded?: boolean
+  /** Called when the user toggles open/close — paired with `expanded` for controlled mode. */
+  onExpandedChange?: (open: boolean) => void
   /** When provided, shows "Change to default assumptions" on the same line as "Change assumptions". */
   onResetToDefaults?: () => void
   /** Disable the reset button (e.g. while saving). */
   resetDisabled?: boolean
   /** When true, do not show the "How this is calculated" block (e.g. when the parent shows it near the amount). */
   hideHowCalculated?: boolean
+  /** Called when the form is expanded — allows the parent to scroll-anchor. */
+  onExpand?: () => void
+  /** When provided, shows an "Update" button at the bottom of the expanded form. */
+  onUpdate?: () => void
+  /** Label for the update button (defaults to "Update"). */
+  updateLabel?: string
 }
 
 const rowButtonClass =
@@ -67,11 +78,25 @@ export function CalculatorAssumptionsForm({
   saving = false,
   formId = 'calc',
   defaultExpanded = false,
+  expanded: controlledExpanded,
+  onExpandedChange,
   onResetToDefaults,
   resetDisabled = false,
   hideHowCalculated = false,
+  onExpand,
+  onUpdate,
+  updateLabel = 'Update',
 }: CalculatorAssumptionsFormProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded)
+  // Use controlled state when provided, otherwise fall back to internal state
+  const expanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded
+  const setExpanded = (open: boolean) => {
+    if (controlledExpanded !== undefined) {
+      onExpandedChange?.(open)
+    } else {
+      setInternalExpanded(open)
+    }
+  }
 
   const update = <K extends keyof RetirementAssumptions>(key: K, val: RetirementAssumptions[K]) => {
     onChange({ ...assumptions, [key]: val })
@@ -85,7 +110,11 @@ export function CalculatorAssumptionsForm({
         <div className="flex w-full items-center flex-wrap gap-x-8 gap-y-2 min-w-0">
           <button
             type="button"
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => {
+              const opening = !expanded
+              setExpanded(opening)
+              if (opening) onExpand?.()
+            }}
             className={`flex items-center gap-1.5 ${rowButtonClass}`}
           >
             <span>Change assumptions</span>
@@ -334,6 +363,18 @@ export function CalculatorAssumptionsForm({
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
+                </Button>
+              </div>
+            </>
+          )}
+
+          {!showSaveButton && onUpdate && (
+            <>
+              <Separator />
+              <div className="flex justify-end">
+                <Button onClick={onUpdate} className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  {updateLabel}
                 </Button>
               </div>
             </>

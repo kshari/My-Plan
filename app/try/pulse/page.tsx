@@ -15,6 +15,8 @@ import { ProfileForm } from '@/components/pulse/profile-form'
 import { SCENARIO_METADATA } from '@/lib/constants/pulse-defaults'
 import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
+import { toast } from 'sonner'
+import { ClearDataDialog } from '@/components/layout/clear-data-dialog'
 
 const LOCAL_KEY = 'fp_local_profile'
 
@@ -39,6 +41,13 @@ export default function TryPulsePage() {
     setProfile(p)
     try { localStorage.setItem(LOCAL_KEY, JSON.stringify(p)) } catch {}
   }, [])
+
+  function clearData() {
+    try { localStorage.removeItem(LOCAL_KEY) } catch {}
+    setProfile(EMPTY_PROFILE)
+    setShowProfile(false)
+    toast.success('Browser data cleared.')
+  }
 
   const comparisons = useBenchmarks(profile.annual_gross_income > 0 ? profile : null)
   const score = useResilienceScore(profile.annual_gross_income > 0 ? profile : null)
@@ -73,10 +82,16 @@ export default function TryPulsePage() {
             <span className="font-bold tracking-tight">Financial Pulse</span>
             <span className="rounded-full bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 text-[10px] font-semibold text-orange-600 dark:text-orange-400">Try Mode</span>
           </div>
-          <Link href="/login">
-            <Button variant="outline" size="sm">Sign In</Button>
-          </Link>
-          <FontScaleToggle variant="inline" />
+          <div className="flex items-center gap-2">
+            <ClearDataDialog
+              onConfirm={clearData}
+              description="All Financial Pulse data saved in this browser will be permanently deleted."
+            />
+            <FontScaleToggle variant="inline" />
+            <Link href="/login">
+              <Button variant="outline" size="sm">Sign In</Button>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -88,7 +103,7 @@ export default function TryPulsePage() {
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Try Financial Pulse</h1>
             <p className="mx-auto max-w-md text-muted-foreground">
-              Enter a few financial details below to see how you compare to peers and explore interactive What-If scenarios.
+              Enter a few financial details below to see how you compare to peers and explore the interactive Financial Learning Lab.
             </p>
             <Button size="lg" className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setShowProfile(true)}>
               Get Started
@@ -136,7 +151,7 @@ export default function TryPulsePage() {
 
         {/* Scenarios — always shown */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">What-If Scenarios</h2>
+          <h2 className="text-lg font-semibold mb-3">Financial Learning Lab</h2>
           <p className="text-sm text-muted-foreground mb-4">Drag sliders, watch charts move, build financial intuition.</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {SCENARIO_METADATA.map((s) => {

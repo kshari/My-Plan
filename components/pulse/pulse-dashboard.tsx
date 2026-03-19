@@ -191,7 +191,7 @@ export function PulseDashboard({ userId }: PulseDashboardProps) {
           ) : (
             <>
               <p className="mx-auto max-w-md text-muted-foreground">
-                Set up your financial profile to unlock personalized benchmarks, What-If scenarios, and monthly reflections.
+                Set up your financial profile to unlock personalized benchmarks, the Financial Learning Lab, and monthly reflections.
               </p>
               <Link href="/apps/pulse/profile">
                 <Button size="lg" className="bg-orange-600 hover:bg-orange-700 text-white mt-2">
@@ -339,6 +339,18 @@ export function PulseDashboard({ userId }: PulseDashboardProps) {
               >
                 Dismiss
               </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  try { localStorage.removeItem('fp_local_profile') } catch {}
+                  handleDismissImport()
+                  toast.success('Try mode data cleared.')
+                }}
+                className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                Clear Data
+              </Button>
             </div>
           </div>
           <button
@@ -375,7 +387,7 @@ export function PulseDashboard({ userId }: PulseDashboardProps) {
 
       {/* Quick scenario links */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">What-If Scenarios</h2>
+        <h2 className="text-lg font-semibold mb-3">Financial Learning Lab</h2>
         <p className="text-sm text-muted-foreground mb-4">Drag sliders, watch charts move, build intuition.</p>
         <Link href="/apps/pulse/scenarios">
           <Button variant="outline">Explore All Scenarios</Button>
