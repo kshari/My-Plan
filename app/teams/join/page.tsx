@@ -9,11 +9,12 @@ interface JoinPageProps {
 export default async function JoinTeamPage({ searchParams }: JoinPageProps) {
   const { token } = await searchParams
 
-  // Require auth
+  // Require auth — preserve the full invite URL as the post-login destination
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect(`/login?next=/teams/join${token ? `?token=${token}` : ''}`)
+    const next = token ? `/teams/join?token=${encodeURIComponent(token)}` : '/teams/join'
+    redirect(`/login?next=${encodeURIComponent(next)}&invite=1`)
   }
 
   if (!token) {
@@ -27,14 +28,14 @@ export default async function JoinTeamPage({ searchParams }: JoinPageProps) {
     )
   }
 
-  // Look up invitation
+  // Look up invitation (RLS allows: status = 'pending' AND expires_at > now())
   const { data: invitation } = await supabase
     .from('team_invitations')
-    .select('team_id, status, expires_at, teams(id, name)')
+    .select('team_id, status, expires_at')
     .eq('invite_token', token)
     .single()
 
-  if (!invitation || !invitation.teams) {
+  if (!invitation) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-2">
@@ -56,7 +57,25 @@ export default async function JoinTeamPage({ searchParams }: JoinPageProps) {
     )
   }
 
-  const team = invitation.teams as unknown as { id: string; name: string }
+  // Fetch the team separately — the user is not a member yet so the nested join
+  // above would be blocked by RLS. We use a direct select by id; the new RLS
+  // policy "Anyone with valid invitation can view team" allows this.
+  const { data: team } = await supabase
+    .from('teams')
+    .select('id, name')
+    .eq('id', invitation.team_id)
+    .single()
+
+  if (!team) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold">Team not found</p>
+          <p className="text-sm text-muted-foreground">The team associated with this invitation no longer exists.</p>
+        </div>
+      </div>
+    )
+  }
 
   // Check if already a member
   const { data: existing } = await supabase
