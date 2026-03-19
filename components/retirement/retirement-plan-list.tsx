@@ -156,7 +156,7 @@ export default function RetirementPlanList({ plans, metrics = [], ssaStartAgeByP
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">Retire at</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">Life exp.</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">SSA at</th>
-            <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Confidence</th>
+            <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Viability</th>
             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Monthly Income</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Longevity</th>
             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Networth At Retirement</th>
@@ -211,7 +211,7 @@ export default function RetirementPlanList({ plans, metrics = [], ssaStartAgeByP
                   {ssaStartAgeByPlanId[plan.id] != null ? ssaStartAgeByPlanId[plan.id] : dash}
                 </td>
 
-                {/* Confidence score */}
+                {/* Viability score (deterministic) */}
                 <td className="px-4 py-3 text-center hidden md:table-cell">
                   {hasMetrics && m.confidence_score != null ? (
                     <span className={`font-semibold ${

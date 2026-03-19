@@ -25,11 +25,14 @@ import {
   type Expense,
   type OtherIncome,
 } from '@/lib/utils/retirement-projections'
+import { ssaClaimingMultiplier } from '@/lib/constants/ssa-constants'
 import {
   DEFAULT_RETIREMENT_AGE,
   DEFAULT_LIFE_EXPECTANCY,
   DEFAULT_INFLATION_RATE,
   DEFAULT_INFLATION_RATE_PCT,
+  DEFAULT_SSA_ANNUAL_BENEFIT,
+  DEFAULT_SPOUSE_SSA_BENEFIT,
   SAFE_WITHDRAWAL_RATE,
 } from '@/lib/constants/retirement-defaults'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -70,6 +73,7 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
   const [lifeExpectancy, setLifeExpectancy] = useState<number>(90)
   const [settingsData, setSettingsData] = useState<any>(null)
   const [estimatedSSAIncome, setEstimatedSSAIncome] = useState<number | null>(null)
+  const [estimatedSpouseSSAIncome, setEstimatedSpouseSSAIncome] = useState<number | null>(null)
   
   // Growth rate range
   const minGrowthRate = 3
@@ -142,7 +146,6 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
 
       // Generate data for each retirement age and growth rate combination
       const data: any[] = []
-      let ssaIncomeCalculated = false // Track if we've calculated SSA income
       
       // Calculate estimated SSA amounts at start age
       const includePlannerSsa = settingsResult.data?.planner_ssa_income !== undefined ? settingsResult.data.planner_ssa_income : true
@@ -157,16 +160,38 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
       const isMarriedFilingJointly = plan.filing_status === 'Married Filing Jointly'
       const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
       
-      const baseEstimatedPlannerSsa = includePlannerSsa ? calculateEstimatedSSA(0, true) : 0
-      const baseEstimatedSpouseSsa = includeSpouseSsa ? calculateEstimatedSSA(0, false) : 0
+      const baseEstimatedPlannerSsa = includePlannerSsa
+        ? (settingsResult.data?.planner_ssa_annual_benefit != null
+            ? Number(settingsResult.data.planner_ssa_annual_benefit)
+            : (settingsResult.data?.estimated_ssa_annual_income > 0
+                ? calculateEstimatedSSA(Number(settingsResult.data.estimated_ssa_annual_income), true)
+                : DEFAULT_SSA_ANNUAL_BENEFIT))
+        : 0
+      const baseEstimatedSpouseSsa = includeSpouseSsa
+        ? (settingsResult.data?.spouse_ssa_annual_benefit != null
+            ? Number(settingsResult.data.spouse_ssa_annual_benefit)
+            : (settingsResult.data?.estimated_ssa_annual_income > 0
+                ? calculateEstimatedSSA(Number(settingsResult.data.estimated_ssa_annual_income), false)
+                : DEFAULT_SPOUSE_SSA_BENEFIT))
+        : 0
       
       const ssaStartAge = settingsResult.data?.ssa_start_age || settingsResult.data?.retirement_age || DEFAULT_RETIREMENT_AGE
-      const yearsToSsaStart = Math.max(0, ssaStartAge - calcCurrentAge)
+      // Use the same current_year the projection engine uses (may be stored in DB, else real year)
+      const projectionCurrentYear = settingsResult.data?.current_year || currentYear
+      const projectionCurrentAge = projectionCurrentYear - plan.birth_year
+      const yearsToSsaStart = Math.max(0, ssaStartAge - projectionCurrentAge)
       const inflationRate = parseFloat(settingsResult.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE))
       const inflationToSsaStart = Math.pow(1 + inflationRate, yearsToSsaStart)
-      
+      // Apply early-claiming reduction (permanent reduction when claiming before FRA 67)
+      const claimingMultiplier = ssaClaimingMultiplier(ssaStartAge)
+
+      // Values passed to the engine: inflation-adjusted only (engine applies claiming multiplier itself)
       const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
       const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
+
+      // Display values: inflation-adjusted AND claiming multiplier applied (matching snapshot tooltip formula)
+      setEstimatedSSAIncome(estimatedPlannerSsaAtStart != null ? estimatedPlannerSsaAtStart * claimingMultiplier : null)
+      setEstimatedSpouseSSAIncome(estimatedSpouseSsaAtStart != null ? estimatedSpouseSsaAtStart * claimingMultiplier : null)
       
       // X-axis: from current age + 1 to 65
       const maxRetirementAge = 65
@@ -212,16 +237,6 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
               estimatedPlannerSsaAtStart,
               estimatedSpouseSsaAtStart
             )
-
-            // Calculate estimated SSA income from first projection (once)
-            if (!ssaIncomeCalculated && projections.length > 0) {
-              // Find first retirement year projection with SSA income
-              const retirementProjection = projections.find(p => p.age >= retirementAge && p.ssa_income)
-              if (retirementProjection?.ssa_income) {
-                setEstimatedSSAIncome(retirementProjection.ssa_income)
-                ssaIncomeCalculated = true
-              }
-            }
 
             // Get ending networth (networth at life expectancy)
             const endingNetworth = projections[projections.length - 1]?.networth || 0
@@ -599,9 +614,18 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
               {settingsData?.planner_ssa_income !== false ? 'Included' : 'Not included'}
               {planData?.include_spouse && settingsData?.spouse_ssa_income !== false ? ' (Planner + Spouse)' : ''}
               {settingsData?.ssa_start_age ? ` starting at age ${settingsData.ssa_start_age}` : ` starting at retirement age ${settingsData?.retirement_age || DEFAULT_RETIREMENT_AGE} (default)`}
-              {estimatedSSAIncome !== null && estimatedSSAIncome > 0 && (
-                <> - Estimated: ${estimatedSSAIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</>
-              )}
+              {(() => {
+                const planner = estimatedSSAIncome ?? 0
+                const spouse = estimatedSpouseSSAIncome ?? 0
+                const combined = planner + spouse
+                if (combined <= 0) return null
+                if (planner > 0 && spouse > 0) {
+                  return (
+                    <> - Estimated: ${combined.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year (Planner: ${planner.toLocaleString(undefined, { maximumFractionDigits: 0 })} + Spouse: ${spouse.toLocaleString(undefined, { maximumFractionDigits: 0 })})</>
+                  )
+                }
+                return <> - Estimated: ${combined.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</>
+              })()}
             </span>
           </div>
           <div>
