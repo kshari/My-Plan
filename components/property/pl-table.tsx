@@ -1,7 +1,20 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import { IRR_INITIAL_GUESS, IRR_TOLERANCE, IRR_MAX_ITERATIONS, BALANCE_THRESHOLD } from '@/lib/constants/property-defaults'
+import { Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const DEFAULT_GROWTH_RATE = 3
+
+/** Format a dollar amount compactly: $34,860 → $34.9K, $1,200,000 → $1.2M */
+function fmtCompact(v: number): string {
+  const abs = Math.abs(v)
+  const sign = v < 0 ? '-' : ''
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`
+  return `${sign}$${abs.toFixed(0)}`
+}
 
 interface PLTableProps {
   scenario: any
@@ -64,12 +77,41 @@ function calculateIRR(cashFlows: number[]): number {
 }
 
 export default function PLTable({ scenario, years }: PLTableProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [showScrollHint, setShowScrollHint] = useState(true)
   const purchasePrice = parseFloat(scenario['Purchase Price']?.toString() || '0') || 0
   const baseGrossIncome = parseFloat(scenario['Gross Income']?.toString() || '0') || 0
   const baseOperatingExpenses = parseFloat(scenario['Operating Expenses']?.toString() || '0') || 0
-  const incomeIncreasePercent = parseFloat(scenario['Income Increase']?.toString() || '0') || 0
-  const expensesIncreasePercent = parseFloat(scenario['Expenses Increase']?.toString() || '0') || 0
-  const propertyValueIncreasePercent = parseFloat(scenario['Property Value Increase']?.toString() || '0') || 0
+
+  // Seed growth rates from scenario if saved, otherwise fall back to default 3%
+  const scenarioIncomeIncrease = parseFloat(scenario['Income Increase']?.toString() || '')
+  const scenarioExpensesIncrease = parseFloat(scenario['Expenses Increase']?.toString() || '')
+  const scenarioPropertyIncrease = parseFloat(scenario['Property Value Increase']?.toString() || '')
+
+  const [rentGrowth, setRentGrowth] = useState<string>(
+    !isNaN(scenarioIncomeIncrease) && scenarioIncomeIncrease > 0
+      ? scenarioIncomeIncrease.toString()
+      : DEFAULT_GROWTH_RATE.toString()
+  )
+  const [expenseGrowth, setExpenseGrowth] = useState<string>(
+    !isNaN(scenarioExpensesIncrease) && scenarioExpensesIncrease > 0
+      ? scenarioExpensesIncrease.toString()
+      : DEFAULT_GROWTH_RATE.toString()
+  )
+  const [propertyGrowth, setPropertyGrowth] = useState<string>(
+    !isNaN(scenarioPropertyIncrease) && scenarioPropertyIncrease > 0
+      ? scenarioPropertyIncrease.toString()
+      : DEFAULT_GROWTH_RATE.toString()
+  )
+
+  const incomeIncreasePercent = parseFloat(rentGrowth) || 0
+  const expensesIncreasePercent = parseFloat(expenseGrowth) || 0
+  const propertyValueIncreasePercent = parseFloat(propertyGrowth) || 0
+
+  // Whether these differ from what the scenario has saved (to show a note)
+  const scenarioHasSavedRates =
+    !isNaN(scenarioIncomeIncrease) && scenarioIncomeIncrease > 0 &&
+    !isNaN(scenarioExpensesIncrease) && scenarioExpensesIncrease > 0
   const hasLoan = scenario['Has Loan'] || false
   const loanTerm = parseInt(scenario['Loan Term']?.toString() || '0') || 0
   const interestRate = parseFloat(scenario['Interest Rate']?.toString() || '0') || 0
@@ -200,13 +242,81 @@ export default function PLTable({ scenario, years }: PLTableProps) {
     }
 
     return data
-  }, [scenario, displayYears, purchasePrice, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage])
+  }, [scenario, displayYears, purchasePrice, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage, totalCashInvested])
 
   const totalClosingCosts = loanClosingCosts + purchaseClosingCosts
 
   return (
     <div className="rounded-xl border bg-card p-6">
       <h3 className="mb-4 text-base font-semibold">Annual Projections (Year by Year)</h3>
+
+      {/* Growth rate controls */}
+      <div className="mb-5 rounded-lg border border-border/60 bg-muted/20 p-4">
+        <div className="flex flex-wrap items-center gap-1 mb-3">
+          <span className="text-sm font-medium">Growth &amp; Appreciation Rates</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" className="text-muted-foreground/50 hover:text-muted-foreground">
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs">
+              These rates compound year-over-year. They pre-fill from your saved scenario if one exists, otherwise default to {DEFAULT_GROWTH_RATE}%. Changing them here only affects what you see in this table.
+            </TooltipContent>
+          </Tooltip>
+          {scenarioHasSavedRates && (
+            <span className="ml-auto text-xs text-muted-foreground italic">Pre-filled from saved scenario</span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              label: 'Rent Growth / yr',
+              value: rentGrowth,
+              setter: setRentGrowth,
+              tip: 'How much rental income grows each year (e.g. 3% = rent increases 3% annually).',
+            },
+            {
+              label: 'Cost Growth / yr',
+              value: expenseGrowth,
+              setter: setExpenseGrowth,
+              tip: 'How much operating costs (taxes, insurance, maintenance) rise each year.',
+            },
+            {
+              label: 'Appreciation / yr',
+              value: propertyGrowth,
+              setter: setPropertyGrowth,
+              tip: 'How much the property value increases per year — affects your equity column.',
+            },
+          ].map(({ label, value, setter, tip }) => (
+            <div key={label} className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <label className="text-xs font-medium text-muted-foreground">{label}</label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground">
+                      <Info className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">{tip}</TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={-20}
+                  max={30}
+                  step={0.5}
+                  value={value}
+                  onChange={e => setter(e.target.value)}
+                  className="w-20 rounded-md border border-input bg-background px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="mb-4 rounded-lg bg-muted/30 p-4">
         <div className="mb-2 font-semibold">Your Upfront Cash</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -247,72 +357,68 @@ export default function PLTable({ scenario, years }: PLTableProps) {
           )}
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border">
+      {/* Table with sticky year column + compact numbers */}
+      <div
+        ref={scrollRef}
+        onScroll={() => setShowScrollHint(false)}
+        className="relative overflow-x-auto"
+      >
+        {/* Scroll hint gradient – fades once user starts scrolling */}
+        {showScrollHint && (
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-card to-transparent z-10 rounded-r-xl" />
+        )}
+        <table className="min-w-full divide-y divide-border text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Year</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Rental Income</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Running Costs</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Profit Before Mortgage</th>
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Mortgage Interest</th>}
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Loan Repaid</th>}
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Net Income (after interest)</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash in Pocket</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash Return %</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Property Value – Loan (Equity)</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Return % (IRR)</th>
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Loan Remaining</th>}
+              {/* Sticky year header */}
+              <th className="sticky left-0 z-20 bg-muted/50 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Yr</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Rental<br/>Income</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Running<br/>Costs</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Profit<br/>Pre-Mortgage</th>
+              {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Mortgage<br/>Interest</th>}
+              {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Loan<br/>Repaid</th>}
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Net<br/>Income</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cash in<br/>Pocket</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cash<br/>Return %</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Equity</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Total<br/>Return %</th>
+              {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Loan<br/>Left</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {plData.map((row) => (
               <tr key={row.year} className="hover:bg-muted/50">
-                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">{row.year}</td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
-                  ${row.grossIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
-                  ${row.operatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                  ${row.noi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
+                {/* Sticky year cell */}
+                <td className="sticky left-0 z-10 bg-card whitespace-nowrap px-4 py-3 text-sm font-semibold">{row.year}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.grossIncome)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.operatingExpenses)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.noi)}</td>
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
-                    ${row.interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.interest)}</td>
                 )}
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
-                    ${row.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.principal)}</td>
                 )}
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                  ${row.netIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.netIncome)}</td>
+                <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-semibold ${row.cashFlow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                  {fmtCompact(row.cashFlow)}
                 </td>
-                <td className={`whitespace-nowrap px-6 py-4 text-right text-sm font-semibold ${row.cashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${row.cashFlow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium ${row.cashOnCashReturn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                  {row.cashOnCashReturn.toFixed(1)}%
                 </td>
-                <td className={`whitespace-nowrap px-6 py-4 text-right text-sm font-medium ${row.cashOnCashReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {row.cashOnCashReturn.toFixed(2)}%
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
-                  ${row.equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td className={`whitespace-nowrap px-6 py-4 text-right text-sm font-medium ${row.irr >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {row.irr.toFixed(2)}%
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.equity)}</td>
+                <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium ${row.irr >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                  {row.irr.toFixed(1)}%
                 </td>
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-muted-foreground">
-                    ${Math.max(0, row.remainingLoanBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(Math.max(0, row.remainingLoanBalance))}</td>
                 )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground text-right">Numbers in $K / $M — hover cells for full value</p>
     </div>
   )
 }
