@@ -58,6 +58,8 @@ interface Property {
 
 interface RecommendedScenariosListProps {
   property: Property
+  /** Use team_shared_* tables (shared property id from team_shared_properties) */
+  variant?: 'personal' | 'team'
 }
 
 interface Scenario {
@@ -157,9 +159,13 @@ function calculateLoanCashFlow(
   }
 }
 
-export default function RecommendedScenariosList({ property }: RecommendedScenariosListProps) {
+export default function RecommendedScenariosList({
+  property,
+  variant = 'personal',
+}: RecommendedScenariosListProps) {
   const router = useRouter()
   const supabase = createClient()
+  const isTeam = variant === 'team'
 
   const [minInterestRate, setMinInterestRate] = useState(String(DEFAULT_INTEREST_RATE_MIN))
   const [maxInterestRate, setMaxInterestRate] = useState(String(DEFAULT_INTEREST_RATE_MAX))
@@ -481,6 +487,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   const saveScenario = async (scenario: Scenario, scenarioName?: string) => {
     setSavingScenarioId(scenario.id)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+
       const closingPct = parseValue(closingCostPercent, DEFAULT_CLOSING_COST_PCT)
       const purchaseClosingCosts = scenario.purchasePrice * (closingPct / 100)
       const loanClosingCosts = scenario.hasLoan && scenario.loanPrincipal
@@ -494,7 +503,6 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         'Cap Rate': scenario.capRate,
         'Net Income': scenario.hasLoan ? scenario.noi - scenario.firstYearInterest : scenario.noi,
         'Income Increase': 0, 'Expenses Increase': 0, 'Property Value Increase': 0,
-        'Property ID': property.id,
         'Has Loan': scenario.hasLoan,
         'Loan Term': scenario.hasLoan && scenario.loanTerm ? scenario.loanTerm : null,
         'Down Payment Percentage': scenario.hasLoan && scenario.downPaymentPercent ? scenario.downPaymentPercent : null,
@@ -504,11 +512,20 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         'Purchase Closing Costs': purchaseClosingCosts,
       }
 
-      const { data, error } = await supabase.from('pi_financial_scenarios').insert([scenarioData]).select().single()
+      if (isTeam) {
+        scenarioData.shared_property_id = property.id
+        scenarioData.shared_by = user.id
+        scenarioData.last_updated_by = user.id
+      } else {
+        scenarioData['Property ID'] = property.id
+      }
+
+      const table = isTeam ? 'team_shared_scenarios' : 'pi_financial_scenarios'
+      const { data, error } = await supabase.from(table).insert([scenarioData]).select().single()
       if (error) throw error
 
       if (scenario.hasLoan && scenario.loanTerm && scenario.interestRate && scenario.monthlyMortgage) {
-        await supabase.from('pi_loans').insert([{
+        const loanRow: Record<string, unknown> = {
           'Loan Term': scenario.loanTerm,
           'Down Payment Percentage': scenario.downPaymentPercent,
           'Down Payment Amount': scenario.downPaymentAmount,
@@ -521,8 +538,14 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
           'Annual Mortgage': scenario.monthlyMortgage * 12,
           'Annual Principal': scenario.firstYearPrincipal,
           'Annual Interest': scenario.firstYearInterest,
-          'scenario_id': data.id,
-        }])
+        }
+        if (isTeam) {
+          loanRow.shared_scenario_id = data.id
+          await supabase.from('team_shared_loans').insert([loanRow])
+        } else {
+          loanRow.scenario_id = data.id
+          await supabase.from('pi_loans').insert([loanRow])
+        }
       }
       toast.success(`Scenario "${scenarioData['Scenario Name']}" saved!`)
       router.refresh()
@@ -537,6 +560,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
     if (threshold.thresholdValue === null) { toast.error('No valid threshold found'); return }
     setSavingThresholdVariable(threshold.variable)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+
       let purchasePrice = askingPrice
       let grossIncome = baseGrossIncome
       let operatingExpenses = baseOperatingExpenses
@@ -560,34 +586,51 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         'Purchase Price': purchasePrice, 'Gross Income': grossIncome, 'Operating Expenses': operatingExpenses,
         'Cap Rate': r.capRate, 'Net Income': noi - r.firstYearInterest,
         'Income Increase': 0, 'Expenses Increase': 0, 'Property Value Increase': 0,
-        'Property ID': property.id, 'Has Loan': true,
+        'Has Loan': true,
         'Loan Term': baselineLoanTerm, 'Down Payment Percentage': roundedDp,
         'Down Payment Amount': r.downPaymentAmount, 'Interest Rate': interestRate,
         'Closing Costs': r.loanClosingCosts, 'Purchase Closing Costs': r.purchaseClosingCosts,
       }
 
+      if (isTeam) {
+        scenarioData.shared_property_id = property.id
+        scenarioData.shared_by = user.id
+        scenarioData.last_updated_by = user.id
+      } else {
+        scenarioData['Property ID'] = property.id
+      }
+
+      const scenTable = isTeam ? 'team_shared_scenarios' : 'pi_financial_scenarios'
+      const fkCol = isTeam ? 'shared_property_id' : 'Property ID'
+
       const { data: existing } = await supabase
-        .from('pi_financial_scenarios')
+        .from(scenTable)
         .select('id, "Scenario Name", "Purchase Price", "Gross Income", "Operating Expenses", "Down Payment Percentage", "Interest Rate", "Loan Term"')
-        .eq('Property ID', property.id).eq('Scenario Name', scenarioData['Scenario Name'])
+        .eq(fkCol, property.id).eq('Scenario Name', scenarioData['Scenario Name'])
       if (existing?.some((e: any) =>
         Math.abs(e['Purchase Price'] - purchasePrice) < SCENARIO_COMPARISON_TOLERANCE &&
         Math.abs(e['Gross Income'] - grossIncome) < SCENARIO_COMPARISON_TOLERANCE &&
         Math.abs(e['Operating Expenses'] - operatingExpenses) < SCENARIO_COMPARISON_TOLERANCE
       )) { toast.error('Duplicate scenario exists'); return }
 
-      const { data: saved, error } = await supabase.from('pi_financial_scenarios').insert([scenarioData]).select().single()
+      const { data: saved, error } = await supabase.from(scenTable).insert([scenarioData]).select().single()
       if (error) throw error
 
-      await supabase.from('pi_loans').insert([{
+      const loanRow: Record<string, unknown> = {
         'Loan Term': baselineLoanTerm, 'Down Payment Percentage': roundedDp,
         'Down Payment Amount': r.downPaymentAmount, 'Purchase Price': purchasePrice,
         'Interest Rate': interestRate, 'Monthly Mortgage': r.monthlyMortgage,
         'Monthly Principal': r.firstYearPrincipal / 12, 'Monthly Interest': r.firstYearInterest / 12,
         'Closing Costs': r.loanClosingCosts, 'Annual Mortgage': r.annualMortgage,
         'Annual Principal': r.firstYearPrincipal, 'Annual Interest': r.firstYearInterest,
-        'scenario_id': saved.id,
-      }])
+      }
+      if (isTeam) {
+        loanRow.shared_scenario_id = saved.id
+        await supabase.from('team_shared_loans').insert([loanRow])
+      } else {
+        loanRow.scenario_id = saved.id
+        await supabase.from('pi_loans').insert([loanRow])
+      }
 
       toast.success(`Threshold scenario saved!`)
       router.refresh()
@@ -601,6 +644,9 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
   const savePositiveThresholdScenarios = async () => {
     setSavingThresholds(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+
       const toSave: any[] = []
       for (const t of thresholds) {
         if (t.thresholdValue === null) continue
@@ -614,21 +660,31 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
         }
         const noi = gi - oe
         const r = calculateLoanCashFlow(pp, noi, ir, dp, baselineLoanTerm, baselineClosingPct)
+        const baseScenario: any = { 'Scenario Name': `Threshold: ${t.variable}`, 'Purchase Price': pp, 'Gross Income': gi, 'Operating Expenses': oe,
+          'Cap Rate': r.capRate, 'Net Income': noi - r.firstYearInterest, 'Income Increase': 0, 'Expenses Increase': 0,
+          'Property Value Increase': 0, 'Has Loan': true, 'Loan Term': baselineLoanTerm,
+          'Down Payment Percentage': Math.round(dp), 'Down Payment Amount': r.downPaymentAmount, 'Interest Rate': ir,
+          'Closing Costs': r.loanClosingCosts, 'Purchase Closing Costs': r.purchaseClosingCosts }
+        if (isTeam) {
+          baseScenario.shared_property_id = property.id
+          baseScenario.shared_by = user.id
+          baseScenario.last_updated_by = user.id
+        } else {
+          baseScenario['Property ID'] = property.id
+        }
         toSave.push({
-          scenario: { 'Scenario Name': `Threshold: ${t.variable}`, 'Purchase Price': pp, 'Gross Income': gi, 'Operating Expenses': oe,
-            'Cap Rate': r.capRate, 'Net Income': noi - r.firstYearInterest, 'Income Increase': 0, 'Expenses Increase': 0,
-            'Property Value Increase': 0, 'Property ID': property.id, 'Has Loan': true, 'Loan Term': baselineLoanTerm,
-            'Down Payment Percentage': Math.round(dp), 'Down Payment Amount': r.downPaymentAmount, 'Interest Rate': ir,
-            'Closing Costs': r.loanClosingCosts, 'Purchase Closing Costs': r.purchaseClosingCosts },
+          scenario: baseScenario,
           loan: { pp, dp, ir, r, lt: baselineLoanTerm },
         })
       }
       if (toSave.length === 0) { toast.error('No thresholds to save'); return }
 
       const names = toSave.map(s => s.scenario['Scenario Name'])
-      const { data: existing } = await supabase.from('pi_financial_scenarios')
+      const scenTable = isTeam ? 'team_shared_scenarios' : 'pi_financial_scenarios'
+      const fkCol = isTeam ? 'shared_property_id' : 'Property ID'
+      const { data: existing } = await supabase.from(scenTable)
         .select('id, "Scenario Name", "Purchase Price", "Gross Income", "Operating Expenses"')
-        .eq('Property ID', property.id).in('Scenario Name', names)
+        .eq(fkCol, property.id).in('Scenario Name', names)
       const toInsert = toSave.filter(s => !(existing?.some((e: any) =>
         e['Scenario Name'] === s.scenario['Scenario Name'] &&
         Math.abs(e['Purchase Price'] - s.scenario['Purchase Price']) < SCENARIO_COMPARISON_TOLERANCE &&
@@ -636,24 +692,30 @@ export default function RecommendedScenariosList({ property }: RecommendedScenar
       )))
       if (toInsert.length === 0) { toast.info('All thresholds already saved'); return }
 
-      const { data: saved, error } = await supabase.from('pi_financial_scenarios').insert(toInsert.map(s => s.scenario)).select()
+      const { data: saved, error } = await supabase.from(scenTable).insert(toInsert.map(s => s.scenario)).select()
       if (error) throw error
 
       for (const s of saved) {
         const match = toInsert.find(t => t.scenario['Scenario Name'] === s['Scenario Name'])
         if (!match) continue
         const { pp, dp, ir, r, lt } = match.loan
-        await supabase.from('pi_loans').insert([{
-          'Loan Term': lt, 'Down Payment Percentage': Math.round(dp),
+        const loanRow: Record<string, unknown> = {
+          'Loan Term': lt, 'Down Payment Percentage': Math.round(dp as number),
           'Down Payment Amount': r.downPaymentAmount, 'Purchase Price': pp,
           'Interest Rate': ir, 'Monthly Mortgage': r.monthlyMortgage,
           'Monthly Principal': r.firstYearPrincipal / 12, 'Monthly Interest': r.firstYearInterest / 12,
           'Closing Costs': r.loanClosingCosts, 'Annual Mortgage': r.annualMortgage,
           'Annual Principal': r.firstYearPrincipal, 'Annual Interest': r.firstYearInterest,
-          'scenario_id': s.id,
-        }])
+        }
+        if (isTeam) {
+          loanRow.shared_scenario_id = s.id
+          await supabase.from('team_shared_loans').insert([loanRow])
+        } else {
+          loanRow.scenario_id = s.id
+          await supabase.from('pi_loans').insert([loanRow])
+        }
       }
-      toast.success(`Saved ${saved.length} threshold scenario${saved.length > 1 ? 's' : ''}!`)
+      toast.success(`Saved ${saved?.length ?? 0} threshold scenario${(saved?.length ?? 0) > 1 ? 's' : ''}!`)
       router.refresh()
     } catch (error: any) {
       toast.error(`Failed: ${error.message}`)

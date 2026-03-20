@@ -2,8 +2,9 @@ import { requireAuth } from '@/lib/utils/auth'
 import { PAGE_CONTAINER, BACK_LINK } from '@/lib/constants/css'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Settings, Share2 } from 'lucide-react'
-import SharedPropertyList from '@/components/property/teams/shared-property-list'
+import { Settings, Share2, Users } from 'lucide-react'
+import PropertyList from '@/components/property/property-list'
+import PropertyPortfolioSummary from '@/components/property/portfolio-summary'
 import SharePropertiesDialog from '@/components/property/teams/share-properties-dialog'
 
 interface TeamDashboardProps {
@@ -14,7 +15,7 @@ export default async function TeamDashboardPage({ params }: TeamDashboardProps) 
   const { teamId } = await params
   const { supabase, user } = await requireAuth()
 
-  // Verify membership and get team
+  // Verify membership and get team info
   const { data: membership } = await supabase
     .from('team_members')
     .select('role, teams(id, name, description)')
@@ -26,29 +27,32 @@ export default async function TeamDashboardPage({ params }: TeamDashboardProps) 
 
   const team = membership.teams as unknown as { id: string; name: string; description: string | null }
 
-  // Fetch shared properties
-  const { data: sharedProperties } = await supabase
-    .from('team_shared_properties')
-    .select('*')
-    .eq('team_id', teamId)
-    .order('shared_at', { ascending: false })
+  // Fetch shared properties and team members in parallel
+  const [{ data: sharedProperties }, { data: members }, { data: myProperties }] = await Promise.all([
+    supabase
+      .from('team_shared_properties')
+      .select('*')
+      .eq('team_id', teamId)
+      .order('shared_at', { ascending: false }),
+    supabase
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', teamId),
+    supabase
+      .from('pi_properties')
+      .select('id, address, city, type, listing_status, "Asking Price"')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false }),
+  ])
 
-  // Fetch member user IDs for display
-  const { data: members } = await supabase
-    .from('team_members')
-    .select('user_id')
-    .eq('team_id', teamId)
+  const properties = (sharedProperties ?? []).map(p => ({
+    ...p,
+    // Ensure created_at is always present (fall back to shared_at)
+    created_at: p.created_at ?? p.shared_at,
+  }))
 
-  // Build member email map from auth (best effort — emails from Supabase admin API not available client-side)
-  // We show truncated user IDs as fallback; the Settings page shows emails via server admin context
-  const memberEmailMap: Record<string, string> = {}
-
-  // Fetch user's own properties for share dialog
-  const { data: myProperties } = await supabase
-    .from('pi_properties')
-    .select('id, address, city, type, listing_status, "Asking Price"')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+  const linkPrefix = `/apps/property/teams/${teamId}/properties`
+  const compareBase = `/apps/property/teams/${teamId}/compare`
 
   return (
     <div className={PAGE_CONTAINER}>
@@ -56,18 +60,25 @@ export default async function TeamDashboardPage({ params }: TeamDashboardProps) 
         ← Back to Teams
       </Link>
 
-      <div className="mt-4 mb-6 flex items-center justify-between">
+      <div className="mt-4 mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{team.name}</h1>
           {team.description && (
             <p className="mt-1 text-sm text-muted-foreground">{team.description}</p>
           )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            {sharedProperties?.length ?? 0} shared propert{(sharedProperties?.length ?? 0) !== 1 ? 'ies' : 'y'}
-            &nbsp;·&nbsp; {members?.length ?? 0} member{(members?.length ?? 0) !== 1 ? 's' : ''}
-          </p>
+          <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" />
+              {members?.length ?? 0} member{(members?.length ?? 0) !== 1 ? 's' : ''}
+            </span>
+            <span>·</span>
+            <span>{properties.length} shared propert{properties.length !== 1 ? 'ies' : 'y'}</span>
+            <span>·</span>
+            <span className="capitalize">{membership.role}</span>
+          </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex gap-2 flex-wrap">
           {(myProperties?.length ?? 0) > 0 && (
             <SharePropertiesDialog
               teamId={teamId}
@@ -90,11 +101,14 @@ export default async function TeamDashboardPage({ params }: TeamDashboardProps) 
         </div>
       </div>
 
-      <SharedPropertyList
-        teamId={teamId}
-        properties={sharedProperties ?? []}
-        memberEmailMap={memberEmailMap}
-        canShare={(myProperties?.length ?? 0) > 0}
+      {properties.length > 0 && (
+        <PropertyPortfolioSummary properties={properties} linkPrefix={linkPrefix} />
+      )}
+
+      <PropertyList
+        properties={properties}
+        linkPrefix={linkPrefix}
+        compareBase={compareBase}
       />
     </div>
   )

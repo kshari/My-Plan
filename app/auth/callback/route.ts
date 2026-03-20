@@ -2,17 +2,16 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 function getOrigin(request: Request): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
-  }
+  // In production, prefer the forwarded host from Vercel/proxy over the
+  // env var, so the callback always redirects back to the actual request origin.
   const forwardedHost = request.headers.get('x-forwarded-host')
-  const isLocal = process.env.NODE_ENV === 'development'
-  if (isLocal) {
-    return new URL(request.url).origin
-  }
   if (forwardedHost) {
     const proto = request.headers.get('x-forwarded-proto') || 'https'
     return `${proto}://${forwardedHost}`
+  }
+  // Fall back to the env var (useful for local dev with tunnels) or request origin
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
   }
   return new URL(request.url).origin
 }
