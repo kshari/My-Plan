@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, AlertTriangle, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Lightbulb, ChevronDown, ChevronUp, Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DEFAULT_ANALYSIS_INTEREST_RATE,
   DEFAULT_DOWN_PAYMENT_PCT,
@@ -254,14 +255,14 @@ export default function PropertyDetails({ property, propertyBasePath }: Property
                 : <AlertTriangle className="h-6 w-6 text-destructive shrink-0" />
             ) : null}
             <div>
-              <h4 className="text-sm font-semibold">Current Property Analysis</h4>
+              <h4 className="text-sm font-semibold">Quick Analysis</h4>
               {hasPrice ? (
                 <p className={cn('text-sm font-medium', isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
                   This property currently has {isPositive ? 'positive' : 'negative'} cash flow
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Add an asking price to see cash flow and ROI analysis.
+                  Add an asking price to see cash flow and return analysis.
                 </p>
               )}
             </div>
@@ -269,29 +270,61 @@ export default function PropertyDetails({ property, propertyBasePath }: Property
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <div>
-              <p className="text-xs text-muted-foreground">Price</p>
+              <p className="text-xs text-muted-foreground">Purchase Price</p>
               <p className="text-sm font-semibold tabular-nums">{hasPrice ? fmt$(a.askingPrice) : '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Rent /mo</p>
+              <p className="text-xs text-muted-foreground">Monthly Rent</p>
               <p className="text-sm font-semibold tabular-nums">{a.monthlyRent > 0 ? fmt$(a.monthlyRent) : '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Expenses /mo</p>
+              <div className="flex items-center gap-0.5">
+                <p className="text-xs text-muted-foreground">Monthly Costs</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground shrink-0"><Info className="h-3 w-3" /></button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">Operating expenses only — excludes mortgage payment.</TooltipContent>
+                </Tooltip>
+              </div>
               <p className="text-sm font-semibold tabular-nums">{a.monthlyExpenses > 0 ? fmt$(a.monthlyExpenses) : '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Annual NOI</p>
+              <div className="flex items-center gap-0.5">
+                <p className="text-xs text-muted-foreground">Annual Profit</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground shrink-0"><Info className="h-3 w-3" /></button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">Net Operating Income (NOI) — rental income minus running costs, before mortgage payments.</TooltipContent>
+                </Tooltip>
+              </div>
               <p className={cn('text-sm font-semibold tabular-nums', a.noi < 0 && 'text-destructive')}>{a.noi !== 0 ? fmt$(a.noi) : '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Year 1 Cash Flow</p>
+              <div className="flex items-center gap-0.5">
+                <p className="text-xs text-muted-foreground">Year 1 Cash in Pocket</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground shrink-0"><Info className="h-3 w-3" /></button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">Cash flow after paying all expenses AND the full mortgage (principal + interest). Positive = money left over; negative = shortfall you cover out of pocket.</TooltipContent>
+                </Tooltip>
+              </div>
               <p className={cn('text-sm font-semibold tabular-nums', a.firstYearCashFlow < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400')}>
                 {hasPrice ? fmt$(a.firstYearCashFlow) : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Cap Rate</p>
+              <div className="flex items-center gap-0.5">
+                <p className="text-xs text-muted-foreground">Cap Rate</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground shrink-0"><Info className="h-3 w-3" /></button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">Annual profit ÷ purchase price — how much the property earns relative to its cost, ignoring the mortgage. ≥8% great · 5–8% solid · &lt;5% low yield.</TooltipContent>
+                </Tooltip>
+              </div>
               <p className={cn('text-sm font-semibold tabular-nums',
                 hasPrice && a.capRate > 0 ? (a.capRate >= 8 ? 'text-emerald-600 dark:text-emerald-400' : a.capRate >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive') : ''
               )}>
@@ -299,7 +332,15 @@ export default function PropertyDetails({ property, propertyBasePath }: Property
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">ROI (CoCR)</p>
+              <div className="flex items-center gap-0.5">
+                <p className="text-xs text-muted-foreground">Cash Return %</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground shrink-0"><Info className="h-3 w-3" /></button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">Cash-on-Cash Return (CoCR) — your annual cash profit divided by the cash you put in upfront (down payment + closing costs). Think of it like the interest rate on your invested cash.</TooltipContent>
+                </Tooltip>
+              </div>
               <div>
                 <p className={cn('text-sm font-semibold tabular-nums', a.firstYearCoCR < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400')}>
                   {hasPrice ? `${a.firstYearCoCR.toFixed(1)}%` : '—'}
@@ -311,25 +352,41 @@ export default function PropertyDetails({ property, propertyBasePath }: Property
             </div>
           </div>
 
-          {/* Debt Yield + Break-Even */}
+          {/* Income-to-Loan + Cost Coverage */}
           {hasPrice && (a.debtYield != null || a.breakEvenRatio != null) && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 pt-3 border-t border-border/50">
               {a.debtYield != null && (
                 <div>
-                  <p className="text-xs text-muted-foreground">Debt Yield</p>
+                  <div className="flex items-center gap-0.5">
+                    <p className="text-xs text-muted-foreground">Income-to-Loan Ratio</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground shrink-0"><Info className="h-3 w-3" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">Debt Yield — annual profit divided by loan amount. Shows lenders how safely the rental income covers the loan. ≥10% strong · 7–10% acceptable · &lt;7% risky.</TooltipContent>
+                    </Tooltip>
+                  </div>
                   <p className={cn('text-sm font-semibold tabular-nums', a.debtYield >= 10 ? 'text-emerald-600 dark:text-emerald-400' : a.debtYield >= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive')}>
                     {a.debtYield.toFixed(2)}%
                   </p>
-                  <p className="text-xs text-muted-foreground">NOI ÷ Loan Amt</p>
+                  <p className="text-xs text-muted-foreground">Operating Income ÷ Loan Balance</p>
                 </div>
               )}
               {a.breakEvenRatio != null && (
                 <div>
-                  <p className="text-xs text-muted-foreground">Break-Even Ratio</p>
+                  <div className="flex items-center gap-0.5">
+                    <p className="text-xs text-muted-foreground">Cost Coverage</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground shrink-0"><Info className="h-3 w-3" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">Break-Even Ratio — what percentage of rental income is used to pay all costs (expenses + mortgage). Lower is better. ≤85% comfortable · 86–100% tight · &gt;100% losing money.</TooltipContent>
+                    </Tooltip>
+                  </div>
                   <p className={cn('text-sm font-semibold tabular-nums', a.breakEvenRatio <= 85 ? 'text-emerald-600 dark:text-emerald-400' : a.breakEvenRatio <= 100 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive')}>
                     {a.breakEvenRatio.toFixed(1)}%
                   </p>
-                  <p className="text-xs text-muted-foreground">(Exp + Debt) ÷ Income</p>
+                  <p className="text-xs text-muted-foreground">% of rent covering all costs</p>
                 </div>
               )}
             </div>
@@ -394,13 +451,18 @@ export default function PropertyDetails({ property, propertyBasePath }: Property
           <div className="flex items-start gap-2">
             <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium">Change the analysis</p>
+              <p className="text-sm font-medium">Scenario Analysis</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Model scenarios or add a scenario to explore different assumptions (price, rent, expenses, loan terms).
+                Review the base scenario from listing data, model alternatives, or add a custom scenario (price, rent, expenses, loan terms).
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`${base}/scenarios/base`}>
+                View Base Scenario Details
+              </Link>
+            </Button>
             <Button asChild variant="default" size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
               <Link href={`${base}/scenarios/recommended`}>
                 Model Scenarios

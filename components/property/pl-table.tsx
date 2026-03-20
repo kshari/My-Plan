@@ -206,9 +206,9 @@ export default function PLTable({ scenario, years }: PLTableProps) {
 
   return (
     <div className="rounded-xl border bg-card p-6">
-      <h3 className="mb-4 text-base font-semibold">Profit & Loss by Year</h3>
+      <h3 className="mb-4 text-base font-semibold">Annual Projections (Year by Year)</h3>
       <div className="mb-4 rounded-lg bg-muted/30 p-4">
-        <div className="mb-2 font-semibold">Total Cash Invested</div>
+        <div className="mb-2 font-semibold">Your Upfront Cash</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           {hasLoan ? (
             <>
@@ -217,15 +217,15 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                 <div className="font-medium">${downPaymentAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Loan Closing Costs</div>
+                <div className="text-muted-foreground">Loan Closing Fees</div>
                 <div className="font-medium">${loanClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Purchase Closing Costs</div>
+                <div className="text-muted-foreground">Buying Fees (Closing)</div>
                 <div className="font-medium">${purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Total</div>
+                <div className="text-muted-foreground">Total Cash at Closing</div>
                 <div className="font-medium">${totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
             </>
@@ -236,11 +236,11 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                 <div className="font-medium">${purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Purchase Closing Costs</div>
+                <div className="text-muted-foreground">Buying Fees (Closing)</div>
                 <div className="font-medium">${purchaseClosingCosts.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Total</div>
+                <div className="text-muted-foreground">Total Cash at Closing</div>
                 <div className="font-medium">${totalCashInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
             </>
@@ -252,17 +252,17 @@ export default function PLTable({ scenario, years }: PLTableProps) {
           <thead className="bg-muted/50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Year</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Gross Income</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Operating Expenses</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">NOI</th>
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Interest</th>}
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Principal</th>}
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Net Income</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash Flow</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash on Cash Return (%)</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Equity</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">IRR (%)</th>
-              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Remaining Loan Balance</th>}
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Rental Income</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Running Costs</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Profit Before Mortgage</th>
+              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Mortgage Interest</th>}
+              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Loan Repaid</th>}
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Net Income (after interest)</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash in Pocket</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash Return %</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Property Value – Loan (Equity)</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Return % (IRR)</th>
+              {hasLoan && <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Loan Remaining</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

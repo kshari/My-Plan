@@ -1,6 +1,6 @@
 import DeleteLoanButton from '@/components/property/delete-loan-button'
 
-interface Loan {
+export interface Loan {
   'Loan Term': number | null
   'Down Payment Percentage': number | null
   'Down Payment Amount': number | null
@@ -25,7 +25,7 @@ export default function LoanDetails({ loan, propertyId, scenarioId }: LoanDetail
   return (
     <div className="rounded-xl border bg-card p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold">Loan Information</h3>
+        <h3 className="text-base font-semibold">Mortgage Details</h3>
         {propertyId && scenarioId && (
           <DeleteLoanButton propertyId={propertyId} scenarioId={scenarioId} />
         )}
@@ -33,7 +33,7 @@ export default function LoanDetails({ loan, propertyId, scenarioId }: LoanDetail
       <dl className="space-y-4">
         {loan['Loan Term'] && (
           <div>
-            <dt className="text-sm font-medium text-muted-foreground">Loan Term</dt>
+            <dt className="text-sm font-medium text-muted-foreground">Mortgage Length</dt>
             <dd className="mt-1 text-lg tabular-nums">{loan['Loan Term']} years</dd>
           </div>
         )}
@@ -68,19 +68,19 @@ export default function LoanDetails({ loan, propertyId, scenarioId }: LoanDetail
         )}
         {loan['Monthly Principal'] && (
           <div>
-            <dt className="text-sm font-medium text-muted-foreground">Monthly Principal</dt>
+            <dt className="text-sm font-medium text-muted-foreground">Monthly Loan Repaid (Principal)</dt>
             <dd className="mt-1 text-lg tabular-nums">${loan['Monthly Principal'].toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd>
           </div>
         )}
         {loan['Monthly Interest'] && (
           <div>
-            <dt className="text-sm font-medium text-muted-foreground">Monthly Interest</dt>
+            <dt className="text-sm font-medium text-muted-foreground">Monthly Interest Cost</dt>
             <dd className="mt-1 text-lg tabular-nums">${loan['Monthly Interest'].toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd>
           </div>
         )}
         {loan['Closing Costs'] && (
           <div>
-            <dt className="text-sm font-medium text-muted-foreground">Closing Costs</dt>
+            <dt className="text-sm font-medium text-muted-foreground">Loan Closing Fees</dt>
             <dd className="mt-1 text-lg tabular-nums">${loan['Closing Costs'].toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd>
           </div>
         )}

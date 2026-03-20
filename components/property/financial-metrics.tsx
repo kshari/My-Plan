@@ -109,39 +109,39 @@ export default function FinancialMetrics({ scenario, loan, showTitle = true }: F
       label: 'Cap Rate',
       value: `${capRate.toFixed(2)}%`,
       highlight: true,
-      tip: `Net Operating Income ÷ Purchase Price.\nMeasures the unleveraged return on the property. Higher is better.\n\nRule of thumb: ≥ 8% excellent · 5–8% good · < 5% low yield.\n\nYour NOI: $${noi.toLocaleString(undefined, { maximumFractionDigits: 0 })} ÷ $${purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${capRate.toFixed(2)}%`,
+      tip: `Annual profit ÷ purchase price — how much the property earns relative to its cost, without considering the mortgage.\n\nRule of thumb: ≥8% great · 5–8% solid · <5% low yield.\n\nYour profit: $${noi.toLocaleString(undefined, { maximumFractionDigits: 0 })} ÷ $${purchasePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} = ${capRate.toFixed(2)}%`,
     },
     ...(firstYearIRR !== 0 ? [{
-      label: 'Year 1 IRR',
+      label: 'Total Return % (IRR)',
       value: `${firstYearIRR.toFixed(2)}%`,
       highlight: false,
-      tip: `Internal Rate of Return assuming the property is sold at the end of Year 1.\nCombines cash flow + equity position into a single annualised return.\n\nRule of thumb: ≥ 15% excellent · 10–15% good · < 10% low.\nCompare against other investments — stocks historically return ~10%/yr.`,
+      tip: `Year 1 Internal Rate of Return — combines your cash flow AND the equity you'd gain if you sold after one year, into a single annual return percentage.\n\nRule of thumb: ≥15% great · 10–15% good · <10% low.\nGood to compare against stocks (historically ~10%/yr).`,
     }] : []),
     ...(hasLoan && debtServiceCoverageRatio !== null ? [{
-      label: 'DSCR',
+      label: 'Loan Coverage Ratio (DSCR)',
       value: `${debtServiceCoverageRatio.toFixed(2)}x`,
       highlight: false,
-      tip: `Debt Service Coverage Ratio = NOI ÷ Annual Mortgage Payments.\nShows whether rental income covers the loan payments.\n\nRule of thumb: ≥ 1.25 strong · 1.0–1.25 tight · < 1.0 income doesn't cover debt (negative cash flow).\n\nLenders typically require ≥ 1.2 for investment property loans.`,
+      tip: `Debt Service Coverage Ratio — how many times over your rental profit covers the mortgage payment.\n\n1.0x = income exactly covers mortgage · >1.25x comfortable · <1.0x shortfall (you cover the gap out of pocket).\n\nLenders typically require ≥1.2x for investment property loans.`,
     }] : []),
     ...(hasLoan ? [{
-      label: 'Loan-to-Value',
+      label: '% Financed (LTV)',
       value: `${loanToValue.toFixed(2)}%`,
       highlight: false,
-      tip: `Loan Amount ÷ Purchase Price.\nIndicates how much of the property is financed vs. owned outright.\n\nRule of thumb: ≤ 75% conservative · 75–80% typical investment · > 80% higher risk, PMI may apply.\n\nLower LTV = more equity, less risk, better loan terms.`,
+      tip: `Loan-to-Value — the share of the purchase price covered by the mortgage.\n\n≤75% conservative (more equity, better rates) · 75–80% typical investment · >80% higher risk, may require mortgage insurance.\n\nLower = more of your own money in, less you owe.`,
     }] : []),
     {
-      label: 'Gross Rent Multiplier',
+      label: 'Price-to-Rent Ratio (GRM)',
       value: `${grossRentMultiplier.toFixed(2)}x`,
       highlight: false,
-      tip: `Purchase Price ÷ Annual Gross Income.\nA quick way to compare properties — lower means better value relative to income.\n\nRule of thumb: ≤ 8 excellent · 8–12 good · > 15 expensive relative to rent.\n\nDoes not account for expenses or financing — use alongside Cap Rate.`,
+      tip: `Gross Rent Multiplier — how many years of rental income it takes to equal the purchase price.\n\nLower is better value. ≤8 excellent · 8–12 good · >15 expensive relative to rent.\n\nQuick comparison tool — doesn't include expenses or financing.`,
     },
     {
-      label: 'Total Cash Invested',
+      label: 'Upfront Cash Needed',
       value: `$${totalCashInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       highlight: false,
       tip: hasLoan
-        ? `Down payment + loan closing costs + purchase closing costs.\nThis is the actual cash you need out-of-pocket at closing.\n\nUsed as the denominator in Cash-on-Cash Return and ROI calculations.`
-        : `Full purchase price + purchase closing costs.\nSince no loan is included, you're paying all-cash.\n\nUsed as the denominator in ROI calculations.`,
+        ? `Down payment + closing fees — the actual cash you need to bring to closing.\n\nThis is used to calculate your Cash Return % (CoCR).`
+        : `Full purchase price + closing fees — you're paying all cash, so no mortgage.\n\nThis is used to calculate your overall return %.`,
     },
   ]
 
@@ -176,7 +176,7 @@ export default function FinancialMetrics({ scenario, loan, showTitle = true }: F
 
   return (
     <div className="rounded-xl border bg-card p-6">
-      <h3 className="mb-4 text-base font-semibold">Financial Metrics</h3>
+      <h3 className="mb-4 text-base font-semibold">Investment Metrics</h3>
       {content}
     </div>
   )
