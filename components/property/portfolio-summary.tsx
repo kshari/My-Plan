@@ -85,6 +85,8 @@ function computePropertyMetrics(p: Property, scoringConfig: ScoringConfig) {
 
 interface PropertyPortfolioSummaryProps {
   properties: Property[]
+  /** URL prefix for the best-deal property link. Defaults to personal route prefix. */
+  linkPrefix?: string
 }
 
 interface PortfolioStats {
@@ -101,7 +103,7 @@ interface PortfolioStats {
   totalPortfolioValue: number
 }
 
-export default function PropertyPortfolioSummary({ properties }: PropertyPortfolioSummaryProps) {
+export default function PropertyPortfolioSummary({ properties, linkPrefix = '/apps/property/properties' }: PropertyPortfolioSummaryProps) {
   const { config: scoringConfig } = useScoringConfig()
   const stats = useMemo<PortfolioStats>(() => {
     const available = properties.filter(
@@ -240,7 +242,7 @@ export default function PropertyPortfolioSummary({ properties }: PropertyPortfol
         {stats.bestDeal ? (
           <>
             <Link
-              href={`/apps/property/properties/${stats.bestDeal.id}`}
+              href={`${linkPrefix}/${stats.bestDeal.id}`}
               className="text-sm font-semibold text-primary hover:underline line-clamp-2 leading-tight"
             >
               {stats.bestDeal.address || 'View property'}

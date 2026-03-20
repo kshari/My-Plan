@@ -65,6 +65,10 @@ interface PropertyListProps {
   properties: Property[]
   loads?: ImportLoad[]
   initialLoadFilter?: string | null
+  /** URL prefix for property detail links. Defaults to personal route prefix. */
+  linkPrefix?: string
+  /** Base URL for the compare page, e.g. /apps/property/teams/[id]/compare. Defaults to personal compare route. */
+  compareBase?: string
 }
 
 type SortKey = 'address' | 'price' | 'capRate' | 'noi' | 'estNoi' | 'roi' | 'downPayment' | 'date' | 'bedrooms' | 'sqft' | 'grm' | 'pricePerSqft' | 'rentPerSqft' | 'expenseRatio' | 'onePercentRatio' | 'score'
@@ -216,7 +220,7 @@ function cocrColor(cocr: number): string {
   return 'text-destructive'
 }
 
-export default function PropertyList({ properties, loads = [], initialLoadFilter }: PropertyListProps) {
+export default function PropertyList({ properties, loads = [], initialLoadFilter, linkPrefix = '/apps/property/properties', compareBase = '/apps/property/compare' }: PropertyListProps) {
   const { config: scoringConfig } = useScoringConfig()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -448,7 +452,7 @@ export default function PropertyList({ properties, loads = [], initialLoadFilter
                 className="text-xs"
                 onClick={() => {
                   const ids = Array.from(compareIds).join(',')
-                  window.location.href = `/apps/property/compare?ids=${ids}`
+                  window.location.href = `${compareBase}?ids=${ids}`
                 }}
               >
                 Compare Properties
@@ -479,6 +483,8 @@ export default function PropertyList({ properties, loads = [], initialLoadFilter
           compareIds={compareIds}
           onToggleCompare={toggleCompare}
           scoringConfig={scoringConfig}
+          linkPrefix={linkPrefix}
+          compareBase={compareBase}
         />
       )}
     </div>
@@ -543,6 +549,8 @@ function TableView({
   compareIds,
   onToggleCompare,
   scoringConfig,
+  linkPrefix = '/apps/property/properties',
+  compareBase = '/apps/property/compare',
 }: {
   properties: Property[]
   showAllColumns: boolean
@@ -552,6 +560,8 @@ function TableView({
   compareIds: Set<number>
   onToggleCompare: (id: number) => void
   scoringConfig: ScoringConfig
+  linkPrefix?: string
+  compareBase?: string
 }) {
   const fmt = (v: number) => `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
   return (
@@ -773,7 +783,7 @@ function TableView({
                   </Tooltip>
                 </TableCell>
                 <TableCell className="py-2">
-                  <Link href={`/apps/property/properties/${property.id}`} className="text-primary hover:underline font-medium">
+                  <Link href={`${linkPrefix}/${property.id}`} className="text-primary hover:underline font-medium">
                     {property.address || 'No address'}
                   </Link>
                 </TableCell>

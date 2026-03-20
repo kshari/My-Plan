@@ -19,9 +19,21 @@ interface ScenarioFormProps {
   propertyAskingPrice?: number | null
   propertyGrossIncome?: number | null
   propertyOperatingExpenses?: number | null
+  /** Persist to team_shared_scenarios (requires teamId) instead of pi_financial_scenarios */
+  storage?: 'personal' | 'team'
+  teamId?: string
 }
 
-export default function ScenarioForm({ propertyId, scenarioId, initialData, propertyAskingPrice, propertyGrossIncome, propertyOperatingExpenses }: ScenarioFormProps) {
+export default function ScenarioForm({
+  propertyId,
+  scenarioId,
+  initialData,
+  propertyAskingPrice,
+  propertyGrossIncome,
+  propertyOperatingExpenses,
+  storage = 'personal',
+  teamId,
+}: ScenarioFormProps) {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
@@ -174,7 +186,19 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
     setError(null)
     setLoading(true)
 
+    const isTeam = storage === 'team'
+    if (isTeam && !teamId) {
+      setError('Team context is missing')
+      setLoading(false)
+      return
+    }
+
+    const teamBase = isTeam ? `/apps/property/teams/${teamId}/properties/${propertyId}` : `/apps/property/properties/${propertyId}`
+
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+
       const scenarioData: any = {
         'Scenario Name': scenarioName || null,
         'Purchase Price': purchasePrice ? parseFloat(purchasePrice) : null,
@@ -186,7 +210,6 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
         'Income Increase': incomeIncrease ? parseFloat(incomeIncrease) : 0,
         'Expenses Increase': expensesIncrease ? parseFloat(expensesIncrease) : 0,
         'Property Value Increase': propertyValueIncrease ? parseFloat(propertyValueIncrease) : 0,
-        'Property ID': propertyId,
         'Has Loan': hasLoan,
         'Loan Term': hasLoan && loanTerm ? parseInt(loanTerm) : null,
         'Down Payment Percentage': hasLoan && downPaymentPercent ? parseFloat(downPaymentPercent) : null,
@@ -204,24 +227,36 @@ export default function ScenarioForm({ propertyId, scenarioId, initialData, prop
         } : null,
       }
 
+      if (isTeam) {
+        scenarioData.shared_property_id = propertyId
+        scenarioData.last_updated_by = user.id
+        if (!scenarioId) {
+          scenarioData.shared_by = user.id
+        }
+      } else {
+        scenarioData['Property ID'] = propertyId
+      }
+
+      const scenTable = isTeam ? 'team_shared_scenarios' : 'pi_financial_scenarios'
+
       if (scenarioId) {
         const { error } = await supabase
-          .from('pi_financial_scenarios')
+          .from(scenTable)
           .update(scenarioData)
           .eq('id', scenarioId)
         
         if (error) throw error
         router.refresh()
-        router.push(`/apps/property/properties/${propertyId}/scenarios/${scenarioId}`)
+        router.push(isTeam ? `${teamBase}/scenarios/recommended` : `/apps/property/properties/${propertyId}/scenarios/${scenarioId}`)
       } else {
         const { data, error } = await supabase
-          .from('pi_financial_scenarios')
+          .from(scenTable)
           .insert([scenarioData])
           .select()
           .single()
         
         if (error) throw error
-        router.push(`/apps/property/properties/${propertyId}/scenarios/${data.id}`)
+        router.push(isTeam ? `${teamBase}/scenarios/recommended` : `/apps/property/properties/${propertyId}/scenarios/${data.id}`)
       }
     } catch (error: any) {
       setError(error.message || 'Failed to save scenario')

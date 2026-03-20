@@ -49,6 +49,8 @@ interface Property {
 
 interface PropertyDetailsProps {
   property: Property
+  /** Base path for property links (detail, scenarios). Default: personal `/apps/property/properties/:id` */
+  propertyBasePath?: string
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -119,7 +121,9 @@ function computeCurrentAnalysis(property: Property) {
   }
 }
 
-export default function PropertyDetails({ property }: PropertyDetailsProps) {
+export default function PropertyDetails({ property, propertyBasePath }: PropertyDetailsProps) {
+  const base =
+    propertyBasePath ?? `/apps/property/properties/${property.id}`
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [scoreExpanded, setScoreExpanded] = useState(false)
   const { config } = useScoringConfig()
@@ -398,12 +402,12 @@ export default function PropertyDetails({ property }: PropertyDetailsProps) {
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button asChild variant="default" size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
-              <Link href={`/apps/property/properties/${property.id}/scenarios/recommended`}>
+              <Link href={`${base}/scenarios/recommended`}>
                 Model Scenarios
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href={`/apps/property/properties/${property.id}/scenarios/new`}>
+              <Link href={`${base}/scenarios/new`}>
                 Add Scenario
               </Link>
             </Button>

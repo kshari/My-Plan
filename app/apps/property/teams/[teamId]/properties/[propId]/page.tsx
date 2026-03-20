@@ -85,7 +85,10 @@ export default async function SharedPropertyDetailPage({ params }: SharedPropert
         </div>
       </div>
 
-      <PropertyDetails property={property} />
+      <PropertyDetails
+        property={property}
+        propertyBasePath={`/apps/property/teams/${teamId}/properties/${propertyId}`}
+      />
     </div>
   )
 }
