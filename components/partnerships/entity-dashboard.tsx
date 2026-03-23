@@ -95,11 +95,17 @@ export function EntityDashboard({
   // Derive capital contributed per member from the events ledger
   const capitalByMember = capitalEvents.reduce<Record<string, number>>((acc, ev) => {
     if (ev.event_type === "contribution") {
-      acc[ev.member_id] = (acc[ev.member_id] ?? 0) + ev.amount
+      acc[ev.member_id] = (acc[ev.member_id] ?? 0) + Number(ev.amount)
     }
     return acc
   }, {})
 
+  // Total from ALL events — not just active members (placeholder members can have contributions)
+  const totalCapitalContributed = capitalEvents
+    .filter((ev) => ev.event_type === "contribution")
+    .reduce((sum, ev) => sum + Number(ev.amount), 0)
+
+  // capitalRows is only used for per-member display in the Capital card
   const capitalRows = activeMembers
     .filter((m) => m.ownership_pct > 0 || (capitalByMember[m.id] ?? 0) > 0)
     .map((m) => ({
@@ -108,8 +114,6 @@ export function EntityDashboard({
       capital_contributed: capitalByMember[m.id] ?? 0,
     }))
     .sort((a, b) => b.capital_contributed - a.capital_contributed || b.ownership_pct - a.ownership_pct)
-
-  const totalCapitalContributed = capitalRows.reduce((sum, r) => sum + r.capital_contributed, 0)
 
   // Balance sheet
   const cashBalance = entity.cash_balance ?? 0

@@ -43,7 +43,7 @@ export default async function InvestmentsPage({ params }: PageProps) {
   // Sum all contribution events for total capital contributed
   const capitalContributed = ((capitalEventsResult.data ?? []) as Pick<CapitalEvent, "event_type" | "amount">[])
     .filter((e) => e.event_type === "contribution")
-    .reduce((sum, e) => sum + e.amount, 0)
+    .reduce((sum, e) => sum + Number(e.amount), 0)
 
   return (
     <div className={PAGE_CONTAINER}>
