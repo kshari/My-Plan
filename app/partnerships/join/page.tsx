@@ -234,7 +234,7 @@ function JoinContent() {
               <p className="text-center text-xs text-muted-foreground">
                 Don&apos;t have an account?{" "}
                 <Link
-                  href={`/login?signup=1&next=/partnerships/join?token=${token}`}
+                  href={`/login?signup=1&next=${encodeURIComponent(`/partnerships/join?token=${token}`)}`}
                   className="text-blue-600 hover:underline"
                 >
                   Create a free account first
