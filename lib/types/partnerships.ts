@@ -4,6 +4,7 @@ export type EntityType = 'llc' | 'lp' | 'corporation' | 'trust' | 'informal' | '
 export type EntityStatus = 'forming' | 'active' | 'dissolved'
 export type MemberRole = 'admin' | 'member' | 'observer'
 export type MemberStatus = 'active' | 'invited' | 'placeholder' | 'removed'
+export type MembershipStatus = 'pending' | 'confirmed' | 'declined'
 export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked'
 export type InvestmentType = 'real_estate' | 'private_equity' | 'stock' | 'business' | 'fund' | 'other'
 export type InvestmentStatus = 'active' | 'on_hold' | 'exited' | 'cancelled'
@@ -43,6 +44,7 @@ export interface PartnershipMember {
   role: MemberRole
   ownership_pct: number
   status: MemberStatus
+  membership_status: MembershipStatus
   name_confirmed: boolean
   invited_by: string | null
   joined_at: string | null
