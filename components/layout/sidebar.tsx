@@ -17,6 +17,7 @@ import {
   FileUp,
   BarChart3,
   Users,
+  Handshake,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -50,6 +51,12 @@ const appNavItems = [
     label: "Property Investment",
     icon: Building2,
     color: "text-emerald-500",
+  },
+  {
+    href: "/apps/partnerships",
+    label: "Partnerships",
+    icon: Handshake,
+    color: "text-blue-500",
   },
 ]
 

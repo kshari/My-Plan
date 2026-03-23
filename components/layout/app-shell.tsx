@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, LayoutDashboard, Building2, Target, Activity, Bot } from "lucide-react"
+import { Menu, LayoutDashboard, Building2, Target, Activity, Bot, Handshake } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
@@ -26,6 +26,7 @@ const bottomNavItems = [
   { href: "/apps/pulse", label: "Pulse", icon: Activity, color: "text-orange-500" },
   { href: "/apps/retirement", label: "Retire", icon: Target, color: "text-violet-500" },
   { href: "/apps/property", label: "Property", icon: Building2, color: "text-emerald-500" },
+  { href: "/apps/partnerships", label: "Partners", icon: Handshake, color: "text-blue-500" },
 ]
 
 export function AppShell({ children, userEmail, isAdmin = false, features }: AppShellProps) {

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight, ShieldCheck, Bot } from 'lucide-react'
+import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight, ShieldCheck, Bot, Handshake } from 'lucide-react'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
@@ -49,6 +49,19 @@ const apps = [
     border: 'border-emerald-100 dark:border-emerald-900/50',
     badge: 'Real Estate',
     badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  },
+  {
+    id: 'partnerships',
+    name: 'Partnerships',
+    description: 'Group investment workspace — create entities, invite members, track investments with workflow stages, cap table, decisions, ledger, and document vault.',
+    icon: Handshake,
+    authHref: '/apps/partnerships',
+    tryHref: '/login',
+    accent: 'text-blue-500',
+    bg: 'bg-blue-50 dark:bg-blue-950/30',
+    border: 'border-blue-100 dark:border-blue-900/50',
+    badge: 'Group Investing',
+    badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   },
 ]
 
