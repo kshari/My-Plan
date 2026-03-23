@@ -51,7 +51,7 @@ import { toast } from "sonner"
 import { InviteMemberDialog } from "@/components/partnerships/members/invite-member-dialog"
 import { AddMemberDialog } from "@/components/partnerships/members/add-member-dialog"
 import { ImportMembersDialog } from "@/components/partnerships/members/import-members-dialog"
-import type { PartnershipMember, MemberRole, MemberStatus } from "@/lib/types/partnerships"
+import type { PartnershipMember, MemberRole, MemberStatus, MembershipStatus } from "@/lib/types/partnerships"
 import { cn } from "@/lib/utils"
 
 interface MemberListProps {
@@ -68,6 +68,7 @@ interface DraftRow {
   role: MemberRole
   ownership_pct: string
   status: MemberStatus
+  membership_status: MembershipStatus
 }
 
 interface InviteLink {
@@ -88,11 +89,30 @@ const ROLE_LABELS: Record<MemberRole, string> = {
   observer: "Observer",
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  active:      "Joined",
+  invited:     "Invited",
+  placeholder: "Placeholder",
+  removed:     "Removed",
+}
+
 const STATUS_STYLES: Record<string, string> = {
   active:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   invited:     "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   placeholder: "bg-muted text-muted-foreground",
   removed:     "bg-destructive/10 text-destructive",
+}
+
+const MEMBERSHIP_LABELS: Record<MembershipStatus, string> = {
+  pending:   "Pending",
+  confirmed: "Confirmed",
+  declined:  "Declined",
+}
+
+const MEMBERSHIP_STYLES: Record<MembershipStatus, string> = {
+  pending:   "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  confirmed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  declined:  "bg-destructive/10 text-destructive",
 }
 
 export function MemberList({
@@ -208,6 +228,7 @@ export function MemberList({
       role: m.role,
       ownership_pct: String(m.ownership_pct),
       status: m.status,
+      membership_status: m.membership_status,
     })
   }
 
@@ -233,6 +254,7 @@ export function MemberList({
           role: draft.role,
           ownership_pct: Number(draft.ownership_pct) || 0,
           status: draft.status,
+          membership_status: draft.membership_status,
         }),
       })
       if (!res.ok) {
@@ -358,7 +380,10 @@ export function MemberList({
                     Ownership %
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Status
+                    Join Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Membership
                   </th>
                   {isAdmin && (
                     <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground w-28">
@@ -405,11 +430,6 @@ export function MemberList({
                               <p className="font-medium flex items-center gap-1.5 flex-wrap">
                                 {m.display_name}
                                 {isSelf && <span className="text-xs text-muted-foreground">(you)</span>}
-                                {!m.name_confirmed && m.status === "placeholder" && (
-                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1 py-0.5 rounded font-medium">
-                                    unconfirmed
-                                  </span>
-                                )}
                               </p>
                               {m.email && (
                                 <p className="text-xs text-muted-foreground md:hidden">{m.email}</p>
@@ -482,7 +502,7 @@ export function MemberList({
                         )}
                       </td>
 
-                      {/* Status */}
+                      {/* Join Status */}
                       <td className="px-4 py-2.5">
                         {isEditing ? (
                           <Select
@@ -493,7 +513,7 @@ export function MemberList({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="active">Joined</SelectItem>
                               <SelectItem value="invited">Invited</SelectItem>
                               <SelectItem value="placeholder">Placeholder</SelectItem>
                               <SelectItem value="removed">Removed</SelectItem>
@@ -506,7 +526,35 @@ export function MemberList({
                               STATUS_STYLES[m.status]
                             )}
                           >
-                            {m.status.charAt(0).toUpperCase() + m.status.slice(1)}
+                            {STATUS_LABELS[m.status] ?? m.status}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Membership Status */}
+                      <td className="px-4 py-2.5">
+                        {isEditing ? (
+                          <Select
+                            value={draft!.membership_status}
+                            onValueChange={(v) => setDraft({ ...draft!, membership_status: v as MembershipStatus })}
+                          >
+                            <SelectTrigger className="h-7 w-32 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="confirmed">Confirmed</SelectItem>
+                              <SelectItem value="declined">Declined</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                              MEMBERSHIP_STYLES[m.membership_status]
+                            )}
+                          >
+                            {MEMBERSHIP_LABELS[m.membership_status]}
                           </span>
                         )}
                       </td>

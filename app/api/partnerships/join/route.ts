@@ -60,6 +60,7 @@ export async function POST(request: Request) {
         name_confirmed: true,
         email: confirmedEmail,
         status: "active",
+        membership_status: "confirmed",
         joined_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       email: confirmedEmail,
       role: "member",
       status: "active",
+      membership_status: "confirmed",
       joined_at: new Date().toISOString(),
     })
   }
