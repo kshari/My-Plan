@@ -71,7 +71,6 @@ export async function POST(request: Request, { params }: RouteParams) {
       role: role ?? "member",
       ownership_pct: ownershipPct,
       status: "placeholder",
-      name_confirmed: false,
       invited_by: user.id,
     })
     .select()
