@@ -19,7 +19,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Full name is required" }, { status: 400 })
   }
 
-  const admin = createAdminClient()
+  const admin = (() => {
+    try {
+      return createAdminClient()
+    } catch (e) {
+      return null
+    }
+  })()
+
+  if (!admin) {
+    return NextResponse.json(
+      { error: "Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY is not set" },
+      { status: 500 }
+    )
+  }
 
   // Look up the invitation (admin read so we don't depend on RLS)
   const { data: invitation, error: invError } = await admin
@@ -117,33 +130,44 @@ export async function POST(request: Request) {
   return NextResponse.json({ entityId: invitation.entity_id })
 }
 
-// GET /api/partnerships/join?token=... — read invitation info (public)
+// GET /api/partnerships/join?token=... — read invitation info (public, no auth required)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const token = searchParams.get("token")
   if (!token) return NextResponse.json({ error: "Token required" }, { status: 400 })
 
-  const admin = createAdminClient()
+  // Try admin client first (bypasses RLS entirely), fall back to anon client
+  // which relies on the "invitations_token_select USING (true)" policy.
+  let db: Awaited<ReturnType<typeof createClient>> | ReturnType<typeof createAdminClient>
+  try {
+    db = createAdminClient()
+  } catch {
+    db = await createClient()
+  }
 
-  const { data: invitation } = await admin
+  const { data: invitation, error: invErr } = await db
     .from("pt_invitations")
     .select("id, entity_id, invite_email, status, expires_at, member_id")
     .eq("invite_token", token)
     .maybeSingle()
 
-  if (!invitation) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (invErr) {
+    console.error("[join GET] invitation lookup error:", invErr)
+    return NextResponse.json({ error: `DB error: ${invErr.message}` }, { status: 500 })
+  }
+  if (!invitation) {
+    return NextResponse.json({ error: "Invitation not found. It may have expired or already been used." }, { status: 404 })
+  }
 
-  // Fetch entity name
-  const { data: entity } = await admin
+  const { data: entity } = await db
     .from("pt_entities")
     .select("id, name, entity_type")
     .eq("id", invitation.entity_id)
     .single()
 
-  // Fetch the placeholder member's display_name so the join page can pre-fill it
   let placeholder_name: string | null = null
   if (invitation.member_id) {
-    const { data: member } = await admin
+    const { data: member } = await db
       .from("pt_members")
       .select("display_name, email")
       .eq("id", invitation.member_id)

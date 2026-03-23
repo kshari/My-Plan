@@ -4,7 +4,7 @@ import { Suspense } from "react"
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Handshake, Loader2, CheckCircle2, XCircle, Mail, User } from "lucide-react"
+import { Handshake, Loader2, CheckCircle2, XCircle, Mail, User, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { createClient } from "@/lib/supabase/client"
 import { ENTITY_TYPE_LABELS } from "@/lib/constants/partnerships"
 import type { EntityType } from "@/lib/types/partnerships"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 interface InvitationInfo {
   invitation: { id: string; status: string; expires_at: string; invite_email: string | null }
@@ -28,9 +29,10 @@ function JoinContent() {
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [joinError, setJoinError] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
+  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null)
 
-  // Profile confirmation fields
   const [displayName, setDisplayName] = useState("")
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
@@ -48,12 +50,11 @@ function JoinContent() {
       supabase.auth.getUser(),
     ])
       .then(([invData, { data: { user } }]) => {
+        setCurrentUser(user ?? null)
         if (invData.error) {
           setError(invData.error)
         } else {
           setInfo(invData)
-          // Pre-fill name: prefer the placeholder name the admin entered, then
-          // the auth profile's full_name metadata, then email prefix
           setDisplayName(
             invData.placeholder_name ||
             user?.user_metadata?.full_name ||
@@ -63,13 +64,14 @@ function JoinContent() {
           setUserEmail(user?.email ?? invData.invitation.invite_email ?? null)
         }
       })
-      .catch(() => setError("Failed to load invitation."))
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load invitation."))
       .finally(() => setLoading(false))
   }, [token])
 
   async function handleJoin() {
     if (!displayName.trim()) return
     setJoining(true)
+    setJoinError(null)
     try {
       const res = await fetch("/api/partnerships/join", {
         method: "POST",
@@ -87,11 +89,14 @@ function JoinContent() {
       setJoined(true)
       setTimeout(() => router.push(`/apps/partnerships/${data.entityId}`), 1800)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join")
+      setJoinError(err instanceof Error ? err.message : "Failed to join")
     } finally {
       setJoining(false)
     }
   }
+
+  const loginUrl = `/login?next=${encodeURIComponent(`/partnerships/join?token=${token}`)}`
+  const signupUrl = `/login?signup=1&next=${encodeURIComponent(`/partnerships/join?token=${token}`)}`
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -119,7 +124,7 @@ function JoinContent() {
             <div className="flex flex-col items-center gap-4 py-4 text-center">
               <XCircle className="h-10 w-10 text-destructive" />
               <div>
-                <h2 className="text-lg font-semibold">Invitation not found</h2>
+                <h2 className="text-lg font-semibold">Could not load invitation</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{error}</p>
               </div>
               <Button asChild variant="outline">
@@ -140,11 +145,12 @@ function JoinContent() {
 
           {!loading && !error && !joined && info && (
             <div className="space-y-6">
-              {/* Entity info */}
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">You&apos;re invited</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Review your details and confirm to join.
+                  {currentUser
+                    ? "Review your details and confirm to join."
+                    : "Sign in to accept this invitation."}
                 </p>
               </div>
 
@@ -165,81 +171,94 @@ function JoinContent() {
 
               <Separator />
 
-              {/* Profile confirmation */}
-              <div className="space-y-1">
-                <h2 className="text-sm font-semibold">Confirm your profile</h2>
-                <p className="text-xs text-muted-foreground">
-                  Your name and email will be visible to all members of this entity.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="join_name" className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5" />
-                    Full Name *
-                  </Label>
-                  <Input
-                    id="join_name"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your full name"
-                    autoFocus
-                  />
-                  {info.placeholder_name && info.placeholder_name !== displayName && (
-                    <p className="text-xs text-muted-foreground">
-                      Pre-filled from invitation. Edit if needed.
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5" />
-                    Email Address
-                  </Label>
-                  {userEmail ? (
-                    <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
-                      <span className="flex-1 text-muted-foreground">{userEmail}</span>
-                      <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded-full font-medium">
-                        Verified
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">
-                      No email on your account — sign in to associate one.
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Pulled from your My Plan account. Visible to other members for coordination.
+              {/* Not logged in */}
+              {!currentUser && (
+                <div className="space-y-3">
+                  <p className="text-sm text-center text-muted-foreground">
+                    You need to be signed in to accept this invitation.
                   </p>
+                  <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                    <Link href={loginUrl}>
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign in to accept
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href={signupUrl}>Create a free account</Link>
+                  </Button>
                 </div>
-              </div>
+              )}
 
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={handleJoin}
-                disabled={joining || !displayName.trim()}
-              >
-                {joining ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Joining...
-                  </>
-                ) : (
-                  "Confirm & Join Entity"
-                )}
-              </Button>
+              {/* Logged in */}
+              {currentUser && (
+                <>
+                  <div className="space-y-1">
+                    <h2 className="text-sm font-semibold">Confirm your profile</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Your name and email will be visible to all members of this entity.
+                    </p>
+                  </div>
 
-              <p className="text-center text-xs text-muted-foreground">
-                Don&apos;t have an account?{" "}
-                <Link
-                  href={`/login?signup=1&next=${encodeURIComponent(`/partnerships/join?token=${token}`)}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  Create a free account first
-                </Link>
-              </p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="join_name" className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5" />
+                        Full Name *
+                      </Label>
+                      <Input
+                        id="join_name"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Your full name"
+                        autoFocus
+                      />
+                      {info.placeholder_name && info.placeholder_name !== displayName && (
+                        <p className="text-xs text-muted-foreground">
+                          Pre-filled from invitation. Edit if needed.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5" />
+                        Email Address
+                      </Label>
+                      {userEmail ? (
+                        <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                          <span className="flex-1 text-muted-foreground">{userEmail}</span>
+                          <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded-full font-medium">
+                            Verified
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">
+                          No email on your account.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {joinError && (
+                    <p className="text-sm text-destructive text-center">{joinError}</p>
+                  )}
+
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={handleJoin}
+                    disabled={joining || !displayName.trim()}
+                  >
+                    {joining ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Joining...
+                      </>
+                    ) : (
+                      "Confirm & Join Entity"
+                    )}
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>
