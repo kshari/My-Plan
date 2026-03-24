@@ -139,6 +139,10 @@ export function MemberList({
   const [inviteLinksOpen, setInviteLinksOpen] = useState(false)
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
 
+  // Confirmation dialog before sending
+  const [pendingInviteMembers, setPendingInviteMembers] = useState<PartnershipMember[]>([])
+  const [confirmInviteOpen, setConfirmInviteOpen] = useState(false)
+
   const visibleMembers = showRemoved
     ? members
     : members.filter((m) => m.status !== "removed")
@@ -170,46 +174,63 @@ export function MemberList({
     }
   }
 
-  async function handleInviteOne(m: PartnershipMember) {
-    setInvitingId(m.id)
-    try {
-      const link = await sendInvite(m)
-      if (link) {
-        setInviteLinks([link])
-        setInviteLinksOpen(true)
-        router.refresh()
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to send invitation")
-    } finally {
-      setInvitingId(null)
-    }
+  // Show confirmation dialog before sending
+  function handleInviteOne(m: PartnershipMember) {
+    setPendingInviteMembers([m])
+    setConfirmInviteOpen(true)
   }
 
-  async function handleInviteAll() {
+  function handleInviteAll() {
     if (uninvitedEligible.length === 0) {
-      toast.info("No uninvited members to invite")
+      toast.info("No members to invite")
       return
     }
-    setBulkInviting(true)
-    try {
-      const results = await Promise.allSettled(uninvitedEligible.map(sendInvite))
-      const links: InviteLink[] = []
-      let failed = 0
-      for (const r of results) {
-        if (r.status === "fulfilled" && r.value) links.push(r.value)
-        else failed++
+    setPendingInviteMembers(uninvitedEligible)
+    setConfirmInviteOpen(true)
+  }
+
+  // Called after user confirms in the dialog
+  async function executeInvites() {
+    setConfirmInviteOpen(false)
+    const isBulk = pendingInviteMembers.length > 1
+
+    if (!isBulk) {
+      const m = pendingInviteMembers[0]
+      setInvitingId(m.id)
+      try {
+        const link = await sendInvite(m)
+        if (link) {
+          setInviteLinks([link])
+          setInviteLinksOpen(true)
+          router.refresh()
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to send invitation")
+      } finally {
+        setInvitingId(null)
       }
-      if (links.length > 0) {
-        setInviteLinks(links)
-        setInviteLinksOpen(true)
-        router.refresh()
+    } else {
+      setBulkInviting(true)
+      try {
+        const results = await Promise.allSettled(pendingInviteMembers.map(sendInvite))
+        const links: InviteLink[] = []
+        let failed = 0
+        for (const r of results) {
+          if (r.status === "fulfilled" && r.value) links.push(r.value)
+          else failed++
+        }
+        if (links.length > 0) {
+          setInviteLinks(links)
+          setInviteLinksOpen(true)
+          router.refresh()
+        }
+        if (failed > 0) toast.error(`${failed} invitation(s) failed`)
+      } catch {
+        toast.error("Bulk invite failed")
+      } finally {
+        setBulkInviting(false)
+        setPendingInviteMembers([])
       }
-      if (failed > 0) toast.error(`${failed} invitation(s) failed`)
-    } catch {
-      toast.error("Bulk invite failed")
-    } finally {
-      setBulkInviting(false)
     }
   }
 
@@ -667,6 +688,67 @@ export function MemberList({
             </table>
           </div>
         </div>
+
+        {/* Invite confirmation dialog */}
+        <Dialog open={confirmInviteOpen} onOpenChange={(open) => {
+          if (!open) setPendingInviteMembers([])
+          setConfirmInviteOpen(open)
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {pendingInviteMembers.length === 1
+                  ? `Invite ${pendingInviteMembers[0]?.display_name}?`
+                  : `Invite ${pendingInviteMembers.length} members?`}
+              </DialogTitle>
+              <DialogDescription>
+                A unique join link will be generated for each member.
+                {pendingInviteMembers.some((m) => m.email) && (
+                  <span className="block mt-1">
+                    An invitation email will be sent to members with a recorded email address.
+                  </span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-1 space-y-1.5 max-h-60 overflow-y-auto">
+              {pendingInviteMembers.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                  <span className="text-sm font-medium truncate">{m.display_name}</span>
+                  {m.email ? (
+                    <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <Mail className="h-3 w-3" />
+                      {m.email}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic shrink-0">no email on file</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                className="flex-1"
+                onClick={executeInvites}
+              >
+                <Send className="h-4 w-4 mr-1.5" />
+                {pendingInviteMembers.some((m) => m.email)
+                  ? "Send Invites"
+                  : "Generate Links"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setConfirmInviteOpen(false)
+                  setPendingInviteMembers([])
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Invite links dialog */}
         <Dialog open={inviteLinksOpen} onOpenChange={setInviteLinksOpen}>
