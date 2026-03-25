@@ -159,17 +159,17 @@ export function MemberList({
     return `${window.location.origin}/partnerships/join?token=${token}`
   }
 
-  async function sendInvite(m: PartnershipMember): Promise<InviteLink | null> {
+  async function sendInvite(m: PartnershipMember, skipEmail = false): Promise<InviteLink | null> {
     const res = await fetch(`/api/partnerships/${entityId}/invitations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ member_id: m.id }),
+      body: JSON.stringify({ member_id: m.id, skip_email: skipEmail }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? "Failed to create invitation")
     return {
       name: m.display_name,
-      email: m.email ?? null,
+      email: skipEmail ? null : (m.email ?? null),
       url: data.joinLink ?? buildJoinUrl(data.invitation.invite_token),
     }
   }
@@ -190,7 +190,7 @@ export function MemberList({
   }
 
   // Called after user confirms in the dialog
-  async function executeInvites() {
+  async function executeInvites(skipEmail = false) {
     setConfirmInviteOpen(false)
     const isBulk = pendingInviteMembers.length > 1
 
@@ -198,7 +198,7 @@ export function MemberList({
       const m = pendingInviteMembers[0]
       setInvitingId(m.id)
       try {
-        const link = await sendInvite(m)
+        const link = await sendInvite(m, skipEmail)
         if (link) {
           setInviteLinks([link])
           setInviteLinksOpen(true)
@@ -212,7 +212,7 @@ export function MemberList({
     } else {
       setBulkInviting(true)
       try {
-        const results = await Promise.allSettled(pendingInviteMembers.map(sendInvite))
+        const results = await Promise.allSettled(pendingInviteMembers.map((m) => sendInvite(m, skipEmail)))
         const links: InviteLink[] = []
         let failed = 0
         for (const r of results) {
@@ -705,7 +705,7 @@ export function MemberList({
                 A unique join link will be generated for each member.
                 {pendingInviteMembers.some((m) => m.email) && (
                   <span className="block mt-1">
-                    An invitation email will be sent to members with a recorded email address.
+                    Members with an email address will receive an invitation email unless you choose to generate the link only.
                   </span>
                 )}
               </DialogDescription>
@@ -727,25 +727,34 @@ export function MemberList({
               ))}
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <Button
-                className="flex-1"
-                onClick={executeInvites}
-              >
-                <Send className="h-4 w-4 mr-1.5" />
-                {pendingInviteMembers.some((m) => m.email)
-                  ? "Send Invites"
-                  : "Generate Links"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setConfirmInviteOpen(false)
-                  setPendingInviteMembers([])
-                }}
-              >
-                Cancel
-              </Button>
+            <div className="flex flex-col gap-2 pt-2">
+              {/* Primary action — send email if any member has one */}
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={() => executeInvites(false)}>
+                  <Send className="h-4 w-4 mr-1.5" />
+                  {pendingInviteMembers.some((m) => m.email) ? "Send Invites" : "Generate Links"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setConfirmInviteOpen(false)
+                    setPendingInviteMembers([])
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {/* Secondary action — generate link without emailing */}
+              {pendingInviteMembers.some((m) => m.email) && (
+                <Button
+                  variant="ghost"
+                  className="w-full text-muted-foreground hover:text-foreground text-sm"
+                  onClick={() => executeInvites(true)}
+                >
+                  <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                  Generate link only — don&apos;t send email
+                </Button>
+              )}
             </div>
           </DialogContent>
         </Dialog>
