@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await request.json()
-  const { member_id: existingMemberId, display_name, email, role } = body
+  const { member_id: existingMemberId, display_name, email, role, skip_email } = body
 
   let member: { id: string; email?: string | null } | null = null
 
@@ -115,9 +115,9 @@ export async function POST(request: Request, { params }: RouteParams) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
   const joinLink = `${siteUrl}/partnerships/join?token=${invitation.invite_token}`
 
-  // Send email if we have an address and a Resend key
+  // Send email if we have an address, a Resend key, and skip_email is not set
   const recipientEmail = member.email ?? (email as string | undefined) ?? null
-  if (recipientEmail && process.env.RESEND_API_KEY) {
+  if (recipientEmail && process.env.RESEND_API_KEY && !skip_email) {
     try {
       const { data: entityRow } = await supabase
         .from("pt_entities")

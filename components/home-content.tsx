@@ -170,7 +170,7 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
         )}
 
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {apps.map((app, i) => (
+          {apps.filter((app) => isAuthenticated || app.id !== 'partnerships').map((app, i) => (
             <div
               key={app.id}
               className="animate-in fade-in slide-in-from-bottom-4 duration-300"

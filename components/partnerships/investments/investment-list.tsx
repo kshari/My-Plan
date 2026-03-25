@@ -384,11 +384,11 @@ export function InvestmentList({ entityId, investments, isAdmin, cashBalance, ca
                         )}
                       </div>
                       {inv.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                        <p className="hidden sm:block text-xs text-muted-foreground line-clamp-1 mt-0.5">
                           {inv.description}
                         </p>
                       )}
-                      {/* Mobile-only inline badges */}
+                      {/* Mobile-only: stage badge + financial summary */}
                       <div className="flex flex-wrap gap-1 mt-1.5 sm:hidden">
                         <Badge
                           variant="outline"
@@ -396,6 +396,29 @@ export function InvestmentList({ entityId, investments, isAdmin, cashBalance, ca
                         >
                           {WORKFLOW_STAGE_LABELS[inv.current_stage]}
                         </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 sm:hidden text-xs tabular-nums">
+                        {inv.target_amount != null && (
+                          <span className="text-muted-foreground">
+                            Cost: <span className="font-medium text-foreground">{fmt(inv.target_amount)}</span>
+                          </span>
+                        )}
+                        <span className={cv.isMarket ? "text-foreground" : "text-muted-foreground"}>
+                          Value: <span className="font-medium">{fmt(cv.value)}</span>
+                          {!cv.isMarket && cv.value > 0 && (
+                            <span className="text-[10px] text-muted-foreground/60 ml-0.5">at cost</span>
+                          )}
+                        </span>
+                        {pl != null && (
+                          <span className={pl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                            P/L: <span className="font-medium">{pl >= 0 ? "+" : ""}{fmt(pl)}</span>
+                            {plPct != null && (
+                              <span className="ml-0.5 text-[10px]">
+                                ({plPct >= 0 ? "+" : ""}{plPct.toFixed(1)}%)
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
 
