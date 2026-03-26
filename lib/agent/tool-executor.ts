@@ -19,7 +19,6 @@ import {
   type OtherIncome,
 } from '@/lib/utils/retirement-projections'
 import { runMonteCarloSimulation } from '@/lib/utils/monte-carlo'
-import { computeInvestmentScore, DEFAULT_SCORING_CONFIG } from '@/lib/property/scoring'
 import { simulateDebtPayoff, futureValue } from '@/lib/utils/pulse-calculations'
 import { getStandardDeduction } from '@/lib/constants/tax-brackets'
 import {
@@ -120,42 +119,6 @@ export async function toolGetRetirementScenarioProjection(
   }
 }
 
-// ── get_property_financial_scenarios ────────────────────────────────────────
-
-export async function toolGetPropertyFinancialScenarios(
-  supabase: SupabaseClient,
-  userId: string,
-  args: { property_id: number },
-): Promise<ToolResult> {
-  const propertyId = Number(args.property_id)
-  if (!propertyId) return { success: false, error: 'property_id is required' }
-
-  // Verify ownership
-  const { data: prop } = await supabase
-    .from('pi_properties')
-    .select('id')
-    .eq('id', propertyId)
-    .eq('user_id', userId)
-    .single()
-  if (!prop) return { success: false, error: 'Property not found or unauthorized' }
-
-  const { data, error } = await supabase
-    .from('pi_financial_scenarios')
-    .select('*')
-    .eq('Property ID', propertyId)
-
-  if (error) return { success: false, error: error.message }
-
-  return {
-    success: true,
-    result: {
-      property_id: propertyId,
-      scenario_count: data?.length ?? 0,
-      scenarios: data ?? [],
-    },
-  }
-}
-
 // ── calculate_future_value ───────────────────────────────────────────────────
 
 export async function toolCalculateFutureValue(
@@ -188,12 +151,124 @@ export async function toolCalculateFutureValue(
   }
 }
 
+// ── Shared helper: summarise what-if overrides for the result note ───────────
+
+function describeOverrides(args: RetirementOverrides): string {
+  return [
+    args.retirement_age ? `retirement_age=${args.retirement_age}` : null,
+    args.monthly_expenses_override != null ? `monthly_expenses=$${args.monthly_expenses_override.toLocaleString()}/mo` : null,
+    args.return_rate_override != null ? `return_rate=${(args.return_rate_override * 100).toFixed(1)}%` : null,
+    args.life_expectancy_override ? `life_expectancy=${args.life_expectancy_override}` : null,
+    args.ssa_start_age_override ? `ssa_start_age=${args.ssa_start_age_override}` : null,
+    args.ssa_annual_amount_override != null ? `ssa_annual_amount=$${args.ssa_annual_amount_override.toLocaleString()}` : null,
+    args.pre_medicare_monthly_premium_override != null ? `pre_medicare_premium=$${args.pre_medicare_monthly_premium_override}/mo` : null,
+    args.post_medicare_monthly_premium_override != null ? `post_medicare_premium=$${args.post_medicare_monthly_premium_override}/mo` : null,
+    args.inflation_rate_override != null ? `inflation=${(args.inflation_rate_override * 100).toFixed(1)}%` : null,
+    args.annual_contribution_override != null ? `annual_contribution=$${args.annual_contribution_override.toLocaleString()}` : null,
+  ].filter(Boolean).join(', ')
+}
+
+function isWhatIfScenario(args: RetirementOverrides): boolean {
+  return !!(
+    args.retirement_age ||
+    args.monthly_expenses_override != null ||
+    args.return_rate_override != null ||
+    args.life_expectancy_override ||
+    args.ssa_start_age_override ||
+    args.ssa_annual_amount_override != null ||
+    args.pre_medicare_monthly_premium_override != null ||
+    args.post_medicare_monthly_premium_override != null ||
+    args.inflation_rate_override != null ||
+    args.annual_contribution_override != null
+  )
+}
+
+// ── Apply overrides to a patched settings object ─────────────────────────────
+
+function applySettingsOverrides(
+  base: Record<string, unknown>,
+  args: RetirementOverrides,
+  retirementAge: number,
+): void {
+  if (args.return_rate_override != null) {
+    base.growth_rate_before_retirement = args.return_rate_override
+    base.growth_rate_during_retirement = args.return_rate_override
+  }
+  if (args.ssa_start_age_override) base.ssa_start_age = args.ssa_start_age_override
+  if (args.pre_medicare_monthly_premium_override != null) {
+    base.pre_medicare_annual_premium = args.pre_medicare_monthly_premium_override * 12
+  }
+  if (args.post_medicare_monthly_premium_override != null) {
+    base.post_medicare_annual_premium = args.post_medicare_monthly_premium_override * 12
+  }
+  if (args.inflation_rate_override != null) base.inflation_rate = args.inflation_rate_override
+}
+
+// ── Apply SSA income override to otherIncome array ───────────────────────────
+
+const SSA_NAME_PATTERNS = /social.?security|^ssa$|^ss$/i
+
+function applyOtherIncomeOverrides(otherIncome: OtherIncome[], args: RetirementOverrides): OtherIncome[] {
+  if (args.ssa_annual_amount_override == null) return otherIncome
+
+  const ssaEntries = otherIncome.filter((i) => SSA_NAME_PATTERNS.test(i.income_name))
+  if (ssaEntries.length === 0) {
+    // No SSA entry found — add a synthetic one so the override still works
+    return [
+      ...otherIncome,
+      {
+        id: -1,
+        income_name: 'Social Security (simulated)',
+        amount: args.ssa_annual_amount_override,
+        start_year: undefined,
+        end_year: undefined,
+        inflation_adjusted: true,
+      },
+    ]
+  }
+
+  return otherIncome.map((i) =>
+    SSA_NAME_PATTERNS.test(i.income_name)
+      ? { ...i, amount: args.ssa_annual_amount_override! }
+      : i,
+  )
+}
+
+// ── Apply annual contribution override across all accounts ───────────────────
+
+function applyContributionOverride(accounts: Account[], args: RetirementOverrides): Account[] {
+  if (args.annual_contribution_override == null) return accounts
+
+  const totalCurrentContribution = accounts.reduce((s, a) => s + (a.annual_contribution ?? 0), 0)
+  if (totalCurrentContribution === 0) {
+    // Spread evenly across all accounts
+    const perAccount = args.annual_contribution_override / Math.max(accounts.length, 1)
+    return accounts.map((a) => ({ ...a, annual_contribution: perAccount }))
+  }
+  // Scale proportionally
+  const scale = args.annual_contribution_override / totalCurrentContribution
+  return accounts.map((a) => ({ ...a, annual_contribution: (a.annual_contribution ?? 0) * scale }))
+}
+
 // ── calculate_retirement_projection ─────────────────────────────────────────
+
+interface RetirementOverrides {
+  retirement_age?: number
+  monthly_expenses_override?: number
+  return_rate_override?: number
+  life_expectancy_override?: number
+  ssa_start_age_override?: number
+  ssa_annual_amount_override?: number
+  pre_medicare_monthly_premium_override?: number
+  post_medicare_monthly_premium_override?: number
+  inflation_rate_override?: number
+  annual_contribution_override?: number
+}
 
 export async function toolCalculateRetirementProjection(
   supabase: SupabaseClient,
   userId: string,
-  args: { plan_id: number; scenario_id: number },
+  args: { plan_id: number; scenario_id: number } & RetirementOverrides,
 ): Promise<ToolResult> {
   const planId = Number(args.plan_id)
   const scenarioId = Number(args.scenario_id)
@@ -219,26 +294,33 @@ export async function toolCalculateRetirementProjection(
   if (!planData.birth_year) return { success: false, error: 'Plan is missing birth_year — please complete the plan setup' }
 
   const currentYear = new Date().getFullYear()
-  const retirementAge = settingsRes.data?.retirement_age ?? DEFAULT_RETIREMENT_AGE
+
+  // Apply what-if overrides on top of saved settings (temporary — nothing is persisted)
+  const patchedSettings = { ...(settingsRes.data ?? {}) }
+  const isWhatIf = isWhatIfScenario(args)
+
+  const retirementAge = args.retirement_age ?? (patchedSettings.retirement_age ?? DEFAULT_RETIREMENT_AGE)
+  if (args.retirement_age) patchedSettings.retirement_age = args.retirement_age
+  applySettingsOverrides(patchedSettings, args, retirementAge)
+
   const yearsToRetirement = Math.max(0, retirementAge - (currentYear - planData.birth_year))
-  const lifeExpectancy = planData.life_expectancy ?? DEFAULT_MAX_PROJECTION_AGE
+  const lifeExpectancy = args.life_expectancy_override ?? (planData.life_expectancy ?? DEFAULT_MAX_PROJECTION_AGE)
 
   const expensesData = expensesRes.data ?? []
-  const annualExpenses = expensesData.reduce(
-    (sum: number, e: Expense) => sum + Number(e.amount_before_65 ?? 0) * 12,
-    0,
-  )
+  const baseAnnualExpenses = args.monthly_expenses_override != null
+    ? args.monthly_expenses_override * 12
+    : expensesData.reduce((sum: number, e: Expense) => sum + Number(e.amount_before_65 ?? 0) * 12, 0)
 
   const settings = buildCalculatorSettings(
-    settingsRes.data,
+    patchedSettings,
     planData,
     currentYear,
     retirementAge,
     yearsToRetirement,
-    annualExpenses,
+    baseAnnualExpenses,
   )
 
-  const accounts: Account[] = (accountsRes.data ?? []).map((a) => ({
+  const rawAccounts: Account[] = (accountsRes.data ?? []).map((a) => ({
     id: a.id,
     account_name: a.account_name ?? '',
     owner: a.owner ?? 'planner',
@@ -246,6 +328,7 @@ export async function toolCalculateRetirementProjection(
     account_type: a.account_type,
     annual_contribution: Number(a.annual_contribution ?? 0),
   }))
+  const accounts = applyContributionOverride(rawAccounts, args)
 
   const expenses: Expense[] = expensesData.map((e) => ({
     id: e.id,
@@ -254,7 +337,7 @@ export async function toolCalculateRetirementProjection(
     amount_after_65: Number(e.amount_after_65 ?? 0),
   }))
 
-  const otherIncome: OtherIncome[] = (incomeRes.data ?? []).map((i) => ({
+  const rawOtherIncome: OtherIncome[] = (incomeRes.data ?? []).map((i) => ({
     id: i.id,
     income_name: i.income_name ?? '',
     amount: Number(i.annual_amount ?? 0),
@@ -262,6 +345,7 @@ export async function toolCalculateRetirementProjection(
     end_year: i.end_age ? planData.birth_year + i.end_age : undefined,
     inflation_adjusted: Boolean(i.cola),
   }))
+  const otherIncome = applyOtherIncomeOverrides(rawOtherIncome, args)
 
   const projections = calculateRetirementProjections(
     planData.birth_year,
@@ -303,6 +387,10 @@ export async function toolCalculateRetirementProjection(
     result: {
       plan_id: planId,
       scenario_id: scenarioId,
+      is_what_if_simulation: isWhatIf,
+      ...(isWhatIf && {
+        simulation_note: `This is a what-if simulation — no data was saved. Overrides applied: ${describeOverrides(args)}.`,
+      }),
       current_age: currentYear - planData.birth_year,
       retirement_age: retirementAge,
       life_expectancy: lifeExpectancy,
@@ -323,7 +411,7 @@ export async function toolCalculateRetirementProjection(
 export async function toolRunMonteCarlo(
   supabase: SupabaseClient,
   userId: string,
-  args: { plan_id: number; scenario_id: number; num_simulations?: number },
+  args: { plan_id: number; scenario_id: number; num_simulations?: number } & RetirementOverrides,
 ): Promise<ToolResult> {
   const planId = Number(args.plan_id)
   const scenarioId = Number(args.scenario_id)
@@ -350,26 +438,33 @@ export async function toolRunMonteCarlo(
 
   const planData = planRes.data
   const currentYear = new Date().getFullYear()
-  const retirementAge = settingsRes.data?.retirement_age ?? DEFAULT_RETIREMENT_AGE
+
+  // Apply what-if overrides (temporary — nothing is persisted)
+  const patchedSettings = { ...(settingsRes.data ?? {}) }
+  const isWhatIf = isWhatIfScenario(args)
+
+  const retirementAge = args.retirement_age ?? (patchedSettings.retirement_age ?? DEFAULT_RETIREMENT_AGE)
+  if (args.retirement_age) patchedSettings.retirement_age = args.retirement_age
+  applySettingsOverrides(patchedSettings, args, retirementAge)
+
   const yearsToRetirement = Math.max(0, retirementAge - (currentYear - planData.birth_year))
-  const lifeExpectancy = planData.life_expectancy ?? DEFAULT_MAX_PROJECTION_AGE
+  const lifeExpectancy = args.life_expectancy_override ?? (planData.life_expectancy ?? DEFAULT_MAX_PROJECTION_AGE)
 
   const expensesData = expensesRes.data ?? []
-  const annualExpenses = expensesData.reduce(
-    (sum: number, e: Expense) => sum + Number(e.amount_before_65 ?? 0) * 12,
-    0,
-  )
+  const baseAnnualExpenses = args.monthly_expenses_override != null
+    ? args.monthly_expenses_override * 12
+    : expensesData.reduce((sum: number, e: Expense) => sum + Number(e.amount_before_65 ?? 0) * 12, 0)
 
   const settings = buildCalculatorSettings(
-    settingsRes.data,
+    patchedSettings,
     planData,
     currentYear,
     retirementAge,
     yearsToRetirement,
-    annualExpenses,
+    baseAnnualExpenses,
   )
 
-  const accounts: Account[] = (accountsRes.data ?? []).map((a) => ({
+  const rawAccounts: Account[] = (accountsRes.data ?? []).map((a) => ({
     id: a.id,
     account_name: a.account_name ?? '',
     owner: a.owner ?? 'planner',
@@ -377,6 +472,7 @@ export async function toolRunMonteCarlo(
     account_type: a.account_type,
     annual_contribution: Number(a.annual_contribution ?? 0),
   }))
+  const accounts = applyContributionOverride(rawAccounts, args)
 
   const expenses: Expense[] = expensesData.map((e) => ({
     id: e.id,
@@ -385,7 +481,7 @@ export async function toolRunMonteCarlo(
     amount_after_65: Number(e.amount_after_65 ?? 0),
   }))
 
-  const otherIncome: OtherIncome[] = (incomeRes.data ?? []).map((i) => ({
+  const rawOtherIncome: OtherIncome[] = (incomeRes.data ?? []).map((i) => ({
     id: i.id,
     income_name: i.income_name ?? '',
     amount: Number(i.annual_amount ?? 0),
@@ -393,6 +489,7 @@ export async function toolRunMonteCarlo(
     end_year: i.end_age ? planData.birth_year + i.end_age : undefined,
     inflation_adjusted: Boolean(i.cola),
   }))
+  const otherIncome = applyOtherIncomeOverrides(rawOtherIncome, args)
 
   const { summary } = runMonteCarloSimulation(
     planData.birth_year,
@@ -410,6 +507,10 @@ export async function toolRunMonteCarlo(
       plan_id: planId,
       scenario_id: scenarioId,
       num_simulations: numSimulations,
+      is_what_if_simulation: isWhatIf,
+      ...(isWhatIf && {
+        simulation_note: `This is a what-if simulation — no data was saved. Overrides applied: ${describeOverrides(args)}.`,
+      }),
       success_rate_pct: Math.round(summary.successRate * 100),
       median_final_net_worth: Math.round(summary.medianFinalNetworth),
       percentile_5_net_worth: Math.round(summary.percentile5),
@@ -423,103 +524,6 @@ export async function toolRunMonteCarlo(
           : summary.successRate >= 0.7
             ? 'moderate'
             : 'high',
-    },
-  }
-}
-
-// ── calculate_property_metrics ───────────────────────────────────────────────
-
-export async function toolCalculatePropertyMetrics(
-  supabase: SupabaseClient,
-  userId: string,
-  args: { property_id: number },
-): Promise<ToolResult> {
-  const propertyId = Number(args.property_id)
-  if (!propertyId) return { success: false, error: 'property_id is required' }
-
-  const { data: prop } = await supabase
-    .from('pi_properties')
-    .select('*')
-    .eq('id', propertyId)
-    .eq('user_id', userId)
-    .single()
-  if (!prop) return { success: false, error: 'Property not found or unauthorized' }
-
-  // Fetch the first financial scenario for loan terms
-  const { data: scenarios } = await supabase
-    .from('pi_financial_scenarios')
-    .select('*')
-    .eq('Property ID', propertyId)
-    .order('id', { ascending: true })
-    .limit(1)
-
-  const scenario = scenarios?.[0]
-  const askingPrice = Number((prop as Record<string, unknown>)['Asking Price'] ?? 0)
-  const grossIncome = Number((prop as Record<string, unknown>)['Gross Income'] ?? 0)
-  const operatingExpenses = Number((prop as Record<string, unknown>)['Operating Expenses'] ?? 0)
-
-  const noi = grossIncome - operatingExpenses
-  const capRate = askingPrice > 0 ? (noi / askingPrice) * 100 : 0
-
-  // Cash-on-cash return needs down payment from scenario
-  const downPaymentPct = scenario
-    ? Number((scenario as Record<string, unknown>)['Down Payment %'] ?? 25) / 100
-    : 0.25
-  const downPayment = askingPrice * downPaymentPct
-  const closingCosts = askingPrice * 0.03
-  const totalInvested = downPayment + closingCosts
-
-  // Annual debt service from scenario, or estimate via mortgage calc
-  let annualDebtService = 0
-  if (scenario) {
-    const monthlyMortgage = Number((scenario as Record<string, unknown>)['Monthly Mortgage'] ?? 0)
-    annualDebtService = monthlyMortgage * 12
-  } else if (askingPrice > 0) {
-    const loanAmount = askingPrice * (1 - downPaymentPct)
-    const monthlyRate = 0.07 / 12
-    const n = 360
-    const payment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1)
-    annualDebtService = payment * 12
-  }
-
-  const annualCashFlow = noi - annualDebtService
-  const roi = totalInvested > 0 ? (annualCashFlow / totalInvested) * 100 : 0
-
-  const monthlyGrossIncome = grossIncome / 12
-  const onePercentRatio = askingPrice > 0 ? (monthlyGrossIncome / askingPrice) * 100 : null
-  const grm = grossIncome > 0 ? askingPrice / grossIncome : null
-
-  const dscr = annualDebtService > 0 ? noi / annualDebtService : null
-
-  const { score, components } = computeInvestmentScore(
-    DEFAULT_SCORING_CONFIG,
-    {
-      capRate,
-      roi,
-      annualCashFlow,
-      noiForCalcs: noi,
-      onePercentRatio,
-      grm,
-    },
-    (v) => `$${Math.abs(Math.round(v)).toLocaleString()}`,
-  )
-
-  return {
-    success: true,
-    result: {
-      property_id: propertyId,
-      asking_price: askingPrice,
-      gross_annual_income: grossIncome,
-      operating_expenses: operatingExpenses,
-      noi: Math.round(noi),
-      cap_rate_pct: Math.round(capRate * 100) / 100,
-      annual_cash_flow: Math.round(annualCashFlow),
-      cash_on_cash_return_pct: Math.round(roi * 100) / 100,
-      one_percent_ratio_pct: onePercentRatio != null ? Math.round(onePercentRatio * 100) / 100 : null,
-      grm: grm != null ? Math.round(grm * 10) / 10 : null,
-      dscr: dscr != null ? Math.round(dscr * 100) / 100 : null,
-      investment_score: score,
-      score_components: components.map((c) => ({ label: c.label, pts: c.pts, max: c.maxPts, detail: c.description })),
     },
   }
 }
@@ -656,22 +660,30 @@ export async function executeReadOrCalcTool(
     case 'get_retirement_scenario_projection':
       return toolGetRetirementScenarioProjection(supabase, userId, args as { plan_id: number; scenario_id: number })
 
-    case 'get_property_financial_scenarios':
-      return toolGetPropertyFinancialScenarios(supabase, userId, args as { property_id: number })
-
     case 'calculate_future_value':
       return toolCalculateFutureValue(supabase, userId, args as {
         principal: number; annual_rate: number; years: number; monthly_contribution?: number
       })
 
     case 'calculate_retirement_projection':
-      return toolCalculateRetirementProjection(supabase, userId, args as { plan_id: number; scenario_id: number })
+      return toolCalculateRetirementProjection(supabase, userId, args as {
+        plan_id: number; scenario_id: number;
+        retirement_age?: number; monthly_expenses_override?: number;
+        return_rate_override?: number; life_expectancy_override?: number;
+        ssa_start_age_override?: number; ssa_annual_amount_override?: number;
+        pre_medicare_monthly_premium_override?: number; post_medicare_monthly_premium_override?: number;
+        inflation_rate_override?: number; annual_contribution_override?: number;
+      })
 
     case 'run_monte_carlo':
-      return toolRunMonteCarlo(supabase, userId, args as { plan_id: number; scenario_id: number; num_simulations?: number })
-
-    case 'calculate_property_metrics':
-      return toolCalculatePropertyMetrics(supabase, userId, args as { property_id: number })
+      return toolRunMonteCarlo(supabase, userId, args as {
+        plan_id: number; scenario_id: number; num_simulations?: number;
+        retirement_age?: number; monthly_expenses_override?: number;
+        return_rate_override?: number; life_expectancy_override?: number;
+        ssa_start_age_override?: number; ssa_annual_amount_override?: number;
+        pre_medicare_monthly_premium_override?: number; post_medicare_monthly_premium_override?: number;
+        inflation_rate_override?: number; annual_contribution_override?: number;
+      })
 
     case 'calculate_tax_estimate':
       return toolCalculateTaxEstimate(supabase, userId, args as { gross_income: number; filing_status: string })

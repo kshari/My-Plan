@@ -10,6 +10,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Sidebar } from "@/components/layout/sidebar"
 import { useSidebarNav } from "@/components/layout/sidebar-context"
 import { FeedbackButton } from "@/components/feedback/feedback-button"
+import { BetaBanner } from "@/components/layout/beta-banner"
 import { useAgentPanel } from "@/components/agent/agent-panel-context"
 import { AgentPanel } from "@/components/agent/agent-panel"
 import type { FeatureFlags } from "@/lib/app-features"
@@ -79,6 +80,7 @@ export function AppShell({ children, userEmail, isAdmin = false, features }: App
           {/* Main content — hidden when agent is fullscreen */}
           {agentMode !== 'fullscreen' && (
             <main className="flex-1 overflow-y-auto pb-20 lg:pb-0 min-w-0">
+              <BetaBanner />
               {children}
             </main>
           )}

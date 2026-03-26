@@ -8,11 +8,11 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let isAdmin = false
-  let features: FeatureFlags = { aiAgent: true, routerLlmClassification: true }
+  let features: FeatureFlags = { aiAgent: true }
   if (user) {
     const [adminCheck, flags] = await Promise.all([
       checkAdmin(supabase, user.id),
-      getFeatureFlags(supabase),
+      getFeatureFlags(supabase, user.id),
     ])
     isAdmin = adminCheck.isAdmin
     features = flags

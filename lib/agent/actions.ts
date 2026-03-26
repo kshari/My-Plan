@@ -23,11 +23,6 @@ const RP_OTHER_INCOME_ALLOWED_KEYS = [
   'income_name', 'annual_amount', 'start_age', 'end_age', 'cola',
 ] as const
 
-const PI_PROPERTY_ALLOWED_KEYS = [
-  'address', 'type', 'Number of Units', 'Has HOA', 'Asking Price',
-  'Gross Income', 'Operating Expenses',
-] as const
-
 export type AgentAction =
   | { type: 'update_fp_profile'; payload: Record<string, unknown> }
   | { type: 'update_rp_plan'; payload: { plan_id: number; [k: string]: unknown } }
@@ -35,11 +30,10 @@ export type AgentAction =
   | { type: 'update_rp_expense'; payload: { expense_id: number; [k: string]: unknown } }
   | { type: 'update_rp_other_income'; payload: { income_id: number; [k: string]: unknown } }
   | { type: 'create_rp_scenario'; payload: { plan_id: number; scenario_name: string } }
-  | { type: 'update_pi_property'; payload: { property_id: number; [k: string]: unknown } }
 
 export const ALLOWED_ACTION_TYPES = [
   'update_fp_profile', 'update_rp_plan', 'update_rp_account', 'update_rp_expense',
-  'update_rp_other_income', 'create_rp_scenario', 'update_pi_property',
+  'update_rp_other_income', 'create_rp_scenario',
 ] as const
 
 function pick<T extends string>(obj: Record<string, unknown>, keys: readonly T[]): Record<string, unknown> {
@@ -149,18 +143,6 @@ export async function executeAgentAction(
           scenario_name: scenarioName || 'New Scenario',
           is_default: false,
         })
-        if (error) return { success: false, error: error.message }
-        return { success: true }
-      }
-
-      case 'update_pi_property': {
-        const propertyId = Number(action.payload.property_id)
-        if (!Number.isInteger(propertyId)) return { success: false, error: 'Invalid property_id' }
-        const { data: prop } = await supabase.from('pi_properties').select('id').eq('id', propertyId).eq('user_id', userId).single()
-        if (!prop) return { success: false, error: 'Property not found or unauthorized' }
-        const updates = pick(action.payload as Record<string, unknown>, PI_PROPERTY_ALLOWED_KEYS)
-        if (Object.keys(updates).length === 0) return { success: false, error: 'No allowed fields to update' }
-        const { error } = await supabase.from('pi_properties').update(updates).eq('id', propertyId)
         if (error) return { success: false, error: error.message }
         return { success: true }
       }

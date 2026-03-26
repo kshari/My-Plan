@@ -10,11 +10,11 @@ export default async function AdminFeaturesPage() {
 
   const { data: rows } = await supabase
     .from('app_features')
-    .select('id, environment, name, enabled, updated_at')
+    .select('id, environment, name, enabled, release_stage, updated_at')
     .order('environment')
     .order('id')
 
-  const featuresByEnvironment: Record<string, Array<{ id: string; name: string; enabled: boolean; updated_at: string | null }>> = {
+  const featuresByEnvironment: Record<string, Array<{ id: string; name: string; enabled: boolean; release_stage: string; updated_at: string | null }>> = {
     local: [],
     staging: [],
     production: [],
@@ -22,7 +22,13 @@ export default async function AdminFeaturesPage() {
   for (const env of APP_ENVIRONMENTS) {
     featuresByEnvironment[env] = (rows ?? [])
       .filter((r) => r.environment === env)
-      .map((r) => ({ id: r.id, name: r.name, enabled: r.enabled, updated_at: r.updated_at }))
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        enabled: r.enabled,
+        release_stage: r.release_stage ?? 'ga',
+        updated_at: r.updated_at,
+      }))
   }
 
   return (
