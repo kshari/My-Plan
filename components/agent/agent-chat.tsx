@@ -175,7 +175,7 @@ export function AgentChat({ mode }: AgentChatProps) {
     }
   }, [])
 
-  const confirmActions = useCallback(async (messageId: string, actions: PendingAction[]) => {
+  const confirmActions = useCallback(async (messageId: string, actions: NonNullable<Message['pendingActions']>) => {
     setLoading(true)
     try {
       const res = await fetch('/api/agent/execute', {
