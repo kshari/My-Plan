@@ -35,9 +35,7 @@ const ANALYSIS_KEYWORDS = [
 ]
 
 const CROSS_DOMAIN_TRIGGERS: string[][] = [
-  // Any two of these groups co-present signals a cross-domain question
   ['retirement', 'retire', '401k', '401(k)', 'ira', 'roth', 'pension', 'social security'],
-  ['property', 'rent', 'rental', 'real estate', 'cap rate', 'landlord'],
   ['income', 'expense', 'savings', 'debt', 'net worth', 'budget', 'pulse'],
 ]
 
@@ -48,7 +46,6 @@ const FINANCIAL_DEPTH_KEYWORDS = [
   'marginal rate', 'deduction', 'rmd', 'required minimum', 'guardrail',
   'safe withdrawal', 'sequence of returns', 'longevity', 'life expectancy',
   'beneficiary', 'estate', 'legacy', 'healthcare cost', 'medicare',
-  'cash flow', 'noi', 'dscr', 'cap rate', 'grm', 'cocr', 'cash on cash',
 ]
 
 // --- Simple signals ---
