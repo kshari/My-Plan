@@ -18,7 +18,7 @@ export default async function PulseLayout({
 
   const [{ isAdmin }, features] = await Promise.all([
     checkAdmin(supabase, user.id),
-    getFeatureFlags(supabase),
+    getFeatureFlags(supabase, user.id),
   ])
 
   return (

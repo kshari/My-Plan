@@ -17,7 +17,6 @@ export const GET = withAuth(async (request, { user, supabase }) => {
       domains: scope.domains,
       pageDescription: scope.pageDescription,
       focusedPlanId: scope.focusedPlanId,
-      focusedPropertyId: scope.focusedPropertyId,
     },
   })
 })

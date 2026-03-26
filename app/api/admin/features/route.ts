@@ -21,7 +21,7 @@ export async function GET() {
 
   const { data: rows, error } = await supabase
     .from('app_features')
-    .select('id, environment, name, enabled, updated_at')
+    .select('id, environment, name, enabled, release_stage, updated_at')
     .order('environment')
     .order('id')
 
@@ -29,7 +29,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const byEnv: Record<string, Array<{ id: string; name: string; enabled: boolean; updated_at: string | null }>> = {
+  const byEnv: Record<string, Array<{ id: string; name: string; enabled: boolean; release_stage: string; updated_at: string | null }>> = {
     local: [],
     staging: [],
     production: [],
@@ -41,6 +41,7 @@ export async function GET() {
         id: r.id,
         name: r.name,
         enabled: r.enabled,
+        release_stage: r.release_stage ?? 'ga',
         updated_at: r.updated_at,
       }))
   }
@@ -69,39 +70,47 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { featureId?: string; environment?: string; enabled?: boolean }
+  let body: { featureId?: string; environment?: string; enabled?: boolean; release_stage?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { featureId, environment, enabled } = body
+  const { featureId, environment, enabled, release_stage } = body
   if (
     typeof featureId !== 'string' ||
-    typeof environment !== 'string' ||
-    typeof enabled !== 'boolean'
+    typeof environment !== 'string'
   ) {
     return NextResponse.json(
-      { error: 'featureId (string), environment (string), and enabled (boolean) required' },
+      { error: 'featureId (string) and environment (string) required' },
       { status: 400 }
     )
+  }
+  if (enabled !== undefined && typeof enabled !== 'boolean') {
+    return NextResponse.json({ error: 'enabled must be a boolean' }, { status: 400 })
+  }
+  if (release_stage !== undefined && release_stage !== 'beta' && release_stage !== 'ga') {
+    return NextResponse.json({ error: 'release_stage must be "beta" or "ga"' }, { status: 400 })
   }
   const env = environment.toLowerCase()
   if (env !== 'local' && env !== 'staging' && env !== 'production') {
     return NextResponse.json({ error: 'environment must be local, staging, or production' }, { status: 400 })
   }
 
+  const updatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    updated_by: user.id,
+  }
+  if (enabled !== undefined) updatePayload.enabled = enabled
+  if (release_stage !== undefined) updatePayload.release_stage = release_stage
+
   const { data, error } = await supabase
     .from('app_features')
-    .update({
-      enabled,
-      updated_at: new Date().toISOString(),
-      updated_by: user.id,
-    })
+    .update(updatePayload)
     .eq('id', featureId)
     .eq('environment', env)
-    .select('id, environment, name, enabled')
+    .select('id, environment, name, enabled, release_stage')
     .single()
 
   if (error) {

@@ -13,8 +13,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { MarkdownContent } from './markdown-content'
 import { AgentCredentialsForm } from './agent-credentials-form'
 import type { AgentPanelMode } from './agent-panel-context'
+import { useAgentChat, type Message } from './agent-chat-context'
 import {
   isWebGPUAvailable,
   getOrCreateEngine,
@@ -27,22 +29,6 @@ import { classifyPrompt } from '@/lib/agent/prompt-router'
 
 export type AgentProvider = 'webllm' | 'openai' | 'gemini' | 'gemini-api-key' | 'claude' | 'auto'
 
-interface PendingAction {
-  type: string
-  payload: Record<string, unknown>
-  description: string
-}
-
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  pendingActions?: PendingAction[]
-  actionsApplied?: string[]
-  /** Which backend handled this message (shown as a badge). */
-  routedVia?: 'local' | 'openai' | 'gemini' | 'gemini-api-key' | 'claude'
-}
-
 interface AgentChatProps {
   mode?: AgentPanelMode
 }
@@ -50,9 +36,9 @@ interface AgentChatProps {
 export function AgentChat({ mode }: AgentChatProps) {
   const embedded = mode === 'docked' || mode === 'fullscreen'
   const pathname = usePathname()
+  const { messages, setMessages, clearMessages } = useAgentChat()
   const [provider, setProvider] = useState<AgentProvider>('openai')
   const [autoCloudProvider, setAutoCloudProvider] = useState<Exclude<AgentProvider, 'webllm' | 'auto'>>('openai')
-  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [configuredProviders, setConfiguredProviders] = useState<{ provider: string }[]>([])
@@ -72,6 +58,8 @@ export function AgentChat({ mode }: AgentChatProps) {
   useEffect(() => {
     scrollToBottom()
   }, [messages, loading, scrollToBottom])
+
+  const settingsLoaded = useRef(false)
 
   const fetchCredentials = useCallback(async () => {
     try {
@@ -97,10 +85,38 @@ export function AgentChat({ mode }: AgentChatProps) {
     }
   }, [])
 
+  const fetchSavedSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/agent/settings')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.provider) setProvider(data.provider as AgentProvider)
+        if (data.autoCloudProvider) setAutoCloudProvider(data.autoCloudProvider as Exclude<AgentProvider, 'webllm' | 'auto'>)
+        settingsLoaded.current = true
+      }
+    } catch {
+      settingsLoaded.current = true
+    }
+  }, [])
+
+  const saveSettings = useCallback(async (newProvider: AgentProvider, newCloudProvider: Exclude<AgentProvider, 'webllm' | 'auto'>) => {
+    if (!settingsLoaded.current) return
+    try {
+      await fetch('/api/agent/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: newProvider, autoCloudProvider: newCloudProvider }),
+      })
+    } catch {
+      // non-critical — settings persist locally for the session
+    }
+  }, [])
+
   useEffect(() => {
     fetchCredentials()
     fetchConfig()
-  }, [fetchCredentials, fetchConfig])
+    fetchSavedSettings()
+  }, [fetchCredentials, fetchConfig, fetchSavedSettings])
 
   const canUseProvider = useCallback(
     (p: AgentProvider) => {
@@ -159,7 +175,7 @@ export function AgentChat({ mode }: AgentChatProps) {
     }
   }, [])
 
-  const confirmActions = useCallback(async (messageId: string, actions: PendingAction[]) => {
+  const confirmActions = useCallback(async (messageId: string, actions: NonNullable<Message['pendingActions']>) => {
     setLoading(true)
     try {
       const res = await fetch('/api/agent/execute', {
@@ -412,9 +428,7 @@ export function AgentChat({ mode }: AgentChatProps) {
     }
   }, [input, loading, provider, canUseProvider, buildHistory, webgpuSupported, sendWebLLMMessage, pathname, messages.length, resolveCloudProvider, routerLlmClassification])
 
-  const clearChat = useCallback(() => {
-    setMessages([])
-  }, [])
+  const clearChat = clearMessages
 
   const webllmReady = webllmStatus.state === 'ready'
   const webllmLoading = webllmStatus.state === 'loading'
@@ -506,7 +520,11 @@ export function AgentChat({ mode }: AgentChatProps) {
       <div className="flex flex-wrap items-center gap-2 border-b p-3">
         <div className="w-full sm:w-auto space-y-1">
           <label className="text-xs font-medium text-muted-foreground block">Choose AI Provider</label>
-          <Select value={provider} onValueChange={(v) => setProvider(v as AgentProvider)}>
+          <Select value={provider} onValueChange={(v) => {
+            const p = v as AgentProvider
+            setProvider(p)
+            saveSettings(p, autoCloudProvider)
+          }}>
             <SelectTrigger className="w-[200px]" size="default">
               <SelectValue placeholder="Choose AI Provider" />
             </SelectTrigger>
@@ -537,7 +555,11 @@ export function AgentChat({ mode }: AgentChatProps) {
             <label className="text-xs font-medium text-muted-foreground block">Cloud provider (complex)</label>
             <Select
               value={autoCloudProvider}
-              onValueChange={(v) => setAutoCloudProvider(v as Exclude<AgentProvider, 'webllm' | 'auto'>)}
+              onValueChange={(v) => {
+                const cp = v as Exclude<AgentProvider, 'webllm' | 'auto'>
+                setAutoCloudProvider(cp)
+                saveSettings(provider, cp)
+              }}
             >
               <SelectTrigger className="w-[180px]" size="default">
                 <SelectValue placeholder="Choose cloud provider" />
@@ -676,16 +698,22 @@ export function AgentChat({ mode }: AgentChatProps) {
               )}
               <div
                 className={cn(
-                  'rounded-lg px-3 py-2 max-w-[85%] text-sm',
-                  m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                  'rounded-lg max-w-[85%] text-sm',
+                  m.role === 'user'
+                    ? 'bg-primary text-primary-foreground px-3 py-2'
+                    : 'bg-muted px-3.5 py-2.5'
                 )}
               >
-                <div className="whitespace-pre-wrap">{m.content || (streamingMsgId.current === m.id ? '' : '')}</div>
+                {m.role === 'user' ? (
+                  <div className="whitespace-pre-wrap">{m.content}</div>
+                ) : (
+                  <MarkdownContent content={m.content || ''} />
+                )}
                 {m.actionsApplied?.length ? (
-                  <p className="text-xs mt-1 opacity-80">Applied: {m.actionsApplied.join(', ')}</p>
+                  <p className="text-xs mt-1.5 opacity-80">Applied: {m.actionsApplied.join(', ')}</p>
                 ) : null}
                 {m.role === 'assistant' && m.routedVia && (
-                  <p className="text-[10px] mt-1 opacity-50 flex items-center gap-0.5">
+                  <p className="text-[10px] mt-1.5 opacity-50 flex items-center gap-0.5">
                     {m.routedVia === 'local' ? <MonitorSmartphone className="h-2.5 w-2.5" /> : <Zap className="h-2.5 w-2.5" />}
                     {routedViaLabel(m.routedVia)}
                   </p>

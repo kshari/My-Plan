@@ -1,9 +1,8 @@
-export type DataDomain = 'pulse' | 'retirement' | 'property'
+export type DataDomain = 'pulse' | 'retirement'
 
 export interface ContextScope {
   domains: DataDomain[]
   focusedPlanId?: number
-  focusedPropertyId?: number
   pageDescription: string
 }
 
@@ -12,13 +11,6 @@ const RETIREMENT_KEYWORDS = [
   'social security', 'life expectancy', 'birth year', 'spouse',
   'scenario', 'projection', 'account balance', 'contribution',
   'rmd', 'required minimum', 'annuity',
-]
-
-const PROPERTY_KEYWORDS = [
-  'property', 'properties', 'rent', 'rental', 'cap rate', 'cocr',
-  'cash on cash', 'investment property', 'asking price', 'gross income',
-  'operating expense', 'real estate', 'landlord', 'tenant', 'vacancy',
-  'noi', 'net operating',
 ]
 
 const PULSE_KEYWORDS = [
@@ -38,14 +30,11 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   '/apps/retirement/dashboard': 'Retirement Planner Dashboard — plans list, metrics, projections',
   '/apps/retirement/structure': 'Retirement Plan Structure overview',
   '/apps/retirement/profile': 'Retirement Planner Profile settings',
-  '/apps/property': 'Property Investment app',
-  '/apps/property/dashboard': 'Property Investment Dashboard — property list and summaries',
-  '/apps/property/profile': 'Property Investment Profile settings',
 }
 
 export function mapRouteToScope(pathname: string): ContextScope {
   if (!pathname) {
-    return { domains: ['pulse', 'retirement', 'property'], pageDescription: 'the app' }
+    return { domains: ['pulse', 'retirement'], pageDescription: 'the app' }
   }
 
   const planMatch = pathname.match(/^\/apps\/retirement\/plans\/(\d+)/)
@@ -56,17 +45,6 @@ export function mapRouteToScope(pathname: string): ContextScope {
       domains: ['retirement'],
       focusedPlanId: planId,
       pageDescription: `Retirement Plan #${planId} — ${subPage}`,
-    }
-  }
-
-  const propertyMatch = pathname.match(/^\/apps\/property\/properties\/(\d+)/)
-  if (propertyMatch) {
-    const propId = Number(propertyMatch[1])
-    const subPage = pathname.replace(propertyMatch[0], '').replace(/^\//, '') || 'details'
-    return {
-      domains: ['property'],
-      focusedPropertyId: propId,
-      pageDescription: `Property #${propId} — ${subPage}`,
     }
   }
 
@@ -92,15 +70,8 @@ export function mapRouteToScope(pathname: string): ContextScope {
     }
   }
 
-  if (pathname.startsWith('/apps/property')) {
-    return {
-      domains: ['property'],
-      pageDescription: PAGE_DESCRIPTIONS[pathname] ?? 'Property Investment app',
-    }
-  }
-
   return {
-    domains: ['pulse', 'retirement', 'property'],
+    domains: ['pulse', 'retirement'],
     pageDescription: PAGE_DESCRIPTIONS[pathname] ?? 'the home page',
   }
 }
@@ -112,9 +83,6 @@ export function detectPromptIntent(message: string): DataDomain[] {
   for (const kw of RETIREMENT_KEYWORDS) {
     if (lower.includes(kw)) { detected.add('retirement'); break }
   }
-  for (const kw of PROPERTY_KEYWORDS) {
-    if (lower.includes(kw)) { detected.add('property'); break }
-  }
   for (const kw of PULSE_KEYWORDS) {
     if (lower.includes(kw)) { detected.add('pulse'); break }
   }
@@ -122,7 +90,6 @@ export function detectPromptIntent(message: string): DataDomain[] {
   if (lower.includes('everything') || lower.includes('all my data') || lower.includes('overview') || lower.includes('summary')) {
     detected.add('pulse')
     detected.add('retirement')
-    detected.add('property')
   }
 
   return [...detected]

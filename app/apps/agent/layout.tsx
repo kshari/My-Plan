@@ -14,7 +14,7 @@ export default async function AgentLayout({
   if (!user) redirect('/login')
 
   const [features, { isAdmin }] = await Promise.all([
-    getFeatureFlags(supabase),
+    getFeatureFlags(supabase, user.id),
     checkAdmin(supabase, user.id),
   ])
   if (!features.aiAgent) redirect('/')

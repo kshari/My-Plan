@@ -21,16 +21,13 @@ export const TOOL_CATEGORIES: Record<string, ToolCategory> = {
   update_rp_expense: 'mutate',
   update_rp_other_income: 'mutate',
   create_rp_scenario: 'mutate',
-  update_pi_property: 'mutate',
   // read
   get_pulse_check_history: 'read',
   get_retirement_scenario_projection: 'read',
-  get_property_financial_scenarios: 'read',
   // calculate
   calculate_future_value: 'calculate',
   calculate_retirement_projection: 'calculate',
   run_monte_carlo: 'calculate',
-  calculate_property_metrics: 'calculate',
   calculate_tax_estimate: 'calculate',
   calculate_debt_payoff: 'calculate',
 }
@@ -179,33 +176,6 @@ export const AGENT_TOOLS_OPENAI = [
       },
     },
   },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'update_pi_property',
-      description: 'Update a property investment.',
-      parameters: {
-        type: 'object',
-        properties: {
-          property_id: { type: 'number', description: 'Property ID from context' },
-          updates: {
-            type: 'object',
-            properties: {
-              address: { type: 'string' },
-              type: { type: 'string' },
-              'Number of Units': { type: 'number' },
-              'Has HOA': { type: 'boolean' },
-              'Asking Price': { type: 'number' },
-              'Gross Income': { type: 'number' },
-              'Operating Expenses': { type: 'number' },
-            },
-          },
-        },
-        required: ['property_id', 'updates'],
-      },
-    },
-  },
-
   // ── Read ─────────────────────────────────────────────────────────────────────
 
   {
@@ -245,23 +215,6 @@ export const AGENT_TOOLS_OPENAI = [
       },
     },
   },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'get_property_financial_scenarios',
-      description:
-        'Retrieve all financial scenarios (loan terms, down payments, price assumptions) for a property. ' +
-        'Returns full scenario rows so you can discuss or compare them.',
-      parameters: {
-        type: 'object',
-        properties: {
-          property_id: { type: 'number', description: 'Property ID from context' },
-        },
-        required: ['property_id'],
-      },
-    },
-  },
-
   // ── Calculate ────────────────────────────────────────────────────────────────
 
   {
@@ -291,15 +244,58 @@ export const AGENT_TOOLS_OPENAI = [
     function: {
       name: 'calculate_retirement_projection',
       description:
-        'Run the full retirement projection engine for the given plan and scenario using the user\'s actual data. ' +
+        'Run the full retirement projection engine for the given plan and scenario. ' +
         'Returns key metrics: confidence score, portfolio value at retirement, estimated monthly income, ' +
-        'years money lasts, and total taxes paid. Call this for questions about retirement readiness, ' +
-        '"when can I retire", or "will I run out of money".',
+        'years money lasts, and total taxes paid. ' +
+        'Call this for retirement readiness questions, "when can I retire", or "will I run out of money". ' +
+        'WHAT-IF SIMULATIONS: When a user asks "What if I retire at X?" or "What if I spend more/less?" or "What if returns are Y%?", ' +
+        'pass the requested value as an override parameter (retirement_age, monthly_expenses_override, return_rate_override). ' +
+        'The override runs a temporary simulation — it does NOT save anything. Never call mutation tools for what-if questions.',
       parameters: {
         type: 'object',
         properties: {
           plan_id: { type: 'number', description: 'Retirement plan ID from context' },
           scenario_id: { type: 'number', description: 'Scenario ID from context' },
+          retirement_age: {
+            type: 'number',
+            description: 'Override retirement age for a what-if simulation (e.g. 54 for "retire 1 year early"). Omit to use the saved value.',
+          },
+          monthly_expenses_override: {
+            type: 'number',
+            description: 'Override total monthly retirement expenses in dollars for a what-if simulation. Omit to use the saved value.',
+          },
+          return_rate_override: {
+            type: 'number',
+            description: 'Override the assumed annual portfolio return rate as a decimal (e.g. 0.06 for 6%) for a what-if simulation. Applies to both pre- and post-retirement. Omit to use the saved value.',
+          },
+          life_expectancy_override: {
+            type: 'number',
+            description: 'Override life expectancy age for a what-if simulation. Omit to use the saved value.',
+          },
+          ssa_start_age_override: {
+            type: 'number',
+            description: 'Override the age at which Social Security (SSA) income begins. E.g. 62 for early claiming or 70 for delayed claiming.',
+          },
+          ssa_annual_amount_override: {
+            type: 'number',
+            description: 'Override the annual Social Security benefit amount in dollars. Targets income sources named "Social Security" or "SSA" in the plan. If none exist, a simulated SSA income source is added.',
+          },
+          pre_medicare_monthly_premium_override: {
+            type: 'number',
+            description: 'Override the monthly health insurance premium before age 65 (pre-Medicare) in dollars. E.g. 800 for $800/month ACA coverage.',
+          },
+          post_medicare_monthly_premium_override: {
+            type: 'number',
+            description: 'Override the monthly Medicare/supplemental insurance premium after age 65 in dollars.',
+          },
+          inflation_rate_override: {
+            type: 'number',
+            description: 'Override the annual inflation rate as a decimal (e.g. 0.04 for 4%). Affects expense growth and income adjustments throughout the projection.',
+          },
+          annual_contribution_override: {
+            type: 'number',
+            description: 'Override the total annual contribution to all retirement accounts in dollars. Existing contributions are scaled proportionally across accounts.',
+          },
         },
         required: ['plan_id', 'scenario_id'],
       },
@@ -312,7 +308,9 @@ export const AGENT_TOOLS_OPENAI = [
       description:
         'Run a Monte Carlo simulation (randomized market return scenarios) for the given retirement plan and scenario. ' +
         'Returns success rate, percentile outcomes (P5/P25/median/P75/P95 net worth), and stress test results. ' +
-        'Use this when the user asks about retirement risk, probability of running out of money, or worst-case scenarios.',
+        'Use this when the user asks about retirement risk, probability of running out of money, or worst-case scenarios. ' +
+        'Supports the same what-if override parameters as calculate_retirement_projection ' +
+        '(retirement_age, monthly_expenses_override, return_rate_override, life_expectancy_override).',
       parameters: {
         type: 'object',
         properties: {
@@ -322,25 +320,48 @@ export const AGENT_TOOLS_OPENAI = [
             type: 'number',
             description: 'Number of simulations to run. Defaults to 500 for speed; max 1000.',
           },
+          retirement_age: {
+            type: 'number',
+            description: 'Override retirement age for a what-if simulation. Omit to use the saved value.',
+          },
+          monthly_expenses_override: {
+            type: 'number',
+            description: 'Override total monthly retirement expenses in dollars for a what-if simulation. Omit to use the saved value.',
+          },
+          return_rate_override: {
+            type: 'number',
+            description: 'Override the assumed annual portfolio return rate as a decimal for a what-if simulation. Omit to use the saved value.',
+          },
+          life_expectancy_override: {
+            type: 'number',
+            description: 'Override life expectancy age for a what-if simulation. Omit to use the saved value.',
+          },
+          ssa_start_age_override: {
+            type: 'number',
+            description: 'Override the age at which Social Security income begins (e.g. 62 for early or 70 for delayed claiming).',
+          },
+          ssa_annual_amount_override: {
+            type: 'number',
+            description: 'Override the annual Social Security benefit in dollars.',
+          },
+          pre_medicare_monthly_premium_override: {
+            type: 'number',
+            description: 'Override the monthly health insurance premium before age 65 in dollars.',
+          },
+          post_medicare_monthly_premium_override: {
+            type: 'number',
+            description: 'Override the monthly Medicare/supplemental insurance premium after age 65 in dollars.',
+          },
+          inflation_rate_override: {
+            type: 'number',
+            description: 'Override the annual inflation rate as a decimal (e.g. 0.04 for 4%).',
+          },
+          annual_contribution_override: {
+            type: 'number',
+            description: 'Override the total annual retirement account contribution in dollars.',
+          },
         },
         required: ['plan_id', 'scenario_id'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'calculate_property_metrics',
-      description:
-        'Calculate investment metrics for a property: cap rate, NOI, cash-on-cash return (CoCR), ' +
-        'gross rent multiplier (GRM), 1% rule ratio, and an investment score (0–100). ' +
-        'Requires the user to have at least one financial scenario saved for the property.',
-      parameters: {
-        type: 'object',
-        properties: {
-          property_id: { type: 'number', description: 'Property ID from context' },
-        },
-        required: ['property_id'],
       },
     },
   },

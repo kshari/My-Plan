@@ -8,7 +8,7 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   const { supabase, user, role } = await requireAdmin()
-  const features = await getFeatureFlags(supabase)
+  const features = await getFeatureFlags(supabase, user.id)
 
   return (
     <AdminShell userEmail={user.email ?? ''} role={role} features={features}>
