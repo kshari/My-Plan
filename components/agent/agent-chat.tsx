@@ -364,12 +364,34 @@ export function AgentChat({ mode }: AgentChatProps) {
         setLoading(false)
         return
       }
-      try {
-        await sendWebLLMMessage(text)
-      } finally {
-        setLoading(false)
+
+      const complexity = await classifyPrompt(text, messages.length, routerLlmClassification)
+      if (complexity === 'complex') {
+        const cloud = resolveCloudProvider()
+        if (cloud) {
+          effectiveProvider = cloud
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content:
+                'This question requires projections, calculations, or data changes that the local model cannot perform. ' +
+                'Please add a cloud API key (OpenAI, Claude, or Gemini) in AI Settings, or switch to Auto mode for automatic routing.',
+            },
+          ])
+          setLoading(false)
+          return
+        }
+      } else {
+        try {
+          await sendWebLLMMessage(text)
+        } finally {
+          setLoading(false)
+        }
+        return
       }
-      return
     }
 
     if (!canUseProvider(effectiveProvider)) {
@@ -592,7 +614,9 @@ export function AgentChat({ mode }: AgentChatProps) {
           </Button>
         )}
         {provider === 'webllm' && webllmReady && (
-          <span className="text-xs text-green-600 dark:text-green-400">Model ready</span>
+          <span className="text-xs text-green-600 dark:text-green-400">
+            Model ready {resolveCloudProvider() ? '· Complex → ' + providerLabel(resolveCloudProvider()!) : ''}
+          </span>
         )}
         {provider !== 'webllm' && provider !== 'auto' && !canUseProvider(provider) && (
           <span className="text-xs text-amber-600 dark:text-amber-500">
@@ -679,6 +703,8 @@ export function AgentChat({ mode }: AgentChatProps) {
               <p className="text-xs text-muted-foreground">
                 Local mode runs entirely in your browser via WebGPU. No data leaves your device.
                 {!webllmReady && ' Click "Load Model" to download the model first (~1.5 GB one-time).'}
+                {' '}Projections, simulations, and data changes are automatically sent to {resolveCloudProvider() ? providerLabel(resolveCloudProvider()!) : 'a cloud provider'} when needed.
+                {!resolveCloudProvider() && ' Add a cloud API key in AI Settings to enable this.'}
               </p>
             )}
             {provider === 'auto' && (
