@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
 import { BetaBanner } from '@/components/layout/beta-banner'
+import { HomeAgentCard } from '@/components/agent/home-agent-card'
 import { useAgentPanel } from '@/components/agent/agent-panel-context'
 import { AgentPanel } from '@/components/agent/agent-panel'
 import { cn } from '@/lib/utils'
@@ -83,7 +84,7 @@ interface HomeContentProps {
 export function HomeContent({ userEmail, isAdmin = false, features }: HomeContentProps) {
   const isAuthenticated = !!userEmail
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : ''
-  const { mode: agentMode, open: openAgent } = useAgentPanel()
+  const { mode: agentMode, openInline: openAgentInline } = useAgentPanel()
   const aiAgentEnabled = features?.aiAgent !== false
 
   const visibleApps = apps.filter((app) => isAuthenticated || app.id !== 'partnerships')
@@ -154,6 +155,12 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
                   Pick up where you left off.
                 </p>
               </div>
+
+              {aiAgentEnabled && (
+                <div className="mb-5 animate-in fade-in slide-in-from-bottom-3 duration-300" style={{ animationDelay: '60ms', animationFillMode: 'both' }}>
+                  <HomeAgentCard />
+                </div>
+              )}
 
               <div className="grid gap-3 sm:grid-cols-2">
                 {visibleApps.map((app, i) => (
@@ -256,12 +263,12 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
           )}
         </main>
 
-        {isAuthenticated && aiAgentEnabled && agentMode !== 'hidden' && <AgentPanel />}
+        {isAuthenticated && aiAgentEnabled && (agentMode === 'docked' || agentMode === 'fullscreen') && <AgentPanel />}
       </div>
 
       {isAuthenticated && aiAgentEnabled && agentMode === 'hidden' && (
         <button
-          onClick={openAgent}
+          onClick={openAgentInline}
           className={cn(
             "fixed bottom-32 right-4 z-50 lg:bottom-[4.5rem] lg:right-6",
             "flex h-11 w-11 items-center justify-center rounded-full",

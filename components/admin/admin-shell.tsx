@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ShieldCheck, MessageSquare, Users, ArrowLeft, Bot, Settings } from 'lucide-react'
+import { ShieldCheck, MessageSquare, Users, ArrowLeft, Bot, Settings, BarChart3 } from 'lucide-react'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { cn } from '@/lib/utils'
 import { useAgentPanel } from '@/components/agent/agent-panel-context'
@@ -11,6 +11,7 @@ import { FeedbackButton } from '@/components/feedback/feedback-button'
 import type { FeatureFlags } from '@/lib/app-features'
 
 const tabs = [
+  { href: '/apps/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/apps/admin/feedback', label: 'Feedback', icon: MessageSquare },
   { href: '/apps/admin/agent-logs', label: 'Agent Logs', icon: Bot },
   { href: '/apps/admin/features', label: 'Features', icon: Settings, superAdminOnly: true },

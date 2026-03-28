@@ -15,21 +15,27 @@ interface AgentChatState {
   messages: Message[]
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>
   clearMessages: () => void
+  /** Message pre-seeded from outside (e.g. home page prompt bar) to auto-send when the agent opens */
+  pendingInput: string
+  setPendingInput: (text: string) => void
 }
 
 const AgentChatContext = createContext<AgentChatState>({
   messages: [],
   setMessages: () => {},
   clearMessages: () => {},
+  pendingInput: '',
+  setPendingInput: () => {},
 })
 
 export function AgentChatProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [pendingInput, setPendingInput] = useState('')
 
   const clearMessages = useCallback(() => setMessages([]), [])
 
   return (
-    <AgentChatContext.Provider value={{ messages, setMessages, clearMessages }}>
+    <AgentChatContext.Provider value={{ messages, setMessages, clearMessages, pendingInput, setPendingInput }}>
       {children}
     </AgentChatContext.Provider>
   )

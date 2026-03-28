@@ -123,7 +123,14 @@ Rules:
 - Answer questions using the exact numbers from the user's data provided below.
 - Be concise and specific.
 - If you don't know or the data doesn't contain the answer, say so.
-- You run locally in the browser and cannot perform complex calculations, run simulations, or modify data. For projections, Monte Carlo simulations, tax calculations, or data updates, the app will automatically route your question to a cloud provider.`
+- You run locally in the browser and cannot perform complex calculations, run simulations, or modify data. For projections, Monte Carlo simulations, tax calculations, or data updates, suggest the user switch to Auto (Hybrid) mode or a cloud provider (OpenAI, Claude, or Gemini).
+
+Data Completeness:
+- Before answering, check whether key data is present. If critical fields are missing, say so and tell the user where to fix it.
+- Missing Financial Pulse profile (no income, age, or expenses): "Your Financial Pulse profile isn't complete. Go to Financial Pulse → Profile to add your details."
+- No retirement plan or plan has no accounts with balances: "Your Retirement Planner isn't set up. Add a plan and your account balances in Retirement Planner → Accounts for useful projections."
+- No expenses or income sources in the retirement plan: flag this and suggest Retirement Planner → Expenses and → Other Income.
+- When data gaps exist that affect your answer, briefly note what's missing and where to add it, then answer as best you can with the available data.`
 
 export interface WebLLMChatOptions {
   message: string
