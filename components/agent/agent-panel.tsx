@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useEffect } from 'react'
-import { X, Minus, Maximize2, PanelRight, Bot } from 'lucide-react'
+import { X, Minus, Maximize2, PanelRight, Minimize2, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAgentPanel, MIN_WIDTH } from './agent-panel-context'
 import { AgentChat } from './agent-chat'
@@ -43,12 +43,16 @@ export function AgentPanel() {
   if (mode === 'hidden') return null
 
   const isDocked = mode === 'docked'
+  const isInline = mode === 'inline'
+  const isFullscreen = mode === 'fullscreen'
 
   return (
     <div
       className={cn(
         'flex flex-col bg-background',
-        isDocked ? 'relative shrink-0 border-l' : 'flex-1 min-w-0'
+        isDocked && 'relative shrink-0 border-l',
+        isInline && 'rounded-xl border overflow-hidden',
+        isFullscreen && 'flex-1 min-w-0',
       )}
       style={isDocked ? { width: panelWidth, minWidth: MIN_WIDTH } : undefined}
     >
@@ -65,7 +69,7 @@ export function AgentPanel() {
         <Bot className="h-4 w-4 text-sky-500" />
         <span className="text-sm font-semibold flex-1">AI Assistant</span>
 
-        {isDocked ? (
+        {isDocked && (
           <>
             <button
               onClick={toggleFullscreen}
@@ -89,21 +93,49 @@ export function AgentPanel() {
               <X className="h-4 w-4" />
             </button>
           </>
-        ) : (
+        )}
+
+        {isInline && (
           <>
+            <button
+              onClick={dockRight}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Dock to the right"
+            >
+              <PanelRight className="h-4 w-4" />
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Full screen"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={close}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </>
+        )}
+
+        {isFullscreen && (
+          <>
+            <button
+              onClick={toggleFullscreen}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Exit full screen"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </button>
             <button
               onClick={dockRight}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title="Dock right"
             >
               <PanelRight className="h-4 w-4" />
-            </button>
-            <button
-              onClick={close}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="Minimize"
-            >
-              <Minus className="h-4 w-4" />
             </button>
             <button
               onClick={close}
@@ -117,7 +149,12 @@ export function AgentPanel() {
       </div>
 
       {/* Chat body */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div
+        className={cn(
+          'flex-1 min-h-0 overflow-hidden',
+          isInline && 'min-h-[420px] max-h-[65vh]',
+        )}
+      >
         <AgentChat mode={mode} />
       </div>
     </div>

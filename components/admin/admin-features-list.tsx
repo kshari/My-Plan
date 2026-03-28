@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, Laptop, Cloud, Server, Users, Plus, Trash2, FlaskConical, Globe,
+  Link2, Copy, Check, BanIcon, CalendarDays, Hash,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -33,6 +35,17 @@ interface BetaUser {
   status: string
   invited_at: string
   accepted_at: string | null
+}
+
+interface InviteLink {
+  id: string
+  token: string
+  label: string | null
+  created_at: string
+  expires_at: string | null
+  max_uses: number | null
+  use_count: number
+  active: boolean
 }
 
 const ENV_ICONS: Record<AppEnvironment, typeof Laptop> = {
@@ -67,6 +80,17 @@ export function AdminFeaturesList({
   const [betaLoading, setBetaLoading] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting, setInviting] = useState(false)
+
+  // Invite links panel state
+  const [linksPanelOpen, setLinksPanelOpen] = useState(false)
+  const [linksPanelFeature, setLinksPanelFeature] = useState<{ id: string; name: string; environment: string } | null>(null)
+  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([])
+  const [linksLoading, setLinksLoading] = useState(false)
+  const [newLinkLabel, setNewLinkLabel] = useState('')
+  const [newLinkMaxUses, setNewLinkMaxUses] = useState('')
+  const [newLinkExpiresAt, setNewLinkExpiresAt] = useState('')
+  const [creatingLink, setCreatingLink] = useState(false)
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
 
   async function handleToggle(featureId: string, environment: string, enabled: boolean) {
     const key = `${featureId}:${environment}`
@@ -189,6 +213,78 @@ export function AdminFeaturesList({
     }
   }
 
+  async function openLinksPanel(feature: FeatureRow, environment: string) {
+    setLinksPanelFeature({ id: feature.id, name: feature.name, environment })
+    setLinksPanelOpen(true)
+    setLinksLoading(true)
+    setNewLinkLabel('')
+    setNewLinkMaxUses('')
+    setNewLinkExpiresAt('')
+    try {
+      const res = await fetch(`/api/admin/beta-invite-links?featureId=${feature.id}&environment=${environment}`)
+      const data = await res.json()
+      setInviteLinks(data.links ?? [])
+    } catch {
+      toast.error('Failed to load invite links')
+    } finally {
+      setLinksLoading(false)
+    }
+  }
+
+  async function handleCreateLink() {
+    if (!linksPanelFeature) return
+    setCreatingLink(true)
+    try {
+      const res = await fetch('/api/admin/beta-invite-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          featureId: linksPanelFeature.id,
+          environment: linksPanelFeature.environment,
+          label: newLinkLabel.trim() || undefined,
+          maxUses: newLinkMaxUses ? parseInt(newLinkMaxUses, 10) : undefined,
+          expiresAt: newLinkExpiresAt || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setInviteLinks((prev) => [data, ...prev])
+      setNewLinkLabel('')
+      setNewLinkMaxUses('')
+      setNewLinkExpiresAt('')
+      toast.success('Invite link created')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create link')
+    } finally {
+      setCreatingLink(false)
+    }
+  }
+
+  async function handleDeactivateLink(linkId: string) {
+    try {
+      const res = await fetch(`/api/admin/beta-invite-links/${linkId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to deactivate')
+      setInviteLinks((prev) => prev.map((l) => l.id === linkId ? { ...l, active: false } : l))
+      toast.success('Invite link deactivated')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to deactivate link')
+    }
+  }
+
+  function copyLinkUrl(token: string, linkId: string) {
+    const siteUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    navigator.clipboard.writeText(`${siteUrl}/beta/join/${token}`)
+    setCopiedLinkId(linkId)
+    setTimeout(() => setCopiedLinkId(null), 2000)
+  }
+
+  function linkStatus(link: InviteLink): { label: string; color: string } {
+    if (!link.active) return { label: 'Deactivated', color: 'text-muted-foreground' }
+    if (link.expires_at && new Date(link.expires_at) < new Date()) return { label: 'Expired', color: 'text-destructive' }
+    if (link.max_uses !== null && link.use_count >= link.max_uses) return { label: 'Maxed out', color: 'text-amber-600' }
+    return { label: 'Active', color: 'text-emerald-600' }
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -295,6 +391,19 @@ export function AdminFeaturesList({
                                 </Button>
                               )}
 
+                              {/* Invite links button */}
+                              {isBeta && feature.enabled && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs h-7"
+                                  onClick={() => openLinksPanel(feature, env)}
+                                >
+                                  <Link2 className="h-3.5 w-3.5 mr-1" />
+                                  Links
+                                </Button>
+                              )}
+
                               {/* Enabled toggle */}
                               <span
                                 className={cn(
@@ -327,8 +436,7 @@ export function AdminFeaturesList({
       })}
 
       {/* Beta Users Dialog */}
-      <Dialog open={betaPanelOpen} onOpenChange={setBetaPanelOpen}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={betaPanelOpen} onOpenChange={setBetaPanelOpen}>        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               Beta users &mdash; {betaPanelFeature?.name}
@@ -399,6 +507,140 @@ export function AdminFeaturesList({
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite Links Dialog */}
+      <Dialog open={linksPanelOpen} onOpenChange={setLinksPanelOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-amber-500" />
+              Invite links &mdash; {linksPanelFeature?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Share these links to let any user enable this beta feature — no email needed.
+          </p>
+
+          {/* Create new link */}
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+            <p className="text-xs font-semibold text-foreground/70">New link</p>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Label (optional) e.g. Twitter campaign"
+                  value={newLinkLabel}
+                  onChange={(e) => setNewLinkLabel(e.target.value)}
+                  className="flex-1 h-8 text-xs"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Hash className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Max uses (optional)"
+                    value={newLinkMaxUses}
+                    onChange={(e) => setNewLinkMaxUses(e.target.value)}
+                    className="h-8 text-xs pl-7"
+                  />
+                </div>
+                <div className="flex-1 relative">
+                  <CalendarDays className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={newLinkExpiresAt}
+                    onChange={(e) => setNewLinkExpiresAt(e.target.value)}
+                    className="h-8 text-xs pl-7"
+                  />
+                </div>
+              </div>
+            </div>
+            <Button size="sm" onClick={handleCreateLink} disabled={creatingLink} className="h-7 text-xs w-full">
+              {creatingLink ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+              Generate link
+            </Button>
+          </div>
+
+          {/* Links list */}
+          {linksLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : inviteLinks.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No invite links yet. Generate one above.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[320px] overflow-y-auto">
+              {inviteLinks.map((link) => {
+                const status = linkStatus(link)
+                const isUsable = link.active && !(link.expires_at && new Date(link.expires_at) < new Date()) && !(link.max_uses !== null && link.use_count >= link.max_uses)
+                return (
+                  <div key={link.id} className={cn('rounded-lg border p-3 space-y-1.5', !isUsable && 'opacity-50')}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {link.label && (
+                            <span className="text-xs font-medium">{link.label}</span>
+                          )}
+                          <span className={cn('text-[11px] font-medium', status.color)}>{status.label}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground flex-wrap">
+                          <span>{link.use_count} use{link.use_count !== 1 ? 's' : ''}{link.max_uses !== null ? ` / ${link.max_uses}` : ''}</span>
+                          {link.expires_at && <span>Expires {new Date(link.expires_at).toLocaleDateString()}</span>}
+                          <span>Created {new Date(link.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => copyLinkUrl(link.token, link.id)}
+                          title="Copy link"
+                          disabled={!isUsable}
+                        >
+                          {copiedLinkId === link.id
+                            ? <Check className="h-3.5 w-3.5 text-emerald-500" />
+                            : <Copy className="h-3.5 w-3.5" />}
+                        </Button>
+                        {link.active && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleDeactivateLink(link.id)}
+                            title="Deactivate link"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <BanIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {isUsable && (
+                      <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1.5">
+                        <code className="flex-1 text-[10px] text-muted-foreground truncate">
+                          {typeof window !== 'undefined' ? window.location.origin : ''}/beta/join/{link.token}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-5 w-5 shrink-0"
+                          onClick={() => copyLinkUrl(link.token, link.id)}
+                        >
+                          {copiedLinkId === link.id
+                            ? <Check className="h-3 w-3 text-emerald-500" />
+                            : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </DialogContent>

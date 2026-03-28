@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react'
 
-export type AgentPanelMode = 'hidden' | 'docked' | 'fullscreen'
+export type AgentPanelMode = 'hidden' | 'inline' | 'docked' | 'fullscreen'
 
 const DEFAULT_WIDTH = 420
 const MIN_WIDTH = 320
@@ -12,6 +12,8 @@ interface AgentPanelState {
   mode: AgentPanelMode
   panelWidth: number
   open: () => void
+  /** Open inline in the page content (home page default) */
+  openInline: () => void
   close: () => void
   toggleFullscreen: () => void
   dockRight: () => void
@@ -22,6 +24,7 @@ const AgentPanelContext = createContext<AgentPanelState>({
   mode: 'hidden',
   panelWidth: DEFAULT_WIDTH,
   open: () => {},
+  openInline: () => {},
   close: () => {},
   toggleFullscreen: () => {},
   dockRight: () => {},
@@ -31,11 +34,18 @@ const AgentPanelContext = createContext<AgentPanelState>({
 export function AgentPanelProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<AgentPanelMode>('hidden')
   const [panelWidth, setPanelWidthRaw] = useState(DEFAULT_WIDTH)
+  // Remembers whether we were 'inline' or 'docked' before going fullscreen
+  const prevNonFullscreenMode = useRef<AgentPanelMode>('docked')
 
   const open = useCallback(() => setMode('docked'), [])
+  const openInline = useCallback(() => setMode('inline'), [])
   const close = useCallback(() => setMode('hidden'), [])
   const toggleFullscreen = useCallback(
-    () => setMode((m) => (m === 'fullscreen' ? 'docked' : 'fullscreen')),
+    () => setMode((m) => {
+      if (m === 'fullscreen') return prevNonFullscreenMode.current
+      prevNonFullscreenMode.current = m
+      return 'fullscreen'
+    }),
     []
   )
   const dockRight = useCallback(() => setMode('docked'), [])
@@ -47,7 +57,7 @@ export function AgentPanelProvider({ children }: { children: ReactNode }) {
 
   return (
     <AgentPanelContext.Provider
-      value={{ mode, panelWidth, open, close, toggleFullscreen, dockRight, setPanelWidth }}
+      value={{ mode, panelWidth, open, openInline, close, toggleFullscreen, dockRight, setPanelWidth }}
     >
       {children}
     </AgentPanelContext.Provider>
