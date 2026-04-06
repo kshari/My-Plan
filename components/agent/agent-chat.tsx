@@ -346,16 +346,28 @@ export function AgentChat({ mode, layout = 'default' }: AgentChatProps) {
         }),
       })
       const data = await res.json().catch(() => ({}))
-      const applied = (data.results ?? [])
-        .map((r: { success: boolean }, i: number) => r.success ? actions[i]?.type : null)
+      const results: { success: boolean; error?: string }[] = data.results ?? []
+      const applied = results
+        .map((r, i) => r.success ? actions[i]?.type : null)
         .filter(Boolean) as string[]
+      const failed = results
+        .map((r, i) => r.success ? null : (r.error ?? actions[i]?.type ?? 'unknown'))
+        .filter(Boolean) as string[]
+      const suffix = failed.length
+        ? `\n\n${applied.length} change(s) applied. ${failed.length} failed: ${failed.join('; ')}`
+        : '\n\nChanges applied.'
       setMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
-            ? { ...m, pendingActions: undefined, actionsApplied: applied, content: m.content + '\n\nChanges applied.' }
+            ? { ...m, pendingActions: undefined, actionsApplied: applied, content: m.content + suffix }
             : m
         )
       )
+      // Notify other parts of the UI that scenario data changed (for refresh triggers)
+      const scenarioMutated = applied.some((t) => t === 'create_rp_scenario' || t === 'update_rp_scenario')
+      if (scenarioMutated && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('agent:scenario-mutated'))
+      }
     } catch {
       setMessages((prev) =>
         prev.map((m) =>

@@ -8,8 +8,8 @@ import {
   ShieldAlert,
   Coins,
   Wrench,
-  DollarSign,
   Zap,
+  Layers,
 } from 'lucide-react'
 import { ScenarioProvider } from './scenario-context'
 import { useSidebarNav, type ContextNavSection } from '@/components/layout/sidebar-context'
@@ -22,6 +22,7 @@ import AnalysisTab from './tabs/analysis-tab'
 import TaxEfficiencyTab from './tabs/tax-efficiency-tab'
 import ScenarioModelingTab from './tabs/scenario-modeling-tab'
 import OtherToolsTab from './tabs/other-tools-tab'
+import ScenariosTable from './scenarios-table'
 
 interface RetirementPlanTabsProps {
   planId: number
@@ -39,6 +40,7 @@ const planNavSections: ContextNavSection[] = [
     label: 'Advanced Analysis',
     items: [
       { id: 'details',           label: 'Advanced Projections',    icon: BarChart2 },
+      { id: 'scenarios',         label: 'Scenarios',               icon: Layers },
       { id: 'scenario-modeling', label: 'Scenario Modeling',      icon: GitBranch },
       { id: 'analysis',          label: 'Risk Analysis',  icon: ShieldAlert },
       { id: 'tax-efficiency',    label: 'Tax Efficiency', icon: Coins },
@@ -49,7 +51,6 @@ const planNavSections: ContextNavSection[] = [
     label: 'Setup',
     items: [
       { id: 'plan-details',  label: 'Plan Setup', icon: SlidersHorizontal },
-      { id: 'other-income',  label: 'Other Income', icon: DollarSign, disabled: true },
     ],
   },
 ]
@@ -58,7 +59,7 @@ type TabId =
   | 'overview'
   | 'quick-analysis'
   | 'plan-details'
-  | 'other-income'
+  | 'scenarios'
   | 'scenario-modeling'
   | 'details'
   | 'analysis'
@@ -67,6 +68,7 @@ type TabId =
 
 export default function RetirementPlanTabs({ planId, planName, initialTab }: RetirementPlanTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>((initialTab as TabId) || 'overview')
+  const [scenariosRefreshTrigger, setScenariosRefreshTrigger] = useState(0)
   const { setNav, updateActiveId } = useSidebarNav()
 
   // Register plan nav in the main sidebar on mount, clean up on unmount
@@ -96,6 +98,13 @@ export default function RetirementPlanTabs({ planId, planName, initialTab }: Ret
     return () => window.removeEventListener('switchTab', handler as EventListener)
   }, [])
 
+  // Refresh scenarios table when the agent creates/updates a scenario
+  useEffect(() => {
+    const handler = () => setScenariosRefreshTrigger((n) => n + 1)
+    window.addEventListener('agent:scenario-mutated', handler)
+    return () => window.removeEventListener('agent:scenario-mutated', handler)
+  }, [])
+
   const navigate = (id: string) => setActiveTab(id as TabId)
 
   const renderContent = () => {
@@ -103,12 +112,20 @@ export default function RetirementPlanTabs({ planId, planName, initialTab }: Ret
       case 'overview':          return <OverviewTab planId={planId} onNavigate={navigate} />
       case 'quick-analysis':    return <SnapshotTab planId={planId} onSwitchToAdvanced={() => navigate('details')} onSwitchToPlanSetup={() => navigate('plan-details')} />
       case 'plan-details':      return <PlanDetailsTab planId={planId} />
+      case 'scenarios':         return (
+        <ScenariosTable
+          planId={planId}
+          onAddScenario={() => navigate('plan-details')}
+          onModelScenarios={() => navigate('scenario-modeling')}
+          onViewProjections={() => navigate('details')}
+          refreshTrigger={scenariosRefreshTrigger}
+        />
+      )
       case 'scenario-modeling': return <ScenarioModelingTab planId={planId} />
       case 'details':           return <DetailsTab planId={planId} />
       case 'analysis':          return <AnalysisTab planId={planId} />
       case 'tax-efficiency':    return <TaxEfficiencyTab planId={planId} />
       case 'other-tools':       return <OtherToolsTab planId={planId} />
-      case 'other-income':      return <OtherIncomeTab planId={planId} />
       default:                  return null
     }
   }

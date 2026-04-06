@@ -19,6 +19,11 @@ const RP_EXPENSE_ALLOWED_KEYS = [
   'expense_name', 'amount_before_65', 'amount_after_65',
 ] as const
 
+const RP_SCENARIO_SETTINGS_ALLOWED_KEYS = [
+  'retirement_age', 'return_rate_before_retirement', 'return_rate_during_retirement',
+  'inflation_rate', 'ssa_start_age',
+] as const
+
 const RP_OTHER_INCOME_ALLOWED_KEYS = [
   'income_name', 'annual_amount', 'start_age', 'end_age', 'cola',
 ] as const
@@ -29,11 +34,12 @@ export type AgentAction =
   | { type: 'update_rp_account'; payload: { account_id: number; [k: string]: unknown } }
   | { type: 'update_rp_expense'; payload: { expense_id: number; [k: string]: unknown } }
   | { type: 'update_rp_other_income'; payload: { income_id: number; [k: string]: unknown } }
-  | { type: 'create_rp_scenario'; payload: { plan_id: number; scenario_name: string } }
+  | { type: 'create_rp_scenario'; payload: { plan_id: number; scenario_name: string; [k: string]: unknown } }
+  | { type: 'update_rp_scenario'; payload: { scenario_id: number; [k: string]: unknown } }
 
 export const ALLOWED_ACTION_TYPES = [
   'update_fp_profile', 'update_rp_plan', 'update_rp_account', 'update_rp_expense',
-  'update_rp_other_income', 'create_rp_scenario',
+  'update_rp_other_income', 'create_rp_scenario', 'update_rp_scenario',
 ] as const
 
 function pick<T extends string>(obj: Record<string, unknown>, keys: readonly T[]): Record<string, unknown> {
@@ -138,12 +144,134 @@ export async function executeAgentAction(
         if (!Number.isInteger(planId)) return { success: false, error: 'Invalid plan_id' }
         const ok = await verifyPlanOwnership(supabase, planId, userId)
         if (!ok) return { success: false, error: 'Plan not found or unauthorized' }
-        const { error } = await supabase.from('rp_scenarios').insert({
-          plan_id: planId,
-          scenario_name: scenarioName || 'New Scenario',
-          is_default: false,
-        })
+        const { data: newScenario, error } = await supabase
+          .from('rp_scenarios')
+          .insert({ plan_id: planId, scenario_name: scenarioName || 'New Scenario', is_default: false })
+          .select('id')
+          .single()
         if (error) return { success: false, error: error.message }
+
+        // Persist scenario-specific settings when provided
+        const settings = pick(action.payload as Record<string, unknown>, RP_SCENARIO_SETTINGS_ALLOWED_KEYS)
+        // Map tool param names to DB column names
+        const aiDbSettings: Record<string, unknown> = {}
+        if (settings.retirement_age !== undefined) aiDbSettings.retirement_age = settings.retirement_age
+        if (settings.return_rate_before_retirement !== undefined) aiDbSettings.growth_rate_before_retirement = settings.return_rate_before_retirement
+        if (settings.return_rate_during_retirement !== undefined) aiDbSettings.growth_rate_during_retirement = settings.return_rate_during_retirement
+        if (settings.inflation_rate !== undefined) aiDbSettings.inflation_rate = settings.inflation_rate
+        if (settings.ssa_start_age !== undefined) aiDbSettings.ssa_start_age = settings.ssa_start_age
+
+        if (Object.keys(aiDbSettings).length > 0) {
+          // Copy the default scenario's settings as a base so that SSA benefits, expenses,
+          // tax rates, and other user-configured values are inherited. The AI-provided values
+          // (retirement_age, growth rates, etc.) then override the copied values.
+          let inheritedSettings: Record<string, unknown> = {}
+          const { data: defaultScenario } = await supabase
+            .from('rp_scenarios')
+            .select('id')
+            .eq('plan_id', planId)
+            .eq('is_default', true)
+            .maybeSingle()
+          if (defaultScenario) {
+            const { data: baseSettings } = await supabase
+              .from('rp_calculator_settings')
+              .select('*')
+              .eq('scenario_id', defaultScenario.id)
+              .maybeSingle()
+            if (baseSettings) {
+              // Strip identity/foreign-key columns; keep only user-configured settings
+              const { id: _id, created_at: _ca, updated_at: _ua, scenario_id: _sid, plan_id: _pid, ...rest } = baseSettings as Record<string, unknown>
+              inheritedSettings = rest
+            }
+          }
+
+          // AI-provided values take precedence over inherited base-scenario values
+          const mergedSettings = { ...inheritedSettings, ...aiDbSettings }
+
+          const { error: settingsErr } = await supabase
+            .from('rp_calculator_settings')
+            .upsert({ plan_id: planId, scenario_id: newScenario.id, ...mergedSettings }, { onConflict: 'scenario_id' })
+          if (settingsErr) return { success: false, error: settingsErr.message }
+        }
+        return { success: true }
+      }
+
+      case 'update_rp_scenario': {
+        const scenarioId = Number(action.payload.scenario_id)
+        if (!Number.isInteger(scenarioId)) return { success: false, error: 'Invalid scenario_id' }
+
+        // Verify ownership through the plan
+        const { data: scenario } = await supabase
+          .from('rp_scenarios')
+          .select('plan_id')
+          .eq('id', scenarioId)
+          .single()
+        if (!scenario) return { success: false, error: 'Scenario not found' }
+        const ok = await verifyPlanOwnership(supabase, scenario.plan_id, userId)
+        if (!ok) return { success: false, error: 'Unauthorized' }
+
+        // Update the scenario name if provided and non-empty
+        if (action.payload.scenario_name !== undefined) {
+          const newName = String(action.payload.scenario_name).trim()
+          if (newName) {
+            const { error } = await supabase
+              .from('rp_scenarios')
+              .update({ scenario_name: newName })
+              .eq('id', scenarioId)
+            if (error) return { success: false, error: error.message }
+          }
+        }
+
+        // Upsert settings
+        const settings = pick(action.payload as Record<string, unknown>, RP_SCENARIO_SETTINGS_ALLOWED_KEYS)
+        const dbSettings: Record<string, unknown> = {}
+        if (settings.retirement_age !== undefined) dbSettings.retirement_age = settings.retirement_age
+        if (settings.return_rate_before_retirement !== undefined) dbSettings.growth_rate_before_retirement = settings.return_rate_before_retirement
+        if (settings.return_rate_during_retirement !== undefined) dbSettings.growth_rate_during_retirement = settings.return_rate_during_retirement
+        if (settings.inflation_rate !== undefined) dbSettings.inflation_rate = settings.inflation_rate
+        if (settings.ssa_start_age !== undefined) dbSettings.ssa_start_age = settings.ssa_start_age
+
+        if (Object.keys(dbSettings).length > 0) {
+          // If this scenario is missing SSA/expense settings, read what it currently has and
+          // back-fill missing fields from the default scenario so projections stay consistent.
+          const { data: existingSettings } = await supabase
+            .from('rp_calculator_settings')
+            .select('planner_ssa_annual_benefit, spouse_ssa_annual_benefit, annual_retirement_expenses')
+            .eq('scenario_id', scenarioId)
+            .maybeSingle()
+
+          const needsInheritance =
+            existingSettings == null ||
+            (existingSettings.planner_ssa_annual_benefit == null && existingSettings.annual_retirement_expenses == null)
+
+          let inheritedSettings: Record<string, unknown> = {}
+          if (needsInheritance) {
+            const { data: defaultScenario } = await supabase
+              .from('rp_scenarios')
+              .select('id')
+              .eq('plan_id', scenario.plan_id)
+              .eq('is_default', true)
+              .maybeSingle()
+            if (defaultScenario) {
+              const { data: baseSettings } = await supabase
+                .from('rp_calculator_settings')
+                .select('*')
+                .eq('scenario_id', defaultScenario.id)
+                .maybeSingle()
+              if (baseSettings) {
+                const { id: _id, created_at: _ca, updated_at: _ua, scenario_id: _sid, plan_id: _pid, ...rest } = baseSettings as Record<string, unknown>
+                inheritedSettings = rest
+              }
+            }
+          }
+
+          const mergedSettings = { ...inheritedSettings, ...dbSettings }
+
+          const { error: settingsErr } = await supabase
+            .from('rp_calculator_settings')
+            .upsert({ plan_id: scenario.plan_id, scenario_id: scenarioId, ...mergedSettings }, { onConflict: 'scenario_id' })
+          if (settingsErr) return { success: false, error: settingsErr.message }
+        }
         return { success: true }
       }
 

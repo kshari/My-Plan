@@ -21,6 +21,7 @@ export const TOOL_CATEGORIES: Record<string, ToolCategory> = {
   update_rp_expense: 'mutate',
   update_rp_other_income: 'mutate',
   create_rp_scenario: 'mutate',
+  update_rp_scenario: 'mutate',
   // read
   get_pulse_check_history: 'read',
   get_retirement_scenario_projection: 'read',
@@ -69,7 +70,8 @@ export const AGENT_TOOLS_OPENAI = [
     type: 'function' as const,
     function: {
       name: 'update_rp_plan',
-      description: 'Update a retirement plan.',
+      description: 'Update plan-level fields (birth year, life expectancy, filing status, spouse info). ' +
+        'Note: retirement_age is NOT a plan field — it is per-scenario. Use update_rp_scenario or create_rp_scenario to set retirement_age.',
       parameters: {
         type: 'object',
         properties: {
@@ -95,7 +97,7 @@ export const AGENT_TOOLS_OPENAI = [
     type: 'function' as const,
     function: {
       name: 'update_rp_account',
-      description: 'Update a retirement account.',
+      description: 'Update a retirement account (balance, contribution, type, owner, name). Use account_id from context.',
       parameters: {
         type: 'object',
         properties: {
@@ -119,7 +121,7 @@ export const AGENT_TOOLS_OPENAI = [
     type: 'function' as const,
     function: {
       name: 'update_rp_expense',
-      description: 'Update a retirement expense.',
+      description: 'Update a retirement expense (name, monthly amount before 65, monthly amount after 65). Use expense_id from context.',
       parameters: {
         type: 'object',
         properties: {
@@ -165,14 +167,43 @@ export const AGENT_TOOLS_OPENAI = [
     type: 'function' as const,
     function: {
       name: 'create_rp_scenario',
-      description: 'Create a new scenario for a retirement plan.',
+      description: 'Create a new named scenario for a retirement plan and immediately save its settings. ' +
+        'Use this when the user explicitly says "save", "create a scenario", or "save this as a scenario". ' +
+        'Always pass the scenario-specific settings (e.g. retirement_age) so they are persisted — ' +
+        'creating a scenario without settings only saves the name.',
       parameters: {
         type: 'object',
         properties: {
           plan_id: { type: 'number', description: 'Retirement plan ID from context' },
-          scenario_name: { type: 'string' },
+          scenario_name: { type: 'string', description: 'Descriptive name, e.g. "Retire at 55"' },
+          retirement_age: { type: 'number', description: 'Retirement age to save for this scenario' },
+          return_rate_before_retirement: { type: 'number', description: 'Annual portfolio growth rate before retirement as a decimal (e.g. 0.07)' },
+          return_rate_during_retirement: { type: 'number', description: 'Annual portfolio growth rate during retirement as a decimal (e.g. 0.05)' },
+          inflation_rate: { type: 'number', description: 'Annual inflation rate as a decimal (e.g. 0.03)' },
+          ssa_start_age: { type: 'number', description: 'Age at which Social Security income begins' },
         },
         required: ['plan_id', 'scenario_name'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_rp_scenario',
+      description: 'Update the name and/or saved settings of an existing retirement scenario. ' +
+        'Use this when the user asks to change or update a scenario that already exists.',
+      parameters: {
+        type: 'object',
+        properties: {
+          scenario_id: { type: 'number', description: 'Scenario ID from context' },
+          scenario_name: { type: 'string', description: 'New display name for the scenario' },
+          retirement_age: { type: 'number', description: 'Retirement age to save for this scenario' },
+          return_rate_before_retirement: { type: 'number', description: 'Annual portfolio growth rate before retirement as a decimal (e.g. 0.07)' },
+          return_rate_during_retirement: { type: 'number', description: 'Annual portfolio growth rate during retirement as a decimal (e.g. 0.05)' },
+          inflation_rate: { type: 'number', description: 'Annual inflation rate as a decimal (e.g. 0.03)' },
+          ssa_start_age: { type: 'number', description: 'Age at which Social Security income begins' },
+        },
+        required: ['scenario_id'],
       },
     },
   },

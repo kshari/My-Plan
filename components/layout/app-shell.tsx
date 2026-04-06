@@ -48,7 +48,7 @@ export function AppShell({ children, userEmail, isAdmin = false, features }: App
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar — fixed */}
       <aside className="hidden lg:flex w-60 flex-col border-r border-border shrink-0">
-        <div className="sticky top-0 h-screen overflow-y-auto">
+        <div className="h-full">
           <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} />
         </div>
       </aside>

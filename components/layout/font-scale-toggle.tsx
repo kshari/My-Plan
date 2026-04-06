@@ -53,7 +53,7 @@ export function FontScaleToggle({ variant = 'sidebar' }: FontScaleToggleProps) {
     : 'text-muted-foreground hover:text-foreground'
 
   const wrapperClass = variant === 'sidebar'
-    ? 'flex w-full items-center px-3 py-0.5'
+    ? 'flex items-center py-0.5'
     : 'flex items-center'
 
   const content = (
@@ -63,7 +63,7 @@ export function FontScaleToggle({ variant = 'sidebar' }: FontScaleToggleProps) {
         variant="ghost"
         size="sm"
         onClick={cycleForward}
-        className={`justify-start gap-2 px-0 pr-1 ${variant === 'sidebar' ? 'flex-1' : ''} ${labelCls}`}
+        className={`justify-start gap-2 px-0 pr-1 ${labelCls}`}
         title="Click to cycle text size"
       >
         <ALargeSmall className="h-4 w-4 shrink-0" />

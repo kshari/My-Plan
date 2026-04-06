@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useOptionalDataService } from '@/lib/storage'
 import { useScenario } from '../scenario-context'
-import ScenariosTable from '../scenarios-table'
 import DefaultsPopup from '../defaults-popup'
 import { CalculatorAssumptionsForm } from '../calculator-assumptions-form'
 import {
@@ -95,7 +94,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
   const [newScenarioName, setNewScenarioName] = useState('')
   const [showDefaultsPopup, setShowDefaultsPopup] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
-  const [scenariosTableRefreshKey, setScenariosTableRefreshKey] = useState(0)
 
   // Progressive disclosure
   const [accountsExpanded, setAccountsExpanded] = useState(false)
@@ -656,7 +654,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
       setShowSaveDialog(false)
       setNewScenarioName('')
-      setScenariosTableRefreshKey((k) => k + 1)
       setMessage({ type: 'success', text: `Saved as "${finalName}". Projections updated.` })
       setTimeout(() => setMessage(null), TOAST_DURATION_SHORT)
     } catch (error: any) {
@@ -1173,14 +1170,6 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           </Button>
         </div>
       )}
-
-      {/* Scenarios Table */}
-      <ScenariosTable
-        planId={planId}
-        refreshTrigger={scenariosTableRefreshKey}
-        onAddScenario={handleAddScenario}
-        onModelScenarios={() => window.dispatchEvent(new CustomEvent('switchTab', { detail: 'scenario-modeling' }))}
-      />
 
       <DefaultsPopup
         planId={planId}
