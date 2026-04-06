@@ -87,6 +87,10 @@ export async function calculateAndSaveProjectionsForScenario(
     const birthYear = planData.data.birth_year
     const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
     const yearsToRetirement = retirementAge - (currentYear - birthYear)
+
+    // Prefer the plan's stored life expectancy; fall back to the caller-supplied value
+    const effectiveLifeExpectancy = planData.data.life_expectancy || lifeExpectancy
+
     const annualExpenses = expenses.reduce((sum, exp) => {
       const amount = retirementAge >= 65 ? exp.amount_after_65 : exp.amount_before_65
       return sum + (amount || 0)
@@ -101,10 +105,6 @@ export async function calculateAndSaveProjectionsForScenario(
       annualExpenses
     )
     
-    // Always use default strategy for saved projections
-    baseSettings.withdrawal_priority = 'default'
-    baseSettings.withdrawal_secondary_priority = 'tax_optimization'
-
     // Calculate estimated SSA amounts at start age
     const includePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
     
@@ -137,14 +137,14 @@ export async function calculateAndSaveProjectionsForScenario(
     const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
     const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
 
-    // Calculate projections using default strategy
+    // Calculate projections using stored settings (withdrawal strategy, life expectancy, etc.)
     const projectionsForSaving = calculateRetirementProjections(
       planData.data.birth_year,
       accounts,
       expenses,
       otherIncome,
       baseSettings,
-      lifeExpectancy,
+      effectiveLifeExpectancy,
       planData.data.spouse_birth_year || undefined,
       planData.data.spouse_life_expectancy || undefined,
       includePlannerSsa,
@@ -216,7 +216,7 @@ export async function calculateAndSaveProjectionsForScenario(
     const metrics = computePlanMetricsFromProjections(
       projectionsForSaving,
       retirementAge,
-      lifeExpectancy
+      effectiveLifeExpectancy
     )
     const { error: metricsError } = await supabase.from('rp_plan_metrics').upsert({
       plan_id: planId,

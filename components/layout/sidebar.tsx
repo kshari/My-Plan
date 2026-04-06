@@ -8,7 +8,6 @@ import {
   Target,
   Activity,
   LayoutDashboard,
-  LayoutGrid,
   LogOut,
   ChevronLeft,
   ChevronDown,
@@ -232,26 +231,13 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
           </>
         )}
 
-        {/* Retirement Planner — Plan Structure & Dashboard (visible when in retirement app, not in a plan) */}
+              {/* Retirement Planner — Plan Structure & Dashboard (visible when in retirement app, not in a plan) */}
         {pathname.startsWith("/apps/retirement") && !nav && (
           <>
             <div className="px-3">
               <Separator className="bg-sidebar-border" />
             </div>
             <nav className="space-y-0.5 px-3 py-3">
-              <Link
-                href="/apps/retirement/structure"
-                onClick={onClose}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors mb-2",
-                  pathname === "/apps/retirement/structure"
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                )}
-              >
-                <LayoutGrid className="h-4 w-4 shrink-0" />
-                Plan Structure
-              </Link>
               <Link
                 href="/apps/retirement/dashboard"
                 onClick={onClose}
@@ -277,43 +263,6 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
             </div>
 
             <nav className="space-y-0.5 px-3 py-3">
-              {/* Plan Structure (first, not plan-specific) */}
-              {(nav.planStructureHref || nav.planStructureNavId) && (
-                nav.planStructureHref ? (
-                  <Link
-                    href={nav.planStructureHref}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors mb-2",
-                      pathname === nav.planStructureHref
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                    )}
-                  >
-                    <LayoutGrid className="h-4 w-4 shrink-0" />
-                    Plan Structure
-                  </Link>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (nav.planStructureNavId) {
-                        nav.onNavigate(nav.planStructureNavId)
-                        onClose?.()
-                      }
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-left transition-colors mb-2",
-                      nav.activeId === nav.planStructureNavId
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                    )}
-                  >
-                    <LayoutGrid className="h-4 w-4 shrink-0" />
-                    Plan Structure
-                  </button>
-                )
-              )}
-
               {/* Dashboard link */}
               {nav.dashboardHref && (
                 <Link
@@ -343,9 +292,22 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Link>
                 )}
-                <p className="px-1 text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 truncate">
-                  {nav.title}
-                </p>
+                {nav.planStructureNavId ? (
+                  <button
+                    onClick={() => {
+                      nav.onNavigate(nav.planStructureNavId!)
+                      onClose?.()
+                    }}
+                    className="px-1 text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors truncate text-left"
+                    title="Plan overview"
+                  >
+                    {nav.title}
+                  </button>
+                ) : (
+                  <p className="px-1 text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 truncate">
+                    {nav.title}
+                  </p>
+                )}
               </div>
 
               {nav.sections.map((section, si) => (
@@ -408,32 +370,31 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
       )}
 
       {/* User section */}
-      <div className="shrink-0 border-t border-sidebar-border px-3 py-3 space-y-0.5">
-        <ThemeToggle />
+      <div className="shrink-0 border-t border-sidebar-border px-3 pt-2 pb-2">
         <FontScaleToggle />
-        <Separator className="my-1 bg-sidebar-border" />
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-          <Avatar className="h-7 w-7 shrink-0">
+        <div className="flex items-center gap-1 mt-1 px-1">
+          <Avatar className="h-6 w-6 shrink-0">
             <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
           <span
-            className="text-xs text-sidebar-foreground/60 truncate"
+            className="flex-1 min-w-0 text-xs text-sidebar-foreground/60 truncate px-1"
             title={userEmail}
           >
             {userEmail}
           </span>
+          <ThemeToggle compact />
+          <form action="/auth/signout" method="post">
+            <button
+              type="submit"
+              title="Sign out"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </form>
         </div>
-        <form action="/auth/signout" method="post">
-          <button
-            type="submit"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            Sign out
-          </button>
-        </form>
       </div>
     </div>
   )
