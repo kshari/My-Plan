@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
 
 interface RouteParams {
@@ -27,7 +28,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { content } = await request.json()
+  const { content } = (await safeJson<{content:string}>(request)) ?? {}
   if (!content?.trim()) return NextResponse.json({ error: "content is required" }, { status: 400 })
 
   const { data: member } = await supabase

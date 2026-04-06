@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 // POST /api/teams/join — accept an invitation by token
@@ -12,8 +13,10 @@ export async function POST(request: Request) {
 
   if (!body.token) return NextResponse.json({ error: 'Token is required' }, { status: 400 })
 
-  // Look up the invitation
-  const { data: invitation, error: invErr } = await supabase
+  // Use admin client to look up the invitation — the broad "pending invite" RLS
+  // policy has been dropped; only team members can read team_invitations via RLS.
+  const admin = createAdminClient()
+  const { data: invitation, error: invErr } = await admin
     .from('team_invitations')
     .select('id, team_id, status, expires_at')
     .eq('invite_token', body.token)
@@ -36,11 +39,11 @@ export async function POST(request: Request) {
       .from('team_members')
       .insert({ team_id: invitation.team_id, user_id: user.id, role: 'member' })
 
-    if (memberErr) return NextResponse.json({ error: memberErr.message }, { status: 500 })
+    if (memberErr) return NextResponse.json({ error: 'Failed to join team' }, { status: 500 })
   }
 
-  // Mark invitation accepted
-  await supabase
+  // Mark invitation accepted via admin client
+  await admin
     .from('team_invitations')
     .update({ status: 'accepted' })
     .eq('id', invitation.id)

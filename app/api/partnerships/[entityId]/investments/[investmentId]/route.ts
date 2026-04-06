@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
 
 interface RouteParams {
@@ -26,7 +27,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json()
+  const body = await safeJson(request)
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   const allowed = ["name", "investment_type", "description", "investment_manager",
     "ticker", "target_amount", "num_shares", "market_price_per_share", "current_stage",
     "status", "acquired_date", "exit_date", "exit_amount", "metadata"]

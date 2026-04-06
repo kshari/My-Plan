@@ -65,8 +65,10 @@ export async function updateSession(request: NextRequest) {
   // destination (honoring ?next=) or fall back to home
   if (user && request.nextUrl.pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
-    const next = request.nextUrl.searchParams.get('next')
-    url.pathname = next && next.startsWith('/') ? next.split('?')[0] : '/'
+    const rawNext = request.nextUrl.searchParams.get('next')
+    // Reject open-redirect: `//evil.com` starts with `/` but points off-site
+    const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
+    url.pathname = next ? next.split('?')[0] : '/'
     url.search = next && next.includes('?') ? next.slice(next.indexOf('?')) : ''
     return NextResponse.redirect(url)
   }

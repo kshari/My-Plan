@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
 import { WORKFLOW_STAGES } from "@/lib/constants/partnerships"
 import type { WorkflowStage } from "@/lib/types/partnerships"
@@ -18,7 +19,8 @@ export async function POST(request: Request, { params }: RouteParams) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json()
+  const body = await safeJson(request)
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   const { stage, notes } = body
 
   if (!stage || !WORKFLOW_STAGES.includes(stage as WorkflowStage)) {

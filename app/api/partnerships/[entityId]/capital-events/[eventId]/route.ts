@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
 
 interface RouteParams {
@@ -11,7 +12,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json()
+  const body = await safeJson(request)
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   const allowed = ["event_type", "amount", "effective_date", "investment_id", "capital_call_id", "notes"]
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
