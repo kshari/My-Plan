@@ -2,6 +2,20 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { User } from '@supabase/supabase-js'
 
+/**
+ * Safely parses the JSON request body. Returns null on malformed JSON so
+ * callers can return a 400 without leaking a 500 SyntaxError to clients.
+ */
+export async function safeJson<T = Record<string, unknown>>(
+  request: Request
+): Promise<T | null> {
+  try {
+    return (await request.json()) as T
+  } catch {
+    return null
+  }
+}
+
 type AuthenticatedHandler = (
   request: Request,
   context: {
@@ -27,7 +41,7 @@ export function withAuth(handler: AuthenticatedHandler) {
     } catch (error: any) {
       console.error(`Route error:`, error?.message)
       return NextResponse.json(
-        { error: error?.message || 'Internal server error' },
+        { error: 'Internal server error' },
         { status: 500 }
       )
     }

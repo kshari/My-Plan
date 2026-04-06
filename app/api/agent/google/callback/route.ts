@@ -13,13 +13,20 @@ function htmlResponse(html: string, status = 200) {
 }
 
 function resultPage(success: boolean, message: string) {
+  const appOrigin = process.env.NEXT_PUBLIC_SITE_URL
+    ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
+    : null
+  // Use a specific origin for postMessage to prevent a malicious opener window
+  // from intercepting the OAuth result. Fall back to '*' only in local dev where
+  // NEXT_PUBLIC_SITE_URL is not set.
+  const targetOrigin = appOrigin ?? '*'
   return htmlResponse(`<!DOCTYPE html>
 <html><head><title>Google Auth</title></head>
 <body>
 <p>${message}</p>
 <script>
   if (window.opener) {
-    window.opener.postMessage({ type: 'gemini-oauth-complete', success: ${success} }, '*');
+    window.opener.postMessage({ type: 'gemini-oauth-complete', success: ${success} }, '${targetOrigin}');
     setTimeout(() => window.close(), 600);
   }
 </script>

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import JoinTeamClient from '@/components/property/teams/join-team-client'
 
@@ -28,8 +29,12 @@ export default async function JoinTeamPage({ searchParams }: JoinPageProps) {
     )
   }
 
-  // Look up invitation (RLS allows: status = 'pending' AND expires_at > now())
-  const { data: invitation } = await supabase
+  // Use the admin client to look up the invitation and team — the user is not
+  // yet a member so session-level RLS would block these reads. We removed the
+  // broad "pending invite" SELECT policies in favour of this server-side admin approach.
+  const admin = createAdminClient()
+
+  const { data: invitation } = await admin
     .from('team_invitations')
     .select('team_id, status, expires_at')
     .eq('invite_token', token)
@@ -57,10 +62,9 @@ export default async function JoinTeamPage({ searchParams }: JoinPageProps) {
     )
   }
 
-  // Fetch the team separately — the user is not a member yet so the nested join
-  // above would be blocked by RLS. We use a direct select by id; the new RLS
-  // policy "Anyone with valid invitation can view team" allows this.
-  const { data: team } = await supabase
+  // Fetch the team via the admin client — the user is not yet a member so RLS
+  // would block a session-level read.
+  const { data: team } = await admin
     .from('teams')
     .select('id, name')
     .eq('id', invitation.team_id)
@@ -77,7 +81,8 @@ export default async function JoinTeamPage({ searchParams }: JoinPageProps) {
     )
   }
 
-  // Check if already a member
+  // Check if already a member — use session client so RLS correctly scopes to
+  // the current user's own membership row.
   const { data: existing } = await supabase
     .from('team_members')
     .select('id')
@@ -85,8 +90,8 @@ export default async function JoinTeamPage({ searchParams }: JoinPageProps) {
     .eq('user_id', user.id)
     .single()
 
-  // Member count
-  const { count } = await supabase
+  // Member count via admin client — session RLS would return 0 for non-members.
+  const { count } = await admin
     .from('team_members')
     .select('*', { count: 'exact', head: true })
     .eq('team_id', team.id)

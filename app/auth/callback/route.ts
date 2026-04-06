@@ -19,7 +19,10 @@ function getOrigin(request: Request): string {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  const rawNext = searchParams.get('next') ?? '/'
+  // Reject open-redirect attempts: `//evil.com` starts with `/` but redirects
+  // to an external host. Require a plain absolute path.
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/'
   const origin = getOrigin(request)
 
   if (code) {

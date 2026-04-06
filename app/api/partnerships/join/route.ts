@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { safeJson } from "@/lib/utils/route-handler"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 
@@ -12,7 +13,8 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json()
+  const body = await safeJson(request)
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   const { token, display_name } = body
   if (!token) return NextResponse.json({ error: "Token is required" }, { status: 400 })
   if (!display_name?.trim()) {
@@ -136,13 +138,14 @@ export async function GET(request: Request) {
   const token = searchParams.get("token")
   if (!token) return NextResponse.json({ error: "Token required" }, { status: 400 })
 
-  // Try admin client first (bypasses RLS entirely), fall back to anon client
-  // which relies on the "invitations_token_select USING (true)" policy.
-  let db: Awaited<ReturnType<typeof createClient>> | ReturnType<typeof createAdminClient>
+  // Always use the admin client — the invitations_token_select USING(true) policy
+  // has been dropped. The admin client bypasses RLS entirely and is the only way
+  // to look up an invitation by token without being a member of the entity.
+  let db: ReturnType<typeof createAdminClient>
   try {
     db = createAdminClient()
   } catch {
-    db = await createClient()
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 })
   }
 
   const { data: invitation, error: invErr } = await db
@@ -153,7 +156,7 @@ export async function GET(request: Request) {
 
   if (invErr) {
     console.error("[join GET] invitation lookup error:", invErr)
-    return NextResponse.json({ error: `DB error: ${invErr.message}` }, { status: 500 })
+    return NextResponse.json({ error: "Failed to load invitation" }, { status: 500 })
   }
   if (!invitation) {
     return NextResponse.json({ error: "Invitation not found. It may have expired or already been used." }, { status: 404 })
