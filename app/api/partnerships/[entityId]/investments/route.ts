@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   // Accept an explicit starting stage; default to 'ideation'
   const startStage: WorkflowStage =
-    WORKFLOW_STAGES.includes(body.current_stage) ? body.current_stage : "ideation"
+    WORKFLOW_STAGES.includes(body.current_stage as WorkflowStage) ? body.current_stage as WorkflowStage : "ideation"
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 })

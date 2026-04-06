@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   const validTypes = ["contribution", "distribution", "return_of_capital", "fee", "correction"]
-  if (!validTypes.includes(event_type)) {
+  if (!validTypes.includes(event_type as string)) {
     return NextResponse.json({ error: `event_type must be one of: ${validTypes.join(", ")}` }, { status: 400 })
   }
 

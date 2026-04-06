@@ -6,7 +6,8 @@ import type { User } from '@supabase/supabase-js'
  * Safely parses the JSON request body. Returns null on malformed JSON so
  * callers can return a 400 without leaking a 500 SyntaxError to clients.
  */
-export async function safeJson<T = Record<string, unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function safeJson<T = any>(
   request: Request
 ): Promise<T | null> {
   try {
