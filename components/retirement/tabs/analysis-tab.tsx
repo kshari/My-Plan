@@ -206,11 +206,18 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
         .eq('id', planId)
         .single()
 
+      // Compute fallback values for retirement timing (needed when AI-created scenarios
+      // have NULL retirement_start_year / years_to_retirement in rp_calculator_settings)
+      const _analysisCurrentYear = settingsData.data?.current_year || new Date().getFullYear()
+      const _analysisRetirementAge = settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE
+      const _analysisYearsToRetirement = _analysisRetirementAge - (_analysisCurrentYear - planData.data.birth_year)
+      const _analysisRetirementStartYear = _analysisCurrentYear + _analysisYearsToRetirement
+
       const settings: CalculatorSettings = {
-        current_year: settingsData.data?.current_year || new Date().getFullYear(),
-        retirement_age: settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE,
-        retirement_start_year: settingsData.data?.retirement_start_year || 0,
-        years_to_retirement: settingsData.data?.years_to_retirement || 0,
+        current_year: _analysisCurrentYear,
+        retirement_age: _analysisRetirementAge,
+        retirement_start_year: settingsData.data?.retirement_start_year || _analysisRetirementStartYear,
+        years_to_retirement: settingsData.data?.years_to_retirement || _analysisYearsToRetirement,
         annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0,
         growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
         growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
@@ -327,7 +334,10 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
       const accounts: Account[] = (accountsData.data || []).map(acc => ({ id: acc.id, account_name: acc.account_name, owner: acc.owner || '', balance: acc.balance || 0, account_type: acc.account_type, annual_contribution: acc.annual_contribution || 0 }))
       const expenses: Expense[] = (expensesData.data || []).map(exp => ({ id: exp.id, expense_name: exp.expense_name, amount_after_65: exp.amount_after_65 || 0, amount_before_65: exp.amount_before_65 || 0 }))
       const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({ id: inc.id, income_name: inc.income_source || '', amount: inc.annual_amount || 0, start_year: inc.start_year || undefined, end_year: inc.end_year || undefined, inflation_adjusted: inc.inflation_adjusted || false }))
-      const settings: CalculatorSettings = { current_year: settingsData.data?.current_year || new Date().getFullYear(), retirement_age: settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE, retirement_start_year: settingsData.data?.retirement_start_year || 0, years_to_retirement: settingsData.data?.years_to_retirement || 0, annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0, growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)), growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)), inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)), filing_status: (planData.data?.filing_status as any) || DEFAULT_FILING_STATUS, pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium != null ? parseFloat(settingsData.data.pre_medicare_annual_premium.toString()) : undefined, post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium != null ? parseFloat(settingsData.data.post_medicare_annual_premium.toString()) : undefined }
+      const _mcCurrentYear = settingsData.data?.current_year || new Date().getFullYear()
+      const _mcRetirementAge = settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE
+      const _mcYearsToRetirement = _mcRetirementAge - (_mcCurrentYear - planData.data.birth_year)
+      const settings: CalculatorSettings = { current_year: _mcCurrentYear, retirement_age: _mcRetirementAge, retirement_start_year: settingsData.data?.retirement_start_year || (_mcCurrentYear + _mcYearsToRetirement), years_to_retirement: settingsData.data?.years_to_retirement || _mcYearsToRetirement, annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0, growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)), growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)), inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)), filing_status: (planData.data?.filing_status as any) || DEFAULT_FILING_STATUS, pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium != null ? parseFloat(settingsData.data.pre_medicare_annual_premium.toString()) : undefined, post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium != null ? parseFloat(settingsData.data.post_medicare_annual_premium.toString()) : undefined }
       const { summary } = runMonteCarloSimulation(planData.data.birth_year, accounts, expenses, otherIncome, settings, planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY, 1000)
       setMonteCarloSummary(summary)
     } catch (error) {

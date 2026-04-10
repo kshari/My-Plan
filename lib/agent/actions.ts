@@ -188,6 +188,23 @@ export async function executeAgentAction(
           // AI-provided values take precedence over inherited base-scenario values
           const mergedSettings = { ...inheritedSettings, ...aiDbSettings }
 
+          // Recompute retirement_start_year / years_to_retirement whenever retirement_age changes
+          // so the inflation exponent in calculateRetirementProjections is correct.
+          if (aiDbSettings.retirement_age !== undefined) {
+            const { data: planRow } = await supabase
+              .from('rp_retirement_plans')
+              .select('birth_year')
+              .eq('id', planId)
+              .single()
+            if (planRow?.birth_year) {
+              const currentYear = Number(mergedSettings.current_year) || new Date().getFullYear()
+              const retAge = Number(aiDbSettings.retirement_age)
+              const yearsToRetirement = retAge - (currentYear - planRow.birth_year)
+              mergedSettings.years_to_retirement = yearsToRetirement
+              mergedSettings.retirement_start_year = currentYear + yearsToRetirement
+            }
+          }
+
           const { error: settingsErr } = await supabase
             .from('rp_calculator_settings')
             .upsert({ plan_id: planId, scenario_id: newScenario.id, ...mergedSettings }, { onConflict: 'scenario_id' })
@@ -266,6 +283,22 @@ export async function executeAgentAction(
           }
 
           const mergedSettings = { ...inheritedSettings, ...dbSettings }
+
+          // Recompute retirement_start_year / years_to_retirement whenever retirement_age changes
+          if (dbSettings.retirement_age !== undefined) {
+            const { data: planRow } = await supabase
+              .from('rp_retirement_plans')
+              .select('birth_year')
+              .eq('id', scenario.plan_id)
+              .single()
+            if (planRow?.birth_year) {
+              const currentYear = Number(mergedSettings.current_year) || new Date().getFullYear()
+              const retAge = Number(dbSettings.retirement_age)
+              const yearsToRetirement = retAge - (currentYear - planRow.birth_year)
+              mergedSettings.years_to_retirement = yearsToRetirement
+              mergedSettings.retirement_start_year = currentYear + yearsToRetirement
+            }
+          }
 
           const { error: settingsErr } = await supabase
             .from('rp_calculator_settings')
