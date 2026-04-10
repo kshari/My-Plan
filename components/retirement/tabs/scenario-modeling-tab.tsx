@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import {
@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from 'recharts'
+import { BarChart2, Table2 } from 'lucide-react'
 import {
   calculateRetirementProjections,
   buildCalculatorSettings,
@@ -65,6 +66,7 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
   const supabase = createClient()
   const { selectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart')
   const [graphType, setGraphType] = useState<'line' | 'area' | 'bar'>('line')
   const [modelType, setModelType] = useState<'networth' | 'monthly_income'>(initialModelType ?? 'networth')
   const [modelingData, setModelingData] = useState<any[]>([])
@@ -74,6 +76,7 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
   const [settingsData, setSettingsData] = useState<any>(null)
   const [estimatedSSAIncome, setEstimatedSSAIncome] = useState<number | null>(null)
   const [estimatedSpouseSSAIncome, setEstimatedSpouseSSAIncome] = useState<number | null>(null)
+  const [refMonthlyExpenses, setRefMonthlyExpenses] = useState<number>(0)
   
   // Growth rate range
   const minGrowthRate = 3
@@ -260,11 +263,137 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
       }
 
       setModelingData(data)
+
+      // Compute reference monthly expenses at age 65 (before_65 side) for threshold coloring
+      const refAnnual = expenses.reduce((sum, exp) => sum + (exp.amount_before_65 || 0), 0) * 12
+      setRefMonthlyExpenses(refAnnual / 12)
     } catch (error) {
       console.error('Error loading modeling data:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // ── Table view ────────────────────────────────────────────────────────────
+  const tablePrefix = modelType === 'networth' ? 'networth' : 'income'
+
+  // Absolute risk-band thresholds based on the plan's own monthly expenses.
+  // Networth bands: multiples of annual expenses remaining at life expectancy.
+  // Income bands: fraction of monthly expenses covered by 4%-rule income.
+  const RISK_BANDS = useMemo(() => {
+    const annualExp = refMonthlyExpenses * 12
+    if (modelType === 'networth') {
+      return [
+        { label: 'At Risk',       cls: 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',            max: 0 },
+        { label: 'Caution',       cls: 'bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400', max: annualExp * 3 },
+        { label: 'Near Expected', cls: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-500',     max: annualExp * 8 },
+        { label: 'Safe',          cls: 'bg-lime-100 dark:bg-lime-950/40 text-lime-700 dark:text-lime-600',         max: annualExp * 15 },
+        { label: 'Excellent',     cls: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400', max: Infinity },
+      ]
+    } else {
+      const mo = refMonthlyExpenses
+      return [
+        { label: 'At Risk',       cls: 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',            max: mo * 0.6 },
+        { label: 'Caution',       cls: 'bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400', max: mo * 0.9 },
+        { label: 'Near Expected', cls: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-500',     max: mo * 1.1 },
+        { label: 'Safe',          cls: 'bg-lime-100 dark:bg-lime-950/40 text-lime-700 dark:text-lime-600',         max: mo * 1.5 },
+        { label: 'Excellent',     cls: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400', max: Infinity },
+      ]
+    }
+  }, [modelType, refMonthlyExpenses])
+
+  const riskBandFor = (value: number) => {
+    // Fall back to neutral if no expense reference is set
+    if (refMonthlyExpenses === 0) return { label: '', cls: 'bg-muted/20 text-foreground' }
+    for (const band of RISK_BANDS) {
+      if (value <= band.max) return band
+    }
+    return RISK_BANDS[RISK_BANDS.length - 1]
+  }
+
+  const renderTable = () => {
+    if (modelingData.length === 0) return null
+    const annualExp = refMonthlyExpenses * 12
+    const mo = refMonthlyExpenses
+    const thresholds = modelType === 'networth'
+      ? [
+          { label: 'At Risk',       note: `NW ≤ $0` },
+          { label: 'Caution',       note: `$0 – ${formatCurrency(annualExp * 3)} (< 3 yrs expenses)` },
+          { label: 'Near Expected', note: `${formatCurrency(annualExp * 3)} – ${formatCurrency(annualExp * 8)}` },
+          { label: 'Safe',          note: `${formatCurrency(annualExp * 8)} – ${formatCurrency(annualExp * 15)}` },
+          { label: 'Excellent',     note: `> ${formatCurrency(annualExp * 15)} (> 15 yrs expenses)` },
+        ]
+      : [
+          { label: 'At Risk',       note: `< ${formatCurrency(mo * 0.6)}/mo (< 60% of expenses)` },
+          { label: 'Caution',       note: `${formatCurrency(mo * 0.6)} – ${formatCurrency(mo * 0.9)}/mo` },
+          { label: 'Near Expected', note: `${formatCurrency(mo * 0.9)} – ${formatCurrency(mo * 1.1)}/mo` },
+          { label: 'Safe',          note: `${formatCurrency(mo * 1.1)} – ${formatCurrency(mo * 1.5)}/mo` },
+          { label: 'Excellent',     note: `> ${formatCurrency(mo * 1.5)}/mo (> 150% of expenses)` },
+        ]
+    return (
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-muted/60 border-b border-border">
+              <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground whitespace-nowrap sticky left-0 bg-muted/60 z-10">
+                Retire Age
+              </th>
+              {growthRates.map((rate, i) => (
+                <th
+                  key={rate}
+                  className="px-3 py-2.5 text-center font-semibold whitespace-nowrap"
+                  style={{ color: GROWTH_RATE_COLORS[i] }}
+                >
+                  {rate}%
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {modelingData.map((row, rowIdx) => (
+              <tr
+                key={row.retirementAge}
+                className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${rowIdx % 2 === 0 ? '' : 'bg-muted/10'}`}
+              >
+                <td className="px-4 py-2 font-medium text-foreground sticky left-0 bg-background z-10 border-r border-border/30">
+                  {row.retirementAge}
+                </td>
+                {growthRates.map((rate, i) => {
+                  const val = row[`${tablePrefix}_${rate}`] as number
+                  const band = riskBandFor(val)
+                  return (
+                    <td
+                      key={rate}
+                      className={`px-3 py-2 text-center tabular-nums font-medium ${band.cls}`}
+                      title={band.label}
+                    >
+                      {formatCurrency(val)}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="px-4 py-3 border-t bg-muted/20 space-y-1.5">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            {modelType === 'networth' ? 'Thresholds based on your annual expenses' : 'Thresholds based on your monthly expenses'}
+          </p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
+            {thresholds.map((t, i) => (
+              <div key={t.label} className="flex items-center gap-1.5 text-[11px]">
+                <span className={`inline-block w-2.5 h-2.5 rounded-sm ${RISK_BANDS[i]?.cls.split(' ')[0]}`} />
+                <span className="font-medium">{t.label}:</span>
+                <span className="text-muted-foreground">{t.note}</span>
+              </div>
+            ))}
+          </div>
+          {refMonthlyExpenses === 0 && (
+            <p className="text-[11px] text-amber-600">Add expenses in Plan Details to enable risk-band coloring.</p>
+          )}
+        </div>
+      </div>
+    )
   }
 
   const renderChart = () => {
@@ -473,74 +602,81 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
       </div>
 
       {/* Controls */}
-      <div className="mb-6 flex flex-wrap items-center gap-4">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         {/* Model Type Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Model:</span>
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-            <button
-              onClick={() => setModelType('networth')}
-              className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-                modelType === 'networth'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Ending Networth
-            </button>
-            <button
-              onClick={() => setModelType('monthly_income')}
-              className={`px-4 py-1.5 text-sm font-medium border-l border-gray-300 transition-colors ${
-                modelType === 'monthly_income'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Monthly Income
-            </button>
-          </div>
+        <div className="flex rounded-lg border border-border overflow-hidden">
+          <button
+            onClick={() => setModelType('networth')}
+            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+              modelType === 'networth'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            Ending Networth
+          </button>
+          <button
+            onClick={() => setModelType('monthly_income')}
+            className={`px-3 py-1.5 text-sm font-medium border-l border-border transition-colors ${
+              modelType === 'monthly_income'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            Monthly Income
+          </button>
         </div>
 
-        {/* Graph Type Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Graph Type:</span>
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-            <button
-              onClick={() => setGraphType('line')}
-              className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-                graphType === 'line'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Line
-            </button>
-            <button
-              onClick={() => setGraphType('area')}
-              className={`px-4 py-1.5 text-sm font-medium border-x border-gray-300 transition-colors ${
-                graphType === 'area'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Area
-            </button>
-            <button
-              onClick={() => setGraphType('bar')}
-              className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-                graphType === 'bar'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Bar
-            </button>
-          </div>
+        {/* View Mode Toggle */}
+        <div className="flex rounded-lg border border-border overflow-hidden">
+          <button
+            onClick={() => setViewMode('chart')}
+            title="Chart view"
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === 'chart'
+                ? 'bg-secondary text-secondary-foreground'
+                : 'bg-background text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <BarChart2 className="h-3.5 w-3.5" />
+            Chart
+          </button>
+          <button
+            onClick={() => setViewMode('table')}
+            title="Table view"
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-l border-border transition-colors ${
+              viewMode === 'table'
+                ? 'bg-secondary text-secondary-foreground'
+                : 'bg-background text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Table2 className="h-3.5 w-3.5" />
+            Table
+          </button>
         </div>
+
+        {/* Graph Type Selector — only visible in chart mode */}
+        {viewMode === 'chart' && (
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            {(['line', 'area', 'bar'] as const).map((type, idx) => (
+              <button
+                key={type}
+                onClick={() => setGraphType(type)}
+                className={`px-3 py-1.5 text-sm font-medium capitalize transition-colors ${idx > 0 ? 'border-l border-border' : ''} ${
+                  graphType === type
+                    ? 'bg-secondary text-secondary-foreground'
+                    : 'bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        )}
 
         <button
           onClick={loadModelingData}
-          className="flex items-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200"
+          className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
         >
           Refresh Data
         </button>
@@ -551,16 +687,20 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
+      {/* Chart / Table */}
+      <div className="rounded-lg border border-border bg-card p-4">
         {modelingData.length > 0 ? (
-          <div className="h-[500px]">
-            <ResponsiveContainer width="100%" height="100%">
-              {renderChart()}
-            </ResponsiveContainer>
-          </div>
+          viewMode === 'chart' ? (
+            <div className="h-[500px]">
+              <ResponsiveContainer width="100%" height="100%">
+                {renderChart()}
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            renderTable()
+          )
         ) : (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             No data available. Please ensure you have accounts and expenses configured.
           </div>
         )}
