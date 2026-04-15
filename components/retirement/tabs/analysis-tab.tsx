@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import {
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/tooltip'
 import { 
   calculateRetirementProjections,
+  buildCalculatorSettings,
+  calculateEstimatedSSA,
   type Account,
   type Expense,
   type OtherIncome,
@@ -23,7 +25,7 @@ import {
   type MonteCarloSummary,
   type DeterministicStressResult,
 } from '@/lib/utils/monte-carlo'
-import { Calculator, Play, Save, TrendingDown, TrendingUp, Activity, Info } from 'lucide-react'
+import { Calculator, Play, Save, TrendingDown, TrendingUp, Activity, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -50,6 +52,8 @@ import {
   DEFAULT_RETIREMENT_AGE,
   DEFAULT_LIFE_EXPECTANCY,
   DEFAULT_FILING_STATUS,
+  DEFAULT_SSA_ANNUAL_BENEFIT,
+  DEFAULT_SPOUSE_SSA_BENEFIT,
   RMD_START_AGE,
   SAFE_WITHDRAWAL_RATE,
   SCORE_ON_TRACK_THRESHOLD,
@@ -57,16 +61,22 @@ import {
   SCORE_MEDIUM_RISK_THRESHOLD,
   SCORE_AT_RISK_THRESHOLD,
   SCORE_WEIGHT_LONGEVITY,
+  SCORE_WEIGHT_MONTE_CARLO,
   SCORE_WEIGHT_CASHFLOW,
   SCORE_WEIGHT_TAX_EFFICIENCY,
   SCORE_WEIGHT_INFLATION,
   SCORE_WEIGHT_MEDICAL,
+  MEDICARE_ELIGIBILITY_AGE,
+  ROTH_CONVERSION_MAX,
+  ROTH_CONVERSION_FRACTION,
 } from '@/lib/constants/retirement-defaults'
 
 interface AnalysisTabProps {
   planId: number
   /** When true, automatically runs Monte Carlo after the main analysis loads. */
   autoRunMonteCarlo?: boolean
+  /** When true, pre-expand the RMD year-by-year breakdown table (useful for print). */
+  initialRmdDetailsExpanded?: boolean
 }
 
 interface RetirementScore {
@@ -76,7 +86,16 @@ interface RetirementScore {
   longevity: number
   inflation: number
   medical: number
+  monteCarlo: number
   riskLevel: 'Low' | 'Medium' | 'High'
+  details: {
+    longevity: string
+    cashflow: string
+    taxEfficiency: string
+    inflation: string
+    medical: string
+    monteCarlo: string
+  }
 }
 
 interface Risk {
@@ -94,10 +113,11 @@ interface Recommendation {
   impact: string
 }
 
-export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabProps) {
+export default function AnalysisTab({ planId, autoRunMonteCarlo, initialRmdDetailsExpanded }: AnalysisTabProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
+  const [rmdDetailsExpanded, setRmdDetailsExpanded] = useState(initialRmdDetailsExpanded ?? false)
   const [score, setScore] = useState<RetirementScore | null>(null)
   const [risks, setRisks] = useState<Risk[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
@@ -115,6 +135,11 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
   const [saveToProfile, setSaveToProfile] = useState(false)
   const [savingTaxInfo, setSavingTaxInfo] = useState(false)
   const [currentSettings, setCurrentSettings] = useState<CalculatorSettings | null>(null)
+
+  // Refs to hold latest projections/settings so runMonteCarlo can recalculate score with MC success rate
+  const latestProjectionsRef = useRef<ProjectionDetail[]>([])
+  const latestSettingsRef = useRef<CalculatorSettings | null>(null)
+  const latestAccountsRef = useRef<Account[]>([])
 
   useEffect(() => {
     loadScenarios()
@@ -161,7 +186,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
       console.log('Calculating analysis for scenario:', selectedScenarioId)
       // Load all necessary data
       const [planData, accountsData, expensesData, incomeData, settingsData, projectionsData] = await Promise.all([
-        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy').eq('id', planId).single(),
+        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, filing_status, spouse_birth_year, spouse_life_expectancy').eq('id', planId).single(),
         supabase.from('rp_accounts').select('*').eq('plan_id', planId),
         supabase.from('rp_expenses').select('*').eq('plan_id', planId),
         supabase.from('rp_other_income').select('*').eq('plan_id', planId),
@@ -199,33 +224,46 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
         inflation_adjusted: inc.inflation_adjusted || false,
       }))
 
-      // Get plan data for filing_status
-      const { data: planDataForSettings } = await supabase
-        .from('rp_retirement_plans')
-        .select('filing_status')
-        .eq('id', planId)
-        .single()
-
-      // Compute fallback values for retirement timing (needed when AI-created scenarios
-      // have NULL retirement_start_year / years_to_retirement in rp_calculator_settings)
+      // Build full settings using the shared helper — same as snapshot-tab and details-tab
+      // so baseline stress-test / Monte Carlo projections match main projections exactly.
       const _analysisCurrentYear = settingsData.data?.current_year || new Date().getFullYear()
       const _analysisRetirementAge = settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE
-      const _analysisYearsToRetirement = _analysisRetirementAge - (_analysisCurrentYear - planData.data.birth_year)
-      const _analysisRetirementStartYear = _analysisCurrentYear + _analysisYearsToRetirement
+      const _analysisYearsToRetirement = settingsData.data?.years_to_retirement != null
+        ? settingsData.data.years_to_retirement
+        : (_analysisRetirementAge - (_analysisCurrentYear - planData.data.birth_year))
+      const annualExpensesForSettings = settingsData.data?.annual_retirement_expenses || 0
 
-      const settings: CalculatorSettings = {
-        current_year: _analysisCurrentYear,
-        retirement_age: _analysisRetirementAge,
-        retirement_start_year: settingsData.data?.retirement_start_year || _analysisRetirementStartYear,
-        years_to_retirement: settingsData.data?.years_to_retirement || _analysisYearsToRetirement,
-        annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0,
-        growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
-        growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
-        inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
-        filing_status: (planDataForSettings?.filing_status as any) || DEFAULT_FILING_STATUS,
-        pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium != null ? parseFloat(settingsData.data.pre_medicare_annual_premium.toString()) : undefined,
-        post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium != null ? parseFloat(settingsData.data.post_medicare_annual_premium.toString()) : undefined,
-      }
+      const settings: CalculatorSettings = buildCalculatorSettings(
+        settingsData.data,
+        planData.data,
+        _analysisCurrentYear,
+        _analysisRetirementAge,
+        _analysisYearsToRetirement,
+        annualExpensesForSettings
+      )
+
+      // Compute SSA parameters — mirrors logic in snapshot-tab.tsx so all three views agree.
+      const includePlannerSsa: boolean = (settingsData.data?.planner_ssa_income as boolean) ?? true
+      const explicitSpouseSsa: boolean = (settingsData.data?.spouse_ssa_income as boolean) ?? false
+      const hasSpouse = planData.data.include_spouse || false
+      const isMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
+      const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
+
+      const estimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
+      const plannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
+        ? Number(settingsData.data.planner_ssa_annual_benefit)
+        : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const spouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
+        ? Number(settingsData.data.spouse_ssa_annual_benefit)
+        : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+
+      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
+      const projCurrentAge = _analysisCurrentYear - planData.data.birth_year
+      const yearsToSsaStart = Math.max(0, ssaStartAge - projCurrentAge)
+      const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
+
+      const estimatedPlannerSsaAtStart = includePlannerSsa ? plannerBenefit * inflationToSsaStart : undefined
+      const estimatedSpouseSsaAtStart = includeSpouseSsa ? spouseBenefit * inflationToSsaStart : undefined
 
       const projections: ProjectionDetail[] = (projectionsData.data || []).map((p: any) => ({
         year: p.year,
@@ -248,13 +286,20 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
         balance_investment: p.balance_investment || 0,
         taxable_income: p.taxable_income || 0,
         tax: p.tax || 0,
+        healthcare_expenses: (p as any).healthcare_expenses || 0,
+        special_expenses: p.special_expenses || 0,
       }))
 
-      // Calculate analysis metrics
-      const calculatedScore = calculateRetirementScore(projections, settings, accounts)
-      const calculatedRisks = identifyRisks(projections, settings, accounts)
-      const calculatedRecommendations = generateRecommendations(projections, settings, accounts, expenses)
+      // Store projections/settings/accounts so runMonteCarlo can later refresh the score with the MC rate
+      latestProjectionsRef.current = projections
+      latestSettingsRef.current = settings
+      latestAccountsRef.current = accounts
+
+      // Calculate analysis metrics — analyzeRMDs must run first so identifyRisks can delegate to it
       const calculatedRmdAnalysis = analyzeRMDs(projections, settings, accounts)
+      const calculatedRisks = identifyRisks(projections, settings, accounts, calculatedRmdAnalysis)
+      const calculatedRecommendations = generateRecommendations(projections, settings, accounts, expenses)
+      const calculatedScore = calculateRetirementScore(projections, settings, accounts)
       
       // Deterministic stress test: bear sequence in first years of retirement vs steady growth
       const lifeExpectancy = planData.data?.life_expectancy ?? DEFAULT_LIFE_EXPECTANCY
@@ -265,7 +310,13 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
           expenses,
           otherIncome,
           settings,
-          lifeExpectancy
+          lifeExpectancy,
+          planData.data.spouse_birth_year || undefined,
+          planData.data.spouse_life_expectancy || undefined,
+          includePlannerSsa,
+          includeSpouseSsa,
+          estimatedPlannerSsaAtStart,
+          estimatedSpouseSsaAtStart
         )
         setStressTestResult(stress)
         const extreme = stress.scenarios.find(s => s.name === 'Extreme (40% yr 1)')
@@ -315,7 +366,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
     setRunningMonteCarlo(true)
     try {
       const [planData, accountsData, expensesData, incomeData, settingsData] = await Promise.all([
-        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, filing_status').eq('id', planId).single(),
+        supabase.from('rp_retirement_plans').select('birth_year, life_expectancy, include_spouse, filing_status, spouse_birth_year, spouse_life_expectancy').eq('id', planId).single(),
         supabase.from('rp_accounts').select('*').eq('plan_id', planId),
         supabase.from('rp_expenses').select('*').eq('plan_id', planId),
         supabase.from('rp_other_income').select('*').eq('plan_id', planId),
@@ -334,12 +385,70 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
       const accounts: Account[] = (accountsData.data || []).map(acc => ({ id: acc.id, account_name: acc.account_name, owner: acc.owner || '', balance: acc.balance || 0, account_type: acc.account_type, annual_contribution: acc.annual_contribution || 0 }))
       const expenses: Expense[] = (expensesData.data || []).map(exp => ({ id: exp.id, expense_name: exp.expense_name, amount_after_65: exp.amount_after_65 || 0, amount_before_65: exp.amount_before_65 || 0 }))
       const otherIncome: OtherIncome[] = (incomeData.data || []).map(inc => ({ id: inc.id, income_name: inc.income_source || '', amount: inc.annual_amount || 0, start_year: inc.start_year || undefined, end_year: inc.end_year || undefined, inflation_adjusted: inc.inflation_adjusted || false }))
+
       const _mcCurrentYear = settingsData.data?.current_year || new Date().getFullYear()
       const _mcRetirementAge = settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE
-      const _mcYearsToRetirement = _mcRetirementAge - (_mcCurrentYear - planData.data.birth_year)
-      const settings: CalculatorSettings = { current_year: _mcCurrentYear, retirement_age: _mcRetirementAge, retirement_start_year: settingsData.data?.retirement_start_year || (_mcCurrentYear + _mcYearsToRetirement), years_to_retirement: settingsData.data?.years_to_retirement || _mcYearsToRetirement, annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0, growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)), growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)), inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)), filing_status: (planData.data?.filing_status as any) || DEFAULT_FILING_STATUS, pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium != null ? parseFloat(settingsData.data.pre_medicare_annual_premium.toString()) : undefined, post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium != null ? parseFloat(settingsData.data.post_medicare_annual_premium.toString()) : undefined }
-      const { summary } = runMonteCarloSimulation(planData.data.birth_year, accounts, expenses, otherIncome, settings, planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY, 1000)
+      const _mcYearsToRetirement = settingsData.data?.years_to_retirement != null
+        ? settingsData.data.years_to_retirement
+        : (_mcRetirementAge - (_mcCurrentYear - planData.data.birth_year))
+
+      const mcSettings: CalculatorSettings = buildCalculatorSettings(
+        settingsData.data,
+        planData.data,
+        _mcCurrentYear,
+        _mcRetirementAge,
+        _mcYearsToRetirement,
+        settingsData.data?.annual_retirement_expenses || 0
+      )
+
+      // SSA params — same logic as calculateAnalysis / snapshot-tab
+      const mcIncludePlannerSsa: boolean = (settingsData.data?.planner_ssa_income as boolean) ?? true
+      const mcExplicitSpouseSsa: boolean = (settingsData.data?.spouse_ssa_income as boolean) ?? false
+      const mcHasSpouse = planData.data.include_spouse || false
+      const mcIsMarried = planData.data.filing_status === 'Married Filing Jointly'
+      const mcIncludeSpouseSsa = mcExplicitSpouseSsa || mcHasSpouse || mcIsMarried
+
+      const mcEstimatedIncome = Number(settingsData.data?.estimated_ssa_annual_income) || 0
+      const mcPlannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
+        ? Number(settingsData.data.planner_ssa_annual_benefit)
+        : (mcIncludePlannerSsa ? (mcEstimatedIncome > 0 ? calculateEstimatedSSA(mcEstimatedIncome, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
+      const mcSpouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
+        ? Number(settingsData.data.spouse_ssa_annual_benefit)
+        : (mcIncludeSpouseSsa ? (mcEstimatedIncome > 0 ? calculateEstimatedSSA(mcEstimatedIncome, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
+
+      const mcSsaStartAge = mcSettings.ssa_start_age || mcSettings.retirement_age || DEFAULT_RETIREMENT_AGE
+      const mcCurrentAge = _mcCurrentYear - planData.data.birth_year
+      const mcYearsToSsa = Math.max(0, mcSsaStartAge - mcCurrentAge)
+      const mcInflation = Math.pow(1 + mcSettings.inflation_rate, mcYearsToSsa)
+      const mcPlannerSsaAtStart = mcIncludePlannerSsa ? mcPlannerBenefit * mcInflation : undefined
+      const mcSpouseSsaAtStart = mcIncludeSpouseSsa ? mcSpouseBenefit * mcInflation : undefined
+
+      const { summary } = runMonteCarloSimulation(
+        planData.data.birth_year,
+        accounts,
+        expenses,
+        otherIncome,
+        mcSettings,
+        planData.data.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
+        1000,
+        planData.data.spouse_birth_year || undefined,
+        planData.data.spouse_life_expectancy || undefined,
+        mcIncludePlannerSsa,
+        mcIncludeSpouseSsa,
+        mcPlannerSsaAtStart,
+        mcSpouseSsaAtStart
+      )
       setMonteCarloSummary(summary)
+      // Recalculate retirement score with the MC success rate now that we have it
+      if (latestProjectionsRef.current.length > 0 && latestSettingsRef.current) {
+        const updatedScore = calculateRetirementScore(
+          latestProjectionsRef.current,
+          latestSettingsRef.current,
+          latestAccountsRef.current,
+          summary.successRate
+        )
+        setScore(updatedScore)
+      }
     } catch (error) {
       console.error('Error running Monte Carlo:', error)
       if (!silent) alert('Failed to run Monte Carlo simulation')
@@ -407,13 +516,14 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
           <p className="text-sm text-gray-600 mb-4">
             The retirement score (0-100) evaluates your plan across multiple dimensions. 
             <strong> Longevity ({(SCORE_WEIGHT_LONGEVITY * 100).toFixed(0)}% weight)</strong> assesses asset preservation - maintaining net worth over time.
+            <strong> Market Risk ({(SCORE_WEIGHT_MONTE_CARLO * 100).toFixed(0)}% weight)</strong> reflects Monte Carlo success rate across 1,000 randomised market scenarios — run Monte Carlo below to activate this factor.
             <strong> Cashflow ({(SCORE_WEIGHT_CASHFLOW * 100).toFixed(0)}% weight)</strong> measures cash flow consistency - fewer negative years = higher score.
             <strong> Tax Efficiency ({(SCORE_WEIGHT_TAX_EFFICIENCY * 100).toFixed(0)}% weight)</strong> evaluates how well you minimize taxes over retirement.
             <strong> Inflation ({(SCORE_WEIGHT_INFLATION * 100).toFixed(0)}% weight)</strong> evaluates how well income keeps up with expense growth.
             <strong> Medical ({(SCORE_WEIGHT_MEDICAL * 100).toFixed(0)}% weight)</strong> assesses health care expense risk based on healthcare costs vs total expenses.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
           <div className="text-center">
             <div className="text-4xl font-bold text-blue-600">{score.overall}</div>
             <div className="text-sm text-gray-600 mt-1">Overall Score</div>
@@ -438,6 +548,14 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
                     <p className="font-semibold mb-2 text-gray-100">Longevity Score Calculation</p>
+                    {score.details?.longevity && (
+                      <div className="mb-3 p-2 bg-gray-800 rounded border border-gray-600">
+                        <p className="text-xs font-medium text-gray-200 mb-1">Your plan:</p>
+                        {score.details.longevity.split('\n').map((line, i) => (
+                          <p key={i} className="text-xs text-green-300">{line}</p>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-xs mb-2 text-gray-200">Measures asset preservation over retirement period.</p>
                     <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
                     <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
@@ -464,33 +582,43 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="cursor-help">
-                    <div className="text-3xl font-semibold text-gray-900">{score.taxEfficiency}</div>
-                    <div className="text-sm text-gray-600 mt-1">Tax Efficiency</div>
-                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_TAX_EFFICIENCY * 100).toFixed(0)}% weight)</div>
+                    <div className={`text-3xl font-semibold ${monteCarloSummary ? 'text-gray-900' : 'text-gray-400'}`}>{score.monteCarlo}</div>
+                    <div className="text-sm text-gray-600 mt-1">Market Risk</div>
+                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_MONTE_CARLO * 100).toFixed(0)}% weight)</div>
+                    {!monteCarloSummary && (
+                      <div className="text-xs text-amber-600 mt-1">↓ Run MC below</div>
+                    )}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
-                    <p className="font-semibold mb-2 text-gray-100">Tax Efficiency Score Calculation</p>
-                    <p className="text-xs mb-2 text-gray-200">Evaluates how well taxes are minimized over retirement.</p>
+                    <p className="font-semibold mb-2 text-gray-100">Market Risk Score</p>
+                    {score.details?.monteCarlo && (
+                      <div className="mb-3 p-2 bg-gray-800 rounded border border-gray-600">
+                        <p className="text-xs font-medium text-gray-200 mb-1">Your plan:</p>
+                        {score.details.monteCarlo.split('\n').map((line, i) => (
+                          <p key={i} className={`text-xs ${monteCarloSummary ? 'text-green-300' : 'text-yellow-300'}`}>{line}</p>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs mb-2 text-gray-200">Maps the Monte Carlo success rate directly to a 0-100 score. A 70% MC success rate = score of 70.</p>
                     <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
                     <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
-                      Score = max(0, 100 - (Total Taxes / Total Income) × 100 × 2)
+                      Score = MC success rate (0–100%)<br/>
+                      Default = 50 (neutral) until Monte Carlo is run
                     </p>
                     <p className="text-xs mt-2 text-gray-200">Where:</p>
                     <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
-                      <li>Total Taxes = Sum of all tax payments across projections</li>
-                      <li>Total Income = Sum of all income (SSA, distributions, other) across projections</li>
+                      <li>Success = portfolio ends with positive net worth at life expectancy</li>
+                      <li>1,000 simulations with σ=12% during retirement, floored at −40%</li>
+                      <li>Captures sequence-of-returns risk the deterministic model misses</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Interpretation:</p>
                     <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
-                      <li>Tax rate of 0% = Score of 100</li>
-                      <li>Tax rate of 25% = Score of 50</li>
-                      <li>Tax rate of 50%+ = Score of 0</li>
-                      <li>Multiplier of 2 penalizes higher tax rates more severely</li>
+                      <li>≥90% — Very strong (Low Risk)</li>
+                      <li>70–90% — Adequate (Medium Risk)</li>
+                      <li>&lt;70% — Needs attention (High Risk)</li>
                     </ul>
-                    <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
-                    <p className="text-xs text-gray-200">Kitces (2013) "The Tax Torpedo and Social Security Planning" - Strategic withdrawal sequencing from tax-advantaged accounts can reduce lifetime tax burden by 10-30%.</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -507,6 +635,14 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
                     <p className="font-semibold mb-2 text-gray-100">Cashflow Score Calculation</p>
+                    {score.details?.cashflow && (
+                      <div className="mb-3 p-2 bg-gray-800 rounded border border-gray-600">
+                        <p className="text-xs font-medium text-gray-200 mb-1">Your plan:</p>
+                        {score.details.cashflow.split('\n').map((line, i) => (
+                          <p key={i} className="text-xs text-green-300">{line}</p>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-xs mb-2 text-gray-200">Measures cash flow consistency - fewer negative years = higher score.</p>
                     <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
                     <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
@@ -534,6 +670,49 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="cursor-help">
+                    <div className="text-3xl font-semibold text-gray-900">{score.taxEfficiency}</div>
+                    <div className="text-sm text-gray-600 mt-1">Tax Efficiency</div>
+                    <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_TAX_EFFICIENCY * 100).toFixed(0)}% weight)</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
+                  <div className="text-sm">
+                    <p className="font-semibold mb-2 text-gray-100">Tax Efficiency Score Calculation</p>
+                    {score.details?.taxEfficiency && (
+                      <div className="mb-3 p-2 bg-gray-800 rounded border border-gray-600">
+                        <p className="text-xs font-medium text-gray-200 mb-1">Your plan:</p>
+                        {score.details.taxEfficiency.split('\n').map((line, i) => (
+                          <p key={i} className="text-xs text-green-300">{line}</p>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs mb-2 text-gray-200">Evaluates how well taxes are minimized over retirement.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
+                    <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
+                      Score = max(0, 100 - (Total Taxes / Total Income) × 100 × 2)
+                    </p>
+                    <p className="text-xs mt-2 text-gray-200">Where:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
+                      <li>Total Taxes = Sum of all tax payments across projections</li>
+                      <li>Total Income = Sum of all income (SSA, distributions, other) across projections</li>
+                    </ul>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
+                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
+                      <li>Tax rate of 0% = Score of 100</li>
+                      <li>Tax rate of 25% = Score of 50</li>
+                      <li>Tax rate of 50%+ = Score of 0</li>
+                      <li>Multiplier of 2 penalizes higher tax rates more severely</li>
+                    </ul>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
+                    <p className="text-xs text-gray-200">Kitces (2013) "The Tax Torpedo and Social Security Planning" - Strategic withdrawal sequencing from tax-advantaged accounts can reduce lifetime tax burden by 10-30%.</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="text-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
                     <div className="text-3xl font-semibold text-gray-900">{score.inflation}</div>
                     <div className="text-sm text-gray-600 mt-1">Inflation</div>
                     <div className="text-xs text-gray-500 mt-1">({(SCORE_WEIGHT_INFLATION * 100).toFixed(0)}% weight)</div>
@@ -542,6 +721,14 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
                     <p className="font-semibold mb-2 text-gray-100">Inflation Score Calculation</p>
+                    {score.details?.inflation && (
+                      <div className="mb-3 p-2 bg-gray-800 rounded border border-gray-600">
+                        <p className="text-xs font-medium text-gray-200 mb-1">Your plan:</p>
+                        {score.details.inflation.split('\n').map((line, i) => (
+                          <p key={i} className="text-xs text-green-300">{line}</p>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-xs mb-2 text-gray-200">Evaluates how well income keeps up with expense growth due to inflation.</p>
                     <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
                     <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
@@ -581,25 +768,27 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                 <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700">
                   <div className="text-sm">
                     <p className="font-semibold mb-2 text-gray-100">Medical/Health Care Score Calculation</p>
-                    <p className="text-xs mb-2 text-gray-200">Assesses health care expense risk in later retirement years.</p>
-                    <p className="text-xs font-medium mt-2 text-gray-100">Formula:</p>
+                    {score.details?.medical && (
+                      <div className="mb-3 p-2 bg-gray-800 rounded border border-gray-600">
+                        <p className="text-xs font-medium text-gray-200 mb-1">Your plan:</p>
+                        {score.details.medical.split('\n').map((line, i) => (
+                          <p key={i} className="text-xs text-green-300">{line}</p>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs mb-2 text-gray-200">Assesses plan readiness to handle medical expenses across four signals: coverage, healthcare burden, pre-Medicare gap, and HSA buffer.</p>
+                    <p className="text-xs font-medium mt-2 text-gray-100">Formula (when healthcare configured):</p>
                     <p className="text-xs font-mono bg-gray-800 text-gray-100 p-2 rounded border border-gray-600">
-                      Average Expenses = Total Expenses / Total Years<br/>
-                      Late Year Expenses = Average of last 1/3 of years<br/>
-                      Medical Expense Ratio = (Late Year Expenses - Average Expenses) / Average Expenses<br/>
-                      Score = max(0, 100 - (Medical Expense Ratio × 200))
+                      Score = Coverage×40% + Burden×35% + PreMedicare×25% + HSA bonus<br/>
+                      Burden Score = max(0, 100 − healthcare% × 250)<br/>
+                      PreMedicare penalty = min(50, yearsBeforeMedicare × 5)
                     </p>
                     <p className="text-xs mt-2 text-gray-200">Where:</p>
                     <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
-                      <li>Late Year Expenses = Average expenses in final 1/3 of projection years</li>
-                      <li>Medical Expense Ratio = Percentage increase in late-year expenses</li>
-                      <li>Multiplier of 200 penalizes high medical cost increases</li>
-                    </ul>
-                    <p className="text-xs font-medium mt-2 text-gray-100">Assumptions:</p>
-                    <ul className="text-xs list-disc list-inside ml-2 space-y-1 text-gray-200">
-                      <li>No increase in late years = Score of 100</li>
-                      <li>50% increase in late years = Score of 0</li>
-                      <li>Uses expense growth as proxy for medical costs (not explicitly tracked)</li>
+                      <li>Coverage = % of retirement years income covers all expenses</li>
+                      <li>Healthcare burden = lifetime healthcare ÷ total retirement expenses</li>
+                      <li>Pre-Medicare gap = years of private insurance before age 65</li>
+                      <li>HSA bonus = up to 15 pts ($10k per 2 pts)</li>
                     </ul>
                     <p className="text-xs font-medium mt-2 text-gray-100">Research Reference:</p>
                     <p className="text-xs text-gray-200">Fidelity Retiree Health Care Cost Estimate (2023) - Average 65-year-old couple needs $315K for health care. HealthView Services projects 5.5% annual health care inflation vs 2.5% general inflation.</p>
@@ -609,6 +798,11 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
             </div>
           </TooltipProvider>
         </div>
+        {!monteCarloSummary && (
+          <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            <strong>Market Risk score is estimated at 50 (neutral)</strong> until you run the Monte Carlo simulation below. Running it will update this factor with real probability data and may change the Overall Score.
+          </p>
+        )}
       </div>
 
       {/* Market Risks & Monte Carlo */}
@@ -624,7 +818,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
         {/* ── Deterministic Stress Test (5 bear scenarios) ── */}
         {stressTestResult && (() => {
           const { baseline, scenarios } = stressTestResult
-          const anyFails = scenarios.some(s => !s.run.success)
+          const anyFails = scenarios.some(s => !s.run.success) || baseline.finalNetworth < 0 || baseline.yearsWithNegativeCashFlow > 0
           const headerBg = !anyFails ? 'bg-emerald-500/8 border-emerald-500/20' : 'bg-destructive/8 border-destructive/20'
           const fmt = (n: number) => n < 0 ? `-$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
           return (
@@ -660,10 +854,14 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                       <tr className="border-b bg-muted/20">
                         <td className="px-4 py-2.5 font-medium">Steady growth (baseline)</td>
                         <td className="px-4 py-2.5 text-muted-foreground">—</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmt(baseline.finalNetworth)}</td>
+                        <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${baseline.finalNetworth < 0 ? 'text-destructive' : ''}`}>{fmt(baseline.finalNetworth)}</td>
                         <td className="px-4 py-2.5 text-right tabular-nums">{baseline.yearsWithNegativeCashFlow}</td>
                         <td className="px-4 py-2.5 text-center">
-                          <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 text-[10px]">Yes</Badge>
+                          {baseline.finalNetworth >= 0 && baseline.yearsWithNegativeCashFlow === 0 ? (
+                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 text-[10px]">Yes</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[10px]">No</Badge>
+                          )}
                         </td>
                       </tr>
                       {scenarios.map((s) => (
@@ -763,7 +961,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                   <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 px-4 pb-1">
                     <div />
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right w-28">Final net worth</div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right w-28 hidden sm:block">Gross growth rate ①</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right w-28 hidden sm:block">Worst yr return ①</div>
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right w-24 hidden sm:block">Net CAGR ②</div>
                   </div>
 
@@ -785,9 +983,9 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                         <div className={`text-sm tabular-nums shrink-0 text-right w-28 ${row.color}`}>
                           {fmt(row.detail.finalNetworth)}
                         </div>
-                        {/* Gross growth rate */}
-                        <div className="text-sm tabular-nums text-right w-28 text-muted-foreground hidden sm:block">
-                          {(row.detail.avgAnnualReturn * 100).toFixed(2)}%
+                        {/* Worst single-year return */}
+                        <div className={`text-sm tabular-nums text-right w-28 hidden sm:block ${row.detail.minAnnualReturn < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {row.detail.minAnnualReturn >= 0 ? '+' : ''}{(row.detail.minAnnualReturn * 100).toFixed(2)}%
                         </div>
                         {/* Net CAGR */}
                         <div className="text-sm tabular-nums text-right w-24 text-muted-foreground hidden sm:block">
@@ -800,7 +998,7 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
                   {/* Column footnotes */}
                   <div className="mt-2 space-y-0.5 px-1">
                     <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
-                      <strong className="text-muted-foreground/80">① Gross growth rate</strong> — the randomised annual return applied to portfolio assets in this scenario, <em>before</em> any withdrawals, expenses, or taxes.
+                      <strong className="text-muted-foreground/80">① Worst yr return</strong> — the single worst year&rsquo;s randomised return drawn in this scenario. Worse outcomes tend to have more severe single-year losses because early large drawdowns permanently reduce the portfolio during peak-withdrawal years (<em>sequence-of-returns risk</em>).
                     </p>
                     <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
                       <strong className="text-muted-foreground/80">② Net CAGR</strong> — annualised change from starting portfolio to final net worth <em>after</em> all withdrawals, expenses, and taxes over the full plan. Shows "N/A" when the plan ends in deficit.
@@ -943,42 +1141,213 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
 
       {/* RMD Analysis */}
       {rmdAnalysis && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">RMD Analysis</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm text-gray-700 font-medium">First RMD Year</div>
-              <div className="text-lg font-semibold text-gray-900">{rmdAnalysis.firstRmdYear}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-700 font-medium">First RMD Amount</div>
-              <div className="text-lg font-semibold text-gray-900">
-                ${rmdAnalysis.firstRmdAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-700 font-medium">Peak RMD Year</div>
-              <div className="text-lg font-semibold text-gray-900">{rmdAnalysis.peakRmdYear}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-700 font-medium">Peak RMD Amount</div>
-              <div className="text-lg font-semibold text-gray-900">
-                ${rmdAnalysis.peakRmdAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <div className="text-sm text-gray-700 font-medium mb-2">Total RMDs Over Lifetime</div>
-              <div className="text-lg font-semibold text-gray-900">
-                ${rmdAnalysis.totalRmds.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </div>
+        <div className="rounded-xl border overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3 bg-muted/30 border-b">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="font-semibold text-sm">RMD Analysis</span>
+              <Badge variant="outline" className="text-[10px] font-normal ml-1">Age {RMD_START_AGE}+</Badge>
             </div>
           </div>
-          {rmdAnalysis.recommendation && (
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <div className="text-sm font-medium text-blue-900">Recommendation</div>
-              <div className="text-sm text-blue-700 mt-1">{rmdAnalysis.recommendation}</div>
+
+          <div className="px-5 py-4 bg-card space-y-4">
+            {/* Verdict banner */}
+            {(() => {
+              const v = rmdAnalysis.verdict
+              const bannerCls = v === 'no-concern'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/40'
+                : v === 'minor'
+                  ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/40'
+                  : 'bg-destructive/8 border-destructive/20'
+              const labelCls = v === 'no-concern'
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : v === 'minor'
+                  ? 'text-amber-700 dark:text-amber-400'
+                  : 'text-destructive'
+              const detailCls = v === 'no-concern'
+                ? 'text-emerald-600 dark:text-emerald-300'
+                : v === 'minor'
+                  ? 'text-amber-600 dark:text-amber-300'
+                  : 'text-destructive/80'
+              return (
+                <div className={`flex gap-2.5 rounded-lg px-4 py-3 border ${bannerCls}`}>
+                  <Info className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${labelCls}`} />
+                  <div>
+                    <p className={`text-xs font-semibold ${labelCls}`}>{rmdAnalysis.verdictLabel}</p>
+                    <p className={`text-xs mt-0.5 ${detailCls}`}>{rmdAnalysis.verdictDetail}</p>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Contextual metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-1">RMD Starts</div>
+                <div className="text-base font-semibold">{rmdAnalysis.firstRmdYear}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">Age {RMD_START_AGE} — ${rmdAnalysis.firstRmdAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-1">RMD Coverage</div>
+                <div className={`text-base font-semibold ${rmdAnalysis.firstYearCoveragePercent >= 100 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>
+                  {rmdAnalysis.firstYearCoveragePercent.toFixed(0)}% of needs
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {rmdAnalysis.firstYearCoveragePercent >= 100 ? 'Exceeds expenses — watch taxes' : 'Below expenses — no forced excess'}
+                </div>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-1">Forced Excess Years</div>
+                <div className={`text-base font-semibold ${rmdAnalysis.forcedExcessYears > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {rmdAnalysis.forcedExcessYears === 0 ? 'None' : `${rmdAnalysis.forcedExcessYears} yr${rmdAnalysis.forcedExcessYears > 1 ? 's' : ''}`}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">years RMD &gt; expenses + tax</div>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-1">Net Lifetime Impact</div>
+                <div className={`text-base font-semibold ${rmdAnalysis.netLifetimeImpact > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {rmdAnalysis.netLifetimeImpact > 0 ? '+' : ''}{Math.round(rmdAnalysis.netLifetimeImpact).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {rmdAnalysis.netLifetimeImpact > 0 ? 'cumulative forced excess' : 'cumulative shortfall vs expenses'}
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* Expand/collapse toggle */}
+            {rmdAnalysis.rmdTable?.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setRmdDetailsExpanded(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  {rmdDetailsExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  {rmdDetailsExpanded ? 'Hide' : 'Show'} full RMD breakdown ({rmdAnalysis.rmdTable.length} years)
+                </button>
+
+                {rmdDetailsExpanded && (
+                  <div className="mt-3 rounded-lg border overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-muted/50 border-b">
+                            <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">Age</th>
+                            <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">Year</th>
+                            <th className="px-3 py-2 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default border-b border-dashed border-muted-foreground/50">Trad. Balance</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px] text-xs">401k + IRA balance at start of year (before RMD withdrawal)</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default border-b border-dashed border-muted-foreground/50">IRS Divisor</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[220px] text-xs">IRS Uniform Lifetime Table life expectancy factor. RMD = Balance ÷ Divisor.</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-muted-foreground whitespace-nowrap">Rate %</th>
+                            <th className="px-3 py-2 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default border-b border-dashed border-muted-foreground/50">Req. RMD</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[220px] text-xs">IRS-required minimum distribution = Traditional Balance ÷ IRS Divisor</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default border-b border-dashed border-muted-foreground/50">Exp. + Tax</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[220px] text-xs">Total projected expenses plus income tax for the year — what you actually need in cash</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default border-b border-dashed border-muted-foreground/50">RMD Impact</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[240px] text-xs">RMD minus (Expenses + Tax). Positive = RMD forces more taxable income than you need. Negative = RMD alone doesn't cover your needs.</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default border-b border-dashed border-muted-foreground/50">Cumulative</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[240px] text-xs">Running total of RMD Impact over all RMD years. Positive = net forced-excess withdrawn; negative = net shortfall from RMDs alone.</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rmdAnalysis.rmdTable.map((row: any, idx: number) => {
+                            const isLast = idx === rmdAnalysis.rmdTable.length - 1
+                            const impactPositive = row.rmdImpact >= 0
+                            const cumulativePositive = row.cumulativeImpact >= 0
+                            const fmt = (n: number) => `$${Math.round(Math.abs(n)).toLocaleString()}`
+                            return (
+                              <tr key={row.age} className={`border-b last:border-0 ${isLast ? 'bg-muted/30 font-semibold' : 'hover:bg-muted/10'}`}>
+                                <td className="px-3 py-2 font-medium tabular-nums">
+                                  {row.age}
+                                  {row.isFirstRmdYear && (
+                                    <Badge variant="outline" className="ml-1.5 text-[9px] py-0 px-1 text-amber-700 border-amber-300 bg-amber-50">Start</Badge>
+                                  )}
+                                  {isLast && (
+                                    <Badge variant="outline" className="ml-1.5 text-[9px] py-0 px-1 text-muted-foreground">Final</Badge>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-muted-foreground tabular-nums">{row.year}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{fmt(row.tradBalanceStart)}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{row.divisor.toFixed(1)}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{row.ratePercent.toFixed(2)}%</td>
+                                <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(row.requiredRmd)}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{fmt(row.totalExpensesWithTax)}</td>
+                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${impactPositive ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                  {impactPositive ? '+' : '-'}{fmt(row.rmdImpact)}
+                                </td>
+                                <td className={`px-3 py-2 text-right tabular-nums font-semibold ${cumulativePositive ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+                                  {cumulativePositive ? '+' : '-'}{fmt(row.cumulativeImpact)}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Legend */}
+                    <div className="px-4 py-2.5 border-t bg-muted/20 flex flex-wrap gap-x-5 gap-y-1">
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="inline-block w-2 h-2 rounded-sm bg-amber-400/60" />
+                        <span>RMD Impact (+): forced excess — RMD exceeds your actual need, creating extra taxable income</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="inline-block w-2 h-2 rounded-sm bg-emerald-400/60" />
+                        <span>RMD Impact (−): RMD alone doesn't cover expenses; additional withdrawals are needed</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -994,10 +1363,11 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo }: AnalysisTabPr
 
 // Helper functions for calculations
 
-function calculateRetirementScore(
+export function calculateRetirementScore(
   projections: ProjectionDetail[],
   settings: CalculatorSettings,
-  accounts: Account[]
+  accounts: Account[],
+  mcSuccessRate?: number
 ): RetirementScore {
   if (projections.length === 0) {
     return {
@@ -1007,41 +1377,115 @@ function calculateRetirementScore(
       longevity: 0,
       inflation: 0,
       medical: 0,
-      riskLevel: 'High'
+      monteCarlo: 0,
+      riskLevel: 'High',
+      details: {
+        longevity: 'No projection data available.',
+        cashflow: 'No projection data available.',
+        taxEfficiency: 'No projection data available.',
+        inflation: 'No projection data available.',
+        medical: 'No projection data available.',
+        monteCarlo: 'Monte Carlo not yet run.',
+      }
     }
   }
 
-  // Cashflow Score (0-100): Based on gap/excess and cumulative liability (renamed from sustainability)
-  const negativeYears = projections.filter(p => (p.gap_excess || 0) < 0).length
-  const cashflowScore = Math.max(0, 100 - (negativeYears / projections.length) * 100)
-  
-  // Tax Efficiency Score (0-100): Based on tax rates and tax-advantaged account usage
-  const totalTaxes = projections.reduce((sum, p) => sum + (p.tax || 0), 0)
-  const totalIncome = projections.reduce((sum, p) => sum + (p.total_income || 0), 0)
-  const taxEfficiencyScore = totalIncome > 0 ? Math.max(0, 100 - (totalTaxes / totalIncome) * 100 * 2) : 50
-  
-  // Longevity Score (0-100): Based on net worth trends and asset preservation
+  // Cashflow Score (0-100): proportion of retirement years with a meaningful income shortfall.
+  // Uses retirement years only (pre-retirement gap_excess is always 0 by design).
+  // Threshold: ignore shortfalls smaller than $1,000 or 2% of that year's expenses (sequence-of-returns noise).
+  const retirementProjections = projections.filter(p => p.age && p.age >= (settings.retirement_age || DEFAULT_RETIREMENT_AGE))
+  const negativeRetirementYears = retirementProjections.filter(
+    p => (p.gap_excess || 0) < -Math.max(1000, (p.total_expenses || 0) * 0.02)
+  ).length
+  const totalRetirementYears = retirementProjections.length
+  const cashflowScore = totalRetirementYears > 0
+    ? Math.max(0, 100 - (negativeRetirementYears / totalRetirementYears) * 150)
+    : 100  // No retirement data → assume fine
+
+  const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`
+  const pct = (r: number) => `${(r * 100).toFixed(1)}%`
+
+  const cashflowDetail = totalRetirementYears > 0
+    ? `${negativeRetirementYears} of ${totalRetirementYears} retirement years with income shortfall > $1,000`
+      + (negativeRetirementYears === 0 ? ' — income covers expenses every year' : '')
+    : 'No retirement projection data'
+
+  // Tax Efficiency Score (0-100): compares effective tax rate against the benchmark expected
+  // for the user's income level. This avoids penalising high earners just for being high earners —
+  // a $300k/yr retiree and a $60k/yr retiree have very different "normal" rates.
+  // Benchmark by avg annual retirement income:
+  //   < $50k/yr  → expect ~12%  (standard deduction + low brackets)
+  //   $50-100k   → expect ~18%
+  //   $100-200k  → expect ~22%
+  //   $200k+     → expect ~27%
+  // Score 100 at or below benchmark; penalty only for meaningful excess above benchmark.
+  const retirementTaxes  = retirementProjections.reduce((s, p) => s + (p.tax || 0), 0)
+  const retirementIncome = retirementProjections.reduce((s, p) => s + (p.total_income || 0), 0)
+  const effectiveTaxRate = retirementIncome > 0 ? retirementTaxes / retirementIncome : 0
+  const avgAnnualIncome  = totalRetirementYears > 0 ? retirementIncome / totalRetirementYears : 0
+  const expectedTaxRate  = avgAnnualIncome < 50_000 ? 0.12
+                         : avgAnnualIncome < 100_000 ? 0.18
+                         : avgAnnualIncome < 200_000 ? 0.22
+                         : 0.27
+  // Penalty only for the portion ABOVE the benchmark (excess is normalised by benchmark).
+  // 5% above → 85, 10% above → 70, 33%+ above → 0
+  const taxEfficiencyScore = retirementIncome > 0
+    ? Math.max(0, Math.min(100, 100 - Math.max(0, effectiveTaxRate - expectedTaxRate) * 300))
+    : 70  // No retirement income data → neutral score
+
+  const taxDetail = retirementIncome > 0
+    ? `Avg annual income ${fmt(avgAnnualIncome)} → benchmark effective rate ~${pct(expectedTaxRate)}`
+      + `\nActual effective rate ${pct(effectiveTaxRate)} on ${fmt(retirementIncome)} total income`
+      + (effectiveTaxRate <= expectedTaxRate
+          ? ' — at or below benchmark (efficient)'
+          : ` — ${pct(effectiveTaxRate - expectedTaxRate)} above benchmark`)
+    : 'No retirement income data — using neutral score'
+
+  // Longevity Score (0-100): Did the plan survive to life expectancy?
+  // Uses a "Legacy Goal" (default $0) — the plan scores 100 if it ends at or above that goal.
+  // This avoids penalising users for responsibly spending their wealth during retirement.
+  // Only penalise if the portfolio goes BELOW the legacy goal (default: goes negative).
+  //
+  // Penalty scale when final < legacyGoal:
+  //   deficit / retirementStartNetworth × 500, capped at 100
+  //   5% deficit  → 75    (minor shortfall near end of life)
+  //   10% deficit → 50    (meaningful shortfall)
+  //   20%+ deficit → 0    (plan needed 20%+ more to survive)
+  //
+  // TODO: expose legacyGoal as a plan setting so users can set a target inheritance amount.
+  const legacyGoal = 0
   const finalNetworth = projections[projections.length - 1]?.networth || 0
-  const initialNetworth = projections[0]?.networth || 0
-  const longevityScore = initialNetworth > 0 
-    ? Math.min(100, (finalNetworth / initialNetworth) * 50 + 50)
+  const retirementStartNetworth = retirementProjections[0]?.networth || projections[0]?.networth || 0
+  const longevityScore = retirementStartNetworth > 0
+    ? finalNetworth >= legacyGoal
+      ? 100
+      : Math.max(0, Math.round(100 - ((legacyGoal - finalNetworth) / retirementStartNetworth) * 500))
     : 0
-  
+
+  const longevityDetail = retirementStartNetworth > 0
+    ? `Portfolio at retirement start ${fmt(retirementStartNetworth)} → at life expectancy ${fmt(finalNetworth)}`
+      + (finalNetworth >= legacyGoal
+          ? finalNetworth >= retirementStartNetworth
+            ? ' (wealth preserved or grew)'
+            : ' (wealth drawn down — plan survived)'
+          : ` (funds depleted — ${fmt(legacyGoal - finalNetworth)} below survival goal)`)
+    : 'No net worth data available'
+
   // Inflation Score (0-100): Based on how well expenses are covered despite inflation
   // Compare early retirement expenses vs late retirement expenses to see inflation impact
-  const retirementProjections = projections.filter(p => p.age && p.age >= (settings.retirement_age || DEFAULT_RETIREMENT_AGE))
   let inflationScore = 50 // Default score
+  let inflationDetail = 'Insufficient retirement data — using default score'
   if (retirementProjections.length > 0) {
     const earlyPeriod = retirementProjections.slice(0, Math.floor(retirementProjections.length / 3))
     const latePeriod = retirementProjections.slice(-Math.floor(retirementProjections.length / 3))
-    
+
     const earlyExpenses = earlyPeriod.length > 0
       ? earlyPeriod.reduce((sum, p) => sum + (p.total_expenses || 0), 0) / earlyPeriod.length
       : 0
     const lateExpenses = latePeriod.length > 0
       ? latePeriod.reduce((sum, p) => sum + (p.total_expenses || 0), 0) / latePeriod.length
       : 0
-    
+
     // If expenses grow faster than income, inflation risk is higher
     const earlyIncome = earlyPeriod.length > 0
       ? earlyPeriod.reduce((sum, p) => sum + (p.total_income || 0), 0) / earlyPeriod.length
@@ -1049,53 +1493,130 @@ function calculateRetirementScore(
     const lateIncome = latePeriod.length > 0
       ? latePeriod.reduce((sum, p) => sum + (p.total_income || 0), 0) / latePeriod.length
       : 0
-    
+
     const expenseGrowthRate = earlyExpenses > 0 ? (lateExpenses - earlyExpenses) / earlyExpenses : 0
     const incomeGrowthRate = earlyIncome > 0 ? (lateIncome - earlyIncome) / earlyIncome : 0
-    
+
     // Score is higher if income keeps up with expense growth
     if (expenseGrowthRate > 0) {
       const gap = expenseGrowthRate - incomeGrowthRate
-      inflationScore = Math.max(0, 100 - (gap / expenseGrowthRate) * 100)
+      // Cap at 100: when income grows *faster* than expenses (gap < 0) the plan is excellent,
+      // but an uncapped formula would produce scores > 100 and inflate the overall score.
+      inflationScore = Math.max(0, Math.min(100, 100 - (gap / expenseGrowthRate) * 100))
+      inflationDetail = `Avg early expenses ${fmt(earlyExpenses)}/yr → late ${fmt(lateExpenses)}/yr (+${pct(expenseGrowthRate)})`
+        + `\nAvg early income ${fmt(earlyIncome)}/yr → late ${fmt(lateIncome)}/yr (+${pct(Math.max(0, incomeGrowthRate))})`
+        + (gap > 0.01 ? `\nExpenses outpacing income by ${pct(gap)} — inflation eroding purchasing power` : '\nIncome keeping pace with expenses')
     } else {
       inflationScore = 100
+      inflationDetail = `Expenses stable or declining in later years (avg early ${fmt(earlyExpenses)}/yr vs late ${fmt(lateExpenses)}/yr)`
     }
   } else {
     // Simplified: Check if inflation rate assumption is reasonable
     const inflationRate = settings.inflation_rate || DEFAULT_INFLATION_RATE
     // Higher inflation rate = lower score (more risk)
     inflationScore = Math.max(0, 100 - (inflationRate * 1000)) // Penalize high inflation assumptions
+    inflationDetail = `No retirement projections — based on ${pct(inflationRate)} inflation assumption`
   }
-  
-  // Medical/Health Care Score (0-100): Based on healthcare expenses as % of total expenses
-  // Use actual healthcare_expenses (stored in special_expenses) when available
-  const totalExpenses = projections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
-  const totalHealthcare = retirementProjections.reduce((sum, p) => sum + (p.special_expenses || 0), 0)
-  const totalRetExpenses = retirementProjections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
-  
-  let medicalScore = 80 // Default: assume manageable if no data
-  if (totalHealthcare > 0 && totalRetExpenses > 0) {
-    // Healthcare as % of total expenses — above 30% is concerning, above 50% is high risk
-    const healthcarePct = totalHealthcare / totalRetExpenses
-    medicalScore = Math.max(0, Math.min(100, 100 - healthcarePct * 200))
-  } else if (totalExpenses > 0) {
-    // Fallback: use late-year expense growth as a proxy
-    const avgExpenses = totalExpenses / projections.length
-    const lateYearExpenses = projections.slice(-Math.floor(projections.length / 3))
-      .reduce((sum, p) => sum + (p.total_expenses || 0), 0) / Math.max(1, Math.floor(projections.length / 3))
-    const medicalExpenseRatio = avgExpenses > 0 ? (lateYearExpenses - avgExpenses) / avgExpenses : 0
-    medicalScore = Math.max(0, 100 - (medicalExpenseRatio * 200))
-  }
-  
-  // Overall Score: Weighted average (Longevity 50%, Cashflow 15%, Tax 15%, Inflation 10%, Medical 10%)
-  const overallScore = Math.round(
-    longevityScore * SCORE_WEIGHT_LONGEVITY +
-    cashflowScore * SCORE_WEIGHT_CASHFLOW +
-    taxEfficiencyScore * SCORE_WEIGHT_TAX_EFFICIENCY +
-    inflationScore * SCORE_WEIGHT_INFLATION +
-    medicalScore * SCORE_WEIGHT_MEDICAL
+
+  // Medical Readiness Score (0-100): Plan-specific assessment of readiness to handle medical costs.
+  // Four signals — all drawn from the user's own plan data:
+  //   1. Coverage      : do projected incomes actually cover healthcare costs each year?
+  //   2. Burden        : what fraction of total retirement spending is healthcare?
+  //   3. Pre-Medicare  : years of expensive private insurance before Medicare at 65
+  //   4. HSA buffer    : dedicated healthcare account provides a cushion
+  const MEDICARE_AGE = MEDICARE_ELIGIBILITY_AGE   // 65, from constants
+  const retirementAge = settings.retirement_age || DEFAULT_RETIREMENT_AGE
+
+  // Read healthcare_expenses (the correct field written by the projection engine)
+  const totalHealthcare = retirementProjections.reduce(
+    (s, p) => s + ((p as any).healthcare_expenses || p.special_expenses || 0), 0
   )
-  
+  const totalRetExpenses = retirementProjections.reduce((s, p) => s + (p.total_expenses || 0), 0)
+
+  // Signal 1 — Pre-Medicare gap (years without Medicare coverage)
+  const preMedicareYears = Math.max(0, MEDICARE_AGE - retirementAge)
+  // Penalty: 0 yrs → 0, 1 yr → 8, 3 yrs → 20, 5 yrs → 30, 10+ yrs → 50 (capped)
+  const preMedicareRisk = Math.min(50, preMedicareYears * 5)
+
+  // Signal 4 — HSA buffer (plan-specific healthcare savings)
+  const hsaBalance = accounts
+    .filter(a => (a.account_type || '').trim() === 'HSA')
+    .reduce((s, a) => s + (a.balance || 0), 0)
+  // Each $10k in HSA gives ~2 pts, up to 15 pts bonus
+  const hsaBonus = Math.min(15, Math.floor(hsaBalance / 10_000) * 2)
+
+  let medicalScore: number
+  let medicalDetail: string
+  if (totalHealthcare > 0 && totalRetExpenses > 0) {
+    // Plan has explicit healthcare costs configured — full plan-specific assessment
+
+    // Signal 2 — Healthcare burden (% of total retirement expenses)
+    const healthcarePct = totalHealthcare / totalRetExpenses
+    // 5% burden → 90, 15% → 70, 25% → 50, 40% → 20
+    const burdenScore = Math.max(0, Math.min(100, 100 - healthcarePct * 250))
+
+    // Signal 1b — Coverage ratio: how many retirement years does the plan successfully cover ALL expenses?
+    // Use the same meaningful threshold as cashflow to avoid noise penalties.
+    const uncoveredYears = retirementProjections.filter(
+      p => (p.gap_excess || 0) < -Math.max(1000, (p.total_expenses || 0) * 0.02)
+    ).length
+    const coverageScore = retirementProjections.length > 0
+      ? Math.max(0, 100 - (uncoveredYears / retirementProjections.length) * 150)
+      : 100
+
+    // Weighted composite: coverage 40%, burden 35%, pre-Medicare 25%
+    medicalScore = Math.max(0, Math.min(100,
+      coverageScore * 0.40 +
+      burdenScore   * 0.35 +
+      (100 - preMedicareRisk) * 0.25 +
+      hsaBonus
+    ))
+
+    medicalDetail = `Lifetime healthcare ${fmt(totalHealthcare)} = ${pct(healthcarePct)} of total retirement expenses`
+      + `\n${uncoveredYears === 0 ? 'All' : `${totalRetirementYears - uncoveredYears} of ${totalRetirementYears}`} retirement years fully covered`
+      + (preMedicareYears > 0 ? `\n${preMedicareYears} year${preMedicareYears > 1 ? 's' : ''} before Medicare (age ${MEDICARE_AGE}) — private insurance needed` : '\nMedicare-eligible at retirement — no private insurance gap')
+      + (hsaBalance > 0 ? `\nHSA balance ${fmt(hsaBalance)} — dedicated healthcare buffer` : '')
+  } else {
+    // No healthcare costs entered — the user hasn't planned for medical expenses.
+    // Score reflects that unknown exposure, penalised more for early retirement.
+    // Base 60 (neutral-ish) minus pre-Medicare gap risk, plus any HSA cushion they have.
+    medicalScore = Math.max(20, Math.min(100, 60 - preMedicareRisk + hsaBonus))
+
+    medicalDetail = 'No healthcare premiums configured in plan'
+      + (preMedicareYears > 0 ? `\n${preMedicareYears} year${preMedicareYears > 1 ? 's' : ''} before Medicare — private insurance cost not planned` : '\nMedicare-eligible at retirement')
+      + (hsaBalance > 0 ? `\nHSA balance ${fmt(hsaBalance)} provides some cushion` : '\nNo HSA account found')
+  }
+
+  // Monte Carlo Score (0-100): maps the MC success rate directly to 0-100.
+  // If MC has not been run yet, it is EXCLUDED from the overall score computation (rather than
+  // dragging the score down with a static 50 placeholder). The other 5 weights are re-scaled to 100%.
+  const mcHasRun = mcSuccessRate !== undefined && mcSuccessRate !== null
+  const monteCarloScore = mcHasRun
+    ? Math.round(Math.max(0, Math.min(100, mcSuccessRate!)))
+    : 50  // display-only placeholder — not used in overall when MC hasn't run
+  const monteCarloDetail = mcHasRun
+    ? `${mcSuccessRate!.toFixed(1)}% of 1,000 randomised market scenarios end with positive net worth`
+    : 'Monte Carlo not yet run — excluded from overall score until first run (other weights scaled to 100%)'
+
+  // Overall Score
+  // When MC has run:     Longevity 40% + MC 20% + Cashflow 10% + Tax 10% + Inflation 10% + Medical 10%
+  // When MC hasn't run:  same 5 non-MC components re-scaled by ÷ (1 − MC_WEIGHT) so they still sum to 100%
+  const otherWeightTotal = 1 - SCORE_WEIGHT_MONTE_CARLO   // 0.80
+  const overallScore = Math.round(
+    mcHasRun
+      ? (longevityScore     * SCORE_WEIGHT_LONGEVITY
+       + monteCarloScore    * SCORE_WEIGHT_MONTE_CARLO
+       + cashflowScore      * SCORE_WEIGHT_CASHFLOW
+       + taxEfficiencyScore * SCORE_WEIGHT_TAX_EFFICIENCY
+       + inflationScore     * SCORE_WEIGHT_INFLATION
+       + medicalScore       * SCORE_WEIGHT_MEDICAL)
+      : (longevityScore     * (SCORE_WEIGHT_LONGEVITY       / otherWeightTotal)
+       + cashflowScore      * (SCORE_WEIGHT_CASHFLOW         / otherWeightTotal)
+       + taxEfficiencyScore * (SCORE_WEIGHT_TAX_EFFICIENCY   / otherWeightTotal)
+       + inflationScore     * (SCORE_WEIGHT_INFLATION        / otherWeightTotal)
+       + medicalScore       * (SCORE_WEIGHT_MEDICAL          / otherWeightTotal))
+  )
+
   // Risk Level
   let riskLevel: 'Low' | 'Medium' | 'High' = 'Low'
   if (overallScore < SCORE_AT_RISK_THRESHOLD) riskLevel = 'High'
@@ -1108,14 +1629,24 @@ function calculateRetirementScore(
     longevity: Math.round(longevityScore),
     inflation: Math.round(inflationScore),
     medical: Math.round(medicalScore),
-    riskLevel
+    monteCarlo: monteCarloScore,
+    riskLevel,
+    details: {
+      longevity: longevityDetail,
+      cashflow: cashflowDetail,
+      taxEfficiency: taxDetail,
+      inflation: inflationDetail,
+      medical: medicalDetail,
+      monteCarlo: monteCarloDetail,
+    }
   }
 }
 
 function identifyRisks(
   projections: ProjectionDetail[],
   settings: CalculatorSettings,
-  accounts: Account[]
+  accounts: Account[],
+  rmdAnalysis?: ReturnType<typeof analyzeRMDs>
 ): Risk[] {
   const risks: Risk[] = []
   
@@ -1144,19 +1675,25 @@ function identifyRisks(
     })
   }
   
-  // Check for high RMDs (401k + IRA distributions at RMD age)
-  const rmdYears = projections.filter(p => p.age && p.age >= RMD_START_AGE)
-  if (rmdYears.length > 0) {
-    const maxRmd = Math.max(...rmdYears.map(p => (p.distribution_401k || 0) + (p.distribution_ira || 0)))
-    const avgIncome = projections.reduce((sum, p) => sum + (p.total_income || 0), 0) / projections.length
-    if (maxRmd > avgIncome * 0.5) {
+  // RMD risk — delegate to analyzeRMDs so the risk list and the detailed RMD section
+  // always use the same formula and can never produce contradictory verdicts.
+  if (rmdAnalysis) {
+    if (rmdAnalysis.verdict === 'attention') {
       risks.push({
         type: 'High RMD Risk',
-        severity: 'Medium',
-        description: `RMDs from tax-deferred accounts may push you into higher tax brackets after age ${RMD_START_AGE}.`,
+        severity: rmdAnalysis.forcedExcessYears > 5 ? 'High' : 'Medium',
+        description: `RMDs exceed expenses + tax in ${rmdAnalysis.forcedExcessYears} year${rmdAnalysis.forcedExcessYears > 1 ? 's' : ''} after age ${RMD_START_AGE}, forcing extra taxable income.`,
         recommendation: `Consider Roth conversions before age ${RMD_START_AGE} to reduce future RMDs and tax burden.`
       })
+    } else if (rmdAnalysis.verdict === 'minor') {
+      risks.push({
+        type: 'Minor RMD Impact',
+        severity: 'Medium',
+        description: `RMDs exceed expenses + tax in ${rmdAnalysis.forcedExcessYears} year${rmdAnalysis.forcedExcessYears > 1 ? 's' : ''} after age ${RMD_START_AGE}, creating modest forced taxable income.`,
+        recommendation: `Consider light Roth conversion planning before age ${RMD_START_AGE}.`
+      })
     }
+    // verdict === 'no-concern' → no risk entry added
   }
   
   // Check for low tax-advantaged accounts
@@ -1224,20 +1761,8 @@ function identifyRisks(
       })
     }
   } else {
-    // Fallback: use late-year expense growth as a proxy
-    const totalExpenses = projections.reduce((sum, p) => sum + (p.total_expenses || 0), 0)
-    const avgExpenses = totalExpenses / projections.length
-    const lateYearExpenses = projections.slice(-Math.floor(projections.length / 3))
-      .reduce((sum, p) => sum + (p.total_expenses || 0), 0) / Math.max(1, Math.floor(projections.length / 3))
-    const medicalExpenseRatio = avgExpenses > 0 ? (lateYearExpenses - avgExpenses) / avgExpenses : 0
-    if (medicalExpenseRatio > 0.2) {
-      risks.push({
-        type: 'Health Care Expenses Risk',
-        severity: medicalExpenseRatio > 0.5 ? 'High' : medicalExpenseRatio > 0.3 ? 'Medium' : 'Low',
-        description: `Late-year expenses are ${(medicalExpenseRatio * 100).toFixed(0)}% higher than average, indicating potential health care cost increases.`,
-        recommendation: 'Consider setting aside funds for health care, reviewing Medicare coverage options, or purchasing long-term care insurance.'
-      })
-    }
+    // No specific healthcare data — skip the fallback rather than misattributing
+    // general inflation to healthcare cost increases
   }
   
   return risks
@@ -1314,6 +1839,7 @@ function analyzeRMDs(
       peakRmdYear: 'N/A',
       peakRmdAmount: 0,
       totalRmds: 0,
+      rmdTable: [],
       recommendation: `RMDs will begin at age ${RMD_START_AGE}. Consider Roth conversions before then to reduce future RMDs.`
     }
   }
@@ -1323,12 +1849,78 @@ function analyzeRMDs(
   const firstRmd = rmdProjections[0]
   const peakRmd = rmdProjections.reduce((max, p) => rmdAmount(p) > rmdAmount(max) ? p : max, rmdProjections[0])
   const totalRmds = rmdProjections.reduce((sum, p) => sum + rmdAmount(p), 0)
+
+  // Build per-year RMD table
+  let cumulativeImpact = 0
+  const rmdTable = rmdProjections.map((p, idx) => {
+    const age = p.age ?? 0
+    // Start-of-year traditional balance: use prior year's end balance if available
+    const prevP = projections.find(pp => pp.age === age - 1)
+    const tradBalanceStart = prevP
+      ? (prevP.balance_401k || 0) + (prevP.balance_ira || 0)
+      : (p.balance_401k || 0) + (p.balance_ira || 0) + rmdAmount(p) // approximate
+
+    const divisor = Math.max(1, 27.4 - (age - RMD_START_AGE))
+    const ratePercent = (1 / divisor) * 100
+    const requiredRmd = tradBalanceStart > 0 ? tradBalanceStart / divisor : 0
+    const totalExpensesWithTax = (p.total_expenses || 0) + (p.tax || 0)
+    const rmdImpact = requiredRmd - totalExpensesWithTax
+    cumulativeImpact += rmdImpact
+
+    return {
+      age,
+      year: p.year,
+      tradBalanceStart,
+      divisor,
+      ratePercent,
+      requiredRmd,
+      actualDistribution: rmdAmount(p),
+      totalExpensesWithTax,
+      rmdImpact,
+      cumulativeImpact,
+      isFirstRmdYear: idx === 0,
+    }
+  })
   
   let recommendation = ''
   if (rmdAmount(peakRmd) > 100000) {
     recommendation = `High RMDs detected (peak ${peakRmd.year}: $${rmdAmount(peakRmd).toLocaleString(undefined, { maximumFractionDigits: 0 })}). Consider Roth conversions before age ${RMD_START_AGE} to reduce future tax burden.`
   } else {
     recommendation = 'RMDs are manageable. Continue monitoring as account balances grow.'
+  }
+
+  // Derived summary metrics
+  const netLifetimeImpact = rmdTable.length > 0 ? rmdTable[rmdTable.length - 1].cumulativeImpact : 0
+  const forcedExcessYears = rmdTable.filter(r => r.rmdImpact > 0).length
+  const totalLifetimeExpenses = rmdTable.reduce((s, r) => s + r.totalExpensesWithTax, 0)
+  const totalRequiredRmds = rmdTable.reduce((s, r) => s + r.requiredRmd, 0)
+  // Lifetime aggregate (kept for internal use)
+  const avgCoveragePercent = totalLifetimeExpenses > 0
+    ? Math.min(100, (totalRequiredRmds / totalLifetimeExpenses) * 100)
+    : 0
+  // First-year coverage: directly verifiable from the "RMD Starts" card values shown next to it.
+  // A user can divide the two visible numbers (first RMD / first year expenses+tax) and get this figure.
+  const firstYearRow = rmdTable[0]
+  const firstYearCoveragePercent = firstYearRow && firstYearRow.totalExpensesWithTax > 0
+    ? Math.min(100, (firstYearRow.requiredRmd / firstYearRow.totalExpensesWithTax) * 100)
+    : avgCoveragePercent
+
+  // Verdict
+  let verdict: 'no-concern' | 'minor' | 'attention'
+  let verdictLabel: string
+  let verdictDetail: string
+  if (forcedExcessYears === 0) {
+    verdict = 'no-concern'
+    verdictLabel = 'No RMD concern'
+    verdictDetail = `Your RMDs never exceed your expenses + tax in any year. You'll withdraw more than the minimum anyway to meet your needs — the IRS mandate adds no extra tax burden.`
+  } else if (forcedExcessYears <= 2 || netLifetimeImpact < 20000) {
+    verdict = 'minor'
+    verdictLabel = 'Minor RMD impact'
+    verdictDetail = `RMDs exceed your expenses + tax in ${forcedExcessYears} year${forcedExcessYears > 1 ? 's' : ''}, creating modest forced taxable income. Consider light Roth conversion planning.`
+  } else {
+    verdict = 'attention'
+    verdictLabel = 'RMD planning needed'
+    verdictDetail = `RMDs exceed expenses + tax in ${forcedExcessYears} years, forcing $${Math.round(netLifetimeImpact).toLocaleString()} in excess taxable withdrawals over your lifetime. Roth conversions before age ${RMD_START_AGE} could reduce this.`
   }
   
   return {
@@ -1337,14 +1929,37 @@ function analyzeRMDs(
     peakRmdYear: peakRmd.year,
     peakRmdAmount: rmdAmount(peakRmd),
     totalRmds,
-    recommendation
+    rmdTable,
+    recommendation,
+    // Verdict / contextual fields
+    verdict,
+    verdictLabel,
+    verdictDetail,
+    netLifetimeImpact,
+    forcedExcessYears,
+    avgCoveragePercent,
+    firstYearCoveragePercent,
+    totalLifetimeExpenses,
+    totalRequiredRmds,
   }
 }
 
 export function analyzeTaxEfficiency(
   projections: ProjectionDetail[],
   settings: CalculatorSettings,
-  accounts: Account[]
+  accounts: Account[],
+  // Optional — when provided, run the projection engine with tax_roth_conversion so the
+  // "Total Taxes With Roth Conversion" figure exactly matches the Strategy Comparison table.
+  expenses?: Expense[],
+  otherIncome?: OtherIncome[],
+  birthYear?: number,
+  lifeExpectancy?: number,
+  spouseBirthYear?: number,
+  spouseLifeExpectancy?: number,
+  includePlannerSsa?: boolean,
+  includeSpouseSsa?: boolean,
+  estimatedPlannerSsaAtStart?: number,
+  estimatedSpouseSsaAtStart?: number,
 ): any {
   if (projections.length === 0) {
     return {
@@ -1383,157 +1998,138 @@ export function analyzeTaxEfficiency(
   let taxesWithRothConversion = null
   
   if (traditionalBalance > 50000) {
-    // Suggest converting up to $50k per year in lower tax brackets
-    const optimalAmount = Math.min(50000, traditionalBalance * 0.1)
-    
-    // Calculate estimated taxes WITH Roth conversion
-    // This is a simplified estimate: assume conversions reduce RMDs and future taxable distributions
-    const retirementAge = settings.retirement_age || DEFAULT_RETIREMENT_AGE
+    const optimalAmount = Math.min(ROTH_CONVERSION_MAX, traditionalBalance * ROTH_CONVERSION_FRACTION)
     const currentYear = settings.current_year || new Date().getFullYear()
-    
-    // Use retirement_start_year from scenario settings to determine conversion start year
-    // If not set (0 or undefined), calculate it from current year and years_to_retirement
     const retirementStartYear = (settings.retirement_start_year && settings.retirement_start_year > 0) 
       ? settings.retirement_start_year
       : (currentYear + (settings.years_to_retirement || 0))
-    
-    // Calculate the year when RMDs start (retirement start year + years until RMD_START_AGE)
     const yearsUntilRmd = Math.max(0, RMD_START_AGE - retirementAge)
     const rmdStartYear = retirementStartYear + yearsUntilRmd
-    
-    // Conversion window: from retirement start year to year before RMD starts
     const conversionStartYear = retirementStartYear
     const conversionEndYear = rmdStartYear - 1
     const conversionYears = Math.max(1, conversionEndYear - conversionStartYear + 1)
-    
-    // Filter projections for the conversion window (years between retirement start and RMD start)
-    const retirementProjections = projections.filter(p => {
-      const projectionYear = p.year || 0
-      return projectionYear >= conversionStartYear && projectionYear < rmdStartYear
-    })
-    
     const totalConverted = optimalAmount * conversionYears
-    
-    // Calculate actual tax on conversion amount for each year based on taxable income
-    // Use tax bracket calculation to determine incremental tax
-    const calculateTaxOnConversion = (taxableIncome: number, conversionAmount: number, filingStatus: string): number => {
-      const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
-      const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
-      
-      // Calculate tax on income without conversion
-      let taxWithoutConversion = 0
-      let remainingIncome = taxableIncome
-      for (const bracket of bracketList) {
-        if (remainingIncome <= 0) break
-        const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min)
-        taxWithoutConversion += taxableInBracket * bracket.rate
-        remainingIncome -= taxableInBracket
-      }
-      
-      // Calculate tax on income with conversion
-      let taxWithConversion = 0
-      remainingIncome = taxableIncome + conversionAmount
-      for (const bracket of bracketList) {
-        if (remainingIncome <= 0) break
-        const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min)
-        taxWithConversion += taxableInBracket * bracket.rate
-        remainingIncome -= taxableInBracket
-      }
-      
-      // Return incremental tax on conversion amount
-      return taxWithConversion - taxWithoutConversion
-    }
-    
-    // Calculate conversion taxes for each year based on actual taxable income
-    let totalConversionTaxes = 0
-    let annualTaxCost = 0
-    
-    if (retirementProjections.length > 0) {
-      // Calculate average tax cost per year
-      let totalAnnualTax = 0
-      retirementProjections.forEach(proj => {
-        const taxableIncome = proj.taxable_income || 0
-        const taxOnConversion = calculateTaxOnConversion(taxableIncome, optimalAmount, settings.filing_status || DEFAULT_FILING_STATUS)
-        totalAnnualTax += taxOnConversion
-      })
-      annualTaxCost = retirementProjections.length > 0 ? totalAnnualTax / retirementProjections.length : 0
-      totalConversionTaxes = annualTaxCost * conversionYears
+
+    // -----------------------------------------------------------------------
+    // Roth simulation: run the full projection engine with tax_roth_conversion
+    // when caller has supplied the required inputs.  This produces the same
+    // number as the Strategy Comparison table (same engine, same parameters).
+    // -----------------------------------------------------------------------
+    let totalTaxesWithRoth: number
+    let avgAnnualTaxWithRoth: number
+    let conversionTaxes: number
+    let futureSavings: number
+
+    const canSimulate = !!(birthYear && lifeExpectancy && expenses && otherIncome)
+    if (canSimulate) {
+      const rothSettings = { ...settings, withdrawal_strategy_type: 'tax_roth_conversion' as const }
+      const rothProjections = calculateRetirementProjections(
+        birthYear!,
+        accounts,
+        expenses!,
+        otherIncome!,
+        rothSettings,
+        lifeExpectancy!,
+        spouseBirthYear,
+        spouseLifeExpectancy,
+        includePlannerSsa ?? true,
+        includeSpouseSsa,
+        estimatedPlannerSsaAtStart,
+        estimatedSpouseSsaAtStart,
+      )
+      const rothRetirementProj = rothProjections.filter(p => (p.age || 0) >= retirementAge)
+      totalTaxesWithRoth = rothRetirementProj.reduce((s, p) => s + (p.tax || 0), 0)
+      avgAnnualTaxWithRoth = rothRetirementProj.length > 0 ? totalTaxesWithRoth / rothRetirementProj.length : 0
+      // When using the simulation, the total already captures both the conversion tax cost
+      // AND the future savings from reduced RMDs — no need to show them as separate lines.
+      conversionTaxes = 0
+      futureSavings = 0
     } else {
-      // Fallback: use average taxable income from all retirement projections
-      const allRetirementProj = projections.filter(p => (p.age || 0) >= retirementAge)
-      if (allRetirementProj.length > 0) {
-        const avgTaxableIncome = allRetirementProj.reduce((sum, p) => sum + (p.taxable_income || 0), 0) / allRetirementProj.length
-        annualTaxCost = calculateTaxOnConversion(avgTaxableIncome, optimalAmount, settings.filing_status || DEFAULT_FILING_STATUS)
-        totalConversionTaxes = annualTaxCost * conversionYears
-      } else {
-        // Last resort: use estimated marginal rate (common middle bracket)
-        annualTaxCost = optimalAmount * DEFAULT_MARGINAL_TAX_RATE
-        totalConversionTaxes = annualTaxCost * conversionYears
+      // Analytical fallback (no simulation inputs supplied)
+      const conversionWindow = projections.filter(p => {
+        const y = p.year || 0
+        return y >= conversionStartYear && y < rmdStartYear
+      })
+
+      const calculateTaxOnConversion = (taxableIncome: number, conversionAmount: number, filingStatus: string): number => {
+        const status = (filingStatus || DEFAULT_FILING_STATUS) as FilingStatus
+        const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
+        let taxWithout = 0, taxWith = 0
+        let rem = taxableIncome
+        for (const b of bracketList) {
+          if (rem <= 0) break
+          const amt = Math.min(rem, b.max - b.min)
+          taxWithout += amt * b.rate
+          rem -= amt
+        }
+        rem = taxableIncome + conversionAmount
+        for (const b of bracketList) {
+          if (rem <= 0) break
+          const amt = Math.min(rem, b.max - b.min)
+          taxWith += amt * b.rate
+          rem -= amt
+        }
+        return taxWith - taxWithout
       }
-    }
-    
-    // Estimate future tax savings:
-    // The key benefit of Roth conversion isn't always net tax savings (if rates are the same),
-    // but rather: tax diversification, RMD reduction, and avoiding higher brackets later.
-    // However, we can estimate savings if:
-    // 1. RMDs might push you into a higher bracket (assume 2-5% higher rate)
-    // 2. Tax rates may increase in the future
-    // 3. Reduced RMDs mean less taxable income, potentially keeping you in lower brackets
-    
-    // Average RMD rate estimate: ~5% over typical retirement (1/life-expectancy factor at 73 ≈ 3.65%, increases with age)
-    const avgRmdRate = 0.05
-    // Calculate average tax rate that would apply to RMDs
-    const rmdProjections = projections.filter(p => (p.age || 0) >= RMD_START_AGE)
-    let avgRmdTaxRate = 0.25 // Default
-    if (rmdProjections.length > 0) {
-      const avgRmdTaxableIncome = rmdProjections.reduce((sum, p) => sum + (p.taxable_income || 0), 0) / rmdProjections.length
-      const status = (settings.filing_status || DEFAULT_FILING_STATUS) as FilingStatus
-      const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
-      for (const bracket of bracketList) {
-        if (avgRmdTaxableIncome >= bracket.min && avgRmdTaxableIncome < bracket.max) {
-          avgRmdTaxRate = bracket.rate
-          break
+
+      let annualTaxCost = 0
+      if (conversionWindow.length > 0) {
+        const total = conversionWindow.reduce((s, p) => s + calculateTaxOnConversion(p.taxable_income || 0, optimalAmount, settings.filing_status || DEFAULT_FILING_STATUS), 0)
+        annualTaxCost = total / conversionWindow.length
+      } else {
+        const allRet = projections.filter(p => (p.age || 0) >= retirementAge)
+        if (allRet.length > 0) {
+          const avgTaxable = allRet.reduce((s, p) => s + (p.taxable_income || 0), 0) / allRet.length
+          annualTaxCost = calculateTaxOnConversion(avgTaxable, optimalAmount, settings.filing_status || DEFAULT_FILING_STATUS)
+        } else {
+          annualTaxCost = optimalAmount * DEFAULT_MARGINAL_TAX_RATE
         }
       }
-      // Add potential future tax rate increase
-      avgRmdTaxRate = Math.min(TOP_MARGINAL_RATE, avgRmdTaxRate + 0.02)
+      conversionTaxes = annualTaxCost * conversionYears
+
+      const avgRmdRate = 0.05
+      const rmdProjections = projections.filter(p => (p.age || 0) >= RMD_START_AGE)
+      let avgRmdTaxRate = 0.25
+      if (rmdProjections.length > 0) {
+        const avgRmdTaxableIncome = rmdProjections.reduce((s, p) => s + (p.taxable_income || 0), 0) / rmdProjections.length
+        const status = (settings.filing_status || DEFAULT_FILING_STATUS) as FilingStatus
+        const bracketList = INCOME_TAX_BRACKETS[status] ?? INCOME_TAX_BRACKETS[DEFAULT_FILING_STATUS as FilingStatus]
+        for (const b of bracketList) {
+          if (avgRmdTaxableIncome >= b.min && avgRmdTaxableIncome < b.max) { avgRmdTaxRate = b.rate; break }
+        }
+        avgRmdTaxRate = Math.min(TOP_MARGINAL_RATE, avgRmdTaxRate + 0.02)
+      }
+      const annualRmdOnConverted = totalConverted * avgRmdRate
+      futureSavings = annualRmdOnConverted * avgRmdTaxRate * 20
+
+      totalTaxesWithRoth = totalTaxesWithoutRoth + conversionTaxes - futureSavings
+      avgAnnualTaxWithRoth = retirementProjections.length > 0 ? totalTaxesWithRoth / retirementProjections.length : 0
     }
-    
-    const annualRmdOnConverted = totalConverted * avgRmdRate
-    const annualTaxSavings = annualRmdOnConverted * avgRmdTaxRate
-    const futureSavings = annualTaxSavings * 20 // Over 20 years of RMDs
-    
-    // Estimate total taxes WITH Roth conversion:
-    // Current taxes + conversion taxes - future tax savings
-    // Note: This assumes some tax rate increase or bracket creep benefit
-    const totalTaxesWithRoth = totalTaxesWithoutRoth + totalConversionTaxes - futureSavings
-    const avgAnnualTaxWithRoth = retirementProjections.length > 0 ? totalTaxesWithRoth / retirementProjections.length : 0
-    
-    // Calculate net benefit
-    const netTaxBenefit = totalTaxesWithoutRoth - totalTaxesWithRoth
-    
+
+    const netTaxBenefit = totalTaxesWithoutRoth - totalTaxesWithRoth!
+
     taxesWithRothConversion = {
-      totalTaxes: totalTaxesWithRoth,
-      avgAnnualTax: avgAnnualTaxWithRoth,
-      conversionTaxes: totalConversionTaxes,
-      estimatedSavings: futureSavings,
-      netBenefit: netTaxBenefit
+      totalTaxes: totalTaxesWithRoth!,
+      avgAnnualTax: avgAnnualTaxWithRoth!,
+      conversionTaxes: conversionTaxes!,
+      estimatedSavings: futureSavings!,
+      netBenefit: netTaxBenefit,
+      simulatedTotal: canSimulate,   // flag so UI can show "from simulation" label
     }
-    
-    // Create recommendation based on whether there's a net tax benefit
+
     let recommendation = ''
     if (netTaxBenefit > 1000) {
-      recommendation = `Consider converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year to Roth accounts over ${conversionYears} years. This will cost a total of $${totalConversionTaxes.toLocaleString(undefined, { maximumFractionDigits: 0 })} in conversion taxes ($${annualTaxCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year) but could save approximately $${futureSavings.toLocaleString(undefined, { maximumFractionDigits: 0 })} in future taxes, with a net benefit of $${netTaxBenefit.toLocaleString(undefined, { maximumFractionDigits: 0 })}.`
+      recommendation = `Consider converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year to Roth accounts over ${conversionYears} years. This costs additional taxes during conversion but could save approximately $${netTaxBenefit.toLocaleString(undefined, { maximumFractionDigits: 0 })} in total lifetime taxes.`
     } else if (netTaxBenefit > 0) {
       recommendation = `Consider converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year to Roth accounts over ${conversionYears} years. While net tax savings may be modest ($${netTaxBenefit.toLocaleString(undefined, { maximumFractionDigits: 0 })}), Roth conversions provide tax diversification, reduce future RMDs, and offer estate planning benefits.`
     } else {
-      recommendation = `Roth conversion may not provide significant net tax savings if tax rates remain similar. However, converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year over ${conversionYears} years could still be beneficial for tax diversification, RMD reduction, and estate planning. Consider if you expect tax rates to increase or if you want more flexibility in managing taxable income.`
+      recommendation = `Roth conversion may not provide net tax savings at current rates. However, converting $${optimalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} per year over ${conversionYears} years could still be beneficial for tax diversification, RMD reduction, and estate planning.`
     }
     
     rothConversion = {
       optimalAmount,
-      taxCost: annualTaxCost,
-      futureSavings,
+      taxCost: canSimulate ? 0 : (conversionTaxes! / conversionYears),
+      futureSavings: futureSavings!,
       totalConverted,
       conversionYears,
       conversionStartYear,

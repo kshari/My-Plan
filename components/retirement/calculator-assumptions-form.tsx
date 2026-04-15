@@ -20,7 +20,7 @@ import { Separator } from '@/components/ui/separator'
 import { NumField, CurrencyField, PctField } from '@/components/ui/form-fields'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { formatCurrencyShort as fmt } from '@/lib/utils/formatting'
-import { SSA_EARLIEST_ELIGIBILITY_AGE, MEDICARE_ELIGIBILITY_AGE } from '@/lib/constants/retirement-defaults'
+import { SSA_EARLIEST_ELIGIBILITY_AGE, MEDICARE_ELIGIBILITY_AGE, DEFAULT_HEALTHCARE_INFLATION_RATE } from '@/lib/constants/retirement-defaults'
 import type { RetirementAssumptions } from '@/lib/types/retirement-assumptions'
 
 /** Result shape used for "How it's calculated" and SSA gap message (from computeResult or equivalent). */
@@ -311,6 +311,11 @@ export function CalculatorAssumptionsForm({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <CurrencyField label={`Pre-Medicare (before ${MEDICARE_ELIGIBILITY_AGE})`} value={assumptions.preMedicareAnnualPremium} onChange={(v) => update('preMedicareAnnualPremium', v)} />
                 <CurrencyField label={`Post-Medicare (${MEDICARE_ELIGIBILITY_AGE}+)`} value={assumptions.postMedicareAnnualPremium} onChange={(v) => update('postMedicareAnnualPremium', v)} />
+                <div className="flex flex-col justify-end">
+                  <span className="text-xs text-muted-foreground mb-1">Premium inflation rate</span>
+                  <span className="text-sm font-medium">{(DEFAULT_HEALTHCARE_INFLATION_RATE * 100).toFixed(0)}%/yr</span>
+                  <span className="text-xs text-muted-foreground/70">faster than general inflation</span>
+                </div>
               </div>
               {assumptions.retirementAge < MEDICARE_ELIGIBILITY_AGE && (
                 <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">

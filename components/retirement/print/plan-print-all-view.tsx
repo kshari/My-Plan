@@ -20,8 +20,8 @@ const PAGE_META: Record<string, { label: string; description: string }> = {
   'quick-analysis':          { label: 'Quick Projections',                   description: 'Confidence score, income estimate, yearly projections' },
   'details':                 { label: 'Projections — Default Columns',       description: 'Year-by-year projections with standard columns' },
   'strategy-modeling':       { label: 'Withdrawal Strategy Modeling',        description: 'Strategy modeler, comparison table, and parameter controls' },
-  'scenario-modeling':       { label: 'Scenario Modeling — Net Worth',       description: 'How different growth rates affect ending net worth' },
-  'scenario-modeling-income':{ label: 'Monthly Income Scenario Modeling',    description: 'How different growth rates affect monthly retirement income' },
+  'scenario-modeling':       { label: 'Scenario Modeling — Net Worth',       description: 'Net worth across retirement ages and growth rates (table view)' },
+  'scenario-modeling-income':{ label: 'Monthly Income Scenario Modeling',    description: 'Monthly retirement income across retirement ages and growth rates (table view)' },
   'monte-carlo':             { label: 'Market Risk & Monte Carlo Analysis',                description: 'Market risk analysis and Monte Carlo simulation results' },
   'roth-conversion':         { label: 'Tax Efficiency & Roth Conversion Savings Details',     description: 'Roth conversion strategy, optimal amounts, and year-by-year table' },
   'ssa-analysis':            { label: 'Social Security Withdrawal Analysis', description: 'Break-even analysis for SSA start age and lifetime benefit comparison' },
@@ -153,7 +153,7 @@ interface PlanPrintAllViewProps {
 }
 
 // How long to wait (ms) before auto-printing to let all components load
-const AUTO_PRINT_DELAY_MS = 12_000
+const AUTO_PRINT_DELAY_MS = 20_000
 
 export default function PlanPrintAllView({
   planId,
@@ -316,13 +316,23 @@ export default function PlanPrintAllView({
             max-height: none !important;
           }
 
-          /* Recharts charts: keep explicit height and overflow for SVG clipping */
+          /* Recharts charts: keep explicit height for the container but allow SVG overflow */
           .print-tab-content .recharts-responsive-container {
-            overflow: hidden !important;
+            overflow: visible !important;
           }
-          .print-tab-content svg {
-            overflow: hidden !important;
+          .print-tab-content .recharts-wrapper {
+            overflow: visible !important;
           }
+          /* Force SVG to fill container width in case Recharts measured 0 at mount time */
+          .print-tab-content .recharts-wrapper svg {
+            overflow: visible !important;
+            width: 100% !important;
+          }
+          /* Preserve Tailwind fixed-height wrappers so ResponsiveContainer gets a parent height */
+          .print-tab-content .h-\[300px\] { height: 300px !important; }
+          .print-tab-content .h-\[400px\] { height: 400px !important; }
+          .print-tab-content .h-\[500px\] { height: 500px !important; }
+          .print-tab-content .h-\[600px\] { height: 600px !important; }
 
           /* Kill ALL position:fixed elements (disclaimers, navs, FABs, banners).
              Fixed elements either repeat on every page or consume a full page. */
@@ -443,12 +453,12 @@ export default function PlanPrintAllView({
                     <DetailsTab planId={planId} initialSubTab="strategy-modeling" />
                   )}
                   {pageId === 'scenario-modeling' && (
-                    <ScenarioModelingTab planId={planId} initialModelType="networth" />
+                    <ScenarioModelingTab planId={planId} initialModelType="networth" initialViewMode="table" />
                   )}
                   {pageId === 'scenario-modeling-income' && (
-                    <ScenarioModelingTab planId={planId} initialModelType="monthly_income" />
+                    <ScenarioModelingTab planId={planId} initialModelType="monthly_income" initialViewMode="table" />
                   )}
-                  {pageId === 'monte-carlo' && <AnalysisTab planId={planId} autoRunMonteCarlo />}
+                  {pageId === 'monte-carlo' && <AnalysisTab planId={planId} autoRunMonteCarlo initialRmdDetailsExpanded />}
                   {pageId === 'roth-conversion' && <TaxEfficiencyTab planId={planId} initialShowRothDetails />}
                   {pageId === 'ssa-analysis' && <SSAWithdrawalAnalysisTab planId={planId} />}
                   {pageId === 'plan-details' && <PlanDetailsTab planId={planId} />}

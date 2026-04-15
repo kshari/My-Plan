@@ -123,7 +123,7 @@ export default function RetirementPlanTabs({ planId, planName, initialTab }: Ret
       )
       case 'scenario-modeling': return <ScenarioModelingTab planId={planId} />
       case 'details':           return <DetailsTab planId={planId} />
-      case 'analysis':          return <AnalysisTab planId={planId} />
+      case 'analysis':          return <AnalysisTab planId={planId} autoRunMonteCarlo />
       case 'tax-efficiency':    return <TaxEfficiencyTab planId={planId} />
       case 'other-tools':       return <OtherToolsTab planId={planId} />
       default:                  return null

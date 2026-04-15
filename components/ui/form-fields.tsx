@@ -18,16 +18,21 @@ interface FieldProps {
  * a valid, non-empty number is present). Avoids the leading-zero problem where
  * parse("") || 0  immediately forces the field back to "0" mid-edit.
  */
+/** Round to at most 10 significant decimal digits to strip floating-point noise (e.g. 7.000000000000001 → 7). */
+function cleanNum(n: number): string {
+  return String(parseFloat(n.toPrecision(10)))
+}
+
 function useNumberInput(
   value: number,
   onChange: (v: number) => void,
   parse: (s: string) => number,
 ) {
-  const [display, setDisplay] = useState(String(value))
+  const [display, setDisplay] = useState(cleanNum(value))
 
   // Keep display in sync when the parent changes the value (e.g. "Reset to defaults")
   useEffect(() => {
-    setDisplay(String(value))
+    setDisplay(cleanNum(value))
   }, [value])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -44,10 +49,10 @@ function useNumberInput(
     const parsed = parse(display)
     if (display === '' || isNaN(parsed)) {
       // Revert display to the last valid value on blur
-      setDisplay(String(value))
+      setDisplay(cleanNum(value))
     } else {
       // Normalize display (e.g. strip leading zeros)
-      setDisplay(String(parsed))
+      setDisplay(cleanNum(parsed))
       onChange(parsed)
     }
   }

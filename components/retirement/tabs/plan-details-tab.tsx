@@ -263,9 +263,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
           setScenarioVars({
             retirement_age: d.retirement_age || DEFAULT_RETIREMENT_AGE,
             ssa_start_age: d.ssa_start_age || d.retirement_age || DEFAULT_SSA_START_AGE,
-            growth_rate_before_retirement: parseFloat(d.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)) * 100,
-            growth_rate_during_retirement: parseFloat(d.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)) * 100,
-            inflation_rate: parseFloat(d.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)) * 100,
+            growth_rate_before_retirement: parseFloat((parseFloat(d.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)) * 100).toPrecision(10)),
+            growth_rate_during_retirement: parseFloat((parseFloat(d.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)) * 100).toPrecision(10)),
+            inflation_rate: parseFloat((parseFloat(d.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)) * 100).toPrecision(10)),
             enable_borrowing: d.enable_borrowing ?? DEFAULT_ENABLE_BORROWING,
             planner_ssa_income: d.planner_ssa_income ?? DEFAULT_PLANNER_SSA_INCOME,
             spouse_ssa_income: d.spouse_ssa_income ?? DEFAULT_SPOUSE_SSA_INCOME,
@@ -288,9 +288,9 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
         setScenarioVars({
           retirement_age: data.retirement_age || DEFAULT_RETIREMENT_AGE,
           ssa_start_age: data.ssa_start_age || data.retirement_age || DEFAULT_SSA_START_AGE,
-          growth_rate_before_retirement: parseFloat(data.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)) * 100,
-          growth_rate_during_retirement: parseFloat(data.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)) * 100,
-          inflation_rate: parseFloat(data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)) * 100,
+          growth_rate_before_retirement: parseFloat((parseFloat(data.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)) * 100).toPrecision(10)),
+          growth_rate_during_retirement: parseFloat((parseFloat(data.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)) * 100).toPrecision(10)),
+          inflation_rate: parseFloat((parseFloat(data.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)) * 100).toPrecision(10)),
           enable_borrowing: data.enable_borrowing ?? DEFAULT_ENABLE_BORROWING,
           planner_ssa_income: data.planner_ssa_income ?? DEFAULT_PLANNER_SSA_INCOME,
           spouse_ssa_income: data.spouse_ssa_income ?? DEFAULT_SPOUSE_SSA_INCOME,
@@ -715,8 +715,8 @@ export default function PlanDetailsTab({ planId }: PlanDetailsTabProps) {
 
   const suggestScenarioName = () => {
     const retAge = scenarioVars.retirement_age
-    const g1 = scenarioVars.growth_rate_before_retirement
-    const g2 = scenarioVars.growth_rate_during_retirement
+    const g1 = parseFloat(scenarioVars.growth_rate_before_retirement.toPrecision(10))
+    const g2 = parseFloat(scenarioVars.growth_rate_during_retirement.toPrecision(10))
     const borrow = scenarioVars.enable_borrowing ? '-Borrow' : ''
     return `Ret${retAge}-Grow${g1}/${g2}${borrow}`
   }

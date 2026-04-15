@@ -64,6 +64,8 @@ import {
   DEFAULT_SPOUSE_SSA_BENEFIT,
 } from '@/lib/constants/retirement-defaults'
 import { getStandardDeduction } from '@/lib/constants/tax-brackets'
+import { calculateRetirementScore } from '@/components/retirement/tabs/analysis-tab'
+import { runMonteCarloSimulation } from '@/lib/utils/monte-carlo'
 import { DEBOUNCE_SAVE_MS, TOAST_DURATION_SHORT, TOAST_DURATION_LONG } from '@/lib/constants/timing'
 import type { RetirementAssumptions } from '@/lib/types/retirement-assumptions'
 import { DEFAULT_RETIREMENT_ASSUMPTIONS } from '@/lib/types/retirement-assumptions'
@@ -83,6 +85,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
   const [calculating, setCalculating] = useState(false)
+  const [mcRunning, setMcRunning] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showQuickStart, setShowQuickStart] = useState(true)
   const [hasExistingData, setHasExistingData] = useState(false)
@@ -112,6 +115,25 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
     monthlyRetirementIncome: number
     annualRetirementIncome: number
     confidenceScore: number
+    retirementScore: {
+      overall: number
+      longevity: number
+      sustainability: number
+      taxEfficiency: number
+      inflation: number
+      medical: number
+      monteCarlo: number
+      riskLevel: 'Low' | 'Medium' | 'High'
+      details?: {
+        longevity: string
+        cashflow: string
+        taxEfficiency: string
+        inflation: string
+        medical: string
+        monteCarlo: string
+      }
+    }
+    withdrawalRate: number
     status: 'on-track' | 'close' | 'at-risk'
     recommendation: string
     yearsMoneyLasts: number
@@ -119,6 +141,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
     improvements: string[]
     lifeExpectancy: number
     legacyValue: number
+    legacyInflationRate: number
+    legacyCurrentAge: number
     fundsRunOutAge: number | null
     incomeCoverageAtFundsRunOut?: {
       year: number
@@ -369,11 +393,12 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       // 1. User explicitly set it to true, OR
       // 2. Plan includes spouse (include_spouse = true), OR
       // 3. Filing status is "Married Filing Jointly"
-      // This ensures realistic projections for married couples
+      // Never include for Single filers even if stale DB flag says true
       const explicitSpouseSsa = useSSASettings?.ssaForTwo ?? ((settingsDataObj.spouse_ssa_income as boolean) ?? false)
       const hasSpouse = planDataObj.include_spouse || false
       const isMarriedFilingJointly = planDataObj.filing_status === 'Married Filing Jointly'
-      const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
+      const isSingleFiler = planDataObj.filing_status === 'Single'
+      const includeSpouseSsa = !isSingleFiler && (explicitSpouseSsa || hasSpouse || isMarriedFilingJointly)
 
       // Use explicit benefits when set; else estimate from income; else same defaults as calculator (22k/16k)
       const estimatedIncomeForSsa = Number(settingsDataObj?.estimated_ssa_annual_income) || 0
@@ -389,10 +414,19 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       const projectionCurrentAge = projectionCurrentYear - birthYear
       const yearsToSsaStart = Math.max(0, ssaStartAge - projectionCurrentAge)
       const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
-      
+
+      // Spouse may be a different age; compute their own horizon so their benefit is
+      // inflated correctly rather than using the planner's years-to-SSA-start.
+      const spouseBirthYearForSsa = planDataObj.spouse_birth_year
+      const spouseCurrentAge = spouseBirthYearForSsa ? projectionCurrentYear - spouseBirthYearForSsa : null
+      const spouseYearsToSsaStart = spouseCurrentAge !== null
+        ? Math.max(0, ssaStartAge - spouseCurrentAge)
+        : yearsToSsaStart
+      const spouseInflationToSsaStart = Math.pow(1 + settings.inflation_rate, spouseYearsToSsaStart)
+
       // Estimated SSA at start age (inflation-adjusted from today to start age)
       const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
-      const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
+      const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * spouseInflationToSsaStart : undefined
 
       const projections = calculateRetirementProjections(
         birthYear,
@@ -410,10 +444,39 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       )
 
       // Calculate snapshot results
-      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
+      const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, accounts, planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
       setResults(snapshotResults)
       setProjections(projections)
       saveMetrics(snapshotResults, currentYear - birthYear, retirementAge)
+
+      // Run Monte Carlo silently in the background to compute the real Market Risk score.
+      // Use setTimeout so the initial results render first before the CPU-heavy simulation runs.
+      setMcRunning(true)
+      setTimeout(() => {
+        try {
+          const { summary } = runMonteCarloSimulation(
+            birthYear,
+            accounts,
+            expenses,
+            otherIncome,
+            settings,
+            planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY,
+            1000,
+            planDataObj.spouse_birth_year || undefined,
+            planDataObj.spouse_life_expectancy || undefined,
+            includePlannerSsa,
+            includeSpouseSsa,
+            estimatedPlannerSsaAtStart,
+            estimatedSpouseSsaAtStart
+          )
+          const updatedScore = calculateRetirementScore(projections, settings, accounts, summary.successRate)
+          setResults(prev => prev ? { ...prev, retirementScore: updatedScore } : prev)
+        } catch (e) {
+          console.error('Snapshot MC error:', e)
+        } finally {
+          setMcRunning(false)
+        }
+      }, 50)
 
       if (isLocal && dataService) {
         await dataService.saveProjections(projections)
@@ -457,6 +520,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
     annualExpenses: number,
     yearsToRetirement: number,
     settings: CalculatorSettings,
+    accounts: Account[],
     lifeExpectancy: number = 90
   ) => {
     const retirementProjections = projections.filter(p => p.age >= settings.retirement_age)
@@ -466,6 +530,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         monthlyRetirementIncome: 0,
         annualRetirementIncome: 0,
         confidenceScore: 0,
+        retirementScore: { overall: 0, longevity: 0, sustainability: 0, taxEfficiency: 0, inflation: 0, medical: 0, monteCarlo: 50, riskLevel: 'High' as const },
+        withdrawalRate: 0,
         status: 'at-risk' as const,
         recommendation: 'Please complete your plan details to see projections.',
         yearsMoneyLasts: 0,
@@ -474,6 +540,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         lifeExpectancy,
         networthAtRetirement: 0,
         legacyValue: 0,
+        legacyInflationRate: 0.03,
+        legacyCurrentAge: 0,
         fundsRunOutAge: null,
         incomeCoverageAtFundsRunOut: undefined,
         calculationDetails: {
@@ -652,10 +720,18 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
 
     // Identify biggest risks with actual numbers from plan data
     const risks: string[] = []
+    // Show enough decimal places so a "4.02%" rate doesn't look identical to the "4%" threshold
+    const fmtWr = (r: number) => parseFloat(r.toFixed(2)).toString()
     
     // Calculate key metrics for risk assessment
     const firstYearExpenses = retirementProjections[0]?.total_expenses || retirementProjections[0]?.living_expenses || annualExpenses
-    const startingNetworth = retirementProjections[0]?.networth || currentSavings
+    // Use the first retirement year's net worth as the denominator so the displayed SWR is
+    // directly verifiable from the numbers the user sees in the projection table.
+    // (First-retirement-row net worth = portfolio after that year's growth and withdrawals,
+    // which is the value printed in the "Networth" column at retirement start.)
+    const startingNetworth = (retirementProjections[0]?.networth || currentSavings) > 0
+      ? retirementProjections[0]?.networth || currentSavings
+      : currentSavings
     const withdrawalRate = startingNetworth > 0 ? (firstYearExpenses / startingNetworth) * 100 : 0
     const growthRateDuring = (settings.growth_rate_during_retirement || DEFAULT_GROWTH_RATE_DURING_RETIREMENT) * 100
     const inflationRate = (settings.inflation_rate || DEFAULT_INFLATION_RATE) * 100
@@ -685,11 +761,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       risks.push(`Plan covers only ${yearsMoneyLasts} of ${retirementYears} retirement years`)
     }
     
-    // Risk: High withdrawal rate
-    if (withdrawalRate > 5) {
-      risks.push(`High withdrawal rate of ${withdrawalRate.toFixed(1)}% (recommended: 4% or less)`)
-    } else if (withdrawalRate > 4) {
-      risks.push(`Withdrawal rate of ${withdrawalRate.toFixed(1)}% is above the recommended 4%`)
+    // Risk: High withdrawal rate (only flag when meaningfully above the safe zone)
+    if (withdrawalRate > 5.5) {
+      risks.push(`High withdrawal rate of ${fmtWr(withdrawalRate)}% — well above the recommended 4% safe limit`)
+    } else if (withdrawalRate > 4.5) {
+      risks.push(`Withdrawal rate of ${fmtWr(withdrawalRate)}% is approaching the upper safe limit (4%)`)
     }
     
     // Risk: Heavy reliance on tax-deferred accounts (RMD risk)
@@ -713,9 +789,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         return sum + (expenses > 0 ? (totalIncome / expenses) * 100 : 0)
       }, 0) / lowIncomeCoverageYears.length
       if (avgCoverage < 40) {
-        risks.push(`Passive income covers only ${avgCoverage.toFixed(0)}% of expenses - heavy reliance on withdrawals`)
+        risks.push(`SSA + other income cover an average of ${avgCoverage.toFixed(0)}% of projected expenses across retirement years — heavy reliance on portfolio withdrawals`)
       } else {
-        risks.push(`SSA + other income cover only ${avgCoverage.toFixed(0)}% of expenses in ${lowIncomeCoverageYears.length} year${lowIncomeCoverageYears.length > 1 ? 's' : ''}`)
+        risks.push(`SSA + other income cover an average of ${avgCoverage.toFixed(0)}% of projected expenses across ${lowIncomeCoverageYears.length} retirement year${lowIncomeCoverageYears.length > 1 ? 's' : ''} (inflation widens the gap over time)`)
       }
     }
     
@@ -840,17 +916,22 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
           return `Full Plan - Assets last beyond life expectancy\n\nRetirement Age: ${retirementAge}\nLife Expectancy: Age ${lifeExpectancy}\nNetworth at Life Expectancy: $${networthAtLifeExpectancy.toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\nYour plan is fully funded. Assets will last beyond your life expectancy with an estimated $${networthAtLifeExpectancy.toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining at age ${lifeExpectancy}.`
         }
       })(),
-      statusCalculation: `Status is determined by Plan Viability Score:\n\n• On Track: Plan Viability Score ≥ 80%\n• Close: Plan Viability Score 60-79%\n• At Risk: Plan Viability Score < 60%\n\nYour score: ${confidenceScore}%\nYour status: ${status === 'on-track' ? 'On Track' : status === 'close' ? 'Close' : 'At Risk'}\n\n⚠️ This uses deterministic (flat-return) projections. Run Monte Carlo in the Analysis tab for a probability-weighted success rate.`,
+      statusCalculation: `Status is determined by the Retirement Score:\n\n• On Track: Score ≥ 80%\n• Close: Score 60-79%\n• At Risk: Score < 60%\n\nYour score: ${confidenceScore}%\nYour status: ${status === 'on-track' ? 'On Track' : status === 'close' ? 'Close' : 'At Risk'}\n\n⚠️ This uses deterministic (flat-return) projections. Run Monte Carlo in the Analysis tab for a probability-weighted success rate.`,
       expenseCalculation: `Expense Calculation at Retirement Start:\n\nCurrent Year Expenses: $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\nYears to Retirement: ${yearsToRetirement}\nInflation Rate: ${(inflationRateDecimal * 100).toFixed(2)}%\n\nExpenses at Retirement Start = Current Expenses × (1 + Inflation Rate)^Years to Retirement\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} × (1 + ${(inflationRateDecimal * 100).toFixed(2)}%)^${yearsToRetirement}\nExpenses at Retirement Start = $${currentYearExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })} × ${Math.pow(1 + inflationRateDecimal, yearsToRetirement).toFixed(4)}\nExpenses at Retirement Start = $${Math.round(expensesAtRetirementStart).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\n\nFirst Year Retirement Expenses: $${Math.round(firstYearLivingExpenses).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year\n\nExpenses continue to inflate each year after retirement at ${(inflationRateDecimal * 100).toFixed(2)}% per year.`,
       legacyValueCalculation,
     }
 
     const networthAtRetirement = retirementProjections[0]?.networth ?? 0
 
+    // Compute the same multi-dimensional retirement score shown in Risk Analysis
+    const retirementScore = calculateRetirementScore(projections, settings, accounts)
+
     return {
       monthlyRetirementIncome: Math.round(avgMonthlyIncome),
       annualRetirementIncome: Math.round(avgMonthlyIncome * 12),
       confidenceScore,
+      retirementScore,
+      withdrawalRate,
       status,
       recommendation,
       yearsMoneyLasts: Math.round(yearsMoneyLasts),
@@ -859,6 +940,8 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       lifeExpectancy,
       networthAtRetirement: Math.round(networthAtRetirement),
       legacyValue: Math.round(legacyValue),
+      legacyInflationRate: settings.inflation_rate || DEFAULT_INFLATION_RATE,
+      legacyCurrentAge: settings.retirement_age - (settings.years_to_retirement ?? (settings.retirement_age - 50)),
       fundsRunOutAge,
       incomeCoverageAtFundsRunOut,
       calculationDetails,
@@ -918,11 +1001,25 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         const lifeExp = results && planDataForTooltip?.life_expectancy != null ? planDataForTooltip.life_expectancy : DEFAULT_LIFE_EXPECTANCY
         const yrsToRetire = results && settingsForTooltip ? settingsForTooltip.years_to_retirement : Math.max(0, retireAt - age)
         const ssaStart = results && settingsForTooltip?.ssa_start_age != null ? settingsForTooltip.ssa_start_age : retireAt
-        const st = settingsForTooltip as (CalculatorSettings & { planner_ssa_income?: boolean; spouse_ssa_income?: boolean; planner_ssa_annual_benefit?: number; spouse_ssa_annual_benefit?: number; pre_medicare_annual_premium?: number; post_medicare_annual_premium?: number }) | null
+        const st = settingsForTooltip as (CalculatorSettings & { planner_ssa_income?: boolean; spouse_ssa_income?: boolean; planner_ssa_annual_benefit?: number; spouse_ssa_annual_benefit?: number; estimated_ssa_annual_income?: number; pre_medicare_annual_premium?: number; post_medicare_annual_premium?: number }) | null
         const plannerSsa = st?.planner_ssa_income ?? true
-        const spouseSsa = st?.spouse_ssa_income ?? false
+        // Mirror the same auto-include logic used in loadAndCalculateSnapshot (lines 397-401).
+        // spouse_ssa_income in rp_calculator_settings may be stale (e.g. was false when plan was
+        // created as Single, but user has since updated include_spouse / filing_status in Plan Setup).
+        const explicitSpouseSsaDisplay = st?.spouse_ssa_income ?? false
+        const hasSpouseDisplay = planDataForTooltip?.include_spouse || false
+        const isMfjDisplay = planDataForTooltip?.filing_status === 'Married Filing Jointly'
+        const isSingleFilerDisplay = planDataForTooltip?.filing_status === 'Single'
+        const spouseSsa = !isSingleFilerDisplay && (explicitSpouseSsaDisplay || hasSpouseDisplay || isMfjDisplay)
         const plannerSsaBenefit = st?.planner_ssa_annual_benefit
-        const spouseSsaBenefit = st?.spouse_ssa_annual_benefit
+        // If no explicit benefit is stored but spouse SSA is now auto-included, fall back to the same
+        // default that the projection engine uses so the banner and the chart stay consistent.
+        const estimatedIncomeForSsaDisplay = Number(st?.estimated_ssa_annual_income) || 0
+        const spouseSsaBenefit: number | null = st?.spouse_ssa_annual_benefit != null
+          ? Number(st.spouse_ssa_annual_benefit)
+          : spouseSsa
+            ? (estimatedIncomeForSsaDisplay > 0 ? calculateEstimatedSSA(estimatedIncomeForSsaDisplay, false) : DEFAULT_SPOUSE_SSA_BENEFIT)
+            : null
         const preMedicare = st?.pre_medicare_annual_premium
         const postMedicare = st?.post_medicare_annual_premium
 
@@ -934,7 +1031,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         const plannerSsaLabel = plannerSsa
           ? (plannerSsaBenefit != null ? `at ${ssaStart}: ${fmt(plannerSsaBenefit)}/yr` : `at ${ssaStart}`)
           : 'No'
-        const spouseSsaLabel = (spouseSsa && spouseSsaBenefit != null) ? `${fmt(spouseSsaBenefit)}/yr` : 'No'
+        const spouseSsaLabel = spouseSsa && spouseSsaBenefit != null ? `${fmt(spouseSsaBenefit)}/yr` : (spouseSsa ? 'Yes' : 'No')
 
         return (
           <div className="space-y-2">
@@ -1373,23 +1470,27 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                 </div>
                 
                 {/* Plan Health - Main Message */}
+                {/* ── Plan status headline ───────────────────────────────── */}
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-lg sm:text-xl font-bold mb-4
+
+                  {/* Top line: On Track / Close / At Risk */}
+                  <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-base font-bold mb-3
                     ${results.status === 'on-track' ? 'bg-green-100 text-green-800' : ''}
-                    ${results.status === 'close' ? 'bg-yellow-100 text-yellow-800' : ''}
-                    ${results.status === 'at-risk' ? 'bg-red-100 text-red-800' : ''}
-                  ">
+                    ${results.status === 'close'    ? 'bg-yellow-100 text-yellow-800' : ''}
+                    ${results.status === 'at-risk'  ? 'bg-red-100 text-red-800' : ''}
+                  `}>
                     {results.status === 'on-track' && <CheckCircle2 className="h-5 w-5" />}
-                    {results.status === 'close' && <AlertCircle className="h-5 w-5" />}
-                    {results.status === 'at-risk' && <AlertCircle className="h-5 w-5" />}
+                    {results.status !== 'on-track' && <AlertCircle className="h-5 w-5" />}
                     <span>
-                      {results.status === 'on-track' ? 'Your Plan is On Track' : results.status === 'close' ? 'Your Plan is Close' : 'Your Plan is At Risk'}
+                      {results.status === 'on-track' ? 'On Track'
+                        : results.status === 'close' ? 'Close'
+                        : 'At Risk'}
                     </span>
                     {results.calculationDetails && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button className="cursor-help">
-                            <Info className="h-4 w-4" />
+                          <button className="cursor-help opacity-60 hover:opacity-100">
+                            <Info className="h-3.5 w-3.5" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700 p-4">
@@ -1400,43 +1501,107 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                       </Tooltip>
                     )}
                   </div>
-                </div>
 
-                {/* Plan Viability Score - Main Message */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Plan Viability Score</h3>
-                    {results.calculationDetails && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="cursor-help">
-                            <Info className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-md bg-gray-900 text-gray-100 border border-gray-700 p-4">
-                          <div className="text-sm whitespace-pre-line">
-                            {results.calculationDetails.confidenceScoreCalculation}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
+                  {/* Retirement Score (from Risk Analysis) */}
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <span className="text-3xl sm:text-4xl font-bold text-gray-900">{results.retirementScore.overall}%</span>
+                    <span className="text-base font-medium text-gray-500 self-end pb-1">Retirement Score</span>
+                    {mcRunning && (
+                      <span className="self-end pb-1.5 text-xs text-amber-600 animate-pulse" title="Running Monte Carlo to compute Market Risk score…">⟳ MC</span>
                     )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="cursor-help self-end pb-1.5">
+                          <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm bg-gray-900 text-gray-100 border border-gray-700 p-4">
+                        <div className="text-xs space-y-3">
+                          <p className="text-sm font-semibold text-white">Retirement Score breakdown</p>
+                          {([
+                            { label: 'Longevity', weight: 40, score: results.retirementScore.longevity, detail: results.retirementScore.details?.longevity },
+                            { label: 'Market Risk (MC)', weight: 20, score: results.retirementScore.monteCarlo, detail: results.retirementScore.details?.monteCarlo },
+                            { label: 'Cashflow', weight: 10, score: results.retirementScore.sustainability, detail: results.retirementScore.details?.cashflow },
+                            { label: 'Tax Efficiency', weight: 10, score: results.retirementScore.taxEfficiency, detail: results.retirementScore.details?.taxEfficiency },
+                            { label: 'Inflation', weight: 10, score: results.retirementScore.inflation, detail: results.retirementScore.details?.inflation },
+                            { label: 'Medical', weight: 10, score: results.retirementScore.medical, detail: results.retirementScore.details?.medical },
+                          ] as const).map(({ label, weight, score, detail }) => (
+                            <div key={label}>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-gray-300 font-medium">{label} <span className="text-gray-500">({weight}%)</span></span>
+                                <span className={`font-bold ${score >= 80 ? 'text-green-400' : score >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>{score}</span>
+                              </div>
+                              {detail && detail.split('\n').map((line, i) => (
+                                <p key={i} className="text-gray-400 leading-snug">{line}</p>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-3xl sm:text-4xl font-bold text-gray-900">{results.confidenceScore}%</span>
-                    <div className="w-64 bg-gray-200 rounded-full h-3">
+
+                  {/* Progress bar */}
+                  <div className="flex justify-center mb-2">
+                    <div className="w-56 bg-gray-200 rounded-full h-2">
                       <div
-                        className={`h-3 rounded-full transition-all duration-500 ${
-                          results.confidenceScore >= SCORE_ON_TRACK_THRESHOLD ? 'bg-green-500' :
-                          results.confidenceScore >= SCORE_CLOSE_THRESHOLD ? 'bg-yellow-500' : 'bg-red-500'
+                        className={`h-2 rounded-full transition-all duration-500 ${
+                          results.retirementScore.overall >= SCORE_ON_TRACK_THRESHOLD ? 'bg-green-500' :
+                          results.retirementScore.overall >= SCORE_CLOSE_THRESHOLD    ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${results.confidenceScore}%` }}
+                        style={{ width: `${results.retirementScore.overall}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {results.confidenceScore}% of retirement years are fully funded at your assumed return rate
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 italic">Assumes steady returns — run Monte Carlo for market-risk analysis</p>
                   </div>
+
+                  {/* One-line subtext */}
+                  <p className="text-xs text-gray-500 mb-4">
+                    Covers all retirement years based on your assumptions
+                  </p>
+
+                  {/* Single risk line with badge */}
+                  {results.withdrawalRate > 0 && (() => {
+                    const wr = results.withdrawalRate
+                    const fmtWr2 = (r: number) => parseFloat(r.toFixed(2)).toString()
+                    const isLow      = wr <= 4.5
+                    const isModerate = wr > 4.5 && wr <= 5.5
+                    const isHigh     = wr > 5.5
+                    return (
+                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-4 ${
+                        isLow      ? 'bg-green-50 text-green-700 border border-green-200' :
+                        isModerate ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                                     'bg-red-50 text-red-700 border border-red-200'
+                      }`}>
+                        <span className="text-sm">{isLow ? '🟢' : isModerate ? '🟡' : '🔴'}</span>
+                        <span>
+                          {isLow
+                            ? `Safe withdrawal rate (${fmtWr2(wr)}%)`
+                            : isModerate
+                              ? `Moderate risk — ${fmtWr2(wr)}% withdrawal rate`
+                              : `High withdrawal rate (${fmtWr2(wr)}%) — review expenses`}
+                        </span>
+                      </div>
+                    )
+                  })()}
+
+                  {/* View Risk Analysis — always shown; tone varies by risk level */}
+                  {(() => {
+                    const wr = results.withdrawalRate
+                    const hasHighRisk = results.retirementScore.overall < SCORE_ON_TRACK_THRESHOLD
+                      || wr > 4.5
+                      || results.fundsRunOutAge !== null
+                      || (results.biggestRisks && results.biggestRisks.length > 0 && results.biggestRisks[0] !== 'Market volatility could temporarily impact portfolio value')
+                    return (
+                      <div>
+                        <button
+                          onClick={() => window.dispatchEvent(new CustomEvent('switchTab', { detail: 'analysis' }))}
+                          className={`text-xs font-medium hover:underline ${hasHighRisk ? 'text-amber-700 hover:text-amber-900' : 'text-blue-600 hover:text-blue-800'}`}
+                        >
+                          {hasHighRisk ? '⚠ Review Risk Analysis for details →' : 'View full Risk Analysis →'}
+                        </button>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Estimated Income - Secondary */}
@@ -1480,14 +1645,14 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                       <div className="text-2xl sm:text-3xl font-bold text-gray-900">
                         ${(results.monthlyRetirementIncome || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">per month</p>
+                      <p className="text-xs text-gray-600 mt-1">per month · after tax</p>
                     </div>
                     <div className="text-gray-400">/</div>
                     <div>
                       <div className="text-2xl sm:text-3xl font-bold text-gray-900">
                         ${((results.annualRetirementIncome ?? results.monthlyRetirementIncome * 12) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">per year</p>
+                      <p className="text-xs text-gray-600 mt-1">per year · after tax</p>
                     </div>
                   </div>
                 </div>
@@ -1652,8 +1817,23 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                   <p className="text-sm text-gray-600">
                     {results.fundsRunOutAge 
                       ? `Funds exhausted before life expectancy (age ${results.lifeExpectancy})`
-                      : `Estimated value at life expectancy (age ${results.lifeExpectancy})`}
+                      : `Estimated value at life expectancy (age ${results.lifeExpectancy}) · future dollars`}
                   </p>
+                  {!results.fundsRunOutAge && results.legacyValue > 0 && results.legacyInflationRate > 0 && results.legacyCurrentAge > 0 && (() => {
+                    const yearsToLifeExp = results.lifeExpectancy - results.legacyCurrentAge
+                    const realLegacy = Math.round(results.legacyValue / Math.pow(1 + results.legacyInflationRate, yearsToLifeExp))
+                    return (
+                      <p className="text-xs text-gray-500 mt-1">
+                        ≈ ${realLegacy.toLocaleString(undefined, { maximumFractionDigits: 0 })} in today's dollars
+                      </p>
+                    )
+                  })()}
+                  {!results.fundsRunOutAge && results.withdrawalRate > 4.5 && (
+                    <p className="text-xs text-amber-700 mt-2 flex items-start gap-1">
+                      <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                      Based on steady-return projections only. With a {parseFloat(results.withdrawalRate.toFixed(2))}% withdrawal rate, market downturns could significantly reduce this figure — see Monte Carlo results for a probability-adjusted view.
+                    </p>
+                  )}
                 </div>
 
                 {/* Biggest Risks */}
@@ -1694,17 +1874,52 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                   const inflationToSsaStart = yearsToSsaStart > 0 
                     ? Math.pow(1 + inflationRate, yearsToSsaStart)
                     : 1
-                  
-                  // Apply early retirement reduction factor (permanent reduction if claiming before FRA)
-                  const earlyRetirementMultiplier = ssaClaimingMultiplier(ssaStartAge)
-                  const earlyRetirementReduction = ssaStartAge < SSA_FULL_RETIREMENT_AGE ? Math.round((1 - earlyRetirementMultiplier) * 100) : 0
-                  
-                  const includeSpouseInDisplay = planDataForTooltip?.include_spouse || planDataForTooltip?.filing_status === 'Married Filing Jointly'
+
+                  // Spouse may be a different age — compute their own horizon independently.
+                  const spouseBirthYearTooltip = planDataForTooltip?.spouse_birth_year
+                  const spouseCurrentAgeTooltip = spouseBirthYearTooltip ? currentYear - spouseBirthYearTooltip : null
+                  const spouseYearsToSsaStart = spouseCurrentAgeTooltip !== null
+                    ? Math.max(0, ssaStartAge - spouseCurrentAgeTooltip)
+                    : yearsToSsaStart
+                  const spouseInflationToSsaStart = spouseYearsToSsaStart > 0
+                    ? Math.pow(1 + inflationRate, spouseYearsToSsaStart)
+                    : 1
+
+                  // Each person gets their OWN early-claiming multiplier.
+                  // The planner claims at ssaStartAge. The spouse also starts at the same
+                  // CALENDAR YEAR, which means the spouse's actual claiming age = ssaStartAge +
+                  // (spouseBirthYear - plannerBirthYear) i.e. offset by the age gap.
+                  // Example: planner 53, spouse 51; ssaStartAge 65.
+                  //   Planner claims at 65 (planner's FRA year).
+                  //   In that same calendar year, spouse is 63 → 4 yrs before FRA → 25% reduction.
+                  const plannerClaimingAge = ssaStartAge
+                  const plannerMultiplier = ssaClaimingMultiplier(plannerClaimingAge)
+                  const plannerReduction = plannerClaimingAge < SSA_FULL_RETIREMENT_AGE
+                    ? Math.round((1 - plannerMultiplier) * 100) : 0
+
+                  // Spouse claiming age in the planner's claiming calendar year:
+                  //   calendarYearOfClaim = birthYear + ssaStartAge
+                  //   spouseAgeAtClaim = calendarYearOfClaim - spouseBirthYear
+                  const calendarYearOfClaim = birthYear + ssaStartAge
+                  const spouseClaimingAge = spouseBirthYearTooltip
+                    ? calendarYearOfClaim - spouseBirthYearTooltip
+                    : ssaStartAge
+                  const spouseMultiplier = ssaClaimingMultiplier(spouseClaimingAge)
+                  const spouseReduction = spouseClaimingAge < SSA_FULL_RETIREMENT_AGE
+                    ? Math.round((1 - spouseMultiplier) * 100) : 0
+
+                  // Mirror the same auto-include logic as loadAndCalculateSnapshot (lines 397-401).
+                  // spouse_ssa_income in rp_calculator_settings may be stale (explicitly false when plan
+                  // was created as Single) — only the plan-level include_spouse / filing_status should veto.
                   const st = settingsForTooltip as any
+                  const _isSingleFilerSsa = planDataForTooltip?.filing_status === 'Single'
+                  const _hasSpouseSsa     = planDataForTooltip?.include_spouse || false
+                  const _isMfjSsa         = planDataForTooltip?.filing_status === 'Married Filing Jointly'
+                  const _explicitSpouseSsa = st?.spouse_ssa_income === true
                   const estimatedIncome = Number(st?.estimated_ssa_annual_income) || 0
                   // Use explicit benefits when set; else estimate from income (calculateEstimatedSSA returns defaults when income is 0)
                   const plannerIncluded = st?.planner_ssa_income !== false
-                  const spouseIncluded = st?.spouse_ssa_income === true || (includeSpouseInDisplay && st?.spouse_ssa_income !== false)
+                  const spouseIncluded = !_isSingleFilerSsa && (_explicitSpouseSsa || _hasSpouseSsa || _isMfjSsa)
                   const plannerBenefit = st?.planner_ssa_annual_benefit != null && st.planner_ssa_annual_benefit !== ''
                     ? Number(st.planner_ssa_annual_benefit)
                     : (plannerIncluded ? calculateEstimatedSSA(estimatedIncome, true) : 0)
@@ -1712,46 +1927,100 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                     ? Number(st.spouse_ssa_annual_benefit)
                     : (spouseIncluded ? calculateEstimatedSSA(estimatedIncome, false) : 0)
                   const basePlannerSsa = plannerBenefit
-                  const baseSpouseSsa = spouseBenefit
-                  
-                  const plannerSsaAtStartAge = basePlannerSsa * inflationToSsaStart * earlyRetirementMultiplier
-                  const spouseSsaAtStartAge = baseSpouseSsa * inflationToSsaStart * earlyRetirementMultiplier
+                  const baseSpouseSsa = spouseIncluded ? spouseBenefit : 0
+
+                  const plannerSsaAtStartAge = basePlannerSsa * inflationToSsaStart * plannerMultiplier
+                  const spouseSsaAtStartAge = baseSpouseSsa * spouseInflationToSsaStart * spouseMultiplier
                   const totalSsaAtStartAge = plannerSsaAtStartAge + spouseSsaAtStartAge
+
+                  // Intermediate: inflated-only (before claiming reduction) — shown in step breakdown
+                  const plannerSsaInflatedOnly = basePlannerSsa * inflationToSsaStart
+                  const spouseSsaInflatedOnly = baseSpouseSsa * spouseInflationToSsaStart
+                  const totalSsaInflatedOnly = plannerSsaInflatedOnly + spouseSsaInflatedOnly
                   
                   // Calculate current dollar amounts (base estimates without inflation or early retirement factor)
                   const plannerSsaCurrentDollars = basePlannerSsa
                   const spouseSsaCurrentDollars = baseSpouseSsa
                   const totalSsaCurrentDollars = plannerSsaCurrentDollars + spouseSsaCurrentDollars
+
+                  // Helpers for formatted age labels
+                  const fmtClaimLabel = (claimAge: number, personLabel: string) => {
+                    if (claimAge >= SSA_FULL_RETIREMENT_AGE) return `${personLabel} at FRA ${claimAge}`
+                    return `${personLabel} at ${claimAge} (${SSA_FULL_RETIREMENT_AGE - claimAge} yr${SSA_FULL_RETIREMENT_AGE - claimAge !== 1 ? 's' : ''} before FRA)`
+                  }
                   
                   return (
-                    <div className="text-sm text-gray-600 space-y-2">
+                    <div className="text-sm text-gray-600 space-y-3">
+                      {/* Step 0: Today's estimated benefit */}
                       <div>
-                        <p className="font-medium text-gray-800 mb-1">Estimated SSA Income (Current Dollars):</p>
+                        <p className="font-medium text-gray-800 mb-1">Step 1 — Today's estimated benefit (current dollars):</p>
                         <p>• Total: <span className="font-semibold text-gray-900">${Math.round(totalSsaCurrentDollars).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
                         {plannerSsaCurrentDollars > 0 && (
-                          <p className="ml-4">- Your benefit: ${Math.round(plannerSsaCurrentDollars).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
+                          <p className="ml-4 text-xs">- Your benefit: ${Math.round(plannerSsaCurrentDollars).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
                         )}
                         {spouseSsaCurrentDollars > 0 && (
-                          <p className="ml-4">- Spouse benefit: ${Math.round(spouseSsaCurrentDollars).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
+                          <p className="ml-4 text-xs">- Spouse benefit: ${Math.round(spouseSsaCurrentDollars).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
                         )}
                       </div>
-                      
-                      <div>
-                        <p className="font-medium text-gray-800 mb-1">Estimated SSA Income at Age {ssaStartAge} (Future Dollars):</p>
-                        <p>• Total: <span className="font-semibold text-gray-900">${Math.round(totalSsaAtStartAge).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
-                        {plannerSsaAtStartAge > 0 && (
-                          <p className="ml-4">- Your benefit: ${Math.round(plannerSsaAtStartAge).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
+
+                      {/* Step 1: Inflation-adjusted to SSA start age */}
+                      {yearsToSsaStart > 0 && (
+                        <div>
+                          <p className="font-medium text-gray-800 mb-1">
+                            Step 2 — Inflation-adjusted to age {ssaStartAge}{spouseYearsToSsaStart !== yearsToSsaStart
+                              ? ` (you: ${yearsToSsaStart} yr${yearsToSsaStart !== 1 ? 's' : ''}, spouse: ${spouseYearsToSsaStart} yr${spouseYearsToSsaStart !== 1 ? 's' : ''} × ${(inflationRate * 100).toFixed(1)}%)`
+                              : ` (${yearsToSsaStart} yr${yearsToSsaStart !== 1 ? 's' : ''} × ${(inflationRate * 100).toFixed(1)}%)`}:
+                          </p>
+                          <p>• Total: <span className="font-semibold text-gray-900">${Math.round(totalSsaInflatedOnly).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
+                          {plannerSsaInflatedOnly > 0 && basePlannerSsa > 0 && (
+                            <p className="ml-4 text-xs">- Your benefit: ${Math.round(plannerSsaInflatedOnly).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
+                          )}
+                          {spouseSsaInflatedOnly > 0 && baseSpouseSsa > 0 && (
+                            <p className="ml-4 text-xs">- Spouse benefit: ${Math.round(spouseSsaInflatedOnly).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-0.5">This is what each benefit would be at FRA if you started today's amount.</p>
+                        </div>
+                      )}
+
+                      {/* Step 2: Early claiming reductions — shown PER PERSON when they differ */}
+                      {(plannerReduction > 0 || spouseReduction > 0) && (
+                        <div>
+                          <p className="font-medium text-gray-800 mb-1">
+                            Step 3 — Early claiming reductions (vs FRA {SSA_FULL_RETIREMENT_AGE}):
+                          </p>
+                          {plannerReduction > 0 && (
+                            <p className="text-amber-700 text-xs">
+                              {fmtClaimLabel(plannerClaimingAge, 'You')}: × {plannerMultiplier.toFixed(4)} = −{plannerReduction}% permanent reduction
+                            </p>
+                          )}
+                          {spouseIncluded && spouseReduction > 0 && (
+                            <p className="text-amber-700 text-xs">
+                              {fmtClaimLabel(spouseClaimingAge, 'Spouse')}: × {spouseMultiplier.toFixed(4)} = −{spouseReduction}% permanent reduction
+                            </p>
+                          )}
+                          {spouseIncluded && spouseClaimingAge !== plannerClaimingAge && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              When you claim at your age {plannerClaimingAge}, your spouse will be age {spouseClaimingAge} — each gets their own reduction based on their own age vs FRA.
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-0.5">Permanent reduction. Claiming later (up to age {SSA_FULL_RETIREMENT_AGE}) eliminates it.</p>
+                        </div>
+                      )}
+
+                      {/* Final: What you actually receive */}
+                      <div className="pt-2 border-t border-gray-300">
+                        <p className="font-medium text-gray-800 mb-1">
+                          Final — Estimated SSA income at your age {ssaStartAge} (future dollars, after reductions):
+                        </p>
+                        <p>• Total: <span className="font-semibold text-gray-900 text-base">${Math.round(totalSsaAtStartAge).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</span></p>
+                        {plannerSsaAtStartAge > 0 && basePlannerSsa > 0 && (
+                          <p className="ml-4 text-xs">- Your benefit: ${Math.round(plannerSsaAtStartAge).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
                         )}
-                        {spouseSsaAtStartAge > 0 && (
-                          <p className="ml-4">- Spouse benefit: ${Math.round(spouseSsaAtStartAge).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year</p>
+                        {spouseSsaAtStartAge > 0 && baseSpouseSsa > 0 && (
+                          <p className="ml-4 text-xs">- Spouse benefit: ${Math.round(spouseSsaAtStartAge).toLocaleString(undefined, { maximumFractionDigits: 0 })}/year{spouseClaimingAge !== plannerClaimingAge ? ` (at spouse age ${spouseClaimingAge})` : ''}</p>
                         )}
+                        <p className="text-xs text-gray-500 mt-1">After claiming, SSA benefits grow annually with the SSA COLA rate (~2.5%).</p>
                       </div>
-                      
-                      <p className="text-xs text-gray-500 mt-1 pt-2 border-t border-gray-300">
-                        {ssaStartAge < SSA_FULL_RETIREMENT_AGE && `(Includes ${earlyRetirementReduction}% early retirement reduction for claiming at age ${ssaStartAge}. `}
-                        {yearsToSsaStart > 0 && `Future dollars are inflation-adjusted to age ${ssaStartAge} (${(inflationRate * 100).toFixed(2)}% annual inflation). `}
-                        Benefits will continue to adjust for inflation each year after age {ssaStartAge}.)
-                      </p>
                     </div>
                   )
                 })()}
@@ -2288,9 +2557,11 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                                           <div className="font-semibold text-base mb-2 text-yellow-400">Tax Calculation</div>
                                           <div className="space-y-1 text-xs">
                                             {(() => {
-                                              // Use same calculation logic as retirement-projections.ts
-                                              // Determine filing status using the same logic as the main calculation
-                                              const includeSpouseSsa = planDataForTooltip?.include_spouse || false
+                                              // Use same auto-include logic as loadAndCalculateSnapshot (lines 397-401).
+                                              const _isSingle = planDataForTooltip?.filing_status === 'Single'
+                                              const _hasSp    = planDataForTooltip?.include_spouse || false
+                                              const _isMfj    = planDataForTooltip?.filing_status === 'Married Filing Jointly'
+                                              const includeSpouseSsa = !_isSingle && (_hasSp || _isMfj)
                                               const filingStatus = determineFilingStatus(includeSpouseSsa, planDataForTooltip?.filing_status)
                                               const standardDeduction = getStandardDeduction(filingStatus)
                                               const ordinaryIncome = (proj.distribution_401k || 0) + (proj.distribution_ira || 0) + (proj.other_recurring_income || 0)
@@ -2477,28 +2748,32 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                                           const prevNetworth = prevProj.networth || 0
                                           const currentNetworth = proj.networth || 0
                                           const networthChange = currentNetworth - prevNetworth
-                                          // Fix percentage calculation for negative networth
-                                          // When both are negative, we need to check if it's getting worse (more negative) or better (less negative)
                                           let networthChangePercent = 0
+                                          let signFlip = false
                                           if (prevNetworth !== 0) {
-                                            if (prevNetworth < 0 && currentNetworth < 0) {
-                                              // Both negative: if current is more negative, that's a negative change
-                                              // Percentage should reflect the direction of change relative to the absolute value
-                                              networthChangePercent = (networthChange / Math.abs(prevNetworth)) * 100
-                                              // If getting more negative, make it negative
-                                              if (currentNetworth < prevNetworth) {
-                                                networthChangePercent = -Math.abs(networthChangePercent)
-                                              } else {
-                                                networthChangePercent = Math.abs(networthChangePercent)
-                                              }
+                                            const prevNeg = prevNetworth < 0
+                                            const currNeg = currentNetworth < 0
+                                            if (prevNeg && currNeg) {
+                                              // Both negative
+                                              const pct = (networthChange / Math.abs(prevNetworth)) * 100
+                                              networthChangePercent = currentNetworth < prevNetworth ? -Math.abs(pct) : Math.abs(pct)
+                                            } else if (prevNeg !== currNeg) {
+                                              // Sign flip — percentage is misleading
+                                              signFlip = true
+                                              networthChangePercent = networthChange >= 0 ? 1 : -1 // just for direction
                                             } else {
-                                              // Standard calculation for positive or mixed cases
+                                              // Both positive — standard
                                               networthChangePercent = (networthChange / prevNetworth) * 100
                                             }
                                           }
+                                          // Cap extreme percentages (e.g. from near-zero base)
+                                          const cappedPct = Math.min(499, Math.max(-499, networthChangePercent))
+                                          const capped = !signFlip && Math.abs(networthChangePercent) > 499
                                           return (
                                             <div className={`text-xs mt-0.5 ${networthChangePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                              {networthChangePercent >= 0 ? '+' : ''}{networthChangePercent.toFixed(2)}%
+                                              {signFlip
+                                                ? (networthChange >= 0 ? '↑ turned positive' : '↓ turned negative')
+                                                : `${cappedPct >= 0 ? '+' : ''}${cappedPct.toFixed(2)}%${capped ? '+' : ''}`}
                                             </div>
                                           )
                                         })() : null}
@@ -2514,19 +2789,23 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                                         const prevNetworth = prevProj.networth || 0
                                         const currentNetworth = proj.networth || 0
                                         const networthChange = currentNetworth - prevNetworth
-                                        // Fix percentage calculation for negative networth
                                         let networthChangePercent = 0
+                                        let signFlipTooltip = false
                                         if (prevNetworth !== 0) {
-                                          if (prevNetworth < 0 && currentNetworth < 0) {
-                                            // Both negative: calculate percentage based on absolute value
-                                            const percentChange = (networthChange / Math.abs(prevNetworth)) * 100
-                                            // If getting more negative (current < previous), make it negative
-                                            networthChangePercent = currentNetworth < prevNetworth ? -Math.abs(percentChange) : Math.abs(percentChange)
+                                          const prevNegT = prevNetworth < 0
+                                          const currNegT = currentNetworth < 0
+                                          if (prevNegT && currNegT) {
+                                            const pct = (networthChange / Math.abs(prevNetworth)) * 100
+                                            networthChangePercent = currentNetworth < prevNetworth ? -Math.abs(pct) : Math.abs(pct)
+                                          } else if (prevNegT !== currNegT) {
+                                            signFlipTooltip = true
+                                            networthChangePercent = networthChange >= 0 ? 1 : -1
                                           } else {
-                                            // Standard calculation for positive or mixed cases
                                             networthChangePercent = (networthChange / prevNetworth) * 100
                                           }
                                         }
+                                        const cappedPctT = Math.min(499, Math.max(-499, networthChangePercent))
+                                        const cappedT = !signFlipTooltip && Math.abs(networthChangePercent) > 499
                                         
                                         // Calculate contributions from actual balance changes (same method as individual account tooltips)
                                         // Use settingsForTooltip consistently - this is what the projections were calculated with
@@ -2648,7 +2927,9 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                                                 <span className={`font-semibold ${
                                                   networthChangePercent >= 0 ? 'text-green-300' : 'text-red-300'
                                                 }`}>
-                                                  {networthChangePercent >= 0 ? '+' : ''}{networthChangePercent.toFixed(2)}%
+                                                  {signFlipTooltip
+                                                    ? (networthChange >= 0 ? '↑ turned positive' : '↓ turned negative')
+                                                    : `${cappedPctT >= 0 ? '+' : ''}${cappedPctT.toFixed(2)}%${cappedT ? '+' : ''}`}
                                                 </span>
                                               </div>
                                               <div className="flex justify-between mt-2 border-t border-gray-700 pt-2">

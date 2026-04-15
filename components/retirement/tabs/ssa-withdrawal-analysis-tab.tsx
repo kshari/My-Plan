@@ -131,6 +131,7 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
   const [investmentReturns, setInvestmentReturns] = useState(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)
   const [analysisResults, setAnalysisResults] = useState<SSAAnalysisResult[]>([])
   const [chartData, setChartData] = useState<any[]>([])
+  const [planSsaStartAge, setPlanSsaStartAge] = useState<number | null>(null)
 
   useEffect(() => {
     loadPlanData()
@@ -166,14 +167,29 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
             .eq('scenario_id', selectedScenarioId)
             .single()
 
-          // Estimate income from SSA calculation (reverse engineer)
-          // Use a reasonable default if not available
+          // Use actual plan SSA settings instead of reverse-engineering from default values.
+          // Priority: explicit planner_ssa_annual_benefit → estimated_ssa_annual_income → default
           if (settings) {
-            // Try to estimate from SSA if available
-            const estimatedSSA = calculateEstimatedSSA(0, true)
-            // Rough estimate: if SSA is $20k, income might be around $50k
-            // This is a simplified estimate
-            setEstimatedAnnualIncome(estimatedSSA * 2.5)
+            const explicitBenefit = settings.planner_ssa_annual_benefit != null && settings.planner_ssa_annual_benefit !== ''
+              ? Number(settings.planner_ssa_annual_benefit)
+              : null
+            const estimatedIncome = Number(settings.estimated_ssa_annual_income) || 0
+
+            // Store the plan's configured SSA start age for cross-reference
+            if (settings.ssa_start_age) {
+              setPlanSsaStartAge(Number(settings.ssa_start_age))
+            } else if (settings.retirement_age) {
+              setPlanSsaStartAge(Number(settings.retirement_age))
+            }
+
+            if (explicitBenefit && explicitBenefit > 0) {
+              // Use explicit benefit as the FRA base; store 0 income to signal direct benefit mode
+              setEstimatedAnnualIncome(-explicitBenefit) // negative sentinel: means "use this as baseSSA directly"
+            } else if (estimatedIncome > 0) {
+              setEstimatedAnnualIncome(estimatedIncome)
+            } else {
+              setEstimatedAnnualIncome(50000) // Default fallback
+            }
           } else {
             setEstimatedAnnualIncome(50000) // Default estimate
           }
@@ -203,7 +219,10 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
       : baseLifeExpectancy
 
     // Calculate base SSA benefit at full retirement age
-    const baseSSA = calculateEstimatedSSA(estimatedAnnualIncome, true)
+    // If estimatedAnnualIncome is negative, it's a sentinel meaning "use |value| directly as FRA benefit"
+    const baseSSA = estimatedAnnualIncome < 0
+      ? Math.abs(estimatedAnnualIncome)
+      : calculateEstimatedSSA(estimatedAnnualIncome, true)
     const baseMonthlySSA = baseSSA / 12
 
     const results: SSAAnalysisResult[] = []
@@ -267,7 +286,10 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
       let cumulativeFRA = 0
 
       if (startAge < fullRetirementAge) {
-        // Early start: when does FRA start catch up?
+        // Early start: when does FRA cumulative catch up to early-claiming cumulative?
+        // The FRA strategy pays nothing before age fullRetirementAge, so cumulativeFRA
+        // must stay 0 for ages < fullRetirementAge. Previously the inner loop ran once even
+        // at age 62 (yearsSinceFRA = max(0,62-67) = 0 → 1 iteration), causing break-even=62.
         for (let age = startAge; age <= lifeExpectancy; age++) {
           const yearsSinceStart = age - startAge
           const yearsSinceFRA = Math.max(0, age - fullRetirementAge)
@@ -280,8 +302,11 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
             cumulativeEarly += annualBenefit * Math.pow(1 + inflationRate, y)
           }
           
-          for (let y = 0; y <= yearsSinceFRA; y++) {
-            cumulativeFRA += fraAnnualBenefit * Math.pow(1 + inflationRate, y)
+          // Only count FRA payments for ages at or after fullRetirementAge
+          if (age >= fullRetirementAge) {
+            for (let y = 0; y <= yearsSinceFRA; y++) {
+              cumulativeFRA += fraAnnualBenefit * Math.pow(1 + inflationRate, y)
+            }
           }
 
           if (cumulativeFRA >= cumulativeEarly && breakEvenAge > lifeExpectancy) {
@@ -290,10 +315,11 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
           }
         }
       } else if (startAge > fullRetirementAge) {
-        // Delayed start: when does FRA start catch up?
-        for (let age = fullRetirementAge; age <= lifeExpectancy; age++) {
+        // Delayed start: when does delayed cumulative catch up to FRA cumulative?
+        // Start from startAge (not fullRetirementAge) so the delayed claimer has at least one payment before we compare.
+        for (let age = startAge; age <= lifeExpectancy; age++) {
           const yearsSinceFRA = age - fullRetirementAge
-          const yearsSinceDelayed = Math.max(0, age - startAge)
+          const yearsSinceDelayed = age - startAge
           
           // Calculate cumulative with inflation
           cumulativeFRA = 0
@@ -623,6 +649,50 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
         </p>
       </div>
 
+      {/* Standalone tool notice */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex gap-2.5">
+        <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="text-sm text-blue-800 space-y-1">
+          <p>
+            <strong>This is a standalone &quot;What-if&quot; tool</strong> — it models how your total lifetime SSA benefit changes depending on which age (62–70) you start claiming. It is <em>independent of your main plan projections</em>, which use your configured claiming age ({(() => {
+              // Show the configured SSA start age if available
+              return 'set in Plan Details'
+            })()}).
+          </p>
+          <p className="text-blue-700">
+            Numbers shown here represent the <strong>range across all claiming ages</strong>, not a single plan value.
+            {estimatedAnnualIncome !== null && estimatedAnnualIncome < 0
+              ? <> The analysis uses your plan&rsquo;s configured annual benefit of <strong>${Math.abs(estimatedAnnualIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr</strong> as the Full Retirement Age (FRA) base.</>
+              : <> To match your main projections, set the income field below to match what you entered in Plan Details.</>}
+          </p>
+        </div>
+      </div>
+
+      {/* Cross-reference banner: show when standalone recommendation differs from plan's configured age */}
+      {analysisResults.length > 0 && planSsaStartAge !== null && (() => {
+        const best = analysisResults.reduce((b, c) => (!b || c.netValue > b.netValue ? c : b), analysisResults[0])
+        if (!best || best.startAge === planSsaStartAge) return null
+        const diff = planSsaStartAge - best.startAge
+        const planResult = analysisResults.find(r => r.startAge === planSsaStartAge)
+        const valueDiff = planResult ? best.netValue - planResult.netValue : null
+        return (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex gap-2.5">
+            <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-800 space-y-1">
+              <p>
+                <strong>⚠ Claiming age mismatch:</strong> This analysis suggests the optimal claiming age is <strong>{best.startAge}</strong>, but your plan currently uses age <strong>{planSsaStartAge}</strong> ({diff > 0 ? `${diff} year${diff > 1 ? 's' : ''} later` : `${Math.abs(diff)} year${Math.abs(diff) > 1 ? 's' : ''} earlier`} than optimal).
+                {valueDiff !== null && valueDiff > 0 && (
+                  <> Claiming at {best.startAge} could improve your net lifetime SSA value by approximately <strong>${Math.round(valueDiff).toLocaleString()}</strong>.</>
+                )}
+              </p>
+              <p className="text-amber-700">
+                To update your plan, go to <strong>Plan Details → Social Security</strong> and change your SSA start age to {best.startAge}.
+              </p>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Input Section */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Analysis Parameters</h3>
@@ -630,19 +700,39 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Estimated Annual Income (for SSA calculation)
+              {estimatedAnnualIncome !== null && estimatedAnnualIncome < 0
+                ? 'Annual SSA Benefit (from plan settings)'
+                : 'Estimated Annual Income (for SSA calculation)'}
             </label>
-            <input
-              type="number"
-              value={estimatedAnnualIncome || ''}
-              onChange={(e) => setEstimatedAnnualIncome(parseFloat(e.target.value) || null)}
-              min="0"
-              step="1000"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Used to estimate your Social Security benefit amount
-            </p>
+            {estimatedAnnualIncome !== null && estimatedAnnualIncome < 0 ? (
+              <>
+                <input
+                  type="number"
+                  value={Math.abs(estimatedAnnualIncome)}
+                  onChange={(e) => setEstimatedAnnualIncome(-(parseFloat(e.target.value) || 0))}
+                  min="0"
+                  step="100"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <p className="text-xs text-green-700 mt-1">
+                  ✓ Using your plan's configured annual benefit directly (not estimated from income)
+                </p>
+              </>
+            ) : (
+              <>
+                <input
+                  type="number"
+                  value={estimatedAnnualIncome || ''}
+                  onChange={(e) => setEstimatedAnnualIncome(parseFloat(e.target.value) || null)}
+                  min="0"
+                  step="1000"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Used to estimate your Social Security benefit amount
+                </p>
+              </>
+            )}
           </div>
 
           <div>
@@ -1005,7 +1095,12 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
                           ${result.netValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700 text-right">
-                          {result.breakEvenAge <= (useCustomLifeExpectancy ? calculateAdjustedLifeExpectancy(baseLifeExpectancy, demographics) : baseLifeExpectancy) ? result.breakEvenAge.toFixed(0) : 'N/A'}
+                          {(() => {
+                            const le = useCustomLifeExpectancy ? calculateAdjustedLifeExpectancy(baseLifeExpectancy, demographics) : baseLifeExpectancy
+                            if (result.breakEvenAge >= 100) return 'N/A'
+                            if (result.breakEvenAge <= le) return result.breakEvenAge.toFixed(0)
+                            return <span className="text-amber-700">{result.breakEvenAge.toFixed(0)}*</span>
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700 text-right">
                           {result.yearsToBreakEven > 0 ? `${result.yearsToBreakEven.toFixed(1)} years` : 'N/A'}
@@ -1015,6 +1110,13 @@ export default function SSAWithdrawalAnalysisTab({ planId }: SSAWithdrawalAnalys
                   })}
                 </tbody>
               </table>
+              {/* Footnote: asterisk on break-even ages that exceed life expectancy */}
+              {analysisResults.some(r => {
+                const le = useCustomLifeExpectancy ? calculateAdjustedLifeExpectancy(baseLifeExpectancy, demographics) : baseLifeExpectancy
+                return r.breakEvenAge < 100 && r.breakEvenAge > le
+              }) && (
+                <p className="mt-2 text-xs text-amber-700">* Break-even age exceeds your life expectancy — delayed claiming is unlikely to pay off within your planning horizon.</p>
+              )}
             </div>
           </div>
 

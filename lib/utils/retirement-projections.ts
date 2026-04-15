@@ -686,7 +686,12 @@ export function calculateRetirementProjections(
         // If estimated amount provided, use it; otherwise use default $15k
         const baseSpouseSsaAtStartAge = estimatedSpouseSsaAtStartAge || SSA_DEFAULT_SPOUSE_BENEFIT
         
-        const spouseSsaMultiplier = ssaClaimingMultiplier(spouseSsaStartAge)
+        // The spouse's actual age when claiming: calendar year of claim minus spouse birth year.
+        // e.g. planner ssa_start_age 65, birthYear 1973 → claim year 2038; spouse born 1975 → age 63.
+        const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_RETIREMENT_AGE
+        const calendarYearOfClaim = birthYear + ssaStartAge
+        const spouseClaimingAge = calendarYearOfClaim - effectiveSpouseBirthYear
+        const spouseSsaMultiplier = ssaClaimingMultiplier(spouseClaimingAge)
         
         // Apply SSA COLA from spouse SSA start year to current year (2.5% per SSA 2025 COLA)
         const yearsSinceSpouseSsaStart = year - spouseSsaStartYear
@@ -751,11 +756,16 @@ export function calculateRetirementProjections(
     }
     const initialPortfolioValue = initialRetirementPortfolioValue || totalNetworth
     
+    // Declare strategy state before the withdrawal block so it's accessible to the
+    // post-withdrawal top-up guard (allowTopUp) which lives outside that block.
+    const strategyType = settings.withdrawal_strategy_type || 'amount_based_expense_coverage'
+    let useStrategyAmount = false
+
     if (isRetired && expensesToCover > 0) {
       let remainingNeed = expensesToCover
       
       // Get strategy type (default to amount_based_expense_coverage if not specified)
-      const strategyType = settings.withdrawal_strategy_type || 'amount_based_expense_coverage'
+      // (already declared above at outer scope)
       
       // Calculate current situation metrics
       const yearsRemaining = projectionEndAge - age
@@ -792,7 +802,7 @@ export function calculateRetirementProjections(
       // Calculate target withdrawal amount based on strategy type
       // For amount-based strategies, we use the strategy's target amount
       // For other strategies, we use the remaining need
-      let useStrategyAmount = false
+      // (useStrategyAmount declared at outer scope above)
       let targetWithdrawalAmount = remainingNeed
       
       if (strategyType === 'amount_based_expense_coverage') {
@@ -830,14 +840,24 @@ export function calculateRetirementProjections(
           targetWithdrawalAmount = firstYearWithdrawal * Math.pow(1 + settings.inflation_rate, yearsSinceRetirement - 1)
         }
       } else if (strategyType === 'amount_based_fixed_percentage') {
-        // Fixed Percentage: Set percentage of current portfolio value
+        // Fixed Percentage: percentage of current portfolio, with a spending floor equal to
+        // current-year expenses so the strategy never falls below what's needed to live on.
+        // When the portfolio is healthy the upside is captured; the floor only kicks in when
+        // the portfolio shrinks enough that rate × portfolio < expenses.
         useStrategyAmount = true
         const percentage = settings.fixed_percentage_rate || SAFE_WITHDRAWAL_RATE
-        targetWithdrawalAmount = totalNetworth * percentage
+        const pctWithdrawal = totalNetworth * percentage
+        // Floor: inflation-adjusted first-year retirement expenses for the current year
+        const expenseFloor = annualRetirementExpensesAtStart * Math.pow(1 + settings.inflation_rate, Math.max(0, yearsSinceRetirement - 1))
+        targetWithdrawalAmount = Math.max(pctWithdrawal, expenseFloor)
       } else if (strategyType === 'amount_based_fixed_dollar') {
-        // Fixed Dollar: Specific dollar amount regardless of market
+        // Fixed Dollar (Inflation-Indexed): the base amount specified by the user is treated as
+        // a Year-1 amount and grows each year with the plan's inflation rate.  This prevents
+        // the common problem where a static dollar amount is eroded by inflation and falls below
+        // living expenses by mid-retirement.
         useStrategyAmount = true
-        targetWithdrawalAmount = settings.fixed_dollar_amount || DEFAULT_FIXED_DOLLAR_WITHDRAWAL
+        const baseDollar = settings.fixed_dollar_amount || DEFAULT_FIXED_DOLLAR_WITHDRAWAL
+        targetWithdrawalAmount = baseDollar * Math.pow(1 + settings.inflation_rate, Math.max(0, yearsSinceRetirement - 1))
       } else if (strategyType === 'amount_based_swp') {
         // SWP: Only withdraw earnings (dividends/interest)
         // Estimate earnings as a percentage of portfolio (simplified)
@@ -1399,8 +1419,22 @@ export function calculateRetirementProjections(
     let tax = incomeTax + capitalGainsTax
     
     // If after-tax income doesn't cover expenses, withdraw more (prefer Roth since it's tax-free)
-    // This is critical: we must always cover expenses + taxes, but withdraw exactly enough
-    if (isRetired) {
+    // This is critical: we must always cover expenses + taxes, but withdraw exactly enough.
+    //
+    // EXCEPTION — amount-based strategies (4% Rule, Fixed %, Fixed $, SWP) intentionally set a
+    // specific withdrawal target.  Topping them up to cover expenses defeats the whole purpose of
+    // the strategy comparison: users want to see real shortfalls, not have every strategy silently
+    // inflated to expense coverage.  Only the three strategy families below keep the top-up:
+    //   • amount_based_expense_coverage  — by definition covers expenses
+    //   • market_*  (bucket, guardrails, floor_upside) — adaptive strategies; safety floor is expected
+    //   • goal_based / sequence_* / tax_* — non-amount-based; coverage is determined by withdrawal order
+    const allowTopUp = !useStrategyAmount
+      || strategyType === 'amount_based_expense_coverage'
+      || strategyType === 'market_guardrails'
+      || strategyType === 'market_bucket'
+      || strategyType === 'market_floor_upside'
+
+    if (isRetired && allowTopUp) {
       let iterations = 0
       const maxIterations = 10 // Allow more iterations for precision
       

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, LayoutDashboard, Building2, Target, Activity, Bot, Handshake } from "lucide-react"
@@ -32,10 +32,19 @@ const bottomNavItems = [
 
 export function AppShell({ children, userEmail, isAdmin = false, features }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [clientMounted, setClientMounted] = useState(false)
   const pathname = usePathname()
   const { nav } = useSidebarNav()
   const { mode: agentMode, open: openAgent } = useAgentPanel()
   const aiAgentEnabled = features?.aiAgent !== false
+
+  // Defer mounting the mobile Sheet's Sidebar to after hydration.
+  // AppShell renders two <Sidebar> instances (desktop + mobile Sheet), and Radix
+  // generates sequential useId() IDs across both.  On the server the Sheet portal
+  // renders inline, producing a different ID count than the client where it is
+  // portaled to document.body — causing a hydration mismatch.  Skipping the mobile
+  // Sidebar on the first render keeps the SSR and initial client trees identical.
+  useEffect(() => { setClientMounted(true) }, [])
 
   const isActive = (item: (typeof bottomNavItems)[0]) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href)
@@ -53,10 +62,13 @@ export function AppShell({ children, userEmail, isAdmin = false, features }: App
         </div>
       </aside>
 
-      {/* Mobile sheet sidebar */}
+      {/* Mobile sheet sidebar — rendered only after client mount to prevent Radix
+          useId hydration mismatches caused by two Sidebar/DropdownMenu instances */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-60 p-0 border-r">
-          <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} onClose={() => setMobileOpen(false)} />
+          {clientMounted && (
+            <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} onClose={() => setMobileOpen(false)} />
+          )}
         </SheetContent>
       </Sheet>
 
