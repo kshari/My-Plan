@@ -220,3 +220,225 @@ export interface CapitalEvent {
   recorded_by: string
   created_at: string
 }
+
+// ─── Accounting Types ─────────────────────────────────────────────────────────
+
+export type AccountType = 'asset' | 'liability' | 'equity' | 'income' | 'expense'
+export type AccountSubtype =
+  | 'cash' | 'ar' | 'investment' | 'prepaid' | 'fixed_asset' | 'other_asset'
+  | 'ap' | 'note_payable' | 'accrued' | 'deferred_rev' | 'other_liab'
+  | 'partner_capital' | 'retained_earnings' | 'current_income'
+  | 'revenue' | 'capital_gain' | 'other_income'
+  | 'operating_expense' | 'interest_expense' | 'tax_expense' | 'depreciation' | 'other_expense'
+  | 'cogs'
+
+export type JournalEntryStatus = 'draft' | 'posted' | 'voided'
+export type JournalEntryType = 'manual' | 'closing'
+export type CapitalMethod = 'tax' | 'GAAP' | 'section704' | 'other'
+
+export interface FiscalYear {
+  id: string
+  entity_id: string
+  label: string
+  start_date: string
+  end_date: string
+  tax_year: number
+  is_closed: boolean
+  closed_at: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface Account {
+  id: string
+  entity_id: string
+  account_code: string
+  name: string
+  type: AccountType
+  subtype: AccountSubtype | null
+  parent_id: string | null
+  member_id: string | null
+  is_system: boolean
+  description: string | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  // joined
+  member?: { display_name: string } | null
+  children?: Account[]
+}
+
+export interface JournalLine {
+  id: string
+  journal_entry_id: string
+  entity_id: string
+  account_id: string
+  debit: number
+  credit: number
+  memo: string | null
+  line_order: number
+  // joined
+  account?: Account
+}
+
+export interface JournalEntry {
+  id: string
+  entity_id: string
+  fiscal_year_id: string | null
+  entry_date: string
+  description: string
+  status: JournalEntryStatus
+  entry_type: JournalEntryType
+  reference_type: string | null
+  reference_id: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+  // joined
+  lines?: JournalLine[]
+  fiscal_year?: FiscalYear | null
+}
+
+export interface K1JsonItem {
+  code: string
+  description: string
+  amount: number
+}
+
+export interface K1Allocation {
+  id: string
+  entity_id: string
+  member_id: string
+  fiscal_year_id: string
+  ownership_pct: number
+  capital_method: CapitalMethod
+  // Capital account analysis
+  beginning_capital: number
+  contributions: number
+  net_income_allocated: number
+  withdrawals: number
+  ending_capital: number
+  // K-1 boxes
+  box_1_ordinary_income: number
+  box_2_net_rental_re_income: number
+  box_3_other_net_rental_income: number
+  box_4_guaranteed_payments_svc: number
+  box_5_guaranteed_payments_cap: number
+  box_6_net_1231_gain: number
+  box_7_other_income: number
+  box_9a_lt_capital_gain: number
+  box_9b_collectibles_gain: number
+  box_9c_unrec_1250_gain: number
+  box_10_net_1231_gain_28: number
+  box_11_other_income_loss: K1JsonItem[]
+  box_12_section_179: number
+  box_13_other_deductions: K1JsonItem[]
+  box_15_credits: K1JsonItem[]
+  box_17_amt_items: K1JsonItem[]
+  box_18_tax_exempt: K1JsonItem[]
+  box_19a_distributions_cash: number
+  box_19c_distributions_prop: number
+  box_20_other_info: K1JsonItem[]
+  // Status
+  is_final: boolean
+  finalized_at: string | null
+  notes: string | null
+  generated_by: string | null
+  generated_at: string
+  created_at: string
+  // joined
+  member?: { display_name: string; email: string | null }
+  fiscal_year?: FiscalYear
+}
+
+// ─── Report types (computed, not persisted) ───────────────────────────────────
+
+export interface ReportLineItem {
+  account_id: string
+  account_code: string
+  name: string
+  subtype: AccountSubtype | null
+  balance: number          // positive = normal balance direction
+  debit_total: number
+  credit_total: number
+  indent: number           // 0 = section header, 1 = account, 2 = sub-account
+}
+
+export interface ReportSection {
+  title: string
+  lines: ReportLineItem[]
+  total: number
+}
+
+export interface BalanceSheetReport {
+  as_of: string
+  assets: ReportSection[]
+  assets_total: number
+  liabilities: ReportSection[]
+  liabilities_total: number
+  equity: ReportSection[]
+  equity_total: number
+  liabilities_equity_total: number
+  is_balanced: boolean
+}
+
+export interface IncomeStatementReport {
+  start_date: string
+  end_date: string
+  revenue: ReportSection[]
+  revenue_total: number
+  expenses: ReportSection[]
+  expenses_total: number
+  net_income: number
+}
+
+export interface CashFlowReport {
+  start_date: string
+  end_date: string
+  operating: { label: string; amount: number }[]
+  operating_total: number
+  investing: { label: string; amount: number }[]
+  investing_total: number
+  financing: { label: string; amount: number }[]
+  financing_total: number
+  net_change: number
+  beginning_cash: number
+  ending_cash: number
+}
+
+export interface PartnersCapitalRow {
+  member_id: string
+  member_name: string
+  ownership_pct: number
+  beginning_capital: number
+  contributions: number
+  net_income_allocated: number
+  distributions: number
+  ending_capital: number
+}
+
+export interface PartnersCapitalReport {
+  start_date: string
+  end_date: string
+  rows: PartnersCapitalRow[]
+  totals: Omit<PartnersCapitalRow, 'member_id' | 'member_name' | 'ownership_pct'>
+}
+
+export interface TrialBalanceLine {
+  account_id: string
+  account_code: string
+  name: string
+  type: AccountType
+  debit_total: number
+  credit_total: number
+  net_debit: number
+  net_credit: number
+}
+
+export interface TrialBalanceReport {
+  as_of: string
+  lines: TrialBalanceLine[]
+  total_debits: number
+  total_credits: number
+  is_balanced: boolean
+}

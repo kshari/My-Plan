@@ -11,10 +11,12 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
+import { buildProjectionInputs } from '@/lib/utils/projection-inputs'
 import {
   DEFAULT_MARGINAL_TAX_RATE,
 } from '@/lib/constants/tax-brackets'
 import { calculateMarginalTaxRate } from '@/lib/utils/tax-calculations'
+import { INCOME_TAX_BRACKETS } from '@/lib/constants/tax-brackets'
 import {
   DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
   DEFAULT_GROWTH_RATE_DURING_RETIREMENT,
@@ -41,6 +43,9 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
   const [showRothExplanation, setShowRothExplanation] = useState(false)
   const [showTaxSavingsCalculation, setShowTaxSavingsCalculation] = useState(false)
   const [showTaxInputForm, setShowTaxInputForm] = useState(false)
+  const [showInlineBracketEdit, setShowInlineBracketEdit] = useState(false)
+  const [inlineBracketInput, setInlineBracketInput] = useState<string>('')
+  const [showWalkthrough, setShowWalkthrough] = useState(false)
   const [currentGrossIncome, setCurrentGrossIncome] = useState<number | null>(null)
   const [currentTaxBracket, setCurrentTaxBracket] = useState<number | null>(null)
   const [saveToProfile, setSaveToProfile] = useState(false)
@@ -90,17 +95,15 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
     const currentYear = settings.current_year || new Date().getFullYear()
     const yearsToRetirement = settings.years_to_retirement || 0
     
-    // Calculate tax savings and future tax for a $1,000 contribution
+    // Calculate tax savings and future tax for legacy fields (kept for compatibility)
     const contributionAmount = 1000
     const traditionalTaxSavings = contributionAmount * currentBracket
     const growthRate = settings.growth_rate_before_retirement || 0.1
     const yearsOfGrowth = Math.max(1, yearsToRetirement)
     const futureValue = contributionAmount * Math.pow(1 + growthRate, yearsOfGrowth)
     const traditionalFutureTax = futureValue * retirementTaxBracket
-    
-    // Net benefit comparison
     const traditionalNetBenefit = traditionalTaxSavings - traditionalFutureTax
-    const rothNetBenefit = 0 // Pay tax now, no tax later
+    const rothNetBenefit = 0
     
     // Determine recommendation
     let recommendation: 'Traditional' | 'Roth' | 'Both' = 'Both'
@@ -167,15 +170,115 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
       .reduce((sum, acc) => sum + (acc.balance || 0), 0)
     
     const totalBalance = traditionalBalance + rothBalance
-    if (totalBalance > 0) {
-      const traditionalPercentage = (traditionalBalance / totalBalance) * 100
-      if (traditionalPercentage > 80) {
-        considerations.push('You have a high percentage in traditional accounts - consider increasing Roth contributions for better tax diversification')
-      } else if (traditionalPercentage < 20) {
-        considerations.push('You have mostly Roth accounts - consider traditional contributions to get current tax deductions')
+
+    // Annual contribution amounts from accounts
+    const traditionalAnnualContrib = accounts
+      .filter(acc => {
+        const type = (acc.account_type || '').trim().toLowerCase()
+        return type === '401k' || type === 'ira' || type === 'traditional ira'
+      })
+      .reduce((sum, acc) => sum + (acc.annual_contribution || 0), 0)
+    const rothAnnualContrib = accounts
+      .filter(acc => {
+        const type = (acc.account_type || '').trim().toLowerCase()
+        return type === 'roth' || type === 'roth ira'
+      })
+      .reduce((sum, acc) => sum + (acc.annual_contribution || 0), 0)
+    const totalAnnualContrib = traditionalAnnualContrib + rothAnnualContrib
+
+    // Per-contribution-dollar tax numbers (for actual contribution if available, else per $1k)
+    const basisAmount = totalAnnualContrib > 0 ? totalAnnualContrib : contributionAmount
+    const actualTaxSavings = basisAmount * currentBracket
+    const actualFutureValue = basisAmount * Math.pow(1 + growthRate, yearsOfGrowth)
+    const actualFutureTax = actualFutureValue * retirementTaxBracket
+    const actualNetBenefit = actualTaxSavings - actualFutureTax
+
+    // ── Apples-to-apples: same gross income, using basisAmount throughout ──
+    // Traditional: full basisAmount enters pre-tax → grows → taxed at retirement
+    // Roth: pay currentBracket% tax first → only (1-currentBracket)*basisAmount enters → grows tax-free
+    const rothAfterTaxContrib = basisAmount * (1 - currentBracket)
+    const tradGrowsTo = basisAmount * Math.pow(1 + growthRate, yearsOfGrowth)
+    const tradNetAfterRetirementTax = tradGrowsTo * (1 - retirementTaxBracket)
+    const rothGrowsTo = rothAfterTaxContrib * Math.pow(1 + growthRate, yearsOfGrowth)
+    const rothNetAfterRetirementTax = rothGrowsTo  // tax-free
+    const applesNetDiff = tradNetAfterRetirementTax - rothNetAfterRetirementTax
+
+    // Lost opportunity cost: upfront Roth tax, if invested in taxable account instead
+    const CAPITAL_GAINS_RATE = 0.15
+    const lostOpportunityTaxAmount = basisAmount * currentBracket   // = actualTaxSavings
+    const lostOpportunityFutureValue = lostOpportunityTaxAmount * Math.pow(1 + growthRate, yearsOfGrowth)
+    const lostOpportunityNetValue = lostOpportunityFutureValue * (1 - CAPITAL_GAINS_RATE)
+
+    // ── Balance-aware analysis: project existing balances to retirement ──
+    const RMD_UNIFORM_LIFE_FACTOR_73 = 26.5  // IRS Uniform Lifetime Table, age 73
+    const projTradAtRetirement = traditionalBalance * Math.pow(1 + growthRate, yearsOfGrowth)
+    const projRothAtRetirement = rothBalance * Math.pow(1 + growthRate, yearsOfGrowth)
+    const projTotalAtRetirement = projTradAtRetirement + projRothAtRetirement
+
+    // Estimated first-year RMD from existing traditional balance only
+    const estimatedFirstRMD = projTradAtRetirement / RMD_UNIFORM_LIFE_FACTOR_73
+
+    // Would RMD alone push retirement taxable income into a higher bracket?
+    const annualExpenses = settings.annual_retirement_expenses || 0
+    const rmdCoverageRatio = annualExpenses > 0 ? estimatedFirstRMD / annualExpenses : 0
+    const rmdExceedsNeeds = estimatedFirstRMD > annualExpenses
+    const projTradTaxBracketWithRMD = calculateMarginalTaxRate(estimatedFirstRMD, filingStatus)
+    const rmdPushesHigherBracket = projTradTaxBracketWithRMD > retirementTaxBracket
+
+    // Heir tax: traditional inherited as ordinary income; Roth tax-free to heirs.
+    // Under the SECURE Act (2019), most non-spouse beneficiaries must withdraw inherited
+    // traditional IRAs within 10 years.  For substantial balances, concentrating years of
+    // accrued growth into a 10-year window routinely pushes heirs into the 24–32% brackets.
+    // Using 28% (rather than the current contributor's marginal rate) avoids the mathematical
+    // artifact where legacy is identical across all splits whenever the contributor's bracket
+    // happens to equal the heir rate — a misleading but technically correct result.
+    const HEIR_TAX_RATE = 0.28
+    const heirTaxOnTrad = projTradAtRetirement * HEIR_TAX_RATE
+    const heirTaxOnRoth = 0
+    const heirTaxDifference = heirTaxOnTrad - heirTaxOnRoth
+
+    // Balance skew
+    const existingTradPct = totalBalance > 0 ? (traditionalBalance / totalBalance) * 100 : 50
+    const balanceSkewedTrad = totalBalance > 0 && existingTradPct > 70
+    const balanceSkewedRoth = totalBalance > 0 && existingTradPct < 30
+
+    // Refine recommendation and split based on balance analysis
+    if (balanceSkewedTrad && recommendation !== 'Roth') {
+      // Heavy traditional skew — nudge toward Roth regardless of bracket math
+      if (recommendation === 'Traditional') {
+        recommendation = 'Both'
+        recommendationText += ` However, your existing accounts are ${Math.round(existingTradPct)}% traditional — adding more traditional increases future RMD exposure. Consider splitting to reduce that risk.`
+        traditionalSplit = 40
+        rothSplit = 60
+      } else {
+        // Already 'Both' — tilt Roth further
+        traditionalSplit = 30
+        rothSplit = 70
+        recommendationText += ` Your existing ${Math.round(existingTradPct)}% traditional skew makes additional Roth contributions especially valuable for RMD management.`
+      }
+    } else if (balanceSkewedRoth && recommendation !== 'Traditional') {
+      if (recommendation === 'Roth') {
+        recommendation = 'Both'
+        recommendationText += ` Your existing accounts are ${Math.round(100 - existingTradPct)}% Roth — some traditional contributions now would add tax diversification and immediate deductions.`
+        traditionalSplit = 60
+        rothSplit = 40
       }
     }
-    
+
+    if (totalBalance > 0) {
+      if (balanceSkewedTrad) {
+        considerations.push(`Your existing ${Math.round(existingTradPct)}% traditional allocation means every new traditional dollar adds to future RMD obligations — Roth contributions help balance this.`)
+      } else if (balanceSkewedRoth) {
+        considerations.push(`Your existing accounts are ${Math.round(100 - existingTradPct)}% Roth — traditional contributions would add immediate tax deductions and diversify your tax exposure.`)
+      }
+    }
+    if (rmdExceedsNeeds) {
+      considerations.push(`Estimated RMD at 73 (~$${Math.round(estimatedFirstRMD).toLocaleString()}/yr) would exceed your projected expenses ($${annualExpenses.toLocaleString()}/yr) — forced withdrawals at the margin could push you into a higher bracket.`)
+    }
+    if (rmdPushesHigherBracket) {
+      considerations.push(`RMD income alone may push you into the ${(projTradTaxBracketWithRMD * 100).toFixed(0)}% bracket in retirement — Roth contributions now reduce this risk.`)
+    }
+
     // Age-based considerations
     if (yearsToRetirement > 20) {
       considerations.push('With many years until retirement, Roth contributions benefit from decades of tax-free growth')
@@ -183,8 +286,91 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
       considerations.push('With retirement approaching, traditional contributions may provide more immediate tax benefits')
     }
     
+    // ── Split scenario table: 100/0 → 0/100 in 10% steps ──
+    // All values in projected retirement dollars (FV).
+    // FVFactor: future value of $1/yr annuity over yearsOfGrowth at growthRate
+    const FVFactor = yearsOfGrowth > 0 ? ((Math.pow(1 + growthRate, yearsOfGrowth) - 1) / growthRate) : 1
+    const existingTradFV = traditionalBalance * Math.pow(1 + growthRate, yearsOfGrowth)
+    const existingRothFV = rothBalance * Math.pow(1 + growthRate, yearsOfGrowth)
+
+    const splitRows = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(tradPctNew => {
+      const rothPctNew = 100 - tradPctNew
+      const annualTrad = basisAmount * tradPctNew / 100
+      const annualRoth = basisAmount * rothPctNew / 100
+      // Roth contributions are after-tax: only (1 - currentBracket) of each dollar actually enters the Roth account.
+      const annualRothAfterTax = annualRoth * (1 - currentBracket)
+      // Projected balances
+      const projTrad = existingTradFV + annualTrad * FVFactor
+      const projRoth = existingRothFV + annualRothAfterTax * FVFactor
+      // Taxes (all in FV retirement dollars)
+      const rothUpfrontTaxFV = annualRoth * currentBracket * FVFactor  // what the tax paid today would have grown to
+      const retirementTax = projTrad * retirementTaxBracket
+      const totalTax = rothUpfrontTaxFV + retirementTax
+      // Heir tax & legacy
+      const heirTax = projTrad * HEIR_TAX_RATE
+      const legacyAfterHeirTax = projTrad * (1 - HEIR_TAX_RATE) + projRoth
+      // RMD
+      const rmd = projTrad / RMD_UNIFORM_LIFE_FACTOR_73
+      return { tradPctNew, rothPctNew, projTrad, projRoth, totalTax, heirTax, legacyAfterHeirTax, rmd }
+    })
+
+    const minTotalTax = Math.min(...splitRows.map(r => r.totalTax))
+    const maxTotalTax = Math.max(...splitRows.map(r => r.totalTax))
+    const maxLegacy = Math.max(...splitRows.map(r => r.legacyAfterHeirTax))
+    const minLegacy = Math.min(...splitRows.map(r => r.legacyAfterHeirTax))
+    const minHeirTax = Math.min(...splitRows.map(r => r.heirTax))
+    const maxHeirTax = Math.max(...splitRows.map(r => r.heirTax))
+
+    // Data-driven suggested split: composite score across all three outcome metrics.
+    // Each metric normalized to [0,1], equal weight. Higher = better row.
+    // Clamp ranges to at least 1% of the max value so that near-identical columns
+    // (e.g. total tax varying by only $200 when all rows show "$640k") don't get
+    // their tiny noise amplified into a dominant signal.
+    const taxRange = Math.max(maxTotalTax - minTotalTax, maxTotalTax * 0.01) || 1
+    const legacyRange = Math.max(maxLegacy - minLegacy, maxLegacy * 0.01) || 1
+    const heirRange = Math.max(maxHeirTax - minHeirTax, maxHeirTax * 0.01) || 1
+    const scoredRows = splitRows.map(r => ({
+      ...r,
+      score: (1 - (r.totalTax - minTotalTax) / taxRange)
+           + (r.legacyAfterHeirTax - minLegacy) / legacyRange
+           + (1 - (r.heirTax - minHeirTax) / heirRange),
+    }))
+    const bestRow = scoredRows.reduce((a, b) => b.score > a.score ? b : a)
+    // Override the bracket-logic split with the data-driven best split
+    traditionalSplit = bestRow.tradPctNew
+    rothSplit = bestRow.rothPctNew
+
+    // Derive top-level recommendation from the split table outcome, not bracket math.
+    // This keeps the banner headline in sync with the highlighted row in the table.
+    if (bestRow.tradPctNew === 0) {
+      recommendation = 'Roth'
+    } else if (bestRow.tradPctNew === 100) {
+      recommendation = 'Traditional'
+    } else {
+      recommendation = 'Both'
+    }
+    // Build a concise recommendation text grounded in balance/outcome data
+    const bestLegacyFmt = bestRow.legacyAfterHeirTax >= 1e6
+      ? `$${(bestRow.legacyAfterHeirTax / 1e6).toFixed(2)}M`
+      : `$${Math.round(bestRow.legacyAfterHeirTax / 1000)}k`
+    const bestHeirFmt = bestRow.heirTax >= 1e6
+      ? `$${(bestRow.heirTax / 1e6).toFixed(2)}M`
+      : `$${Math.round(bestRow.heirTax / 1000)}k`
+    const bestRothPct = bestRow.rothPctNew
+    if (totalBalance > 0) {
+      recommendationText = bestRothPct === 100
+        ? `Based on your ${existingTradPct > 50 ? `${Math.round(existingTradPct)}% traditional-heavy balance` : 'account balances'}, directing all new contributions to Roth produces the best projected outcome: ${bestLegacyFmt} legacy value and ${bestHeirFmt} heir tax burden.`
+        : bestRothPct === 0
+          ? `Based on your account balances and projected tax rates, all-traditional produces the best outcome: ${bestLegacyFmt} legacy value.`
+          : `Based on your account balances and projected outcomes, a ${bestRow.tradPctNew}/${bestRothPct} Traditional/Roth split produces the best composite result: ${bestLegacyFmt} legacy value and ${bestHeirFmt} heir tax burden.`
+    } else {
+      // No balances — fall back to bracket-only text but note the limitation
+      recommendationText = `Your current bracket (${(currentBracket * 100).toFixed(0)}%) ${currentBracket > retirementTaxBracket ? 'exceeds' : 'is below'} your estimated retirement bracket (${(retirementTaxBracket * 100).toFixed(0)}%), suggesting ${recommendation === 'Roth' ? 'Roth' : 'Traditional'} contributions are more tax-efficient on a per-dollar basis.`
+    }
+
     return {
       recommendation,
+      filingStatus,
       recommendationText,
       currentTaxBracket: currentBracket,
       retirementTaxBracket,
@@ -196,7 +382,50 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
       rothNetBenefit: 0,
       traditionalSplit,
       rothSplit,
-      considerations
+      considerations,
+      // Actual plan numbers
+      traditionalBalance: Math.round(traditionalBalance),
+      rothBalance: Math.round(rothBalance),
+      totalBalance: Math.round(totalBalance),
+      traditionalAnnualContrib: Math.round(traditionalAnnualContrib),
+      rothAnnualContrib: Math.round(rothAnnualContrib),
+      totalAnnualContrib: Math.round(totalAnnualContrib),
+      basisAmount: Math.round(basisAmount),
+      actualTaxSavings: Math.round(actualTaxSavings),
+      actualFutureValue: Math.round(actualFutureValue),
+      actualFutureTax: Math.round(actualFutureTax),
+      actualNetBenefit: Math.round(actualNetBenefit),
+      yearsOfGrowth,
+      // Apples-to-apples (per basisAmount gross income — same basis as cards)
+      rothAfterTaxContrib: Math.round(rothAfterTaxContrib),
+      tradGrowsTo: Math.round(tradGrowsTo),
+      tradNetAfterRetirementTax: Math.round(tradNetAfterRetirementTax),
+      rothGrowsTo: Math.round(rothGrowsTo),
+      rothNetAfterRetirementTax: Math.round(rothNetAfterRetirementTax),
+      applesNetDiff: Math.round(applesNetDiff),
+      lostOpportunityTaxAmount: Math.round(lostOpportunityTaxAmount),
+      lostOpportunityFutureValue: Math.round(lostOpportunityFutureValue),
+      lostOpportunityNetValue: Math.round(lostOpportunityNetValue),
+      // Balance-impact analysis
+      projTradAtRetirement: Math.round(projTradAtRetirement),
+      projRothAtRetirement: Math.round(projRothAtRetirement),
+      projTotalAtRetirement: Math.round(projTotalAtRetirement),
+      estimatedFirstRMD: Math.round(estimatedFirstRMD),
+      rmdCoverageRatio: Math.round(rmdCoverageRatio * 100) / 100,
+      rmdExceedsNeeds,
+      rmdPushesHigherBracket,
+      projTradTaxBracketWithRMD,
+      annualExpenses,
+      heirTaxOnTrad: Math.round(heirTaxOnTrad),
+      heirTaxOnRoth: 0,
+      heirTaxDifference: Math.round(heirTaxDifference),
+      existingTradPct: Math.round(existingTradPct),
+      balanceSkewedTrad,
+      balanceSkewedRoth,
+      splitRows,
+      minTotalTax,
+      maxLegacy,
+      minHeirTax,
     }
   }
 
@@ -236,54 +465,40 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
 
     setLoading(true)
     try {
-      // Load all necessary data
-      const [accountsData, settingsData, projectionsData] = await Promise.all([
-        supabase.from('rp_accounts').select('*').eq('plan_id', planId),
+      // Load all raw DB rows needed — plan, scenario settings, accounts, expenses, other income
+      const [settingsData, projectionsData, accountRows, expenseRows, otherIncomeRows, planData] = await Promise.all([
         supabase.from('rp_calculator_settings').select('*').eq('scenario_id', selectedScenarioId).single(),
         supabase.from('rp_projection_details').select('*').eq('scenario_id', selectedScenarioId).order('year'),
+        supabase.from('rp_accounts').select('*').eq('plan_id', planId),
+        supabase.from('rp_expenses').select('*').eq('plan_id', planId),
+        supabase.from('rp_other_income').select('*').eq('plan_id', planId),
+        supabase.from('rp_retirement_plans')
+          .select('birth_year, life_expectancy, filing_status, include_spouse, current_gross_income, current_tax_bracket, spouse_birth_year, spouse_life_expectancy')
+          .eq('id', planId).single(),
       ])
 
-      const accounts: Account[] = (accountsData.data || []).map(acc => ({
-        id: acc.id,
-        account_name: acc.account_name,
-        owner: acc.owner || '',
-        balance: acc.balance || 0,
-        account_type: acc.account_type,
-        annual_contribution: acc.annual_contribution || 0,
-      }))
+      const planRow = planData.data
 
-      // Get plan data for filing_status and tax info
-      const { data: planDataForSettings } = await supabase
-        .from('rp_retirement_plans')
-        .select('filing_status, current_gross_income, current_tax_bracket')
-        .eq('id', planId)
-        .single()
-      
-      // Load saved tax info if available
-      if (planDataForSettings?.current_gross_income && !currentGrossIncome) {
-        setCurrentGrossIncome(planDataForSettings.current_gross_income)
-      }
-      if (planDataForSettings?.current_tax_bracket && !currentTaxBracket) {
-        setCurrentTaxBracket(planDataForSettings.current_tax_bracket)
-      }
-      
-      // Use current tax bracket from profile if available, otherwise use estimated 22% bracket
-      const effectiveTaxRate = currentTaxBracket || planDataForSettings?.current_tax_bracket || DEFAULT_MARGINAL_TAX_RATE
+      // Build all projection inputs using the shared utility so this tab uses
+      // exactly the same settings, expense mapping, and SSA params as details-tab.
+      const inputs = buildProjectionInputs(
+        planRow,
+        settingsData.data,
+        accountRows.data || [],
+        expenseRows.data || [],
+        otherIncomeRows.data || [],
+      )
 
-      const settings: CalculatorSettings = {
-        current_year: settingsData.data?.current_year || new Date().getFullYear(),
-        retirement_age: settingsData.data?.retirement_age || DEFAULT_RETIREMENT_AGE,
-        retirement_start_year: settingsData.data?.retirement_start_year || 0,
-        years_to_retirement: settingsData.data?.years_to_retirement || 0,
-        annual_retirement_expenses: settingsData.data?.annual_retirement_expenses || 0,
-        growth_rate_before_retirement: parseFloat(settingsData.data?.growth_rate_before_retirement?.toString() || String(DEFAULT_GROWTH_RATE_PRE_RETIREMENT)),
-        growth_rate_during_retirement: parseFloat(settingsData.data?.growth_rate_during_retirement?.toString() || String(DEFAULT_GROWTH_RATE_DURING_RETIREMENT)),
-        inflation_rate: parseFloat(settingsData.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE)),
-        filing_status: (planDataForSettings?.filing_status as any) || DEFAULT_FILING_STATUS,
-        pre_medicare_annual_premium: settingsData.data?.pre_medicare_annual_premium != null ? parseFloat(settingsData.data.pre_medicare_annual_premium.toString()) : undefined,
-        post_medicare_annual_premium: settingsData.data?.post_medicare_annual_premium != null ? parseFloat(settingsData.data.post_medicare_annual_premium.toString()) : undefined,
+      // Persist state that other UI sections (contribution analysis, bracket edit) rely on
+      if (planRow?.current_gross_income && !currentGrossIncome) {
+        setCurrentGrossIncome(planRow.current_gross_income)
       }
-      
+      if (planRow?.current_tax_bracket && !currentTaxBracket) {
+        setCurrentTaxBracket(planRow.current_tax_bracket)
+      }
+      const effectiveTaxRate = currentTaxBracket || planRow?.current_tax_bracket || DEFAULT_MARGINAL_TAX_RATE
+
+      const { baseSettings: settings, accounts, expenses, otherIncome } = inputs
       setCurrentSettings(settings)
 
       const projections: ProjectionDetail[] = (projectionsData.data || []).map((p: any) => ({
@@ -309,16 +524,24 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
         tax: p.tax || 0,
       }))
 
-      // Calculate tax efficiency
-      const calculatedTaxEfficiency = analyzeTaxEfficiency(projections, settings, accounts)
+      // Pass all simulation inputs (including SSA params) so the Roth conversion total
+      // is computed with the exact same inputs as the Strategy Comparison table.
+      const calculatedTaxEfficiency = analyzeTaxEfficiency(
+        projections, settings, accounts,
+        expenses, otherIncome,
+        inputs.birthYear, inputs.lifeExpectancy,
+        inputs.spouseBirthYear, inputs.spouseLifeExpectancy,
+        inputs.includePlannerSsa, inputs.includeSpouseSsa,
+        inputs.estimatedPlannerSsaAtStart, inputs.estimatedSpouseSsaAtStart,
+      )
       setTaxEfficiency(calculatedTaxEfficiency)
-      
+
       // Calculate traditional vs Roth contribution analysis
       const contributionAnalysisResult = analyzeContributionStrategy(
         accounts,
         settings,
         projections,
-        planDataForSettings,
+        planRow,
         currentGrossIncome,
         currentTaxBracket,
         effectiveTaxRate
@@ -888,6 +1111,11 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
                   {/* Comparison with Roth Conversion */}
                   <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
                     <h5 className="font-semibold text-gray-900 mb-3">Estimated Impact of Roth Conversion</h5>
+                    <p className="text-xs text-gray-500 mb-3">
+                      {taxEfficiency.taxesWithRothConversion.simulatedTotal
+                        ? 'Totals are from a full cash-flow simulation — identical methodology to the Strategy Comparison table.'
+                        : 'Analytical estimate using the same conversion parameters as the Strategy Comparison ($10k/yr cap). Minor differences from the Strategy Comparison total may still occur due to simplified tax modeling vs. full cash-flow simulation.'}
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                       <div>
                         <div className="text-xs text-gray-600 font-medium mb-2">Without Roth Conversion</div>
@@ -921,18 +1149,23 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
                               ${taxEfficiency.taxesWithRothConversion.avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </span>
                           </div>
-                          <div className="flex justify-between text-sm pt-1 border-t border-green-300">
-                            <span className="text-gray-700">Conversion Taxes:</span>
-                            <span className="font-medium text-orange-700">
-                              +${taxEfficiency.taxesWithRothConversion.conversionTaxes.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-700">Estimated Savings:</span>
-                            <span className="font-medium text-green-700">
-                              -${taxEfficiency.taxesWithRothConversion.estimatedSavings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </span>
-                          </div>
+                          {/* Show breakdown rows only for analytical estimate (simulation rolls them into the total) */}
+                          {!taxEfficiency.taxesWithRothConversion.simulatedTotal && (
+                            <>
+                              <div className="flex justify-between text-sm pt-1 border-t border-green-300">
+                                <span className="text-gray-700">Conversion Taxes:</span>
+                                <span className="font-medium text-orange-700">
+                                  +${taxEfficiency.taxesWithRothConversion.conversionTaxes.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-700">Estimated Savings:</span>
+                                <span className="font-medium text-green-700">
+                                  -${taxEfficiency.taxesWithRothConversion.estimatedSavings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1063,243 +1296,366 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
             </button>
           </div>
           
-          {showContributionAnalysis && contributionAnalysis && (
+          {showContributionAnalysis && contributionAnalysis && (() => {
+            const ca = contributionAnalysis
+            const basisLabel = ca.totalAnnualContrib > 0
+              ? `your $${ca.basisAmount.toLocaleString()} annual contribution`
+              : 'every $1,000 contributed'
+            return (
             <div className="space-y-4">
-              {/* Recommendation Summary */}
-              <div className={`p-4 rounded-lg border-2 ${
-                contributionAnalysis.recommendation === 'Roth' 
-                  ? 'bg-green-50 border-green-300' 
-                  : contributionAnalysis.recommendation === 'Traditional'
-                  ? 'bg-blue-50 border-blue-300'
-                  : 'bg-yellow-50 border-yellow-300'
+
+              {/* ── 1. Recommendation banner (driven by split-table outcome) ── */}
+              <div className={`p-3 rounded-lg border-2 flex items-center gap-3 ${
+                ca.recommendation === 'Roth' ? 'bg-green-50 border-green-300' :
+                ca.recommendation === 'Traditional' ? 'bg-blue-50 border-blue-300' :
+                'bg-amber-50 border-amber-300'
               }`}>
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">
-                      {contributionAnalysis.recommendation === 'Roth' ? '✓' : 
-                       contributionAnalysis.recommendation === 'Traditional' ? '✓' : '⚖️'}
-                    </span>
+                <span className="text-xl">{ca.recommendation === 'Both' ? '⚖️' : '✓'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm">
+                    {ca.recommendation === 'Roth' ? 'Prioritize Roth Contributions' :
+                     ca.recommendation === 'Traditional' ? 'Prioritize Traditional Contributions' :
+                     'Consider Both (Tax Diversification)'}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-0.5">{ca.recommendationText}</p>
+                </div>
+              </div>
+
+              {/* ── 2. Split scenario table (primary decision tool) ── */}
+              {ca.totalBalance > 0 && (
+                <div>
+                  {/* Current balances header */}
+                  <div className="mb-3 px-1 space-y-1.5">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs items-baseline">
+                      <span className="text-gray-500 font-medium uppercase tracking-wide mr-1">Balances</span>
+                      <span><span className="font-semibold text-blue-700">${ca.traditionalBalance.toLocaleString()}</span> <span className="text-gray-400">traditional ({ca.existingTradPct}%)</span></span>
+                      <span className="text-gray-300">·</span>
+                      <span><span className="font-semibold text-green-700">${ca.rothBalance.toLocaleString()}</span> <span className="text-gray-400">Roth ({100 - ca.existingTradPct}%)</span></span>
+                      {ca.totalAnnualContrib > 0 && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-gray-400">contributing <span className="font-medium text-gray-600">${ca.basisAmount.toLocaleString()}/yr</span></span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs items-baseline">
+                      <span className="text-gray-500 font-medium uppercase tracking-wide mr-1">Rates</span>
+                      <span><span className="font-semibold text-blue-700">{(ca.currentTaxBracket * 100).toFixed(0)}%</span> <span className="text-gray-400">tax today</span></span>
+                      <span className="text-gray-300">·</span>
+                      <span><span className="font-semibold text-orange-600">{(ca.retirementTaxBracket * 100).toFixed(0)}%</span> <span className="text-gray-400">est. tax in retirement</span></span>
+                      <span className="text-gray-300">·</span>
+                      <span><span className="font-semibold text-gray-700">{((currentSettings?.growth_rate_before_retirement ?? 0.1) * 100).toFixed(0)}%</span> <span className="text-gray-400">growth/yr</span></span>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h5 className="font-semibold text-gray-900 mb-2">
-                      Recommendation: {contributionAnalysis.recommendation === 'Roth' ? 'Prioritize Roth Contributions' :
-                                      contributionAnalysis.recommendation === 'Traditional' ? 'Prioritize Traditional Contributions' :
-                                      'Consider Both (Tax Diversification)'}
-                    </h5>
-                    <p className="text-sm text-gray-700 mb-3">
-                      {contributionAnalysis.recommendationText}
-                    </p>
-                    {contributionAnalysis.recommendation === 'Both' && (
-                      <div className="mt-3 p-3 bg-white rounded border border-yellow-200">
-                        <p className="text-xs font-medium text-gray-900 mb-2">Suggested Split:</p>
-                        <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
-                          <li>Traditional: {contributionAnalysis.traditionalSplit}% - Take advantage of current tax deduction</li>
-                          <li>Roth: {contributionAnalysis.rothSplit}% - Build tax-free retirement income</li>
-                        </ul>
+                  <p className="text-xs text-gray-400 mb-2">
+                    Projected future dollars at retirement ({ca.yearsOfGrowth} yrs) · existing balances included · ★ = best in column
+                  </p>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="px-3 py-2 text-left font-semibold text-gray-600">New contrib<br/><span className="font-normal text-gray-400">Trad / Roth</span></th>
+                          <th className="px-3 py-2 text-right font-semibold text-blue-700">Trad balance</th>
+                          <th className="px-3 py-2 text-right font-semibold text-green-700">Roth balance</th>
+                          <th className="px-3 py-2 text-right font-semibold text-gray-600">Total tax<br/><span className="font-normal text-gray-400">lower ↓</span></th>
+                          <th className="px-3 py-2 text-right font-semibold text-gray-600">Legacy value<br/><span className="font-normal text-gray-400">after heir tax</span></th>
+                          <th className="px-3 py-2 text-right font-semibold text-gray-600">Heir tax<br/><span className="font-normal text-gray-400">lower ↓</span></th>
+                          <th className="px-3 py-2 text-right font-semibold text-gray-600">RMD/yr<br/><span className="font-normal text-gray-400">at 73</span></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {ca.splitRows.map((row: any) => {
+                          const isRecommended = row.tradPctNew === ca.traditionalSplit
+                          const bestTax = Math.abs(row.totalTax - ca.minTotalTax) < 1
+                          const bestLegacy = Math.abs(row.legacyAfterHeirTax - ca.maxLegacy) < 1
+                          const bestHeir = Math.abs(row.heirTax - ca.minHeirTax) < 1
+                          const rmdWarning = row.rmd > ca.annualExpenses && ca.annualExpenses > 0
+                          const fmt = (n: number) => n >= 1e6
+                            ? `$${(n / 1e6).toFixed(2)}M`
+                            : `$${Math.round(n / 1000)}k`
+                          return (
+                            <tr key={row.tradPctNew}
+                              className={isRecommended ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'}>
+                              <td className="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">
+                                {row.tradPctNew}/{row.rothPctNew}
+                                {isRecommended && <span className="ml-1.5 text-blue-600 text-xs font-semibold">← suggested</span>}
+                              </td>
+                              <td className="px-3 py-2 text-right text-blue-700 whitespace-nowrap">{fmt(row.projTrad)}</td>
+                              <td className="px-3 py-2 text-right text-green-700 whitespace-nowrap">{fmt(row.projRoth)}</td>
+                              <td className={`px-3 py-2 text-right whitespace-nowrap ${bestTax ? 'text-green-700 font-bold' : 'text-gray-700'}`}>
+                                {fmt(row.totalTax)}{bestTax && <span className="ml-1 text-green-600">★</span>}
+                              </td>
+                              <td className={`px-3 py-2 text-right whitespace-nowrap ${bestLegacy ? 'text-green-700 font-bold' : 'text-gray-700'}`}>
+                                {fmt(row.legacyAfterHeirTax)}{bestLegacy && <span className="ml-1 text-green-600">★</span>}
+                              </td>
+                              <td className={`px-3 py-2 text-right whitespace-nowrap ${bestHeir ? 'text-green-700 font-bold' : 'text-gray-700'}`}>
+                                {fmt(row.heirTax)}{bestHeir && <span className="ml-1 text-green-600">★</span>}
+                              </td>
+                              <td className={`px-3 py-2 text-right whitespace-nowrap ${rmdWarning ? 'text-amber-700 font-semibold' : 'text-gray-600'}`}>
+                                {fmt(row.rmd)}{rmdWarning && <span className="ml-1 text-amber-500" title="Exceeds projected expenses">⚠</span>}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
+                    <span><span className="text-green-600 font-bold">★</span> best value in column</span>
+                    <span><span className="inline-block w-3 h-3 rounded-sm bg-blue-100 border border-blue-300 align-middle mr-1" />suggested split (best composite outcome)</span>
+                    <span><span className="text-amber-500">⚠</span> RMD exceeds projected expenses</span>
+                    <span>Heir tax estimated at 28% (SECURE Act 10-year rule typically concentrates inherited IRA withdrawals into higher brackets)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── 3. Per-dollar tax comparison + bracket analysis (collapsible) ── */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setShowWalkthrough(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                >
+                  <span className="text-xs font-medium text-gray-700">🔢 Per-dollar tax comparison &amp; bracket analysis</span>
+                  <span className="text-gray-400 text-xs">{showWalkthrough ? '▲ hide' : '▼ expand'}</span>
+                </button>
+                {showWalkthrough && (
+                  <div className="p-4 space-y-4 bg-white border-t border-gray-100">
+
+                    {/* Tax bracket dials + edit */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center relative">
+                        <p className="text-xs text-gray-500 mb-1">Your tax bracket today</p>
+                        <p className="text-3xl font-bold text-blue-700">{(ca.currentTaxBracket * 100).toFixed(0)}%</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {currentTaxBracket ? 'manually set' : currentGrossIncome ? `from $${currentGrossIncome.toLocaleString()} income` : 'default — click ✎ to set'}
+                        </p>
+                        <button
+                          onClick={() => { setInlineBracketInput((ca.currentTaxBracket * 100).toFixed(0)); setShowInlineBracketEdit(v => !v) }}
+                          className="absolute top-2 right-2 text-blue-400 hover:text-blue-700 p-0.5 rounded"
+                          title="Change tax bracket"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.293-6.293a1 1 0 011.414 0l2.586 2.586a1 1 0 010 1.414L13 17H9v-4z" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="p-3 rounded-lg bg-orange-50 border border-orange-200 text-center">
+                        <div className="flex items-center justify-center gap-1 mb-1">
+                          <p className="text-xs text-gray-500">Expected bracket in retirement</p>
+                          <button onClick={() => setShowRetirementBracketExplanation(!showRetirementBracketExplanation)} className="text-blue-500 hover:text-blue-700 text-xs font-bold" title="How is this calculated?">?</button>
+                        </div>
+                        <p className="text-3xl font-bold text-orange-700">{(ca.retirementTaxBracket * 100).toFixed(0)}%</p>
+                        <p className="text-xs text-gray-400 mt-1">avg taxable income ~${ca.avgRetirementTaxableIncome.toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    {/* Bracket picker */}
+                    {showInlineBracketEdit && (() => {
+                      const filingStatus = (ca.filingStatus || 'Single') as keyof typeof INCOME_TAX_BRACKETS
+                      const brackets = INCOME_TAX_BRACKETS[filingStatus] ?? INCOME_TAX_BRACKETS['Single']
+                      const selectedPct = parseFloat(inlineBracketInput)
+                      return (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold text-gray-800">2024 Federal Tax Brackets — {filingStatus}</p>
+                            <p className="text-xs text-gray-500">Click a row to select</p>
+                          </div>
+                          <div className="space-y-1 mb-3">
+                            {brackets.map(b => {
+                              const pct = Math.round(b.rate * 100)
+                              const isSelected = selectedPct === pct
+                              const rangeLabel = b.max === Infinity ? `over $${(b.min / 1000).toFixed(0)}k` : `$${(b.min / 1000).toFixed(0)}k – $${(b.max / 1000).toFixed(0)}k`
+                              return (
+                                <button key={pct} onClick={() => setInlineBracketInput(String(pct))}
+                                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs border transition-colors text-left ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-400 hover:bg-blue-50'}`}>
+                                  <span className="font-bold w-8">{pct}%</span>
+                                  <span className={`flex-1 mx-3 ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>Taxable income {rangeLabel}</span>
+                                  {isSelected && <span className="text-white font-medium">✓ selected</span>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={async () => { const val = parseFloat(inlineBracketInput); if (!isNaN(val) && val > 0 && val <= 50) { setCurrentTaxBracket(val / 100); setShowInlineBracketEdit(false); await supabase.from('rp_retirement_plans').update({ current_tax_bracket: val / 100 }).eq('id', planId); await calculateTaxEfficiencyAnalysis() } }}
+                              disabled={!inlineBracketInput} className="rounded bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                              Apply {inlineBracketInput ? `${inlineBracketInput}%` : ''}
+                            </button>
+                            <button onClick={() => setShowInlineBracketEdit(false)} className="rounded bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-300">Cancel</button>
+                            <p className="text-xs text-gray-400 ml-1">Saved to your plan.</p>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Retirement bracket explanation */}
+                    {showRetirementBracketExplanation && (
+                      <div className="px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700 space-y-2">
+                        <p className="font-medium text-gray-900">How the retirement tax bracket is estimated:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-xs">
+                          <li>Examines retirement projection data for the first 15 years (ages {currentSettings?.retirement_age || DEFAULT_RETIREMENT_AGE}–80) — found <strong>{ca.retirementProjectionsCount} years</strong> of data.</li>
+                          <li>Averages your projected <strong>taxable income</strong> across those years: <strong>${ca.avgRetirementTaxableIncome.toLocaleString()}/yr</strong>.</li>
+                          <li>Applies 2024 federal brackets for filing status <strong>{ca.filingStatus || DEFAULT_FILING_STATUS}</strong> → <strong>{(ca.retirementTaxBracket * 100).toFixed(0)}% marginal rate</strong>.</li>
+                        </ol>
+                        <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">State taxes not included. Actual bracket depends on withdrawal strategy, RMD timing, and future tax law.</p>
+                        <button onClick={() => setShowRetirementBracketExplanation(false)} className="text-xs text-blue-600 underline">Hide</button>
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Comparison Table */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factor</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Traditional</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Roth</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Winner</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Current Tax Bracket</td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        {(contributionAnalysis.currentTaxBracket * 100).toFixed(0)}%
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        {(contributionAnalysis.currentTaxBracket * 100).toFixed(0)}%
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="text-blue-600 font-semibold">Traditional</span>
-                        <p className="text-xs text-gray-500 mt-1">Tax deduction now</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <span>Expected Retirement Tax Bracket</span>
-                          <button
-                            onClick={() => setShowRetirementBracketExplanation(!showRetirementBracketExplanation)}
-                            className="text-blue-600 hover:text-blue-800 text-xs underline"
-                            title="How is this calculated?"
-                          >
-                            ?
-                          </button>
+
+                    {/* Apples-to-apples per-dollar table */}
+                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                        <p className="text-xs font-semibold text-gray-700">
+                          Same gross income · what you keep from ${ca.basisAmount.toLocaleString()}
+                        </p>
+                        <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          ca.applesNetDiff > 50 ? 'bg-blue-100 text-blue-800' :
+                          ca.applesNetDiff < -50 ? 'bg-green-100 text-green-800' :
+                          'bg-gray-200 text-gray-600'
+                        }`}>
+                          {ca.applesNetDiff > 50 ? `Traditional +$${ca.applesNetDiff.toLocaleString()} ahead` :
+                           ca.applesNetDiff < -50 ? `Roth +$${Math.abs(ca.applesNetDiff).toLocaleString()} ahead` :
+                           'Even — diversify'}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        {(contributionAnalysis.retirementTaxBracket * 100).toFixed(0)}%
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        0% (tax-free)
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="text-green-600 font-semibold">Roth</span>
-                        <p className="text-xs text-gray-500 mt-1">No tax in retirement</p>
-                      </td>
-                    </tr>
-                    {showRetirementBracketExplanation && (
-                      <tr>
-                        <td colSpan={4} className="px-4 py-4 bg-blue-50 border-t border-blue-200">
-                          <div className="space-y-3">
-                            <h6 className="font-semibold text-gray-900 text-sm">How Expected Retirement Tax Bracket is Calculated:</h6>
-                            <div className="text-xs sm:text-sm text-gray-700 space-y-2">
-                              <div>
-                                <p className="font-medium text-gray-900 mb-1">Step 1: Analyze Retirement Projections</p>
-                                <p>
-                                  The system examines your retirement projections for the first 15 years of retirement (ages {currentSettings?.retirement_age || DEFAULT_RETIREMENT_AGE} to 80). 
-                                  {contributionAnalysis.retirementProjectionsCount > 0 ? (
-                                    <> It found <strong>{contributionAnalysis.retirementProjectionsCount} years</strong> of projection data in this range.</>
-                                  ) : (
-                                    <> No projection data was available in this range, so an estimate was used.</>
-                                  )}
-                                </p>
-                              </div>
-                              
-                              <div>
-                                <p className="font-medium text-gray-900 mb-1">Step 2: Calculate Average Taxable Income</p>
-                                {contributionAnalysis.retirementProjectionsCount > 0 ? (
-                                  <>
-                                    <p className="mb-1">
-                                      For each retirement year, the system looks at your <strong>taxable income</strong>, which includes:
-                                    </p>
-                                    <ul className="list-disc list-inside ml-2 space-y-1 mb-2">
-                                      <li>Distributions from traditional 401(k) and IRA accounts</li>
-                                      <li>Distributions from taxable investment accounts (capital gains)</li>
-                                      <li>Other recurring income (pensions, rental income, etc.)</li>
-                                      <li>Partially taxable Social Security income (if applicable)</li>
-                                    </ul>
-                                    <p>
-                                      The average taxable income across these {contributionAnalysis.retirementProjectionsCount} years is calculated: 
-                                      <strong> ${contributionAnalysis.avgRetirementTaxableIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
-                                    </p>
-                                  </>
-                                ) : (
-                                  <>
-                                    <p className="mb-1">
-                                      Since projection data wasn't available, the system estimates taxable income as:
-                                    </p>
-                                    <p className="font-mono text-xs bg-white p-2 rounded border border-gray-300 mb-2">
-                                      Estimated Taxable Income = Annual Retirement Expenses × 70%
-                                    </p>
-                                    <p>
-                                      This assumes that approximately 70% of your retirement expenses will come from taxable sources 
-                                      (traditional account distributions, taxable investments, etc.), while 30% comes from tax-free sources 
-                                      (Roth withdrawals, Social Security, etc.).
-                                    </p>
-                                    <p className="mt-2">
-                                      Estimated: <strong>${contributionAnalysis.avgRetirementTaxableIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
-                                    </p>
-                                  </>
-                                )}
-                              </div>
-                              
-                              <div>
-                                <p className="font-medium text-gray-900 mb-1">Step 3: Determine Tax Bracket</p>
-                                <p className="mb-1">
-                                  Using the calculated average taxable income and your filing status ({currentSettings?.filing_status || DEFAULT_FILING_STATUS}), 
-                                  the system applies the 2024 federal tax brackets to determine which marginal tax bracket 
-                                  this income level falls into.
-                                </p>
-                                <p>
-                                  The result: <strong>{(contributionAnalysis.retirementTaxBracket * 100).toFixed(0)}% marginal tax bracket</strong>
-                                </p>
-                              </div>
-                              
-                              <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
-                                <p className="text-xs font-medium text-yellow-900 mb-1">⚠️ Important Notes:</p>
-                                <ul className="text-xs text-yellow-800 list-disc list-inside space-y-1">
-                                  <li>This is an <strong>estimate</strong> based on your current plan assumptions and projections</li>
-                                  <li>Actual retirement tax bracket will depend on many factors: withdrawal strategy, RMDs, Social Security timing, other income sources, and future tax law changes</li>
-                                  <li>The calculation uses <strong>marginal tax bracket</strong> (the rate on your last dollar of income), not effective tax rate</li>
-                                  <li>State taxes are not included in this calculation</li>
-                                  <li>If your projections change or you update your retirement strategy, this bracket may change</li>
-                                </ul>
-                              </div>
-                              
-                              <div className="mt-2">
-                                <button
-                                  onClick={() => setShowRetirementBracketExplanation(false)}
-                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                                >
-                                  Hide explanation
-                                </button>
-                              </div>
+                      </div>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-100 bg-white">
+                            <th className="text-left px-4 py-2 font-medium text-gray-500"></th>
+                            <th className="text-right px-4 py-2 font-semibold text-blue-700">Traditional</th>
+                            <th className="text-right px-4 py-2 font-semibold text-green-700">Roth</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          <tr className="bg-white">
+                            <td className="px-4 py-2 text-gray-600">Gross earnings</td>
+                            <td className="px-4 py-2 text-right text-blue-700">${ca.basisAmount.toLocaleString()}</td>
+                            <td className="px-4 py-2 text-right text-green-700">${ca.basisAmount.toLocaleString()}</td>
+                          </tr>
+                          <tr className="bg-gray-50">
+                            <td className="px-4 py-2 text-gray-600">Tax paid today ({(ca.currentTaxBracket * 100).toFixed(0)}%)</td>
+                            <td className="px-4 py-2 text-right text-green-700">$0 — deferred</td>
+                            <td className="px-4 py-2 text-right text-red-600">−${ca.lostOpportunityTaxAmount.toLocaleString()}</td>
+                          </tr>
+                          <tr className="bg-white">
+                            <td className="px-4 py-2 text-gray-600">Enters account</td>
+                            <td className="px-4 py-2 text-right text-blue-700">${ca.basisAmount.toLocaleString()}</td>
+                            <td className="px-4 py-2 text-right text-green-700">${ca.rothAfterTaxContrib.toLocaleString()}</td>
+                          </tr>
+                          <tr className="bg-gray-50">
+                            <td className="px-4 py-2 text-gray-600">Grows to (after {ca.yearsOfGrowth} yrs)</td>
+                            <td className="px-4 py-2 text-right text-blue-700">${ca.tradGrowsTo.toLocaleString()}</td>
+                            <td className="px-4 py-2 text-right text-green-700">${ca.rothGrowsTo.toLocaleString()}</td>
+                          </tr>
+                          <tr className="bg-white">
+                            <td className="px-4 py-2 text-gray-600">Retirement tax ({(ca.retirementTaxBracket * 100).toFixed(0)}% / 0%)</td>
+                            <td className="px-4 py-2 text-right text-red-600">−${(ca.tradGrowsTo - ca.tradNetAfterRetirementTax).toLocaleString()}</td>
+                            <td className="px-4 py-2 text-right text-green-700">$0</td>
+                          </tr>
+                          <tr className="bg-gray-50 font-semibold text-sm">
+                            <td className="px-4 py-2.5 text-gray-800">You keep</td>
+                            <td className={`px-4 py-2.5 text-right ${ca.applesNetDiff >= 0 ? 'text-blue-700' : 'text-gray-600'}`}>${ca.tradNetAfterRetirementTax.toLocaleString()}</td>
+                            <td className={`px-4 py-2.5 text-right ${ca.applesNetDiff <= 0 ? 'text-green-700' : 'text-gray-600'}`}>${ca.rothNetAfterRetirementTax.toLocaleString()}</td>
+                          </tr>
+                          <tr className={`font-bold ${ca.applesNetDiff > 0 ? 'bg-blue-50' : ca.applesNetDiff < 0 ? 'bg-green-50' : 'bg-gray-50'}`}>
+                            <td className="px-4 py-2 text-gray-700">Advantage</td>
+                            <td className={`px-4 py-2 text-right ${ca.applesNetDiff > 0 ? 'text-blue-700' : 'text-gray-400'}`}>{ca.applesNetDiff > 0 ? `+$${ca.applesNetDiff.toLocaleString()}` : '—'}</td>
+                            <td className={`px-4 py-2 text-right ${ca.applesNetDiff < 0 ? 'text-green-700' : 'text-gray-400'}`}>{ca.applesNetDiff < 0 ? `+$${Math.abs(ca.applesNetDiff).toLocaleString()}` : '—'}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Step-by-step walkthrough cards */}
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">What happens to {basisLabel}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Traditional */}
+                      <div className={`rounded-lg border-2 overflow-hidden ${ca.recommendation === 'Traditional' ? 'border-blue-400' : 'border-gray-200'}`}>
+                        <div className="bg-blue-600 px-3 py-2 flex items-center justify-between">
+                          <span className="text-white font-semibold text-sm">Traditional (401k / IRA)</span>
+                          {ca.recommendation === 'Traditional' && <span className="bg-white text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">Recommended</span>}
+                        </div>
+                        <div className="p-3 space-y-2 text-sm bg-white">
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 border border-green-400 flex items-center justify-center flex-shrink-0 text-xs font-bold text-green-700">1</div>
+                            <div>
+                              <p className="font-medium text-gray-800">Contribute pre-tax</p>
+                              <p className="text-xs text-gray-500">Full <span className="font-semibold text-green-700">${ca.basisAmount.toLocaleString()}</span> enters the account — IRS taxes nothing now</p>
                             </div>
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Tax Savings (per $1,000 contribution)</td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        ${(contributionAnalysis.traditionalTaxSavings).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        $0 (pay tax now)
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="text-blue-600 font-semibold">Traditional</span>
-                        <p className="text-xs text-gray-500 mt-1">Immediate savings</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">Future Tax on Withdrawals</td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        ${(contributionAnalysis.traditionalFutureTax).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        $0 (tax-free)
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="text-green-600 font-semibold">Roth</span>
-                        <p className="text-xs text-gray-500 mt-1">No future tax</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">RMD Impact</td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        Subject to RMDs at {RMD_START_AGE}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-700">
-                        No RMDs required
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="text-green-600 font-semibold">Roth</span>
-                        <p className="text-xs text-gray-500 mt-1">More flexibility</p>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Key Considerations */}
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h5 className="font-semibold text-gray-900 mb-3">Key Considerations</h5>
-                <div className="space-y-2 text-sm text-gray-700">
-                  {contributionAnalysis.considerations.map((consideration: string, index: number) => (
-                    <div key={index} className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-1">•</span>
-                      <span>{consideration}</span>
+                          <div className="flex justify-center text-gray-300 text-xs">↓ grows {ca.yearsOfGrowth} yrs tax-deferred</div>
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-blue-100 border border-blue-400 flex items-center justify-center flex-shrink-0 text-xs font-bold text-blue-700">2</div>
+                            <div>
+                              <p className="font-medium text-gray-800"><span className="text-blue-700">${ca.basisAmount.toLocaleString()}</span> → <span className="text-blue-700">${ca.tradGrowsTo.toLocaleString()}</span></p>
+                              <p className="text-xs text-gray-500">at {((currentSettings?.growth_rate_before_retirement || 0.1) * 100).toFixed(0)}%/yr (Roth only starts from ${ca.rothAfterTaxContrib.toLocaleString()})</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-center text-gray-300 text-xs">↓ withdraw in retirement</div>
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-red-100 border border-red-400 flex items-center justify-center flex-shrink-0 text-xs font-bold text-red-700">3</div>
+                            <div>
+                              <p className="font-medium text-gray-800">Pay {(ca.retirementTaxBracket * 100).toFixed(0)}% tax</p>
+                              <p className="text-xs text-gray-500">Tax: <span className="font-semibold text-red-700">${(ca.tradGrowsTo - ca.tradNetAfterRetirementTax).toLocaleString()}</span> · Keep <span className="font-semibold text-blue-700">${ca.tradNetAfterRetirementTax.toLocaleString()}</span> · Subject to RMDs at {RMD_START_AGE}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Roth */}
+                      <div className={`rounded-lg border-2 overflow-hidden ${ca.recommendation === 'Roth' ? 'border-green-400' : 'border-gray-200'}`}>
+                        <div className="bg-green-600 px-3 py-2 flex items-center justify-between">
+                          <span className="text-white font-semibold text-sm">Roth (401k / IRA)</span>
+                          {ca.recommendation === 'Roth' && <span className="bg-white text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">Recommended</span>}
+                        </div>
+                        <div className="p-3 space-y-2 text-sm bg-white">
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-red-100 border border-red-400 flex items-center justify-center flex-shrink-0 text-xs font-bold text-red-700">1</div>
+                            <div>
+                              <p className="font-medium text-gray-800">Contribute after-tax</p>
+                              <p className="text-xs text-gray-500">IRS takes <span className="font-semibold text-red-700">${ca.lostOpportunityTaxAmount.toLocaleString()}</span> ({(ca.currentTaxBracket * 100).toFixed(0)}%) first — only <span className="font-semibold text-green-700">${ca.rothAfterTaxContrib.toLocaleString()}</span> enters Roth</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-center text-gray-300 text-xs">↓ grows {ca.yearsOfGrowth} yrs tax-free</div>
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 border border-green-400 flex items-center justify-center flex-shrink-0 text-xs font-bold text-green-700">2</div>
+                            <div>
+                              <p className="font-medium text-gray-800"><span className="text-green-700">${ca.rothAfterTaxContrib.toLocaleString()}</span> → <span className="text-green-700">${ca.rothGrowsTo.toLocaleString()}</span></p>
+                              <p className="text-xs text-gray-500">at {((currentSettings?.growth_rate_before_retirement || 0.1) * 100).toFixed(0)}%/yr (Traditional starts from full ${ca.basisAmount.toLocaleString()})</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-center text-gray-300 text-xs">↓ withdraw in retirement</div>
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 border border-green-400 flex items-center justify-center flex-shrink-0 text-xs font-bold text-green-700">3</div>
+                            <div>
+                              <p className="font-medium text-gray-800">Withdraw tax-free</p>
+                              <p className="text-xs text-gray-500">Keep all <span className="font-semibold text-green-700">${ca.rothGrowsTo.toLocaleString()}</span> · No RMDs required</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Considerations */}
+                    {ca.considerations.length > 0 && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Additional considerations</p>
+                        <div className="space-y-1">
+                          {ca.considerations.map((c: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <span className="text-blue-400 mt-0.5 flex-shrink-0 text-xs">•</span>
+                              <span className="text-xs text-gray-600">{c}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                )}
               </div>
+
             </div>
-          )}
+            )
+          })()}
         </div>
         
         {/* Additional Tax Efficiency Strategies */}

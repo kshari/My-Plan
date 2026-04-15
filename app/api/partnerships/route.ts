@@ -64,5 +64,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: memberError.message }, { status: 500 })
   }
 
+  // Bootstrap accounting: default COA + first fiscal year (best-effort, non-blocking)
+  await Promise.allSettled([
+    supabase.rpc("create_default_chart_of_accounts", { p_entity_id: entity.id, p_created_by: user.id }),
+    supabase.rpc("create_default_fiscal_year", { p_entity_id: entity.id, p_created_by: user.id }),
+  ])
+
   return NextResponse.json({ entity }, { status: 201 })
 }

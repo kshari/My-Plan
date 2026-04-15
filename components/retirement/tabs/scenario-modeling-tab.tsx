@@ -43,6 +43,8 @@ interface ScenarioModelingTabProps {
   planId: number
   /** Start with this model type instead of the default 'networth'. */
   initialModelType?: 'networth' | 'monthly_income'
+  /** Start in table view instead of chart view (useful for print). */
+  initialViewMode?: 'chart' | 'table'
 }
 
 // Color palette for growth rate lines (3% to 15%)
@@ -62,11 +64,11 @@ const GROWTH_RATE_COLORS = [
   '#a855f7', // 15% - purple
 ]
 
-export default function ScenarioModelingTab({ planId, initialModelType }: ScenarioModelingTabProps) {
+export default function ScenarioModelingTab({ planId, initialModelType, initialViewMode }: ScenarioModelingTabProps) {
   const supabase = createClient()
   const { selectedScenarioId } = useScenario()
   const [loading, setLoading] = useState(false)
-  const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart')
+  const [viewMode, setViewMode] = useState<'chart' | 'table'>(initialViewMode ?? 'chart')
   const [graphType, setGraphType] = useState<'line' | 'area' | 'bar'>('line')
   const [modelType, setModelType] = useState<'networth' | 'monthly_income'>(initialModelType ?? 'networth')
   const [modelingData, setModelingData] = useState<any[]>([])
@@ -185,16 +187,31 @@ export default function ScenarioModelingTab({ planId, initialModelType }: Scenar
       const yearsToSsaStart = Math.max(0, ssaStartAge - projectionCurrentAge)
       const inflationRate = parseFloat(settingsResult.data?.inflation_rate?.toString() || String(DEFAULT_INFLATION_RATE))
       const inflationToSsaStart = Math.pow(1 + inflationRate, yearsToSsaStart)
-      // Apply early-claiming reduction (permanent reduction when claiming before FRA 67)
-      const claimingMultiplier = ssaClaimingMultiplier(ssaStartAge)
+
+      // Spouse may be a different age — compute their own inflation horizon and claiming multiplier.
+      const spouseBirthYearSm = plan.spouse_birth_year
+      const spouseCurrentAgeSm = spouseBirthYearSm ? projectionCurrentYear - spouseBirthYearSm : null
+      const spouseYearsToSsaStart = spouseCurrentAgeSm !== null
+        ? Math.max(0, ssaStartAge - spouseCurrentAgeSm)
+        : yearsToSsaStart
+      const spouseInflationToSsaStart = Math.pow(1 + inflationRate, spouseYearsToSsaStart)
+
+      // Each person's claiming multiplier is based on their own age in the claim calendar year.
+      const calendarYearOfClaim = plan.birth_year + ssaStartAge
+      const plannerClaimingAge = ssaStartAge
+      const spouseClaimingAge = spouseBirthYearSm
+        ? calendarYearOfClaim - spouseBirthYearSm
+        : ssaStartAge
+      const claimingMultiplier = ssaClaimingMultiplier(plannerClaimingAge)
+      const spouseClaimingMultiplier = ssaClaimingMultiplier(spouseClaimingAge)
 
       // Values passed to the engine: inflation-adjusted only (engine applies claiming multiplier itself)
       const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
-      const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
+      const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * spouseInflationToSsaStart : undefined
 
       // Display values: inflation-adjusted AND claiming multiplier applied (matching snapshot tooltip formula)
       setEstimatedSSAIncome(estimatedPlannerSsaAtStart != null ? estimatedPlannerSsaAtStart * claimingMultiplier : null)
-      setEstimatedSpouseSSAIncome(estimatedSpouseSsaAtStart != null ? estimatedSpouseSsaAtStart * claimingMultiplier : null)
+      setEstimatedSpouseSSAIncome(estimatedSpouseSsaAtStart != null ? estimatedSpouseSsaAtStart * spouseClaimingMultiplier : null)
       
       // X-axis: from current age + 1 to 65
       const maxRetirementAge = 65

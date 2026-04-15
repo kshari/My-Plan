@@ -102,5 +102,13 @@ export async function POST(request: Request, { params }: RouteParams) {
     })
   }
 
+  // Auto-create per-partner capital account in the chart of accounts (best-effort)
+  await supabase.rpc("create_partner_capital_account", {
+    p_entity_id: entityId,
+    p_member_id: member.id,
+    p_display_name: member.display_name,
+    p_created_by: user.id,
+  })
+
   return NextResponse.json({ member }, { status: 201 })
 }

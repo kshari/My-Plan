@@ -26,8 +26,12 @@ export function PartnershipsShell({
   const pathname = usePathname()
 
   // Auto-detect current entity from pathname: /apps/partnerships/[entityId]/...
+  // Exclude known non-entity path segments so pages like /guide, /new, /join
+  // don't get treated as entity IDs and produce broken sidebar links.
+  const RESERVED_SLUGS = new Set(["guide", "new", "join"])
   const entityMatch = pathname.match(/^\/apps\/partnerships\/([^/]+)/)
-  const currentEntityId = entityMatch ? entityMatch[1] : undefined
+  const rawSlug = entityMatch ? entityMatch[1] : undefined
+  const currentEntityId = rawSlug && !RESERVED_SLUGS.has(rawSlug) ? rawSlug : undefined
 
   const bottomNavItems = currentEntityId
     ? [

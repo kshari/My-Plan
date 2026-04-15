@@ -17,6 +17,48 @@ import {
   STRESS_TEST_SCENARIOS,
 } from '@/lib/constants/monte-carlo'
 
+// ---------------------------------------------------------------------------
+// Seeded PRNG — Mulberry32
+// Using a seeded generator guarantees the *same plan parameters always produce
+// the same MC results*, eliminating run-to-run score variance. The seed is
+// derived from key plan inputs so that any meaningful plan change automatically
+// produces a fresh, independent simulation stream.
+// ---------------------------------------------------------------------------
+
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0
+    let z = Math.imul(s ^ (s >>> 15), 1 | s)
+    z ^= z + Math.imul(z ^ (z >>> 7), 61 | z)
+    return ((z ^ (z >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * Derive a deterministic 32-bit seed from the plan's key numerical parameters.
+ * Any change to retirement age, savings, life expectancy, or growth rates will
+ * produce a different seed and therefore a different (but still reproducible) simulation.
+ */
+function deriveSeed(
+  birthYear: number,
+  lifeExpectancy: number,
+  initialNetworth: number,
+  baseSettings: CalculatorSettings
+): number {
+  const retirementAge     = baseSettings.retirement_age     || 65
+  const preRetirementRate = baseSettings.pre_retirement_growth_rate  || 0.07
+  const inRetirementRate  = baseSettings.in_retirement_growth_rate   || 0.05
+  // Pack several floats into an integer hash (djb2-style)
+  let h = 5381
+  const vals = [birthYear, lifeExpectancy, Math.round(initialNetworth / 1000), retirementAge,
+                Math.round(preRetirementRate * 10000), Math.round(inRetirementRate * 10000)]
+  for (const v of vals) {
+    h = ((h << 5) + h + v) >>> 0
+  }
+  return h
+}
+
 export interface MonteCarloResult {
   simulation: number
   success: boolean
@@ -26,6 +68,8 @@ export interface MonteCarloResult {
   totalTaxes: number
   /** Weighted average of the two growth rates used in this simulation run */
   avgAnnualReturn: number
+  /** Worst (minimum) single-year return drawn in this simulation run */
+  minAnnualReturn: number
   projections: ProjectionDetail[]
 }
 
@@ -35,6 +79,8 @@ export interface PercentileDetail {
   cagr: number | null   // null when finalNetworth ≤ 0 (can't log a negative)
   /** Weighted-average growth rate used in this simulation run */
   avgAnnualReturn: number
+  /** Worst single-year return drawn in this simulation run */
+  minAnnualReturn: number
 }
 
 export interface MonteCarloSummary {
@@ -79,11 +125,22 @@ export function runMonteCarloSimulation(
   otherIncome: OtherIncome[],
   baseSettings: CalculatorSettings,
   lifeExpectancy: number,
-  numSimulations: number = MC_DEFAULT_NUM_SIMULATIONS
+  numSimulations: number = MC_DEFAULT_NUM_SIMULATIONS,
+  spouseBirthYear?: number,
+  spouseLifeExpectancy?: number,
+  includePlannerSsa: boolean = true,
+  includeSpouseSsa?: boolean,
+  estimatedPlannerSsaAtStartAge?: number,
+  estimatedSpouseSsaAtStartAge?: number
 ): { results: MonteCarloResult[], summary: MonteCarloSummary } {
   const results: MonteCarloResult[] = []
   const retirementAge = baseSettings.retirement_age || DEFAULT_RETIREMENT_AGE
   const initialNetworth = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+
+  // Derive a deterministic seed from plan inputs so the same plan always produces
+  // the same simulation stream (no run-to-run score variance).
+  const seed = deriveSeed(birthYear, lifeExpectancy, initialNetworth, baseSettings)
+  const rand = mulberry32(seed)
 
   // Determine how many years fall in each phase so we can generate per-year returns
   const currentYear = baseSettings.current_year || new Date().getFullYear()
@@ -98,14 +155,16 @@ export function runMonteCarloSimulation(
     for (let y = 0; y < yearsBeforeRetirement; y++) {
       preRetirementReturns.push(Math.max(MC_RETURN_FLOOR, generateNormalRandom(
         baseSettings.growth_rate_before_retirement,
-        MC_STD_DEV_PRE_RETIREMENT
+        MC_STD_DEV_PRE_RETIREMENT,
+        rand
       )))
     }
     const retirementReturns: number[] = []
     for (let y = 0; y < yearsDuringRetirement; y++) {
       retirementReturns.push(Math.max(MC_RETURN_FLOOR, generateNormalRandom(
         baseSettings.growth_rate_during_retirement,
-        MC_STD_DEV_DURING_RETIREMENT
+        MC_STD_DEV_DURING_RETIREMENT,
+        rand
       )))
     }
 
@@ -124,7 +183,13 @@ export function runMonteCarloSimulation(
       expenses,
       otherIncome,
       modifiedSettings,
-      lifeExpectancy
+      lifeExpectancy,
+      spouseBirthYear,
+      spouseLifeExpectancy,
+      includePlannerSsa,
+      includeSpouseSsa,
+      estimatedPlannerSsaAtStartAge,
+      estimatedSpouseSsaAtStartAge
     )
 
     const finalNetworth = projections[projections.length - 1]?.networth ?? 0
@@ -139,6 +204,9 @@ export function runMonteCarloSimulation(
     const avgAnnualReturn = allReturns.length > 0
       ? allReturns.reduce((a, b) => a + b, 0) / allReturns.length
       : baseSettings.growth_rate_before_retirement
+    const minAnnualReturn = allReturns.length > 0
+      ? Math.min(...allReturns)
+      : baseSettings.growth_rate_before_retirement
 
     results.push({
       simulation: sim + 1,
@@ -148,6 +216,7 @@ export function runMonteCarloSimulation(
       yearsWithNegativeCashFlow,
       totalTaxes,
       avgAnnualReturn,
+      minAnnualReturn,
       projections,
     })
   }
@@ -166,12 +235,13 @@ export function runMonteCarloSimulation(
     const cagr = fn > 0 && initialNetworth > 0 && years > 0
       ? Math.pow(fn / initialNetworth, 1 / years) - 1
       : null
-    return { finalNetworth: fn, cagr, avgAnnualReturn: result.avgAnnualReturn }
+    return { finalNetworth: fn, cagr, avgAnnualReturn: result.avgAnnualReturn, minAnnualReturn: result.minAnnualReturn }
   }
 
   /** Build an "average" PercentileDetail across all runs */
   const avgFinalNetworth = finalNetworths.reduce((a, b) => a + b, 0) / n
   const avgAnnualReturnAll = results.reduce((a, b) => a + b.avgAnnualReturn, 0) / results.length
+  const avgMinAnnualReturn = results.reduce((a, b) => a + b.minAnnualReturn, 0) / results.length
   const avgCagr = avgFinalNetworth > 0 && initialNetworth > 0 && projectionYears > 0
     ? Math.pow(avgFinalNetworth / initialNetworth, 1 / projectionYears) - 1
     : null
@@ -179,6 +249,7 @@ export function runMonteCarloSimulation(
     finalNetworth: avgFinalNetworth,
     cagr: avgCagr,
     avgAnnualReturn: avgAnnualReturnAll,
+    minAnnualReturn: avgMinAnnualReturn,
   }
 
   const successful = results.filter(r => r.success).length
@@ -217,10 +288,11 @@ export function runMonteCarloSimulation(
 
 /**
  * Generate random number from normal distribution using Box-Muller transform.
+ * Accepts an injectable random function so the simulation can use a seeded PRNG.
  */
-function generateNormalRandom(mean: number, stdDev: number): number {
-  const u1 = Math.random()
-  const u2 = Math.random()
+function generateNormalRandom(mean: number, stdDev: number, rand: () => number): number {
+  const u1 = rand()
+  const u2 = rand()
   const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
   return mean + z0 * stdDev
 }
@@ -282,7 +354,13 @@ export function runDeterministicStressTest(
   expenses: Expense[],
   otherIncome: OtherIncome[],
   baseSettings: CalculatorSettings,
-  lifeExpectancy: number
+  lifeExpectancy: number,
+  spouseBirthYear?: number,
+  spouseLifeExpectancy?: number,
+  includePlannerSsa: boolean = true,
+  includeSpouseSsa?: boolean,
+  estimatedPlannerSsaAtStartAge?: number,
+  estimatedSpouseSsaAtStartAge?: number
 ): DeterministicStressResult {
   const retirementAge = baseSettings.retirement_age || DEFAULT_RETIREMENT_AGE
   const initialNetworth = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
@@ -293,7 +371,13 @@ export function runDeterministicStressTest(
     expenses,
     otherIncome,
     baseSettings,
-    lifeExpectancy
+    lifeExpectancy,
+    spouseBirthYear,
+    spouseLifeExpectancy,
+    includePlannerSsa,
+    includeSpouseSsa,
+    estimatedPlannerSsaAtStartAge,
+    estimatedSpouseSsaAtStartAge
   )
 
   const retirementYears = baselineProjections.filter(p => (p.age ?? 0) >= retirementAge).length
@@ -330,7 +414,13 @@ export function runDeterministicStressTest(
       expenses,
       otherIncome,
       { ...baseSettings, retirement_return_sequence: fullSequence },
-      lifeExpectancy
+      lifeExpectancy,
+      spouseBirthYear,
+      spouseLifeExpectancy,
+      includePlannerSsa,
+      includeSpouseSsa,
+      estimatedPlannerSsaAtStartAge,
+      estimatedSpouseSsaAtStartAge
     )
 
     const run = toRun(stressProjections)

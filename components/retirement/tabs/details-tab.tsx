@@ -57,6 +57,7 @@ import {
   type CalculatorSettings,
   type ProjectionDetail
 } from '@/lib/utils/retirement-projections'
+import { buildProjectionInputs } from '@/lib/utils/projection-inputs'
 import { getStandardDeduction } from '@/lib/constants/tax-brackets'
 import {
   DEFAULT_GROWTH_RATE_PRE_RETIREMENT,
@@ -443,53 +444,68 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
         return
       }
 
-      const accounts: Account[] = (accountsData.data || []).map(acc => ({
-        id: acc.id,
-        account_name: acc.account_name || '',
-        owner: acc.owner || 'planner',
-        account_type: acc.account_type || 'Other',
-        balance: acc.balance || 0,
-        annual_contribution: acc.annual_contribution || 0,
-      }))
-
-      const expenses: Expense[] = (expensesData.data || []).map(exp => ({
-        id: exp.id,
-        expense_name: exp.expense_name || '',
-        amount_before_65: exp.amount_before_65 || 0,
-        amount_after_65: exp.amount_after_65 || 0,
-      }))
-
-      const otherIncome: OtherIncome[] = (otherIncomeData.data || []).map(inc => ({
-        id: inc.id,
-        income_name: inc.income_source || '',
-        amount: inc.annual_amount || 0,
-        start_year: inc.start_year || undefined,
-        end_year: inc.end_year || undefined,
-        inflation_adjusted: inc.inflation_adjusted || false,
-      }))
-
-      const lifeExpectancy = planData.data?.life_expectancy || DEFAULT_LIFE_EXPECTANCY
-
-      // Base settings: use same builder as saved projections so strategy comparison matches projections view
-      const currentYear = settingsData.data.current_year || new Date().getFullYear()
-      const birthYear = planData.data?.birth_year ?? currentYear - 50
-      const retirementAge = settingsData.data.retirement_age || DEFAULT_RETIREMENT_AGE
-      const yearsToRetirement = retirementAge - (currentYear - birthYear)
-      const annualExpenses = expenses.reduce((sum, exp) => {
-        const amount = retirementAge >= 65 ? (exp.amount_after_65 || 0) : (exp.amount_before_65 || 0)
-        return sum + amount
-      }, 0) * 12
-      const baseSettings = buildCalculatorSettings(
-        settingsData.data,
+      // Build all projection inputs via the shared utility — same logic as Tax Efficiency
+      // so both tabs always use identical accounts, expenses, settings, and SSA params.
+      const inputs = buildProjectionInputs(
         planData.data,
-        currentYear,
-        retirementAge,
-        yearsToRetirement,
-        annualExpenses
+        settingsData.data,
+        accountsData.data || [],
+        expensesData.data || [],
+        otherIncomeData.data || [],
       )
-      // Force default withdrawal priority for comparison (each strategy overrides type)
+
+      const { accounts, expenses, otherIncome, baseSettings: rawBaseSettings, birthYear } = inputs
+      const lifeExpectancy = inputs.lifeExpectancy
+
+      // Strategy comparison uses a level playing field: default withdrawal priority for all strategies.
+      const baseSettings = { ...rawBaseSettings }
       baseSettings.withdrawal_priority = 'default'
       baseSettings.withdrawal_secondary_priority = 'tax_optimization'
+
+      const {
+        includePlannerSsa: compIncludePlannerSsa,
+        includeSpouseSsa: compIncludeSpouseSsa,
+        estimatedPlannerSsaAtStart: compEstimatedPlannerSsaAtStart,
+        estimatedSpouseSsaAtStart: compEstimatedSpouseSsaAtStart,
+      } = inputs
+
+      // Derive plan-based defaults for the fixed strategies so the comparison table shows
+      // meaningful numbers rather than hardcoded 4% / $50k which may bear no relation to
+      // the plan's actual expenses or portfolio size.
+      //
+      // Fixed Percentage: derive the actual withdrawal rate this plan needs at retirement.
+      //   - Estimate portfolio at retirement = current balances grown at pre-ret rate + contributions
+      //   - Rate = inflation-adjusted first-year expenses / estimated portfolio
+      const planFirstYearExpenses = inputs.baseSettings.annual_retirement_expenses || 0
+      const planInflationRate = inputs.baseSettings.inflation_rate || 0.03
+      const planCurrentBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0)
+      const planYearsToRet = Math.max(0, inputs.baseSettings.years_to_retirement || 0)
+      const planPreGrowth = inputs.baseSettings.growth_rate_before_retirement || 0.07
+      // annual_contribution is already an annual figure — do NOT multiply by 12
+      const planAnnualContrib = accounts.reduce((s, a) => s + (a.annual_contribution || 0), 0)
+      const planPortfolioEst = planCurrentBalance * Math.pow(1 + planPreGrowth, planYearsToRet)
+        + (planPreGrowth > 0
+          ? planAnnualContrib * ((Math.pow(1 + planPreGrowth, planYearsToRet) - 1) / planPreGrowth)
+          : planAnnualContrib * planYearsToRet)
+      // Round to one decimal place; floor at 1% to avoid nonsensical 0%
+      const planFixedPct = planPortfolioEst > 0
+        ? Math.max(1, Math.round((planFirstYearExpenses / planPortfolioEst) * 1000) / 10)
+        : SAFE_WITHDRAWAL_RATE * 100
+      // Fixed Dollar (Inflation-Indexed): the base = first-year retirement expenses rounded to
+      // nearest $1k.  The engine inflates this amount each year, so starting at first-year
+      // expenses means withdrawals track expense growth and produce zero inflation-driven shortfalls.
+      const planFixedDollar = Math.max(1000, Math.round(planFirstYearExpenses / 1000) * 1000)
+
+      // Update strategyParams so the UI input fields reflect the plan-based defaults.
+      // Only override if the user hasn't already set a custom (non-default) value.
+      setStrategyParams(prev => ({
+        ...prev,
+        fixed_percentage_rate: prev.fixed_percentage_rate === SAFE_WITHDRAWAL_RATE * 100 ? planFixedPct : prev.fixed_percentage_rate,
+        fixed_dollar_amount: prev.fixed_dollar_amount === DEFAULT_FIXED_DOLLAR_WITHDRAWAL ? planFixedDollar : prev.fixed_dollar_amount,
+      }))
+      // Use plan-based values directly for this comparison run
+      const compFixedPct = planFixedPct
+      const compFixedDollar = planFixedDollar
 
       // Define all strategies to compare
       const strategiesToCompare: Array<{
@@ -508,21 +524,21 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
           settings: { ...baseSettings, withdrawal_strategy_type: 'amount_based_4_percent' },
         },
         {
-          name: `Fixed Percentage (${strategyParams.fixed_percentage_rate}%)`,
+          name: `Fixed Percentage (${compFixedPct.toFixed(1)}%)`,
           type: 'amount_based_fixed_percentage',
           settings: {
             ...baseSettings,
             withdrawal_strategy_type: 'amount_based_fixed_percentage',
-            fixed_percentage_rate: strategyParams.fixed_percentage_rate / 100,
+            fixed_percentage_rate: compFixedPct / 100,
           },
         },
         {
-          name: `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })})`,
+          name: `Fixed Dollar ($${compFixedDollar.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year + inflation)`,
           type: 'amount_based_fixed_dollar',
           settings: {
             ...baseSettings,
             withdrawal_strategy_type: 'amount_based_fixed_dollar',
-            fixed_dollar_amount: strategyParams.fixed_dollar_amount,
+            fixed_dollar_amount: compFixedDollar,
           },
         },
         {
@@ -575,36 +591,6 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
           settings: { ...baseSettings, withdrawal_strategy_type: 'tax_qcd' },
         },
       ]
-
-      // Calculate estimated SSA amounts at start age for strategy comparison (same logic as main projections / saved data)
-      const compIncludePlannerSsa = settingsData.data?.planner_ssa_income !== undefined ? settingsData.data.planner_ssa_income : true
-      
-      // Automatically include spouse SSA if:
-      // 1. User explicitly set it to true, OR
-      // 2. Plan includes spouse (include_spouse = true), OR
-      // 3. Filing status is "Married Filing Jointly"
-      const compExplicitSpouseSsa = (settingsData.data?.spouse_ssa_income !== undefined ? settingsData.data.spouse_ssa_income : false)
-      const compHasSpouse = planData.data.include_spouse || false
-      const compIsMarriedFilingJointly = planData.data.filing_status === 'Married Filing Jointly'
-      const compIncludeSpouseSsa = compExplicitSpouseSsa || compHasSpouse || compIsMarriedFilingJointly
-
-      const compEstimatedIncomeForSsa = Number(settingsData.data?.estimated_ssa_annual_income) || 0
-      const compPlannerBenefit = settingsData.data?.planner_ssa_annual_benefit != null
-        ? Number(settingsData.data.planner_ssa_annual_benefit)
-        : (compIncludePlannerSsa ? (compEstimatedIncomeForSsa > 0 ? calculateEstimatedSSA(compEstimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
-      const compSpouseBenefit = settingsData.data?.spouse_ssa_annual_benefit != null
-        ? Number(settingsData.data.spouse_ssa_annual_benefit)
-        : (compIncludeSpouseSsa ? (compEstimatedIncomeForSsa > 0 ? calculateEstimatedSSA(compEstimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
-      const compBaseEstimatedPlannerSsa = compIncludePlannerSsa ? compPlannerBenefit : 0
-      const compBaseEstimatedSpouseSsa = compIncludeSpouseSsa ? compSpouseBenefit : 0
-
-      const compSsaStartAge = baseSettings.ssa_start_age || baseSettings.retirement_age || DEFAULT_SSA_START_AGE
-      const compCurrentAge = currentYear - birthYear
-      const compYearsToSsaStart = Math.max(0, compSsaStartAge - compCurrentAge)
-      const compInflationToSsaStart = Math.pow(1 + baseSettings.inflation_rate, compYearsToSsaStart)
-
-      const compEstimatedPlannerSsaAtStart = compIncludePlannerSsa ? compBaseEstimatedPlannerSsa * compInflationToSsaStart : undefined
-      const compEstimatedSpouseSsaAtStart = compIncludeSpouseSsa ? compBaseEstimatedSpouseSsa * compInflationToSsaStart : undefined
 
       // Calculate projections for each strategy
       const comparisonResults = strategiesToCompare.map(strategy => {
@@ -914,33 +900,21 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
       }
       setSettings(settings)
 
-      // Calculate estimated SSA amounts at start age
-      const includePlannerSsa = settingsDataObj?.planner_ssa_income !== undefined ? settingsDataObj.planner_ssa_income : true
-      
-      const explicitSpouseSsa = (settingsDataObj?.spouse_ssa_income !== undefined ? settingsDataObj.spouse_ssa_income : false)
-      const hasSpouse = planDataObj.include_spouse || false
-      const isMarriedFilingJointly = planDataObj.filing_status === 'Married Filing Jointly'
-      const includeSpouseSsa = explicitSpouseSsa || hasSpouse || isMarriedFilingJointly
-
-      const estimatedIncomeForSsa = Number(settingsDataObj?.estimated_ssa_annual_income) || 0
-      const plannerBenefit = settingsDataObj?.planner_ssa_annual_benefit != null
-        ? Number(settingsDataObj.planner_ssa_annual_benefit)
-        : (includePlannerSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, true) : DEFAULT_SSA_ANNUAL_BENEFIT) : 0)
-      const spouseBenefit = settingsDataObj?.spouse_ssa_annual_benefit != null
-        ? Number(settingsDataObj.spouse_ssa_annual_benefit)
-        : (includeSpouseSsa ? (estimatedIncomeForSsa > 0 ? calculateEstimatedSSA(estimatedIncomeForSsa, false) : DEFAULT_SPOUSE_SSA_BENEFIT) : 0)
-      const baseEstimatedPlannerSsa = includePlannerSsa ? plannerBenefit : 0
-      const baseEstimatedSpouseSsa = includeSpouseSsa ? spouseBenefit : 0
-
-      // Adjust for inflation from current year to SSA start age
-      const ssaStartAge = settings.ssa_start_age || settings.retirement_age || DEFAULT_SSA_START_AGE
-      const currentAge = currentYear - planDataObj.birth_year
-      const yearsToSsaStart = Math.max(0, ssaStartAge - currentAge)
-      const inflationToSsaStart = Math.pow(1 + settings.inflation_rate, yearsToSsaStart)
-      
-      // Estimated SSA at start age (inflation-adjusted from today to start age)
-      const estimatedPlannerSsaAtStart = includePlannerSsa ? baseEstimatedPlannerSsa * inflationToSsaStart : undefined
-      const estimatedSpouseSsaAtStart = includeSpouseSsa ? baseEstimatedSpouseSsa * inflationToSsaStart : undefined
+      // Use buildProjectionInputs to derive all SSA parameters so this code path
+      // is always in sync with compareAllStrategies and projection-inputs.ts.
+      // This fixes the spouse inflation horizon mismatch (bug #1A / #2).
+      const {
+        includePlannerSsa,
+        includeSpouseSsa,
+        estimatedPlannerSsaAtStart,
+        estimatedSpouseSsaAtStart,
+      } = buildProjectionInputs(
+        planDataObj,
+        settingsDataObj,
+        Array.isArray(accounts) ? accounts : [],
+        Array.isArray(expenses) ? expenses : [],
+        Array.isArray(otherIncome) ? otherIncome : [],
+      )
 
       // Calculate projections - use life expectancy parameter
       const calculatedProjections = calculateRetirementProjections(
@@ -1277,8 +1251,8 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
           const getStrategyName = () => {
             if (modelingStrategyType === 'amount_based_expense_coverage') return 'Expense Based - Cover Expenses and Tax'
             if (modelingStrategyType === 'amount_based_4_percent') return '4% Rule'
-            if (modelingStrategyType === 'amount_based_fixed_percentage') return `Fixed Percentage (${strategyParams.fixed_percentage_rate}%)`
-            if (modelingStrategyType === 'amount_based_fixed_dollar') return `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })})`
+            if (modelingStrategyType === 'amount_based_fixed_percentage') return `Fixed Percentage (${strategyParams.fixed_percentage_rate.toFixed(1)}%)`
+            if (modelingStrategyType === 'amount_based_fixed_dollar') return `Fixed Dollar ($${strategyParams.fixed_dollar_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}/year + inflation)`
             if (modelingStrategyType === 'amount_based_swp') return 'Systematic Withdrawal Plan (Earnings Only)'
             if (modelingStrategyType === 'sequence_proportional') return 'Proportional Withdrawals'
             if (modelingStrategyType === 'sequence_bracket_topping') return `Bracket-Topping (${strategyParams.bracket_topping_threshold}% bracket)`
@@ -2723,9 +2697,8 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                     })()}
                     {visibleColumns.gapExcess && (() => {
                       let gapExcess = proj.gap_excess || 0
-                      // Fix negative zero: ensure 0 is always displayed as 0, not -0
-                      // Use Math.abs to normalize -0 to 0, then check if result is 0
-                      const normalizedValue = Math.abs(gapExcess) < 0.0001 ? 0 : gapExcess
+                      // Suppress sub-dollar rounding artifacts (e.g. -$0.99 from floating-point arithmetic)
+                      const normalizedValue = Math.abs(gapExcess) < 1 ? 0 : gapExcess
                       // Determine color: green if >0, red if <0, black if =0
                       const colorClass = showIncome 
                         ? (normalizedValue > 0 ? 'text-green-700' : normalizedValue < 0 ? 'text-red-700' : 'text-gray-900')
@@ -3314,7 +3287,7 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                       step="0.1"
                       min="0"
                       max="20"
-                      value={strategyParams.fixed_percentage_rate}
+                      value={parseFloat(strategyParams.fixed_percentage_rate.toFixed(1))}
                       onChange={(e) => setStrategyParams({ ...strategyParams, fixed_percentage_rate: parseFloat(e.target.value) || 4 })}
                       className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                     />
@@ -3438,7 +3411,7 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
             {!comparingStrategies && strategyComparison.length > 0 && (
               <>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200 border-collapse">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700 sticky left-0 bg-gray-50 z-10">
@@ -3451,7 +3424,7 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                           Longevity
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
-                          Total Tax
+                          Total Tax (simulated)
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-700">
                           Avg Annual Tax
@@ -3514,7 +3487,7 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
 
                         return (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="sticky left-0 bg-inherit px-4 py-3 text-sm font-medium text-gray-900 z-10">
+                            <td className="sticky left-0 bg-inherit px-4 py-3 text-sm font-medium text-gray-900 z-10 border border-gray-100">
                               <div className="flex items-center gap-1.5">
                                 <span>{strategy.strategyName}</span>
                                 <TooltipProvider>
@@ -3546,31 +3519,31 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                                 </TooltipProvider>
                               </div>
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allLegacySame && strategy.legacyValue === bestLegacy ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allLegacySame && strategy.legacyValue === bestLegacy ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.legacyValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${isBestLongevity ? 'font-bold text-green-600 bg-green-50' : strategy.longevity < 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${isBestLongevity ? 'font-bold text-green-600 bg-green-50' : strategy.longevity < 0 ? 'text-red-600' : 'text-gray-700'}`}>
                               {longevityDisplay}
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allTaxSame && strategy.totalTax === lowestTax ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allTaxSame && strategy.totalTax === lowestTax ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.totalTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allAvgTaxSame && strategy.avgAnnualTax === lowestAvgTax ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allAvgTaxSame && strategy.avgAnnualTax === lowestAvgTax ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.avgAnnualTax.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allTaxEfficiencySame && strategy.taxEfficiency === bestTaxEfficiency ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allTaxEfficiencySame && strategy.taxEfficiency === bestTaxEfficiency ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               {strategy.taxEfficiency.toFixed(2)}%
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allNegativeYearsSame && strategy.negativeYears === lowestNegativeYears ? 'font-bold text-green-600 bg-green-50' : strategy.negativeYears > 0 ? 'text-red-600' : 'text-gray-700'}`}>
-                              {strategy.negativeYears} ({strategy.negativeYearsPercentage.toFixed(2)}%)
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allNegativeYearsSame && strategy.negativeYears === lowestNegativeYears ? 'font-bold text-green-600 bg-green-50' : strategy.negativeYears > 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                              {strategy.negativeYears} ({strategy.negativeYearsPercentage.toFixed(0)}%)
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allLifetimeIncomeSame && strategy.lifetimeIncome === highestLifetimeIncome ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allLifetimeIncomeSame && strategy.lifetimeIncome === highestLifetimeIncome ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.lifetimeIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allLifetimeExpensesSame && strategy.lifetimeExpenses === lowestLifetimeExpenses ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allLifetimeExpensesSame && strategy.lifetimeExpenses === lowestLifetimeExpenses ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.lifetimeExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </td>
-                            <td className={`px-4 py-3 text-right text-sm ${!allWithdrawalsSame && strategy.totalWithdrawals === lowestWithdrawals ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
+                            <td className={`px-4 py-3 text-right text-sm border border-gray-100 ${!allWithdrawalsSame && strategy.totalWithdrawals === lowestWithdrawals ? 'font-bold text-green-600 bg-green-50' : 'text-gray-700'}`}>
                               ${strategy.totalWithdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </td>
                           </tr>
@@ -3581,6 +3554,27 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                 </div>
                 <p className="mt-4 text-xs text-gray-600">
                   <strong>Note:</strong> Best values in each column are highlighted in green. "Full" means assets last past life expectancy; "Short X Yrs" means assets run out X years before life expectancy. Negative years indicate years with shortfalls.
+                </p>
+                {(() => {
+                  // Detect whether the first 4 strategies (expense-based, 4%, fixed%, fixed$) are identical.
+                  // This happens when each strategy's withdrawal target is below expenses — the engine tops up
+                  // to cover living costs regardless, collapsing all strategies to the same outcome.
+                  const first4 = strategyComparison.slice(0, 4)
+                  const allSame = first4.length === 4 && first4.every(s =>
+                    s.legacyValue === first4[0].legacyValue &&
+                    s.totalTax === first4[0].totalTax &&
+                    s.totalWithdrawals === first4[0].totalWithdrawals
+                  )
+                  return allSame ? (
+                    <p className="mt-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                      <strong>ℹ️ Why do the first 4 strategies show identical numbers?</strong> Your annual expenses (${strategyComparison[0]?.lifetimeExpenses
+                        ? Math.round(strategyComparison[0].lifetimeExpenses / Math.max(1, strategyComparison[0].negativeYears + 25)).toLocaleString()
+                        : '...'}) exceed each strategy&rsquo;s withdrawal target — so the engine withdraws enough to cover expenses regardless of strategy choice. To see meaningful differences, use a strategy whose target is above your expenses (e.g., SWP Earnings Only or increase the Fixed Dollar amount), or reduce expenses.
+                    </p>
+                  ) : null
+                })()}
+                <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  <strong>⚠️ QCDs require eligibility:</strong> Qualified Charitable Distributions are only available after age 70½, only from traditional IRA accounts, and only if you plan to give to charity. The projected advantage (legacy value, lower taxes) is conditional on redirecting RMDs to charity — not a general strategy for all investors.
                 </p>
               </>
             )}

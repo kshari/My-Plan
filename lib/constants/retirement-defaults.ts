@@ -84,9 +84,10 @@ export const SCORE_MEDIUM_RISK_THRESHOLD = 75
 export const SCORE_AT_RISK_THRESHOLD = 50
 
 // ── Analysis Score Weights (must sum to 1.0) ──
-export const SCORE_WEIGHT_LONGEVITY = 0.50
-export const SCORE_WEIGHT_CASHFLOW = 0.15
-export const SCORE_WEIGHT_TAX_EFFICIENCY = 0.15
+export const SCORE_WEIGHT_LONGEVITY = 0.40
+export const SCORE_WEIGHT_MONTE_CARLO = 0.20
+export const SCORE_WEIGHT_CASHFLOW = 0.10
+export const SCORE_WEIGHT_TAX_EFFICIENCY = 0.10
 export const SCORE_WEIGHT_INFLATION = 0.10
 export const SCORE_WEIGHT_MEDICAL = 0.10
 export const SCORE_WEIGHT_SCENARIO_LONGEVITY = 0.50

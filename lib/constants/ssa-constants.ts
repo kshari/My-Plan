@@ -52,12 +52,21 @@ export const SSA_COLA_RATE = 0.025
 
 /**
  * Calculate the SSA claiming multiplier for a given start age.
- * < FRA → reduced; >= FRA → 1.0 (delayed credits not modeled here for simplicity).
+ * < FRA → reduced using the correct two-tier monthly formula:
+ *   - First 36 months before FRA: 5/9 of 1% per month (≈ 6.667%/yr)
+ *   - Months 37–60 before FRA:    5/12 of 1% per month (≈ 5.000%/yr)
+ * >= FRA → 1.0 (delayed credits not modeled here; see SSA Withdrawal Analysis tab).
+ *
+ * Examples:
+ *   age 65 (24 months before FRA): 24 × 5/900 = 13.33% reduction → 0.8667
+ *   age 63 (48 months before FRA): 36 × 5/900 + 12 × 5/1200 = 20% + 5% = 25% → 0.7500
+ *   age 62 (60 months before FRA): 36 × 5/900 + 24 × 5/1200 = 20% + 10% = 30% → 0.7000 (floor)
  */
 export function ssaClaimingMultiplier(startAge: number): number {
   if (startAge >= SSA_FULL_RETIREMENT_AGE) return 1.0
-  return Math.max(
-    SSA_MIN_CLAIMING_MULTIPLIER,
-    1.0 - (SSA_FULL_RETIREMENT_AGE - startAge) * SSA_EARLY_CLAIMING_REDUCTION_PER_YEAR
-  )
+  const monthsBefore = Math.round((SSA_FULL_RETIREMENT_AGE - startAge) * 12)
+  const tier1Months = Math.min(monthsBefore, 36)
+  const tier2Months = Math.max(0, monthsBefore - 36)
+  const reduction = (tier1Months * 5) / 900 + (tier2Months * 5) / 1200
+  return Math.max(SSA_MIN_CLAIMING_MULTIPLIER, 1.0 - reduction)
 }
