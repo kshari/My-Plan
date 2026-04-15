@@ -47,8 +47,8 @@ function deriveSeed(
   baseSettings: CalculatorSettings
 ): number {
   const retirementAge     = baseSettings.retirement_age     || 65
-  const preRetirementRate = baseSettings.pre_retirement_growth_rate  || 0.07
-  const inRetirementRate  = baseSettings.in_retirement_growth_rate   || 0.05
+  const preRetirementRate = baseSettings.growth_rate_before_retirement  || 0.07
+  const inRetirementRate  = baseSettings.growth_rate_during_retirement   || 0.05
   // Pack several floats into an integer hash (djb2-style)
   let h = 5381
   const vals = [birthYear, lifeExpectancy, Math.round(initialNetworth / 1000), retirementAge,
