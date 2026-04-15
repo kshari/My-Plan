@@ -1001,7 +1001,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         const lifeExp = results && planDataForTooltip?.life_expectancy != null ? planDataForTooltip.life_expectancy : DEFAULT_LIFE_EXPECTANCY
         const yrsToRetire = results && settingsForTooltip ? settingsForTooltip.years_to_retirement : Math.max(0, retireAt - age)
         const ssaStart = results && settingsForTooltip?.ssa_start_age != null ? settingsForTooltip.ssa_start_age : retireAt
-        const st = settingsForTooltip as (CalculatorSettings & { planner_ssa_income?: boolean; spouse_ssa_income?: boolean; planner_ssa_annual_benefit?: number; spouse_ssa_annual_benefit?: number; pre_medicare_annual_premium?: number; post_medicare_annual_premium?: number }) | null
+        const st = settingsForTooltip as (CalculatorSettings & { planner_ssa_income?: boolean; spouse_ssa_income?: boolean; planner_ssa_annual_benefit?: number; spouse_ssa_annual_benefit?: number; estimated_ssa_annual_income?: number; pre_medicare_annual_premium?: number; post_medicare_annual_premium?: number }) | null
         const plannerSsa = st?.planner_ssa_income ?? true
         // Mirror the same auto-include logic used in loadAndCalculateSnapshot (lines 397-401).
         // spouse_ssa_income in rp_calculator_settings may be stale (e.g. was false when plan was
