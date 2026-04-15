@@ -13,15 +13,19 @@ export async function GET(request: Request, { params }: RouteParams) {
   const { searchParams } = new URL(request.url)
   const fiscalYearId = searchParams.get("fiscal_year_id")
 
-  let query = supabase
+  let baseQuery = supabase
     .from("pt_k1_allocations")
     .select("*, member:member_id(display_name, email), fiscal_year:fiscal_year_id(label, tax_year, start_date, end_date)")
     .eq("entity_id", entityId)
     .eq("member_id", memberId)
 
-  if (fiscalYearId) query = query.eq("fiscal_year_id", fiscalYearId).single()
+  if (fiscalYearId) {
+    const { data, error } = await baseQuery.eq("fiscal_year_id", fiscalYearId).single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ k1: data })
+  }
 
-  const { data, error } = await query
+  const { data, error } = await baseQuery
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ k1: data })
 }
