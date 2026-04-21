@@ -224,12 +224,12 @@ export default function PropertyList({ properties, loads = [], initialLoadFilter
   const { config: scoringConfig } = useScoringConfig()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('Available')
+  const [statusFilter, setStatusFilter] = useState<string>('All')
   const [loadFilter, setLoadFilter] = useState(initialLoadFilter ?? '')
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showFilters, setShowFilters] = useState(false)
-  const [showAllColumns, setShowAllColumns] = useState(false)
+  const [columnView, setColumnView] = useState<'snapshot' | 'cashflow' | 'returns' | 'all'>('snapshot')
   const [compareIds, setCompareIds] = useState<Set<number>>(new Set())
 
   const types = useMemo(() => [...new Set(properties.map((p) => p.type).filter(Boolean) as string[])], [properties])
@@ -349,15 +349,23 @@ export default function PropertyList({ properties, loads = [], initialLoadFilter
           )}
         </Button>
 
-        <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
-          <input
-            type="checkbox"
-            checked={showAllColumns}
-            onChange={(e) => setShowAllColumns(e.target.checked)}
-            className="rounded border-input"
-          />
-          Show all columns
-        </label>
+        <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 gap-0.5">
+          {(['snapshot', 'cashflow', 'returns', 'all'] as const).map(v => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setColumnView(v)}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                columnView === v
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {v === 'snapshot' ? 'Snapshot' : v === 'cashflow' ? 'Cash Flow' : v === 'returns' ? 'Returns' : 'All'}
+            </button>
+          ))}
+        </div>
 
         <select
           value={`${sortKey}-${sortDir}`}
@@ -476,7 +484,7 @@ export default function PropertyList({ properties, loads = [], initialLoadFilter
       ) : (
         <TableView
           properties={filtered}
-          showAllColumns={showAllColumns}
+          columnView={columnView}
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={handleSort}
@@ -542,7 +550,7 @@ function SortableHeader({
 
 function TableView({
   properties,
-  showAllColumns,
+  columnView,
   sortKey,
   sortDir,
   onSort,
@@ -553,7 +561,7 @@ function TableView({
   compareBase = '/apps/property/compare',
 }: {
   properties: Property[]
-  showAllColumns: boolean
+  columnView: 'snapshot' | 'cashflow' | 'returns' | 'all'
   sortKey: SortKey
   sortDir: SortDir
   onSort: (key: SortKey) => void
@@ -563,6 +571,22 @@ function TableView({
   linkPrefix?: string
   compareBase?: string
 }) {
+  const showAllColumns = columnView === 'all'
+  // Per-view column visibility
+  const show = (col: 'score' | 'type' | 'rent' | 'cashflow' | 'caprate' | 'roi' | 'onepct' | 'grm' | 'noi') => {
+    switch (col) {
+      case 'score':    return columnView === 'snapshot' || columnView === 'all'
+      case 'type':     return columnView === 'snapshot' || columnView === 'all'
+      case 'rent':     return columnView === 'cashflow' || columnView === 'all'
+      case 'cashflow': return columnView === 'snapshot' || columnView === 'cashflow' || columnView === 'all'
+      case 'caprate':  return columnView === 'snapshot' || columnView === 'cashflow' || columnView === 'returns' || columnView === 'all'
+      case 'roi':      return columnView === 'snapshot' || columnView === 'returns' || columnView === 'all'
+      case 'onepct':   return columnView === 'returns' || columnView === 'all'
+      case 'grm':      return columnView === 'returns' || columnView === 'all'
+      case 'noi':      return columnView === 'cashflow' || columnView === 'all'
+      default:         return true
+    }
+  }
   const fmt = (v: number) => `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
   return (
     <div className="rounded-xl border overflow-hidden">
@@ -580,7 +604,7 @@ function TableView({
                 onSort={onSort}
               />
             </TableHead>
-            <TableHead className="py-3 text-center">
+            <TableHead className={cn('py-3 text-center', !show('score') && 'hidden')}>
               <SortableHeader
                 label="Score"
                 formulaKey="score"
@@ -591,7 +615,7 @@ function TableView({
                 align="right"
               />
             </TableHead>
-            <TableHead className="py-3">Type</TableHead>
+            <TableHead className={cn('py-3', !show('type') && 'hidden')}>Type</TableHead>
             <TableHead className="py-3 text-right">
               <SortableHeader
                 label="Price"
@@ -603,7 +627,7 @@ function TableView({
                 align="right"
               />
             </TableHead>
-            <TableHead className="py-3 text-right">
+            <TableHead className={cn('py-3 text-right', !show('rent') && 'hidden')}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="flex items-center justify-end text-xs font-semibold uppercase tracking-wider cursor-help">Rent /mo</span>
@@ -613,7 +637,7 @@ function TableView({
                 </TooltipContent>
               </Tooltip>
             </TableHead>
-            <TableHead className="py-3 text-right">
+            <TableHead className={cn('py-3 text-right', !show('cashflow') && 'hidden')}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="flex items-center gap-1.5 justify-end text-xs font-semibold uppercase tracking-wider cursor-help">
@@ -625,7 +649,7 @@ function TableView({
                 </TooltipContent>
               </Tooltip>
             </TableHead>
-            <TableHead className="py-3 text-right">
+            <TableHead className={cn('py-3 text-right', !show('caprate') && 'hidden')}>
               <SortableHeader
                 label="Cap Rate"
                 formulaKey="capRate"
@@ -636,7 +660,7 @@ function TableView({
                 align="right"
               />
             </TableHead>
-            <TableHead className="py-3 text-right">
+            <TableHead className={cn('py-3 text-right', !show('roi') && 'hidden')}>
               <SortableHeader
                 label="ROI"
                 formulaKey="roi"
@@ -647,7 +671,7 @@ function TableView({
                 align="right"
               />
             </TableHead>
-            <TableHead className="py-3 text-right">
+            <TableHead className={cn('py-3 text-right', !show('onepct') && 'hidden')}>
               <SortableHeader
                 label="1% Rule"
                 formulaKey="onePercent"
@@ -658,7 +682,7 @@ function TableView({
                 align="right"
               />
             </TableHead>
-            <TableHead className="py-3 text-right">
+            <TableHead className={cn('py-3 text-right', !show('grm') && 'hidden')}>
               <SortableHeader
                 label="GRM"
                 formulaKey="grm"
@@ -669,41 +693,7 @@ function TableView({
                 align="right"
               />
             </TableHead>
-            {/* Extended columns */}
-            <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
-              <SortableHeader
-                label="Exp Ratio"
-                formulaKey="expenseRatio"
-                currentKey="expenseRatio"
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSort={onSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
-              <SortableHeader
-                label="$/SqFt"
-                formulaKey="pricePerSqft"
-                currentKey="pricePerSqft"
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSort={onSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
-              <SortableHeader
-                label="Rent/SqFt"
-                formulaKey="rentPerSqft"
-                currentKey="rentPerSqft"
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSort={onSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
+            <TableHead className={cn('py-3 text-right', !show('noi') && 'hidden')}>
               <SortableHeader
                 label="NOI /yr"
                 formulaKey="estNoi"
@@ -714,45 +704,35 @@ function TableView({
                 align="right"
               />
             </TableHead>
+            {/* Extended columns (All view only) */}
             <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
-              <SortableHeader
-                label="Down Pmt"
-                formulaKey="downPayment"
-                currentKey="downPayment"
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSort={onSort}
-                align="right"
-              />
+              <SortableHeader label="Exp Ratio" formulaKey="expenseRatio" currentKey="expenseRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="right" />
+            </TableHead>
+            <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
+              <SortableHeader label="$/SqFt" formulaKey="pricePerSqft" currentKey="pricePerSqft" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="right" />
+            </TableHead>
+            <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
+              <SortableHeader label="Rent/SqFt" formulaKey="rentPerSqft" currentKey="rentPerSqft" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="right" />
+            </TableHead>
+            <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
+              <SortableHeader label="Down Pmt" formulaKey="downPayment" currentKey="downPayment" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="right" />
             </TableHead>
             <TableHead className={cn('py-3', !showAllColumns && 'hidden')}>Community</TableHead>
             <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
-              <button
-                type="button"
-                onClick={() => onSort('bedrooms')}
-                className="flex items-center gap-1.5 w-full justify-end text-xs font-semibold uppercase tracking-wider hover:text-foreground"
-              >
+              <button type="button" onClick={() => onSort('bedrooms')} className="flex items-center gap-1.5 w-full justify-end text-xs font-semibold uppercase tracking-wider hover:text-foreground">
                 Beds
                 {sortKey === 'bedrooms' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
               </button>
             </TableHead>
             <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>Baths</TableHead>
             <TableHead className={cn('py-3 text-right', !showAllColumns && 'hidden')}>
-              <button
-                type="button"
-                onClick={() => onSort('sqft')}
-                className="flex items-center gap-1.5 w-full justify-end text-xs font-semibold uppercase tracking-wider hover:text-foreground"
-              >
+              <button type="button" onClick={() => onSort('sqft')} className="flex items-center gap-1.5 w-full justify-end text-xs font-semibold uppercase tracking-wider hover:text-foreground">
                 Sq Ft
                 {sortKey === 'sqft' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
               </button>
             </TableHead>
             <TableHead className={cn('py-3', !showAllColumns && 'hidden')}>
-              <button
-                type="button"
-                onClick={() => onSort('date')}
-                className="flex items-center gap-1.5 w-full text-xs font-semibold uppercase tracking-wider hover:text-foreground"
-              >
+              <button type="button" onClick={() => onSort('date')} className="flex items-center gap-1.5 w-full text-xs font-semibold uppercase tracking-wider hover:text-foreground">
                 Date
                 {sortKey === 'date' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
               </button>
@@ -787,7 +767,7 @@ function TableView({
                     {property.address || 'No address'}
                   </Link>
                 </TableCell>
-                <TableCell className="py-2 text-center">
+                <TableCell className={cn('py-2 text-center', !show('score') && 'hidden')}>
                   {m.score != null ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -801,12 +781,12 @@ function TableView({
                     </Tooltip>
                   ) : '—'}
                 </TableCell>
-                <TableCell className="py-2">{property.type ?? '—'}</TableCell>
+                <TableCell className={cn('py-2', !show('type') && 'hidden')}>{property.type ?? '—'}</TableCell>
                 <TableCell className="py-2 text-right tabular-nums">{m.askingPrice > 0 ? fmt(m.askingPrice) : '—'}</TableCell>
-                <TableCell className="py-2 text-right tabular-nums">
+                <TableCell className={cn('py-2 text-right tabular-nums', !show('rent') && 'hidden')}>
                   {m.monthlyRent > 0 ? fmt(m.monthlyRent) : m.monthlyGross > 0 ? fmt(m.monthlyGross) : '—'}
                 </TableCell>
-                <TableCell className={cn('py-2 text-right tabular-nums font-medium', m.estMonthlyCashFlow > 0 ? 'text-emerald-600 dark:text-emerald-400' : m.estMonthlyCashFlow < 0 ? 'text-destructive' : '')}>
+                <TableCell className={cn('py-2 text-right tabular-nums font-medium', !show('cashflow') && 'hidden', m.estMonthlyCashFlow > 0 ? 'text-emerald-600 dark:text-emerald-400' : m.estMonthlyCashFlow < 0 ? 'text-destructive' : '')}>
                   {m.estMonthlyCashFlow !== 0 ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -818,10 +798,10 @@ function TableView({
                     </Tooltip>
                   ) : '—'}
                 </TableCell>
-                <TableCell className={cn('py-2 text-right tabular-nums font-medium', m.capRate > 0 ? capRateColor(m.capRate) : '')}>
+                <TableCell className={cn('py-2 text-right tabular-nums font-medium', !show('caprate') && 'hidden', m.capRate > 0 ? capRateColor(m.capRate) : '')}>
                   {m.capRate > 0 ? `${m.capRate.toFixed(2)}%` : '—'}
                 </TableCell>
-                <TableCell className={cn('py-2 text-right tabular-nums font-medium', m.roi != null ? cocrColor(m.roi) : '')}>
+                <TableCell className={cn('py-2 text-right tabular-nums font-medium', !show('roi') && 'hidden', m.roi != null ? cocrColor(m.roi) : '')}>
                   {m.roi != null ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -833,7 +813,7 @@ function TableView({
                     </Tooltip>
                   ) : '—'}
                 </TableCell>
-                <TableCell className="py-2 text-right tabular-nums">
+                <TableCell className={cn('py-2 text-right tabular-nums', !show('onepct') && 'hidden')}>
                   {m.onePercentRatio != null ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -847,7 +827,7 @@ function TableView({
                     </Tooltip>
                   ) : '—'}
                 </TableCell>
-                <TableCell className="py-2 text-right tabular-nums">
+                <TableCell className={cn('py-2 text-right tabular-nums', !show('grm') && 'hidden')}>
                   {m.grm != null ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -861,7 +841,18 @@ function TableView({
                     </Tooltip>
                   ) : '—'}
                 </TableCell>
-                {/* Extended columns */}
+                <TableCell className={cn('py-2 text-right tabular-nums', !show('noi') && 'hidden', m.estAnnualNoi < 0 ? 'text-destructive' : '')}>
+                  {m.estAnnualNoi !== 0 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help border-b border-dotted border-muted-foreground/50">{fmt(m.estAnnualNoi)}</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-sm whitespace-pre-line text-xs">
+                        {buildNoiTooltip(property, m)}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : '—'}
+                </TableCell>
                 <TableCell className={cn('py-2 text-right tabular-nums', !showAllColumns && 'hidden')}>
                   {m.expenseRatio != null ? (
                     <span className={m.expenseRatio > 60 ? 'text-destructive' : m.expenseRatio > 40 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
@@ -874,18 +865,6 @@ function TableView({
                 </TableCell>
                 <TableCell className={cn('py-2 text-right tabular-nums', !showAllColumns && 'hidden')}>
                   {m.rentPerSqft != null ? `$${m.rentPerSqft.toFixed(2)}` : '—'}
-                </TableCell>
-                <TableCell className={cn('py-2 text-right tabular-nums', m.estAnnualNoi < 0 ? 'text-destructive' : '', !showAllColumns && 'hidden')}>
-                  {m.estAnnualNoi !== 0 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="cursor-help border-b border-dotted border-muted-foreground/50">{fmt(m.estAnnualNoi)}</span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-sm whitespace-pre-line text-xs">
-                        {buildNoiTooltip(property, m)}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : '—'}
                 </TableCell>
                 <TableCell className={cn('py-2 text-right tabular-nums', !showAllColumns && 'hidden')}>{m.downPayment > 0 ? fmt(m.downPayment) : '—'}</TableCell>
                 <TableCell className={cn('py-2', !showAllColumns && 'hidden')}>{property.community ?? '—'}</TableCell>

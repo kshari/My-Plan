@@ -31,8 +31,6 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
   const [hasHOA, setHasHOA] = useState<boolean | null>(initialData['Has HOA'] ?? null)
   const [swimmingPool, setSwimmingPool] = useState<boolean | null>(initialData.swimming_pool ?? null)
   const [askingPrice, setAskingPrice] = useState(initialData['Asking Price']?.toString() || '')
-  const [grossIncome, setGrossIncome] = useState(initialData['Gross Income']?.toString() || '')
-  const [operatingExpenses, setOperatingExpenses] = useState(initialData['Operating Expenses']?.toString() || '')
   const [listingStatus, setListingStatus] = useState(initialData.listing_status ?? '')
   const [source, setSource] = useState(initialData.source || '')
   const [mlsNumber, setMlsNumber] = useState(initialData.mls_number || '')
@@ -43,8 +41,6 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
   const [lotSize, setLotSize] = useState(initialData.lot_size || '')
   const [community, setCommunity] = useState(initialData.community || '')
   const [planName, setPlanName] = useState(initialData.plan_name || '')
-  const [estimatedRent, setEstimatedRent] = useState(initialData.estimated_rent?.toString() || '')
-  const [estimatedCashFlow, setEstimatedCashFlow] = useState(initialData.estimated_cash_flow?.toString() || '')
   const [notes, setNotes] = useState(initialData.notes || '')
   const [additionalInfo, setAdditionalInfo] = useState(initialData.additional_info || '')
 
@@ -65,8 +61,6 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
         'Has HOA': hasHOA,
         swimming_pool: swimmingPool,
         'Asking Price': askingPrice ? parseFloat(askingPrice) : null,
-        'Gross Income': grossIncome ? parseFloat(grossIncome) : null,
-        'Operating Expenses': operatingExpenses ? parseFloat(operatingExpenses) : null,
         listing_status: listingStatus || null,
         source: source.trim() || null,
         mls_number: mlsNumber.trim() || null,
@@ -77,8 +71,6 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
         lot_size: lotSize.trim() || null,
         community: community.trim() || null,
         plan_name: planName.trim() || null,
-        estimated_rent: estimatedRent ? parseFloat(estimatedRent) : null,
-        estimated_cash_flow: estimatedCashFlow ? parseFloat(estimatedCashFlow) : null,
         notes: notes.trim() || null,
         additional_info: additionalInfo.trim() || null,
         last_updated_by: currentUserId,
@@ -118,6 +110,10 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
+            <label className={labelClass}>Asking Price ($)</label>
+            <input type="number" value={askingPrice} onChange={e => setAskingPrice(e.target.value)} className={inputClass} />
+          </div>
+          <div className="space-y-1.5">
             <label className={labelClass}>Property Type</label>
             <select value={type} onChange={e => setType(e.target.value)} className={inputClass}>
               <option value="">Select type</option>
@@ -130,29 +126,6 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
               <option value="">Select status</option>
               {PROPERTY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Financials */}
-      <div className="rounded-xl border bg-card p-5 space-y-4">
-        <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Financials</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className={labelClass}>Asking Price ($)</label>
-            <input type="number" value={askingPrice} onChange={e => setAskingPrice(e.target.value)} className={inputClass} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelClass}>Monthly Gross Income ($)</label>
-            <input type="number" value={grossIncome} onChange={e => setGrossIncome(e.target.value)} className={inputClass} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelClass}>Monthly Operating Expenses ($)</label>
-            <input type="number" value={operatingExpenses} onChange={e => setOperatingExpenses(e.target.value)} className={inputClass} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={labelClass}>Estimated Rent ($)</label>
-            <input type="number" value={estimatedRent} onChange={e => setEstimatedRent(e.target.value)} className={inputClass} />
           </div>
         </div>
       </div>

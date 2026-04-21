@@ -439,7 +439,9 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo, initialRmdDetai
         mcSpouseSsaAtStart
       )
       setMonteCarloSummary(summary)
-      // Recalculate retirement score with the MC success rate now that we have it
+      // Recalculate retirement score with the MC success rate now that we have it.
+      // Only update the monteCarlo sub-score so overall stays as the stable 5-factor value,
+      // keeping it consistent with the Scenarios table and Quick Projections.
       if (latestProjectionsRef.current.length > 0 && latestSettingsRef.current) {
         const updatedScore = calculateRetirementScore(
           latestProjectionsRef.current,
@@ -447,7 +449,11 @@ export default function AnalysisTab({ planId, autoRunMonteCarlo, initialRmdDetai
           latestAccountsRef.current,
           summary.successRate
         )
-        setScore(updatedScore)
+        setScore(prev => prev ? {
+          ...prev,
+          monteCarlo: updatedScore.monteCarlo,
+          details: { ...prev.details, monteCarlo: updatedScore.details.monteCarlo },
+        } : prev)
       }
     } catch (error) {
       console.error('Error running Monte Carlo:', error)

@@ -19,6 +19,8 @@ import { useScoringConfig } from '@/components/property/scoring-context'
 import ScoringSettings from '@/components/property/scoring-settings'
 import { cn } from '@/lib/utils'
 
+import type { PropertyExpenseBreakdown } from '@/lib/types/teams'
+
 interface Property {
   id: number
   address: string | null
@@ -31,6 +33,7 @@ interface Property {
   'Asking Price': number | null
   'Gross Income': number | null
   'Operating Expenses': number | null
+  expense_breakdown?: PropertyExpenseBreakdown | null
   listing_status?: string | null
   source?: string | null
   mls_number?: string | null
@@ -288,6 +291,29 @@ export default function PropertyDetails({ property, propertyBasePath }: Property
                 </Tooltip>
               </div>
               <p className="text-sm font-semibold tabular-nums">{a.monthlyExpenses > 0 ? fmt$(a.monthlyExpenses) : '—'}</p>
+              {/* Expense breakdown if available */}
+              {property.expense_breakdown && (() => {
+                const bd = property.expense_breakdown
+                const items: { label: string; value: number }[] = [
+                  { label: 'Property Tax', value: bd.property_taxes ?? 0 },
+                  { label: 'Insurance',    value: bd.insurance ?? 0 },
+                  { label: 'CDD',          value: bd.cdd ?? 0 },
+                  { label: 'HOA',          value: bd.hoa ?? 0 },
+                  { label: 'Maintenance',  value: bd.maintenance ?? 0 },
+                  { label: 'Other',        value: bd.other ?? 0 },
+                ].filter(i => i.value > 0)
+                if (items.length === 0) return null
+                return (
+                  <div className="mt-1 space-y-0.5">
+                    {items.map(i => (
+                      <div key={i.label} className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>{i.label}</span>
+                        <span className="tabular-nums">{fmt$(i.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
             <div>
               <div className="flex items-center gap-0.5">

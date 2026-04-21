@@ -16,9 +16,14 @@ export type PropertyForBaseScenario = {
   'Gross Income'?: number | null
   'Operating Expenses'?: number | null
   estimated_rent?: number | null
+  expense_breakdown?: Record<string, number | null> | null
+  vacancy_rate?: number | null
+  income_increase?: number | null
+  expenses_increase?: number | null
+  property_value_increase?: number | null
 }
 
-export const BASE_SCENARIO_NAME = 'Base scenario (property defaults)'
+export const BASE_SCENARIO_NAME = 'Base'
 export const BASE_SCENARIO_SLUG = 'base'
 
 function firstYearAmortization(
@@ -45,6 +50,69 @@ function firstYearAmortization(
   return { firstYearInterest, firstYearPrincipal }
 }
 
+/**
+ * Builds an INSERT-ready seed object for a new Base scenario row in pi_financial_scenarios.
+ * Used when creating a new property to auto-create its Base scenario.
+ */
+export function buildBaseScenarioSeed(
+  propertyId: number,
+  property: PropertyForBaseScenario,
+): Record<string, unknown> {
+  const askingPrice = Number(property['Asking Price'] ?? 0) || 0
+  const monthlyRent = Number(property.estimated_rent ?? property['Gross Income'] ?? 0) || 0
+  const monthlyGrossIncome = Number(property['Gross Income'] ?? property.estimated_rent ?? 0) || 0
+  const monthlyIncome = monthlyRent > 0 ? monthlyRent : monthlyGrossIncome
+  const monthlyExpenses = Number(property['Operating Expenses'] ?? 0) || 0
+
+  const annualGross = monthlyIncome * MONTHS_PER_YEAR
+  const annualOpex = monthlyExpenses * MONTHS_PER_YEAR
+
+  const downPct = DEFAULT_DOWN_PAYMENT_PCT
+  const downPayment = askingPrice > 0 ? askingPrice * (downPct / 100) : 0
+  const loanClosingCosts = askingPrice * (DEFAULT_CLOSING_COST_PCT / 100)
+  const loanPrincipal = askingPrice > 0 ? askingPrice - downPayment : 0
+
+  let monthlyPayment = 0
+  if (askingPrice > 0 && loanPrincipal > 0) {
+    const monthlyRate = DEFAULT_ANALYSIS_INTEREST_RATE / 100 / MONTHS_PER_YEAR
+    const numPayments = DEFAULT_LOAN_TERM * MONTHS_PER_YEAR
+    monthlyPayment =
+      monthlyRate > 0 && numPayments > 0
+        ? loanPrincipal *
+          ((monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
+            (Math.pow(1 + monthlyRate, numPayments) - 1))
+        : 0
+  }
+
+  return {
+    'Property ID': propertyId,
+    'Scenario Name': BASE_SCENARIO_NAME,
+    'Purchase Price': askingPrice,
+    'Gross Income': annualGross,
+    'Operating Expenses': annualOpex,
+    expense_breakdown: property.expense_breakdown ?? null,
+    'Vacancy Rate': property.vacancy_rate ?? 5,
+    'Property Management Rate': 0,
+    'Income Increase': property.income_increase ?? 3,
+    'Expenses Increase': property.expenses_increase ?? 3,
+    'Property Value Increase': property.property_value_increase ?? 3,
+    'Has Loan': askingPrice > 0,
+    'Down Payment Percentage': downPct,
+    'Down Payment Amount': downPayment,
+    'Interest Rate': DEFAULT_ANALYSIS_INTEREST_RATE,
+    'Loan Term': DEFAULT_LOAN_TERM,
+    'Closing Costs': loanClosingCosts,
+    'Purchase Closing Costs': 0,
+    'Monthly Mortgage': monthlyPayment || null,
+    is_base: true,
+  }
+}
+
+/**
+ * @deprecated Use the real Base scenario row fetched from pi_financial_scenarios instead.
+ * This function is kept for backward compatibility with the scenario detail view
+ * until all callers are updated.
+ */
 export function buildBaseScenarioFromProperty(property: PropertyForBaseScenario): {
   scenario: Record<string, unknown>
   loan: Record<string, unknown> | null
@@ -105,9 +173,9 @@ export function buildBaseScenarioFromProperty(property: PropertyForBaseScenario)
     'Cap Rate': capRate,
     'Net Income': netIncome,
     'Taxable Income After Depreciation': null,
-    'Income Increase': 0,
-    'Expenses Increase': 0,
-    'Property Value Increase': 0,
+    'Income Increase': property.income_increase ?? 3,
+    'Expenses Increase': property.expenses_increase ?? 3,
+    'Property Value Increase': property.property_value_increase ?? 3,
     'Has Loan': hasLoan,
     'Loan Term': hasLoan ? loanTerm : null,
     'Down Payment Percentage': hasLoan ? downPct : null,
@@ -118,7 +186,10 @@ export function buildBaseScenarioFromProperty(property: PropertyForBaseScenario)
     'Monthly Mortgage': hasLoan ? monthlyPayment : null,
     'Annual Interest': hasLoan ? firstYearInterest : null,
     'Annual Principal': hasLoan ? firstYearPrincipal : null,
-    'expense_breakdown': null,
+    'expense_breakdown': property.expense_breakdown ?? null,
+    'Vacancy Rate': property.vacancy_rate ?? 5,
+    'Property Management Rate': 0,
+    is_base: false,
   }
 
   if (!hasLoan) {

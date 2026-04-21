@@ -82,6 +82,8 @@ export default function PLTable({ scenario, years }: PLTableProps) {
   const purchasePrice = parseFloat(scenario['Purchase Price']?.toString() || '0') || 0
   const baseGrossIncome = parseFloat(scenario['Gross Income']?.toString() || '0') || 0
   const baseOperatingExpenses = parseFloat(scenario['Operating Expenses']?.toString() || '0') || 0
+  const scenarioVacancyRate = parseFloat(scenario['Vacancy Rate']?.toString() || '0') || 0
+  const scenarioPropMgmtRate = parseFloat(scenario['Property Management Rate']?.toString() || '0') || 0
 
   // Seed growth rates from scenario if saved, otherwise fall back to default 3%
   const scenarioIncomeIncrease = parseFloat(scenario['Income Increase']?.toString() || '')
@@ -118,8 +120,14 @@ export default function PLTable({ scenario, years }: PLTableProps) {
   const downPaymentAmount = parseFloat(scenario['Down Payment Amount']?.toString() || '0') || 0
   const loanClosingCosts = parseFloat(scenario['Closing Costs']?.toString() || '0') || 0
   const purchaseClosingCosts = parseFloat(scenario['Purchase Closing Costs']?.toString() || '0') || 0
-  const monthlyMortgage = parseFloat(scenario['Monthly Mortgage']?.toString() || '0') || 0
   const loanPrincipal = purchasePrice - downPaymentAmount
+  // Compute monthly mortgage from loan fields; 'Monthly Mortgage' is not persisted in DB
+  const _mr = interestRate > 0 ? interestRate / 100 / 12 : 0
+  const _np = loanTerm * 12
+  const computedMonthlyMortgage = loanPrincipal > 0 && _mr > 0 && _np > 0
+    ? loanPrincipal * (_mr * Math.pow(1 + _mr, _np)) / (Math.pow(1 + _mr, _np) - 1)
+    : 0
+  const monthlyMortgage = parseFloat(scenario['Monthly Mortgage']?.toString() || '0') || computedMonthlyMortgage
   // Total Cash Invested: No loan = Purchase Price + Purchase Closing Costs, With loan = Down Payment + Loan Closing Costs + Purchase Closing Costs
   const totalCashInvested = hasLoan 
     ? downPaymentAmount + loanClosingCosts + purchaseClosingCosts
@@ -167,13 +175,21 @@ export default function PLTable({ scenario, years }: PLTableProps) {
       // Calculate annual increases: Year 1 = base, Year 2+ = compounded
       const incomeMultiplier = year === 1 ? 1 : Math.pow(1 + incomeIncreasePercent / 100, year - 1)
       const expensesMultiplier = year === 1 ? 1 : Math.pow(1 + expensesIncreasePercent / 100, year - 1)
-      const propertyValueMultiplier = year === 1 ? 1 : Math.pow(1 + propertyValueIncreasePercent / 100, year - 1)
+      // Property appreciates each year from purchase — Year 1 = 1 full year of appreciation
+      const propertyValueMultiplier = Math.pow(1 + propertyValueIncreasePercent / 100, year)
       
       const grossIncome = baseGrossIncome * incomeMultiplier
       const operatingExpenses = baseOperatingExpenses * expensesMultiplier
       const currentPropertyValue = purchasePrice * propertyValueMultiplier
       
-      const noi = grossIncome - operatingExpenses
+      // Apply vacancy: effective income = gross * (1 - vacancy%)
+      const vacancyLoss = grossIncome * (scenarioVacancyRate / 100)
+      const effectiveIncome = grossIncome - vacancyLoss
+      // Property management: % of effective income added to expenses
+      const propMgmtExpense = effectiveIncome * (scenarioPropMgmtRate / 100)
+      const totalExpenses = operatingExpenses + propMgmtExpense
+      
+      const noi = effectiveIncome - totalExpenses
       
       let interest = 0
       let principal = 0
@@ -208,7 +224,11 @@ export default function PLTable({ scenario, years }: PLTableProps) {
       data.push({
         year,
         grossIncome,
+        vacancyLoss,
+        effectiveIncome,
         operatingExpenses,
+        propMgmtExpense,
+        totalExpenses,
         noi,
         interest,
         principal,
@@ -242,7 +262,7 @@ export default function PLTable({ scenario, years }: PLTableProps) {
     }
 
     return data
-  }, [scenario, displayYears, purchasePrice, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage, totalCashInvested])
+  }, [scenario, displayYears, purchasePrice, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage, totalCashInvested, scenarioVacancyRate, scenarioPropMgmtRate])
 
   const totalClosingCosts = loanClosingCosts + purchaseClosingCosts
 
@@ -372,17 +392,71 @@ export default function PLTable({ scenario, years }: PLTableProps) {
             <tr>
               {/* Sticky year header */}
               <th className="sticky left-0 z-20 bg-muted/50 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Yr</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Rental<br/>Income</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Running<br/>Costs</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Profit<br/>Pre-Mortgage</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Gross<br/>Rent</th>
+              {scenarioVacancyRate > 0 && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Vacancy<br/>Loss</th>}
+              {scenarioVacancyRate > 0 && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Effective<br/>Income</th>}
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Oper.<br/>Expenses</th>
+              {scenarioPropMgmtRate > 0 && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Prop.<br/>Mgmt</th>}
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Net Op.<br/>Income</th>
               {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Mortgage<br/>Interest</th>}
-              {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Loan<br/>Repaid</th>}
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Net<br/>Income</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cash in<br/>Pocket</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cash<br/>Return %</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Equity</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Total<br/>Return %</th>
-              {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Loan<br/>Left</th>}
+              {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Principal<br/>Repaid</th>}
+              {hasLoan && (
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help underline decoration-dotted">After<br/>Interest</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Net Operating Income − Mortgage Interest. This is income after interest but before principal repayment.
+                    </TooltipContent>
+                  </Tooltip>
+                </th>
+              )}
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted">Cash<br/>Flow</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    {hasLoan
+                      ? 'Net Operating Income − Interest − Principal Repaid. Your actual annual cash in hand after all obligations.'
+                      : 'Net Operating Income. Your actual annual cash flow (no loan).'}
+                  </TooltipContent>
+                </Tooltip>
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">CoC<br/>Return %</th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted">Equity</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    Current property value minus remaining loan balance. Includes your down payment, principal repaid to date, and appreciation gains.
+                  </TooltipContent>
+                </Tooltip>
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted">IRR %</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    Internal Rate of Return — assumes the property is sold at the end of this year at its appreciated value. Accounts for all cash flows and proceeds.
+                  </TooltipContent>
+                </Tooltip>
+              </th>
+              {hasLoan && (
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help underline decoration-dotted">Loan<br/>Left</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Remaining principal balance on the loan. Reaches $0 at end of loan term.
+                    </TooltipContent>
+                  </Tooltip>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -391,7 +465,16 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                 {/* Sticky year cell */}
                 <td className="sticky left-0 z-10 bg-card whitespace-nowrap px-4 py-3 text-sm font-semibold">{row.year}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.grossIncome)}</td>
+                {scenarioVacancyRate > 0 && (
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-destructive/70">−{fmtCompact(row.vacancyLoss)}</td>
+                )}
+                {scenarioVacancyRate > 0 && (
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.effectiveIncome)}</td>
+                )}
                 <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.operatingExpenses)}</td>
+                {scenarioPropMgmtRate > 0 && (
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-amber-600 dark:text-amber-400">{fmtCompact(row.propMgmtExpense)}</td>
+                )}
                 <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.noi)}</td>
                 {hasLoan && (
                   <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.interest)}</td>
@@ -399,7 +482,11 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                 {hasLoan && (
                   <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.principal)}</td>
                 )}
-                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.netIncome)}</td>
+                {/* After Interest: NOI − Interest (only shown when there's a loan) */}
+                {hasLoan && (
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.netIncome)}</td>
+                )}
+                {/* Cash Flow: NOI − Interest − Principal (the actual cash in hand) */}
                 <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-semibold ${row.cashFlow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
                   {fmtCompact(row.cashFlow)}
                 </td>
@@ -411,14 +498,24 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                   {row.irr.toFixed(1)}%
                 </td>
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(Math.max(0, row.remainingLoanBalance))}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">
+                    {/* Guard against NaN/floating-point residue; show $0 once fully paid */}
+                    {fmtCompact(Math.max(0, Number.isFinite(row.remainingLoanBalance) ? row.remainingLoanBalance : 0))}
+                  </td>
                 )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground text-right">Numbers in $K / $M — hover cells for full value</p>
+      <p className="mt-2 text-xs text-muted-foreground text-right">Numbers in $K / $M — hover column headers for definitions</p>
+      {hasLoan && (
+        <div className="mt-3 rounded-lg bg-muted/20 border border-border/40 px-4 py-3 text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div><span className="font-semibold text-foreground">After Interest</span> = NOI − Mortgage Interest</div>
+          <div><span className="font-semibold text-foreground">Cash Flow</span> = NOI − Interest − Principal Repaid</div>
+          <div><span className="font-semibold text-foreground">Equity</span> = Appreciated Value − Remaining Loan. <span className="font-semibold text-foreground">IRR</span> = Return assuming sale at year-end</div>
+        </div>
+      )}
     </div>
   )
 }

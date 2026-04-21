@@ -86,6 +86,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
   const [loading, setLoading] = useState(false)
   const [calculating, setCalculating] = useState(false)
   const [mcRunning, setMcRunning] = useState(false)
+  const [snapshotMcRate, setSnapshotMcRate] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [showQuickStart, setShowQuickStart] = useState(true)
   const [hasExistingData, setHasExistingData] = useState(false)
@@ -178,6 +179,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
     networthAtRetirement: number
     legacyValue: number
     status: string
+    retirementScore?: number
   }, currentAge: number, retirementAge: number) => {
     if (isLocal) return
     try {
@@ -191,6 +193,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
         networth_at_retirement: r.networthAtRetirement,
         legacy_value: r.legacyValue,
         status: r.status,
+        ...(r.retirementScore != null ? { retirement_score: r.retirementScore } : {}),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'plan_id' })
     } catch {
@@ -447,7 +450,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
       const snapshotResults = calculateSnapshotResults(projections, totalSavings, annualExpenses, yearsToRetirement, settings, accounts, planDataObj.life_expectancy || DEFAULT_LIFE_EXPECTANCY)
       setResults(snapshotResults)
       setProjections(projections)
-      saveMetrics(snapshotResults, currentYear - birthYear, retirementAge)
+      saveMetrics({ ...snapshotResults, retirementScore: snapshotResults.retirementScore.overall }, currentYear - birthYear, retirementAge)
 
       // Run Monte Carlo silently in the background to compute the real Market Risk score.
       // Use setTimeout so the initial results render first before the CPU-heavy simulation runs.
@@ -469,8 +472,26 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
             estimatedPlannerSsaAtStart,
             estimatedSpouseSsaAtStart
           )
+          // Store MC rate separately — don't update retirementScore.overall so it stays
+          // consistent with the 5-factor score shown in the Scenarios table and Risk Analysis.
+          setSnapshotMcRate(summary.successRate)
+          // Update only the monteCarlo sub-score so the Market Risk card reflects the run
           const updatedScore = calculateRetirementScore(projections, settings, accounts, summary.successRate)
-          setResults(prev => prev ? { ...prev, retirementScore: updatedScore } : prev)
+          setResults(prev => prev ? {
+            ...prev,
+            retirementScore: {
+              ...prev.retirementScore,
+              monteCarlo: updatedScore.monteCarlo,
+              details: {
+                longevity: prev.retirementScore.details?.longevity ?? '',
+                cashflow: prev.retirementScore.details?.cashflow ?? '',
+                taxEfficiency: prev.retirementScore.details?.taxEfficiency ?? '',
+                inflation: prev.retirementScore.details?.inflation ?? '',
+                medical: prev.retirementScore.details?.medical ?? '',
+                monteCarlo: updatedScore.details.monteCarlo,
+              },
+            },
+          } : prev)
         } catch (e) {
           console.error('Snapshot MC error:', e)
         } finally {
@@ -1518,13 +1539,14 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                       <TooltipContent className="max-w-sm bg-gray-900 text-gray-100 border border-gray-700 p-4">
                         <div className="text-xs space-y-3">
                           <p className="text-sm font-semibold text-white">Retirement Score breakdown</p>
+                          <p className="text-xs text-gray-400">Overall uses 5 factors (MC excluded from overall — see Risk Analysis for the MC-enhanced view)</p>
                           {([
-                            { label: 'Longevity', weight: 40, score: results.retirementScore.longevity, detail: results.retirementScore.details?.longevity },
-                            { label: 'Market Risk (MC)', weight: 20, score: results.retirementScore.monteCarlo, detail: results.retirementScore.details?.monteCarlo },
-                            { label: 'Cashflow', weight: 10, score: results.retirementScore.sustainability, detail: results.retirementScore.details?.cashflow },
-                            { label: 'Tax Efficiency', weight: 10, score: results.retirementScore.taxEfficiency, detail: results.retirementScore.details?.taxEfficiency },
-                            { label: 'Inflation', weight: 10, score: results.retirementScore.inflation, detail: results.retirementScore.details?.inflation },
-                            { label: 'Medical', weight: 10, score: results.retirementScore.medical, detail: results.retirementScore.details?.medical },
+                            { label: 'Longevity', weight: 50, score: results.retirementScore.longevity, detail: results.retirementScore.details?.longevity },
+                            { label: 'Cashflow', weight: 12.5, score: results.retirementScore.sustainability, detail: results.retirementScore.details?.cashflow },
+                            { label: 'Tax Efficiency', weight: 12.5, score: results.retirementScore.taxEfficiency, detail: results.retirementScore.details?.taxEfficiency },
+                            { label: 'Inflation', weight: 12.5, score: results.retirementScore.inflation, detail: results.retirementScore.details?.inflation },
+                            { label: 'Medical', weight: 12.5, score: results.retirementScore.medical, detail: results.retirementScore.details?.medical },
+                            { label: 'Market Risk (MC)', weight: 20, score: results.retirementScore.monteCarlo, detail: snapshotMcRate !== null ? `${Math.round(snapshotMcRate * 100)}% of 1,000 MC scenarios succeeded\n(supplemental — not included in overall score)` : 'Supplemental — run Monte Carlo in Risk Analysis for this score' },
                           ] as const).map(({ label, weight, score, detail }) => (
                             <div key={label}>
                               <div className="flex items-center justify-between mb-0.5">
@@ -2855,8 +2877,62 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                                           calculateAccountGrowth(prevProj?.balance_ira || null) +
                                           calculateAccountGrowth(prevProj?.balance_other_investments || null)
                                         
+                                        // Per-account row data (shared between pre/post-retirement rendering)
+                                        const acctRows = [
+                                          { label: '401(k)',  open: prevProj.balance_401k || 0,               close: proj.balance_401k || 0,               dist: proj.distribution_401k || 0 },
+                                          { label: 'Roth',    open: prevProj.balance_roth || 0,               close: proj.balance_roth || 0,               dist: proj.distribution_roth || 0 },
+                                          { label: 'Taxable', open: prevProj.balance_investment || 0,          close: proj.balance_investment || 0,           dist: proj.distribution_taxable || 0 },
+                                          { label: 'HSA',     open: prevProj.balance_hsa || 0,               close: proj.balance_hsa || 0,               dist: proj.distribution_hsa || 0 },
+                                          { label: 'IRA',     open: prevProj.balance_ira || 0,               close: proj.balance_ira || 0,               dist: proj.distribution_ira || 0 },
+                                          { label: 'Other',   open: prevProj.balance_other_investments || 0,  close: proj.balance_other_investments || 0,  dist: proj.distribution_other || 0 },
+                                        ].filter(a => a.open > 0 || a.close > 0)
+                                        const fmtA = (n: number) => `$${Math.round(n).toLocaleString()}`
+                                        const totOpen  = acctRows.reduce((s, a) => s + a.open,  0)
+                                        const totClose = acctRows.reduce((s, a) => s + a.close, 0)
+                                        const totGrowth  = acctRows.reduce((s, a) => s + a.open * growthRate, 0)
+                                        const totContrib = acctRows.reduce((s, a) => s + Math.max(0, a.close + a.dist - a.open * (1 + growthRate)), 0)
+
                                         return (
                                           <>
+                                            {/* Pre-retirement: per-account buildup waterfall */}
+                                            {!isRetired && acctRows.length > 0 && (
+                                              <div className="mb-2 space-y-1.5">
+                                                <div className="text-xs text-yellow-300 font-medium">
+                                                  Per-Account Buildup — {(growthRate * 100).toFixed(1)}% pre-retirement growth
+                                                </div>
+                                                {acctRows.map(a => {
+                                                  const growth   = a.open * growthRate
+                                                  const contribs = Math.max(0, a.close + a.dist - a.open * (1 + growthRate))
+                                                  return (
+                                                    <div key={a.label} className="text-xs">
+                                                      <div className="flex justify-between">
+                                                        <span className="text-gray-300 font-medium">{a.label}</span>
+                                                        <span className="text-white">{fmtA(a.open)} → {fmtA(a.close)}</span>
+                                                      </div>
+                                                      <div className="flex gap-3 pl-2 text-gray-400">
+                                                        <span className="text-green-400">+{fmtA(growth)} growth</span>
+                                                        {contribs > 50 && <span className="text-blue-400">+{fmtA(contribs)} contributions</span>}
+                                                      </div>
+                                                    </div>
+                                                  )
+                                                })}
+                                                {acctRows.length > 1 && (
+                                                  <div className="pt-1 border-t border-gray-600 text-xs">
+                                                    <div className="flex justify-between font-semibold">
+                                                      <span className="text-gray-200">All Accounts</span>
+                                                      <span className="text-white">{fmtA(totOpen)} → {fmtA(totClose)}</span>
+                                                    </div>
+                                                    <div className="flex gap-3 pl-2 text-gray-400">
+                                                      <span className="text-green-400">+{fmtA(totGrowth)} growth</span>
+                                                      {totContrib > 50 && <span className="text-blue-400">+{fmtA(totContrib)} contributions</span>}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                                <div className="border-b border-gray-700" />
+                                              </div>
+                                            )}
+
+                                            {/* Summary breakdown (both pre and post retirement) */}
                                             <div className="space-y-1">
                                               <div className="flex justify-between">
                                                 <span className="text-gray-300">Previous Year Remaining Funds:</span>
@@ -2933,7 +3009,7 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                                                 </span>
                                               </div>
                                               <div className="flex justify-between mt-2 border-t border-gray-700 pt-2">
-                                                <span className="text-gray-200 font-semibold">Current Remaining Funds:</span>
+                                                <span className="text-gray-200 font-semibold">Ending Networth:</span>
                                                 <span className="text-white font-bold">${currentNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                               </div>
                                             </div>
@@ -2941,11 +3017,87 @@ export default function SnapshotTab({ planId, onSwitchToAdvanced, onSwitchToPlan
                                         )
                                       })()}
                                       
-                                      {idx === 0 && (
-                                        <div className="text-gray-400 italic">
-                                          This is the first year. No previous year to compare.
-                                        </div>
-                                      )}
+                                      {/* First row: show year-1 buildup for pre-retirement, generic note for retirement */}
+                                      {idx === 0 && (() => {
+                                        const retAgeFirst = settingsForTooltip?.retirement_age || DEFAULT_RETIREMENT_AGE
+                                        const isRetiredFirst = proj.age >= retAgeFirst
+                                        if (isRetiredFirst) return (
+                                          <div className="text-gray-400 italic text-xs">This is the first year. No previous year to compare.</div>
+                                        )
+
+                                        const growthRateFirst = settingsForTooltip?.growth_rate_before_retirement || DEFAULT_GROWTH_RATE_PRE_RETIREMENT
+
+                                        // Normalize account_type to canonical bucket key
+                                        const normTypeSnap = (t: string): string => {
+                                          const s = (t || '').trim().toLowerCase()
+                                          if (s === '401k' || s === '401(k)') return '401k'
+                                          if (s === 'roth ira' || s === 'roth') return 'Roth'
+                                          if (s === 'taxable' || s === 'brokerage') return 'Taxable'
+                                          if (s === 'hsa') return 'HSA'
+                                          if (s === 'ira' || s === 'traditional ira') return 'IRA'
+                                          return 'Other'
+                                        }
+
+                                        // Sum initial balances per canonical type (handles multiple accounts of same type)
+                                        const openByTypeSnap: Record<string, number> = {}
+                                        accountsForTooltip.forEach((acc) => {
+                                          const k = normTypeSnap(acc.account_type || '')
+                                          openByTypeSnap[k] = (openByTypeSnap[k] || 0) + (acc.balance || 0)
+                                        })
+
+                                        const typeRowsSnap = [
+                                          { label: '401(k)',  key: '401k',    closing: proj.balance_401k || 0,               dist: proj.distribution_401k || 0 },
+                                          { label: 'Roth',    key: 'Roth',    closing: proj.balance_roth || 0,               dist: proj.distribution_roth || 0 },
+                                          { label: 'Taxable', key: 'Taxable', closing: proj.balance_investment || 0,          dist: proj.distribution_taxable || 0 },
+                                          { label: 'HSA',     key: 'HSA',     closing: proj.balance_hsa || 0,               dist: proj.distribution_hsa || 0 },
+                                          { label: 'IRA',     key: 'IRA',     closing: proj.balance_ira || 0,               dist: proj.distribution_ira || 0 },
+                                          { label: 'Other',   key: 'Other',   closing: proj.balance_other_investments || 0,  dist: proj.distribution_other || 0 },
+                                        ].map(t => ({
+                                          ...t,
+                                          opening:  openByTypeSnap[t.key] || 0,
+                                          growth:   (openByTypeSnap[t.key] || 0) * growthRateFirst,
+                                          contribs: Math.max(0, t.closing + t.dist - (openByTypeSnap[t.key] || 0) * (1 + growthRateFirst)),
+                                        })).filter(t => t.opening > 0 || t.closing > 0)
+
+                                        const fmtF = (n: number) => `$${Math.round(n).toLocaleString()}`
+                                        const totOpen    = typeRowsSnap.reduce((s, t) => s + t.opening,  0)
+                                        const totClose   = typeRowsSnap.reduce((s, t) => s + t.closing,  0)
+                                        const totGrowth  = typeRowsSnap.reduce((s, t) => s + t.growth,   0)
+                                        const totContrib = proj.annual_contribution != null
+                                          ? proj.annual_contribution
+                                          : typeRowsSnap.reduce((s, t) => s + t.contribs, 0)
+
+                                        return (
+                                          <div className="space-y-1.5">
+                                            <div className="text-xs text-yellow-300 font-medium">Year 1 Buildup — Current Savings → Projected Year End</div>
+                                            <div className="text-xs text-gray-400">{(growthRateFirst * 100).toFixed(1)}% pre-retirement growth applied to opening balances</div>
+                                            {typeRowsSnap.map(t => (
+                                              <div key={t.label} className="text-xs">
+                                                <div className="flex justify-between">
+                                                  <span className="text-gray-300 font-medium">{t.label}</span>
+                                                  <span className="text-white">{fmtF(t.opening)} → {fmtF(t.closing)}</span>
+                                                </div>
+                                                <div className="flex gap-3 pl-2 text-gray-400">
+                                                  <span className="text-green-400">+{fmtF(t.growth)} growth</span>
+                                                  {t.contribs > 50 && <span className="text-blue-400">+{fmtF(t.contribs)} contributions</span>}
+                                                </div>
+                                              </div>
+                                            ))}
+                                            {typeRowsSnap.length > 1 && (
+                                              <div className="border-t border-gray-600 pt-1 text-xs">
+                                                <div className="flex justify-between font-semibold">
+                                                  <span className="text-gray-200">All Accounts</span>
+                                                  <span className="text-white">{fmtF(totOpen)} → {fmtF(totClose)}</span>
+                                                </div>
+                                                <div className="flex gap-3 pl-2 text-gray-400">
+                                                  <span className="text-green-400">+{fmtF(totGrowth)} growth</span>
+                                                  {totContrib > 50 && <span className="text-blue-400">+{fmtF(totContrib)} contributions</span>}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )
+                                      })()}
                                     </div>
                                   </TooltipContent>
                                 </Tooltip>

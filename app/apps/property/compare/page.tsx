@@ -59,10 +59,28 @@ export default async function PropertyComparePage({ searchParams }: ComparePageP
     )
   }
 
+  // Join base scenario financials for each property
+  const { data: baseScenarios } = await supabase
+    .from('pi_financial_scenarios')
+    .select('"Property ID", "Gross Income", "Operating Expenses"')
+    .in('Property ID', ids)
+    .eq('is_base', true)
+
+  const baseMap = new Map((baseScenarios ?? []).map(s => [s['Property ID'], s]))
+
+  const propertiesWithFinancials = properties.map(p => {
+    const base = baseMap.get(p.id)
+    return {
+      ...p,
+      'Gross Income': base ? (base['Gross Income'] ?? 0) / 12 : (p['Gross Income'] ?? null),
+      'Operating Expenses': base ? (base['Operating Expenses'] ?? 0) / 12 : (p['Operating Expenses'] ?? null),
+    }
+  })
+
   // Sort by the requested order
   const sortedProperties = ids
-    .map((id) => properties.find((p) => p.id === id))
-    .filter(Boolean) as typeof properties
+    .map((id) => propertiesWithFinancials.find((p) => p.id === id))
+    .filter(Boolean) as typeof propertiesWithFinancials
 
   return (
     <div className={PAGE_CONTAINER}>

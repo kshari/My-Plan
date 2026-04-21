@@ -11,6 +11,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
+import { buildBaseScenarioSeed } from '@/lib/property/build-base-scenario-from-property'
 
 interface PropertyFormProps {
   propertyId?: number
@@ -23,8 +24,6 @@ interface PropertyFormProps {
     'Has HOA': boolean | null
     swimming_pool?: boolean | null
     'Asking Price': number | null
-    'Gross Income': number | null
-    'Operating Expenses': number | null
     listing_status: string | null
     source: string | null
     mls_number: string | null
@@ -35,8 +34,6 @@ interface PropertyFormProps {
     lot_size: string | null
     community: string | null
     plan_name: string | null
-    estimated_rent: number | null
-    estimated_cash_flow: number | null
     notes: string | null
     additional_info: string | null
   }
@@ -61,8 +58,6 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
   const [hasHOA, setHasHOA] = useState<boolean | null>(initialData?.['Has HOA'] ?? null)
   const [swimmingPool, setSwimmingPool] = useState<boolean | null>(initialData?.swimming_pool ?? null)
   const [askingPrice, setAskingPrice] = useState(initialData?.['Asking Price']?.toString() || '')
-  const [grossIncome, setGrossIncome] = useState(initialData?.['Gross Income']?.toString() || '')
-  const [operatingExpenses, setOperatingExpenses] = useState(initialData?.['Operating Expenses']?.toString() || '')
   const [listingStatus, setListingStatus] = useState(initialData?.listing_status ?? '')
   const [source, setSource] = useState(initialData?.source || '')
   const [mlsNumber, setMlsNumber] = useState(initialData?.mls_number || '')
@@ -73,21 +68,11 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
   const [lotSize, setLotSize] = useState(initialData?.lot_size || '')
   const [community, setCommunity] = useState(initialData?.community || '')
   const [planName, setPlanName] = useState(initialData?.plan_name || '')
-  const [estimatedRent, setEstimatedRent] = useState(initialData?.estimated_rent?.toString() || '')
-  const [estimatedCashFlow, setEstimatedCashFlow] = useState(initialData?.estimated_cash_flow?.toString() || '')
   const [notes, setNotes] = useState(initialData?.notes || '')
   const [additionalInfo, setAdditionalInfo] = useState(initialData?.additional_info || '')
 
-  const gross = parseFloat(grossIncome) || 0
-  const expenses = parseFloat(operatingExpenses) || 0
-  const noi = gross - expenses
-  const price = parseFloat(askingPrice) || 0
-  const annualNoi = noi * 12
-  const capRate = price > 0 && annualNoi > 0 ? (annualNoi / price) * 100 : 0
-
   const hasListingDetails = !!(listingStatus || source || mlsNumber || listingUrl)
   const hasPropertyDetails = !!(bedrooms || bathrooms || sqft || lotSize || community || planName)
-  const hasEstimates = !!(estimatedRent || estimatedCashFlow)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,8 +96,6 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
         'Has HOA': hasHOA,
         swimming_pool: swimmingPool,
         'Asking Price': askingPrice ? parseFloat(askingPrice) : null,
-        'Gross Income': grossIncome ? parseFloat(grossIncome) : null,
-        'Operating Expenses': operatingExpenses ? parseFloat(operatingExpenses) : null,
         listing_status: listingStatus.trim() || null,
         source: source || null,
         mls_number: mlsNumber || null,
@@ -123,8 +106,6 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
         lot_size: lotSize || null,
         community: community || null,
         plan_name: planName || null,
-        estimated_rent: estimatedRent ? parseFloat(estimatedRent) : null,
-        estimated_cash_flow: estimatedCashFlow ? parseFloat(estimatedCashFlow) : null,
         notes: notes || null,
         additional_info: additionalInfo.trim() || null,
         user_id: user.id,
@@ -135,14 +116,31 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
           .from('pi_properties')
           .update(propertyData)
           .eq('id', propertyId)
-        
+
         if (error) throw error
       } else {
-        const { error } = await supabase
+        // Insert the property, then auto-create its Base scenario
+        const { data: newProperty, error: insertError } = await supabase
           .from('pi_properties')
           .insert([propertyData])
-        
-        if (error) throw error
+          .select('id')
+          .single()
+
+        if (insertError || !newProperty) throw insertError ?? new Error('Failed to create property')
+
+        // Auto-create the Base scenario with the asking price as seed data
+        const baseSeed = buildBaseScenarioSeed(newProperty.id, {
+          'Asking Price': askingPrice ? parseFloat(askingPrice) : null,
+        })
+
+        const { error: scenarioError } = await supabase
+          .from('pi_financial_scenarios')
+          .insert([baseSeed])
+
+        // Non-fatal: if Base scenario creation fails, the property still exists
+        if (scenarioError) {
+          console.warn('Failed to create Base scenario:', scenarioError.message)
+        }
       }
 
       router.push('/apps/property/dashboard')
@@ -299,13 +297,17 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
             placeholder="0.00"
             className={inputClass}
           />
+          {!propertyId && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              A Base scenario will be auto-created. Edit financials in the Deal Workspace.
+            </p>
+          )}
         </div>
       </div>
 
       <Accordion type="multiple" defaultValue={[
         ...(hasListingDetails ? ['listing'] : []),
         ...(hasPropertyDetails ? ['details'] : []),
-        ...(gross > 0 || expenses > 0 || hasEstimates ? ['financials'] : []),
         ...(notes ? ['notes'] : []),
         ...(additionalInfo ? ['additional'] : []),
       ]} className="mt-2">
@@ -367,105 +369,6 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
                 <label htmlFor="planName" className="block text-sm font-medium text-foreground">Plan Name</label>
                 <input id="planName" type="text" value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="Floor plan or model name" className={inputClass} />
               </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="financials">
-          <AccordionTrigger className="text-base font-semibold">
-            Financial Information
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div>
-                <label htmlFor="grossIncome" className="block text-sm font-medium text-foreground">
-                  Gross Income ($/mo)
-                </label>
-                <input
-                  id="grossIncome"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={grossIncome}
-                  onChange={(e) => setGrossIncome(e.target.value)}
-                  placeholder="0.00"
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="operatingExpenses" className="block text-sm font-medium text-foreground">
-                  Operating Expenses ($/mo)
-                </label>
-                <input
-                  id="operatingExpenses"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={operatingExpenses}
-                  onChange={(e) => setOperatingExpenses(e.target.value)}
-                  placeholder="0.00"
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="estimatedRent" className="block text-sm font-medium text-foreground">
-                  Estimated Rent ($/mo)
-                </label>
-                <input
-                  id="estimatedRent"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={estimatedRent}
-                  onChange={(e) => setEstimatedRent(e.target.value)}
-                  placeholder="0.00"
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="estimatedCashFlow" className="block text-sm font-medium text-foreground">
-                  Estimated Cash Flow ($/mo)
-                </label>
-                <input
-                  id="estimatedCashFlow"
-                  type="number"
-                  step="0.01"
-                  value={estimatedCashFlow}
-                  onChange={(e) => setEstimatedCashFlow(e.target.value)}
-                  placeholder="0.00"
-                  className={inputClass}
-                />
-              </div>
-
-              {(gross > 0 || expenses > 0) && (
-                <div className="md:col-span-2">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-lg border bg-muted/30 p-3">
-                      <p className="text-xs text-muted-foreground">NOI /mo</p>
-                      <p className={`mt-1 text-sm font-semibold tabular-nums ${noi >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                        ${noi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border bg-muted/30 p-3">
-                      <p className="text-xs text-muted-foreground">NOI /yr</p>
-                      <p className={`mt-1 text-sm font-semibold tabular-nums ${noi * 12 >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                        ${(noi * 12).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                    {capRate > 0 && (
-                      <div className="rounded-lg border bg-muted/30 p-3">
-                        <p className="text-xs text-muted-foreground">Cap Rate</p>
-                        <p className="mt-1 text-sm font-semibold tabular-nums text-primary">
-                          {capRate.toFixed(2)}%
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </AccordionContent>
         </AccordionItem>

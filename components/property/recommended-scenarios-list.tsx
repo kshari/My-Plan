@@ -38,7 +38,7 @@ import {
   SLIDER_RANGE_MIN, SLIDER_RANGE_MAX_PRICE, SLIDER_RANGE_MAX_INCOME_EXPENSE,
   MAX_INTEREST_RATE_SLIDER, MAX_DOWN_PAYMENT_SLIDER,
   DEFAULT_ASKING_PRICE, DEFAULT_GROSS_INCOME, DEFAULT_OPERATING_EXPENSES,
-  DEFAULT_ANALYSIS_INTEREST_RATE, DEFAULT_EXPENSE_RATIO,
+  DEFAULT_ANALYSIS_INTEREST_RATE,
   SCENARIO_COMPARISON_TOLERANCE, THRESHOLD_ANALYSIS_STEP, SLIDER_STEP,
   THRESHOLD_ANALYSIS_RANGE, THRESHOLD_ANALYSIS_MAX_RATE,
   MONTHS_PER_YEAR,
@@ -51,13 +51,12 @@ import {
 interface Property {
   id: number
   'Asking Price': number | null
-  'Gross Income': number | null
-  'Operating Expenses': number | null
-  estimated_rent?: number | null
 }
 
 interface RecommendedScenariosListProps {
   property: Property
+  /** Base scenario row — used to seed gross income and operating expenses */
+  baseScenario?: Record<string, unknown>
   /** Use team_shared_* tables (shared property id from team_shared_properties) */
   variant?: 'personal' | 'team'
 }
@@ -99,16 +98,14 @@ function parseValue(value: string, defaultValue: number): number {
   return isNaN(parsed) ? defaultValue : parsed
 }
 
-function annualizePropertyIncome(property: Property): number {
-  const monthlyGross = property['Gross Income'] || 0
-  const monthlyRent = property.estimated_rent || 0
-  const income = monthlyGross > 0 ? monthlyGross : monthlyRent
-  return income > 0 ? income * MONTHS_PER_YEAR : DEFAULT_GROSS_INCOME
+function annualizePropertyIncome(baseScenario?: Record<string, unknown>): number {
+  const annual = +(baseScenario?.['Gross Income'] ?? 0)
+  return annual > 0 ? annual : DEFAULT_GROSS_INCOME
 }
 
-function annualizePropertyExpenses(property: Property): number {
-  const monthly = property['Operating Expenses'] || 0
-  return monthly > 0 ? monthly * MONTHS_PER_YEAR : DEFAULT_OPERATING_EXPENSES
+function annualizePropertyExpenses(baseScenario?: Record<string, unknown>): number {
+  const annual = +(baseScenario?.['Operating Expenses'] ?? 0)
+  return annual > 0 ? annual : DEFAULT_OPERATING_EXPENSES
 }
 
 function calculateLoanCashFlow(
@@ -161,6 +158,7 @@ function calculateLoanCashFlow(
 
 export default function RecommendedScenariosList({
   property,
+  baseScenario,
   variant = 'personal',
 }: RecommendedScenariosListProps) {
   const router = useRouter()
@@ -195,29 +193,17 @@ export default function RecommendedScenariosList({
   const [explorerOpen, setExplorerOpen] = useState(false)
 
   const askingPrice = property['Asking Price'] || DEFAULT_ASKING_PRICE
-  const monthlyRent = property.estimated_rent || property['Gross Income'] || 0
-  const monthlyExpenses = property['Operating Expenses'] || 0
-  const baseGrossIncome = annualizePropertyIncome(property)
-  const baseOperatingExpenses = annualizePropertyExpenses(property)
+  const baseGrossIncome = annualizePropertyIncome(baseScenario)
+  const baseOperatingExpenses = annualizePropertyExpenses(baseScenario)
+  const monthlyRent = baseGrossIncome / MONTHS_PER_YEAR
+  const monthlyExpenses = baseOperatingExpenses / MONTHS_PER_YEAR
 
   const currentSummary = useMemo(() => {
-    const monthlyGross = property['Gross Income'] || 0
-    const monthlyExp = property['Operating Expenses'] || 0
-    const estRent = property.estimated_rent || 0
-    const hasActuals = monthlyGross > 0
-    const annualNoi = hasActuals
-      ? (monthlyGross - monthlyExp) * MONTHS_PER_YEAR
-      : 0
-    const estAnnualNoi = hasActuals
-      ? annualNoi
-      : estRent > 0 && monthlyExp > 0
-        ? (estRent - monthlyExp) * MONTHS_PER_YEAR
-        : estRent > 0
-          ? estRent * MONTHS_PER_YEAR * (1 - DEFAULT_EXPENSE_RATIO)
-          : monthlyExp > 0
-            ? -monthlyExp * MONTHS_PER_YEAR
-            : 0
-    const noiForCalcs = hasActuals ? annualNoi : estAnnualNoi
+    const annualGross = baseGrossIncome
+    const annualExp = baseOperatingExpenses
+    const hasActuals = annualGross > 0
+    const annualNoi = hasActuals ? annualGross - annualExp : 0
+    const noiForCalcs = annualNoi
 
     const downPct = DEFAULT_DOWN_PAYMENT_PCT / 100
     const downPayment = askingPrice > 0 ? askingPrice * downPct : 0
@@ -236,11 +222,11 @@ export default function RecommendedScenariosList({
     const capRate = askingPrice > 0 && noiForCalcs > 0 ? (noiForCalcs / askingPrice) * 100 : 0
 
     return {
-      noi: noiForCalcs, annualNoi, estAnnualNoi, capRate, roi,
+      noi: noiForCalcs, annualNoi, capRate, roi,
       firstYearCashFlow: annualCashFlow, firstYearCoCR: roi,
       cashInvested, annualDebt, downPayment,
     }
-  }, [property, askingPrice])
+  }, [baseGrossIncome, baseOperatingExpenses, askingPrice])
 
   const handleSaveClick = (scenario: any) => {
     pendingSaveRef.current = { scenario }

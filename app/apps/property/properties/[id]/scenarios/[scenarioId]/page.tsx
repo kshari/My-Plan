@@ -1,12 +1,9 @@
 import { requireAuth } from '@/lib/utils/auth'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import ScenarioDetailView from '@/components/property/scenario-detail-view'
 import DeleteScenarioButton from '@/components/property/delete-scenario-button'
-import {
-  BASE_SCENARIO_SLUG,
-  buildBaseScenarioFromProperty,
-} from '@/lib/property/build-base-scenario-from-property'
+import { BASE_SCENARIO_SLUG } from '@/lib/property/build-base-scenario-from-property'
 
 interface ScenarioDetailPageProps {
   params: Promise<{ id: string; scenarioId: string }>
@@ -23,7 +20,7 @@ export default async function ScenarioDetailPage({ params }: ScenarioDetailPageP
 
   const { data: property, error: propertyError } = await supabase
     .from('pi_properties')
-    .select('*')
+    .select('id, address')
     .eq('id', propertyId)
     .eq('user_id', user.id)
     .single()
@@ -35,25 +32,20 @@ export default async function ScenarioDetailPage({ params }: ScenarioDetailPageP
   const basePath = `/apps/property/properties/${propertyId}`
   const backHref = basePath
 
+  // 'base' slug → resolve to real is_base=true scenario
   if (scenarioIdParam === BASE_SCENARIO_SLUG) {
-    const { scenario, loan } = buildBaseScenarioFromProperty(property)
-    return (
-      <ScenarioDetailView
-        backHref={backHref}
-        address={property.address}
-        scenario={scenario}
-        loan={loan}
-        subtitle="Derived from your property listing and the same default loan assumptions used in the dashboard analysis (down payment, rate, term, closing costs). Save a named scenario to customize assumptions."
-        actions={
-          <Link
-            href={`${basePath}/scenarios/new`}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
-          >
-            Add Scenario
-          </Link>
-        }
-      />
-    )
+    const { data: baseScenario } = await supabase
+      .from('pi_financial_scenarios')
+      .select('id')
+      .eq('Property ID', propertyId)
+      .eq('is_base', true)
+      .single()
+
+    if (baseScenario) {
+      redirect(`${basePath}/scenarios/${baseScenario.id}`)
+    }
+    // Base scenario doesn't exist yet — 404
+    notFound()
   }
 
   const scenarioIdNum = parseInt(scenarioIdParam)
@@ -78,25 +70,38 @@ export default async function ScenarioDetailPage({ params }: ScenarioDetailPageP
     .eq('scenario_id', scenarioIdNum)
     .single()
 
+  const isBase = scenario.is_base === true
+
   return (
     <ScenarioDetailView
       backHref={backHref}
       address={property.address}
       scenario={scenario as Record<string, unknown>}
       loan={(loan ?? null) as Record<string, unknown> | null}
+      subtitle={isBase ? 'This is the Base scenario for this property. It represents the default financial assumptions.' : undefined}
       actions={
         <>
+          {!isBase && (
+            <Link
+              href={`${basePath}/scenarios/${scenarioIdNum}/edit`}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
+            >
+              Edit Scenario
+            </Link>
+          )}
           <Link
-            href={`${basePath}/scenarios/${scenarioIdNum}/edit`}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
+            href={`${basePath}/scenarios/new`}
+            className="inline-flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-xs hover:bg-muted transition-colors"
           >
-            Edit Scenario
+            Add Scenario
           </Link>
-          <DeleteScenarioButton
-            propertyId={propertyId}
-            scenarioId={scenarioIdNum}
-            scenarioName={scenario['Scenario Name'] || undefined}
-          />
+          {!isBase && (
+            <DeleteScenarioButton
+              propertyId={propertyId}
+              scenarioId={scenarioIdNum}
+              scenarioName={scenario['Scenario Name'] || undefined}
+            />
+          )}
         </>
       }
       loanMeta={{ propertyId, scenarioId: scenarioIdNum }}

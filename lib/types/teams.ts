@@ -26,6 +26,16 @@ export interface TeamInvitation {
   created_at: string
 }
 
+export interface PropertyExpenseBreakdown {
+  property_taxes?: number | null
+  insurance?: number | null
+  cdd?: number | null
+  hoa?: number | null
+  maintenance?: number | null
+  property_management?: number | null
+  other?: number | null
+}
+
 export interface SharedProperty {
   id: number
   team_id: string
@@ -41,8 +51,6 @@ export interface SharedProperty {
   'Has HOA': boolean | null
   swimming_pool: boolean | null
   'Asking Price': number | null
-  'Gross Income': number | null
-  'Operating Expenses': number | null
   listing_status: string | null
   source: string | null
   mls_number: string | null
@@ -53,9 +61,36 @@ export interface SharedProperty {
   lot_size: string | null
   community: string | null
   plan_name: string | null
-  estimated_rent: number | null
-  estimated_cash_flow: number | null
   notes: string | null
   additional_info: string | null
+  created_at: string
+  /** Financial fields populated by joining the base scenario (not stored on the property row) */
+  'Gross Income'?: number | null
+  'Operating Expenses'?: number | null
+  estimated_rent?: number | null
+  estimated_cash_flow?: number | null
+}
+
+/** A financial scenario row (pi_financial_scenarios or team_shared_scenarios) */
+export interface Scenario {
+  id: number
+  'Scenario Name': string | null
+  'Purchase Price': number | null
+  'Gross Income': number | null
+  'Operating Expenses': number | null
+  'Vacancy Rate': number | null
+  'Property Management Rate': number | null
+  'Income Increase': number | null
+  'Expenses Increase': number | null
+  'Property Value Increase': number | null
+  'Has Loan': boolean | null
+  'Down Payment Percentage': number | null
+  'Down Payment Amount': number | null
+  'Interest Rate': number | null
+  'Loan Term': number | null
+  'Closing Costs': number | null
+  'Purchase Closing Costs': number | null
+  expense_breakdown: PropertyExpenseBreakdown | null
+  is_base: boolean
   created_at: string
 }
