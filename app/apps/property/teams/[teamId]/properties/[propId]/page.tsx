@@ -39,6 +39,20 @@ export default async function SharedPropertyDetailPage({ params }: SharedPropert
 
   if (error || !property) notFound()
 
+  // Join base scenario financials
+  const { data: baseScenario } = await supabase
+    .from('team_shared_scenarios')
+    .select('"Gross Income", "Operating Expenses"')
+    .eq('shared_property_id', propertyId)
+    .eq('is_base', true)
+    .single()
+
+  const propertyWithFinancials = {
+    ...property,
+    'Gross Income': baseScenario ? (baseScenario['Gross Income'] ?? 0) / 12 : (property['Gross Income'] ?? null),
+    'Operating Expenses': baseScenario ? (baseScenario['Operating Expenses'] ?? 0) / 12 : (property['Operating Expenses'] ?? null),
+  }
+
   const sharedByLabel = property.shared_by === user.id
     ? 'you'
     : `…${property.shared_by.slice(-6)}`
@@ -86,7 +100,7 @@ export default async function SharedPropertyDetailPage({ params }: SharedPropert
       </div>
 
       <PropertyDetails
-        property={property}
+        property={propertyWithFinancials}
         propertyBasePath={`/apps/property/teams/${teamId}/properties/${propertyId}`}
       />
     </div>

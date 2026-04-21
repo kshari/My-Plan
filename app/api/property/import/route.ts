@@ -1,13 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { checkBotId } from 'botid/server'
+import { buildBaseScenarioSeed } from '@/lib/property/build-base-scenario-from-property'
 
 const VALID_COLUMNS = new Set([
   'address', 'city', 'county', 'type', 'Number of Units', 'Has HOA', 'swimming_pool', 'Asking Price',
-  'Gross Income', 'Operating Expenses', 'listing_status', 'source',
+  'listing_status', 'source',
   'mls_number', 'listing_url', 'bedrooms', 'bathrooms', 'sqft',
-  'lot_size', 'notes', 'additional_info', 'community', 'plan_name', 'estimated_rent',
-  'estimated_cash_flow',
+  'lot_size', 'notes', 'additional_info', 'community', 'plan_name',
 ])
 
 export type RowResult = {
@@ -160,17 +160,24 @@ export async function POST(request: Request) {
         skipped++
       }
     } else {
-      const { error } = await supabase
+      const { data: newProp, error } = await supabase
         .from('pi_properties')
         .insert({ ...sanitized, user_id: user.id, import_load_id: loadId })
-      if (!error) {
+        .select('id')
+        .single()
+      if (!error && newProp) {
+        // Auto-create Base scenario for each imported property
+        const seed = buildBaseScenarioSeed(newProp.id, {
+          'Asking Price': sanitized['Asking Price'] as number | null ?? null,
+        })
+        await supabase.from('pi_financial_scenarios').insert([seed])
         rowResults.push({ rowIndex: i + 1, status: 'created', address })
         created++
       } else {
         rowResults.push({
           rowIndex: i + 1,
           status: 'skipped',
-          reason: `Database error: ${error.message}`,
+          reason: `Database error: ${(error ?? { message: 'Unknown' }).message}`,
           address,
         })
         skipped++

@@ -32,6 +32,13 @@ export default async function TeamRecommendedScenariosPage({ params }: TeamRecom
 
   if (error || !property) notFound()
 
+  const { data: baseScenario } = await supabase
+    .from('team_shared_scenarios')
+    .select('"Gross Income", "Operating Expenses", "Income Increase", "Expenses Increase", "Property Value Increase", "Vacancy Rate", "Property Management Rate", "Purchase Price"')
+    .eq('shared_property_id', propertyId)
+    .eq('is_base', true)
+    .single()
+
   const backHref = `/apps/property/teams/${teamId}/properties/${propertyId}`
 
   return (
@@ -59,7 +66,7 @@ export default async function TeamRecommendedScenariosPage({ params }: TeamRecom
           ← Back to Property
         </Link>
 
-        <RecommendedScenariosList property={property} variant="team" />
+        <RecommendedScenariosList property={property} baseScenario={baseScenario ?? undefined} variant="team" />
       </main>
     </div>
   )

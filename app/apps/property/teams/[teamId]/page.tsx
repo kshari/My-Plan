@@ -45,11 +45,32 @@ export default async function TeamDashboardPage({ params }: TeamDashboardProps) 
       .order('created_at', { ascending: false }),
   ])
 
-  const properties = (sharedProperties ?? []).map(p => ({
-    ...p,
-    // Ensure created_at is always present (fall back to shared_at)
-    created_at: p.created_at ?? p.shared_at,
-  }))
+  // Join base scenario financials from team_shared_scenarios
+  const sharedPropIds = (sharedProperties ?? []).map(p => p.id)
+  let teamBaseMap = new Map<number, { 'Gross Income': number | null; 'Operating Expenses': number | null }>()
+  if (sharedPropIds.length > 0) {
+    const { data: baseScenarios } = await supabase
+      .from('team_shared_scenarios')
+      .select('shared_property_id, "Gross Income", "Operating Expenses"')
+      .in('shared_property_id', sharedPropIds)
+      .eq('is_base', true)
+    for (const s of baseScenarios ?? []) {
+      teamBaseMap.set(s.shared_property_id, {
+        'Gross Income': s['Gross Income'],
+        'Operating Expenses': s['Operating Expenses'],
+      })
+    }
+  }
+
+  const properties = (sharedProperties ?? []).map(p => {
+    const base = teamBaseMap.get(p.id)
+    return {
+      ...p,
+      created_at: p.created_at ?? p.shared_at,
+      'Gross Income': base ? (base['Gross Income'] ?? 0) / 12 : (p['Gross Income'] ?? null),
+      'Operating Expenses': base ? (base['Operating Expenses'] ?? 0) / 12 : (p['Operating Expenses'] ?? null),
+    }
+  })
 
   const linkPrefix = `/apps/property/teams/${teamId}/properties`
   const compareBase = `/apps/property/teams/${teamId}/compare`

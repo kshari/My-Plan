@@ -28,6 +28,13 @@ export default async function RecommendedScenariosPage({ params }: RecommendedSc
     notFound()
   }
 
+  const { data: baseScenario } = await supabase
+    .from('pi_financial_scenarios')
+    .select('"Gross Income", "Operating Expenses", "Income Increase", "Expenses Increase", "Property Value Increase", "Vacancy Rate", "Property Management Rate", "Purchase Price"')
+    .eq('Property ID', propertyId)
+    .eq('is_base', true)
+    .single()
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
@@ -65,7 +72,7 @@ export default async function RecommendedScenariosPage({ params }: RecommendedSc
           ← Back to Property
         </Link>
 
-        <RecommendedScenariosList property={property} />
+        <RecommendedScenariosList property={property} baseScenario={baseScenario ?? undefined} />
       </main>
     </div>
   )

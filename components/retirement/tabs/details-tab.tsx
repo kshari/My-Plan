@@ -2622,67 +2622,40 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                             calculateAccountContributions(proj.balance_ira || 0, prevProj?.balance_ira || null, proj.distribution_ira || 0) +
                             calculateAccountContributions(proj.balance_other_investments || 0, prevProj?.balance_other_investments || null, proj.distribution_other || 0)
                         } else {
-                          // First year: calculate from initial account balances
-                          // Map account types to projection balance keys
-                          const getInitialBalance = (accountType: string): number => {
-                            const type = (accountType || 'Other').trim()
-                            const key = type === 'Roth IRA' ? 'Roth IRA' : 
-                                        type === '401k' ? '401k' :
-                                        type === 'HSA' ? 'HSA' :
-                                        type === 'IRA' || type === 'Traditional IRA' ? 'IRA' :
-                                        type === 'Taxable' ? 'Taxable' : 'Other'
-                            
-                            // Find matching account in accountsForTooltip
-                            const account = accountsForTooltip.find(acc => {
-                              const accType = (acc.account_type || 'Other').trim()
-                              const accKey = accType === 'Roth IRA' ? 'Roth IRA' : 
-                                           accType === '401k' ? '401k' :
-                                           accType === 'HSA' ? 'HSA' :
-                                           accType === 'IRA' || accType === 'Traditional IRA' ? 'IRA' :
-                                           accType === 'Taxable' ? 'Taxable' : 'Other'
-                              return accKey === key
-                            })
-                            return account?.balance || 0
+                          // First year: calculate from initial account balances.
+                          // IMPORTANT: aggregate per canonical type first to avoid double-counting
+                          // when the user has multiple accounts of the same type (e.g. two 401k accounts).
+                          const normAcctType = (t: string): string => {
+                            const s = (t || '').trim().toLowerCase()
+                            if (s === '401k' || s === '401(k)') return '401k'
+                            if (s === 'roth ira' || s === 'roth') return 'Roth'
+                            if (s === 'taxable' || s === 'brokerage') return 'Taxable'
+                            if (s === 'hsa') return 'HSA'
+                            if (s === 'ira' || s === 'traditional ira') return 'IRA'
+                            return 'Other'
                           }
-                          
-                          const calculateFirstYearContributions = (currentBalance: number, accountType: string, distribution: number): number => {
-                            const initialBalance = getInitialBalance(accountType)
-                            if (initialBalance === 0) return 0
-                            const balanceAfterGrowth = initialBalance * (1 + growthRate)
-                            const contributions = currentBalance + distribution - balanceAfterGrowth
-                            return Math.max(0, contributions)
-                          }
-                          
-                          // Sum contributions from all accounts
-                          let totalContribution = 0
+                          // Sum opening balances per type
+                          const openByTypeFC: Record<string, number> = {}
                           accountsForTooltip.forEach(acc => {
-                            const type = acc.account_type || 'Other'
-                            let currentBalance = 0
-                            let distribution = 0
-                            
-                            if (type === '401k') {
-                              currentBalance = proj.balance_401k || 0
-                              distribution = proj.distribution_401k || 0
-                            } else if (type === 'Roth IRA' || type === 'Roth') {
-                              currentBalance = proj.balance_roth || 0
-                              distribution = proj.distribution_roth || 0
-                            } else if (type === 'Taxable') {
-                              currentBalance = proj.balance_investment || 0
-                              distribution = proj.distribution_taxable || 0
-                            } else if (type === 'HSA') {
-                              currentBalance = proj.balance_hsa || 0
-                              distribution = proj.distribution_hsa || 0
-                            } else if (type === 'IRA' || type === 'Traditional IRA') {
-                              currentBalance = proj.balance_ira || 0
-                              distribution = proj.distribution_ira || 0
-                            } else {
-                              currentBalance = proj.balance_other_investments || 0
-                              distribution = proj.distribution_other || 0
-                            }
-                            
-                            totalContribution += calculateFirstYearContributions(currentBalance, type, distribution)
+                            const k = normAcctType(acc.account_type || '')
+                            openByTypeFC[k] = (openByTypeFC[k] || 0) + (acc.balance || 0)
                           })
-                          
+                          // Compute once per type: closing + distribution - opening * (1 + growthRate)
+                          const typeEntries: { key: string; closing: number; dist: number }[] = [
+                            { key: '401k',    closing: proj.balance_401k || 0,              dist: proj.distribution_401k || 0 },
+                            { key: 'Roth',    closing: proj.balance_roth || 0,              dist: proj.distribution_roth || 0 },
+                            { key: 'Taxable', closing: proj.balance_investment || 0,         dist: proj.distribution_taxable || 0 },
+                            { key: 'HSA',     closing: proj.balance_hsa || 0,              dist: proj.distribution_hsa || 0 },
+                            { key: 'IRA',     closing: proj.balance_ira || 0,              dist: proj.distribution_ira || 0 },
+                            { key: 'Other',   closing: proj.balance_other_investments || 0, dist: proj.distribution_other || 0 },
+                          ]
+                          let totalContribution = 0
+                          typeEntries.forEach(({ key, closing, dist }) => {
+                            const open = openByTypeFC[key] || 0
+                            if (open === 0) return
+                            const contrib = closing + dist - open * (1 + growthRate)
+                            totalContribution += Math.max(0, contrib)
+                          })
                           contribution = totalContribution
                         }
                       }
@@ -2796,8 +2769,62 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                                 calculateAccountGrowth(prevProj?.balance_ira || null) +
                                 calculateAccountGrowth(prevProj?.balance_other_investments || null)
                               
+                              // Per-account row data (shared between pre/post-retirement rendering)
+                              const acctRows = [
+                                { label: '401(k)',   open: prevProj.balance_401k || 0,                close: proj.balance_401k || 0,                dist: proj.distribution_401k || 0 },
+                                { label: 'Roth',     open: prevProj.balance_roth || 0,               close: proj.balance_roth || 0,                dist: proj.distribution_roth || 0 },
+                                { label: 'Taxable',  open: prevProj.balance_investment || 0,          close: proj.balance_investment || 0,           dist: proj.distribution_taxable || 0 },
+                                { label: 'HSA',      open: prevProj.balance_hsa || 0,                close: proj.balance_hsa || 0,                 dist: proj.distribution_hsa || 0 },
+                                { label: 'IRA',      open: prevProj.balance_ira || 0,                close: proj.balance_ira || 0,                 dist: proj.distribution_ira || 0 },
+                                { label: 'Other',    open: prevProj.balance_other_investments || 0,   close: proj.balance_other_investments || 0,    dist: proj.distribution_other || 0 },
+                              ].filter(a => a.open > 0 || a.close > 0)
+                              const fmtD = (n: number) => `$${Math.round(n).toLocaleString()}`
+                              const totOpen  = acctRows.reduce((s, a) => s + a.open,  0)
+                              const totClose = acctRows.reduce((s, a) => s + a.close, 0)
+                              const totGrowth  = acctRows.reduce((s, a) => s + a.open * growthRate, 0)
+                              const totContrib = acctRows.reduce((s, a) => s + Math.max(0, a.close + a.dist - a.open * (1 + growthRate)), 0)
+
                               return (
                                 <>
+                                  {/* Pre-retirement: per-account buildup waterfall */}
+                                  {!isRetired && acctRows.length > 0 && (
+                                    <div className="mb-2 space-y-1.5">
+                                      <div className="text-xs text-yellow-300 font-medium">
+                                        Per-Account Buildup — {(growthRate * 100).toFixed(1)}% pre-retirement growth
+                                      </div>
+                                      {acctRows.map(a => {
+                                        const growth   = a.open * growthRate
+                                        const contribs = Math.max(0, a.close + a.dist - a.open * (1 + growthRate))
+                                        return (
+                                          <div key={a.label} className="text-xs">
+                                            <div className="flex justify-between">
+                                              <span className="text-gray-300 font-medium">{a.label}</span>
+                                              <span className="text-white">{fmtD(a.open)} → {fmtD(a.close)}</span>
+                                            </div>
+                                            <div className="flex gap-3 pl-2 text-gray-400">
+                                              <span className="text-green-400">+{fmtD(growth)} growth</span>
+                                              {contribs > 50 && <span className="text-blue-400">+{fmtD(contribs)} contributions</span>}
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                      {acctRows.length > 1 && (
+                                        <div className="pt-1 border-t border-gray-600 text-xs">
+                                          <div className="flex justify-between font-semibold">
+                                            <span className="text-gray-200">All Accounts</span>
+                                            <span className="text-white">{fmtD(totOpen)} → {fmtD(totClose)}</span>
+                                          </div>
+                                          <div className="flex gap-3 pl-2 text-gray-400">
+                                            <span className="text-green-400">+{fmtD(totGrowth)} growth</span>
+                                            {totContrib > 50 && <span className="text-blue-400">+{fmtD(totContrib)} contributions</span>}
+                                          </div>
+                                        </div>
+                                      )}
+                                      <div className="border-b border-gray-700" />
+                                    </div>
+                                  )}
+
+                                  {/* Summary row-by-row breakdown (both pre and post retirement) */}
                                   <div className="space-y-1">
                                     <div className="flex justify-between">
                                       <span className="text-gray-300">Previous Year Remaining Funds:</span>
@@ -2859,14 +2886,93 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                                       </span>
                                     </div>
                                     <div className="flex justify-between mt-2 border-t border-gray-700 pt-2">
-                                      <span className="text-gray-200 font-semibold">Current Remaining Funds:</span>
+                                      <span className="text-gray-200 font-semibold">Ending Networth:</span>
                                       <span className="text-white font-bold">${currentNetworth.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                     </div>
                                   </div>
                                 </>
                               )
                             })() : (
-                              <p className="text-xs text-gray-400">No previous data available</p>
+                              /* No prevProj — first projection year: show how current savings became year-end balances */
+                              (() => {
+                                const retirementAgeFirst = retirementAge !== null ? retirementAge : 65
+                                const isRetiredFirst = (proj.age || 0) >= retirementAgeFirst
+                                if (isRetiredFirst) return <p className="text-xs text-gray-400">No previous data available</p>
+
+                                const growthRateFirst = settings?.growth_rate_before_retirement || 0.07
+
+                                // Normalize account_type to canonical bucket keys
+                                const normType = (t: string): string => {
+                                  const s = (t || '').trim().toLowerCase()
+                                  if (s === '401k' || s === '401(k)') return '401k'
+                                  if (s === 'roth ira' || s === 'roth') return 'Roth'
+                                  if (s === 'taxable' || s === 'brokerage') return 'Taxable'
+                                  if (s === 'hsa') return 'HSA'
+                                  if (s === 'ira' || s === 'traditional ira') return 'IRA'
+                                  return 'Other'
+                                }
+
+                                // Sum initial balances per canonical type (handles multiple accounts of same type)
+                                const openByType: Record<string, number> = {}
+                                accountsForTooltip.forEach(acc => {
+                                  const k = normType(acc.account_type || '')
+                                  openByType[k] = (openByType[k] || 0) + (acc.balance || 0)
+                                })
+
+                                const typeRows = [
+                                  { label: '401(k)',  key: '401k',    closing: proj.balance_401k || 0,               dist: proj.distribution_401k || 0 },
+                                  { label: 'Roth',    key: 'Roth',    closing: proj.balance_roth || 0,               dist: proj.distribution_roth || 0 },
+                                  { label: 'Taxable', key: 'Taxable', closing: proj.balance_investment || 0,          dist: proj.distribution_taxable || 0 },
+                                  { label: 'HSA',     key: 'HSA',     closing: proj.balance_hsa || 0,               dist: proj.distribution_hsa || 0 },
+                                  { label: 'IRA',     key: 'IRA',     closing: proj.balance_ira || 0,               dist: proj.distribution_ira || 0 },
+                                  { label: 'Other',   key: 'Other',   closing: proj.balance_other_investments || 0,  dist: proj.distribution_other || 0 },
+                                ].map(t => ({
+                                  ...t,
+                                  opening:  openByType[t.key] || 0,
+                                  growth:   (openByType[t.key] || 0) * growthRateFirst,
+                                  contribs: Math.max(0, t.closing + t.dist - (openByType[t.key] || 0) * (1 + growthRateFirst)),
+                                })).filter(t => t.opening > 0 || t.closing > 0)
+
+                                const fmtF = (n: number) => `$${Math.round(n).toLocaleString()}`
+                                const totOpen    = typeRows.reduce((s, t) => s + t.opening,  0)
+                                const totClose   = typeRows.reduce((s, t) => s + t.closing,  0)
+                                const totGrowth  = typeRows.reduce((s, t) => s + t.growth,   0)
+                                // Prefer engine's authoritative annual_contribution for total; fall back to derived sum
+                                const totContrib = proj.annual_contribution != null
+                                  ? proj.annual_contribution
+                                  : typeRows.reduce((s, t) => s + t.contribs, 0)
+
+                                return (
+                                  <div className="space-y-1.5">
+                                    <div className="text-xs text-yellow-300 font-medium">Year 1 Buildup — Current Savings → Projected Year End</div>
+                                    <div className="text-xs text-gray-400">{(growthRateFirst * 100).toFixed(1)}% pre-retirement growth applied to opening balances</div>
+                                    {typeRows.map(t => (
+                                      <div key={t.label} className="text-xs">
+                                        <div className="flex justify-between">
+                                          <span className="text-gray-300 font-medium">{t.label}</span>
+                                          <span className="text-white">{fmtF(t.opening)} → {fmtF(t.closing)}</span>
+                                        </div>
+                                        <div className="flex gap-3 pl-2 text-gray-400">
+                                          <span className="text-green-400">+{fmtF(t.growth)} growth</span>
+                                          {t.contribs > 50 && <span className="text-blue-400">+{fmtF(t.contribs)} contributions</span>}
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {typeRows.length > 1 && (
+                                      <div className="border-t border-gray-600 pt-1 text-xs">
+                                        <div className="flex justify-between font-semibold">
+                                          <span className="text-gray-200">All Accounts</span>
+                                          <span className="text-white">{fmtF(totOpen)} → {fmtF(totClose)}</span>
+                                        </div>
+                                        <div className="flex gap-3 pl-2 text-gray-400">
+                                          <span className="text-green-400">+{fmtF(totGrowth)} growth</span>
+                                          {totContrib > 50 && <span className="text-blue-400">+{fmtF(totContrib)} contributions</span>}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })()
                             )}
                           </div>
                         </TooltipContent>

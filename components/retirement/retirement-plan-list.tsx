@@ -33,6 +33,7 @@ interface PlanMetrics {
   current_age?: number | null
   retirement_age?: number | null
   confidence_score?: number | null
+  retirement_score?: number | null
   monthly_income?: number | null
   years_money_lasts?: number | null
   networth_at_retirement?: number | null
@@ -156,7 +157,7 @@ export default function RetirementPlanList({ plans, metrics = [], ssaStartAgeByP
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">Retire at</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">Life exp.</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">SSA at</th>
-            <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Viability</th>
+            <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Score</th>
             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Monthly Income</th>
             <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Longevity</th>
             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hidden lg:table-cell">Networth At Retirement</th>
@@ -211,17 +212,25 @@ export default function RetirementPlanList({ plans, metrics = [], ssaStartAgeByP
                   {ssaStartAgeByPlanId[plan.id] != null ? ssaStartAgeByPlanId[plan.id] : dash}
                 </td>
 
-                {/* Viability score (deterministic) */}
+                {/* Retirement score — multi-factor (falls back to confidence score for plans not yet recalculated) */}
                 <td className="px-4 py-3 text-center hidden md:table-cell">
-                  {hasMetrics && m.confidence_score != null ? (
-                    <span className={`font-semibold ${
-                      m.confidence_score >= SCORE_ON_TRACK_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400'
-                      : m.confidence_score >= SCORE_CLOSE_THRESHOLD ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-red-600 dark:text-red-400'
-                    }`}>
-                      {Math.round(m.confidence_score)}%
-                    </span>
-                  ) : dash}
+                  {(() => {
+                    const score = hasMetrics ? (m.retirement_score ?? m.confidence_score) : null
+                    if (score == null) return dash
+                    const isRetirementScore = hasMetrics && m.retirement_score != null
+                    return (
+                      <span
+                        title={isRetirementScore ? 'Retirement Score (multi-factor)' : 'Viability Score — open plan and run Quick Analysis to compute Retirement Score'}
+                        className={`font-semibold ${
+                          score >= SCORE_ON_TRACK_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400'
+                          : score >= SCORE_CLOSE_THRESHOLD ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {Math.round(score)}
+                      </span>
+                    )
+                  })()}
                 </td>
 
                 {/* Monthly income */}
@@ -283,7 +292,7 @@ export default function RetirementPlanList({ plans, metrics = [], ssaStartAgeByP
       </table>
       {plans.some((p) => !metricsMap[p.id]) && (
         <div className="border-t px-4 py-2.5 text-[11px] text-muted-foreground/60 bg-muted/10">
-          Metrics appear after opening a plan and running Quick Analysis.
+          Retirement Score appears after opening a plan and running Quick Analysis.
         </div>
       )}
 

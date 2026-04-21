@@ -1,11 +1,8 @@
 import { requireAuth } from '@/lib/utils/auth'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import ScenarioDetailView from '@/components/property/scenario-detail-view'
-import {
-  BASE_SCENARIO_SLUG,
-  buildBaseScenarioFromProperty,
-} from '@/lib/property/build-base-scenario-from-property'
+import { BASE_SCENARIO_SLUG } from '@/lib/property/build-base-scenario-from-property'
 
 interface TeamScenarioDetailPageProps {
   params: Promise<{ teamId: string; propId: string; scenarioId: string }>
@@ -29,7 +26,7 @@ export default async function TeamScenarioDetailPage({ params }: TeamScenarioDet
 
   const { data: property, error: propertyError } = await supabase
     .from('team_shared_properties')
-    .select('*')
+    .select('id, address')
     .eq('id', propertyId)
     .eq('team_id', teamId)
     .single()
@@ -39,33 +36,19 @@ export default async function TeamScenarioDetailPage({ params }: TeamScenarioDet
   const basePath = `/apps/property/teams/${teamId}/properties/${propertyId}`
   const backHref = basePath
 
+  // 'base' slug → resolve to real is_base=true scenario
   if (scenarioIdParam === BASE_SCENARIO_SLUG) {
-    const { scenario, loan } = buildBaseScenarioFromProperty(property)
-    return (
-      <ScenarioDetailView
-        backHref={backHref}
-        address={property.address}
-        scenario={scenario}
-        loan={loan}
-        subtitle="Derived from this shared listing and the same default loan assumptions used in the dashboard analysis. Save a team scenario from Model Scenarios or Add Scenario to customize assumptions."
-        actions={
-          <>
-            <Link
-              href={`${basePath}/scenarios/recommended`}
-              className="inline-flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-xs hover:bg-muted transition-colors"
-            >
-              Model Scenarios
-            </Link>
-            <Link
-              href={`${basePath}/scenarios/new`}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
-            >
-              Add Scenario
-            </Link>
-          </>
-        }
-      />
-    )
+    const { data: baseScenario } = await supabase
+      .from('team_shared_scenarios')
+      .select('id')
+      .eq('shared_property_id', propertyId)
+      .eq('is_base', true)
+      .single()
+
+    if (baseScenario) {
+      redirect(`${basePath}/scenarios/${baseScenario.id}`)
+    }
+    notFound()
   }
 
   const scenarioIdNum = parseInt(scenarioIdParam)
@@ -86,19 +69,30 @@ export default async function TeamScenarioDetailPage({ params }: TeamScenarioDet
     .eq('shared_scenario_id', scenarioIdNum)
     .single()
 
+  const isBase = scenario.is_base === true
+
   return (
     <ScenarioDetailView
       backHref={backHref}
       address={property.address}
       scenario={scenario as Record<string, unknown>}
       loan={(loan ?? null) as Record<string, unknown> | null}
+      subtitle={isBase ? 'This is the Base scenario for this property. It represents the default financial assumptions.' : undefined}
       actions={
-        <Link
-          href={`${basePath}/scenarios/recommended`}
-          className="inline-flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-xs hover:bg-muted transition-colors"
-        >
-          Model Scenarios
-        </Link>
+        <>
+          <Link
+            href={`${basePath}/scenarios/recommended`}
+            className="inline-flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-xs hover:bg-muted transition-colors"
+          >
+            Model Scenarios
+          </Link>
+          <Link
+            href={`${basePath}/scenarios/new`}
+            className="inline-flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-xs hover:bg-muted transition-colors"
+          >
+            Add Scenario
+          </Link>
+        </>
       }
     />
   )

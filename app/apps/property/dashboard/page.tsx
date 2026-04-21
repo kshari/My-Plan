@@ -35,7 +35,34 @@ export default async function PropertyDashboardPage({ searchParams }: DashboardP
     .filter(m => m.teams)
     .map(m => m.teams as unknown as { id: string; name: string })
 
-  const propertySummaries = (properties ?? []).map(p => ({
+  // Join base scenario financials so dashboard components can compute metrics
+  const propertyIds = (properties ?? []).map(p => p.id)
+  let baseScenarioMap = new Map<number, { 'Gross Income': number | null; 'Operating Expenses': number | null }>()
+  if (propertyIds.length > 0) {
+    const { data: baseScenarios } = await supabase
+      .from('pi_financial_scenarios')
+      .select('"Property ID", "Gross Income", "Operating Expenses"')
+      .in('Property ID', propertyIds)
+      .eq('is_base', true)
+    for (const s of baseScenarios ?? []) {
+      baseScenarioMap.set(s['Property ID'], {
+        'Gross Income': s['Gross Income'],
+        'Operating Expenses': s['Operating Expenses'],
+      })
+    }
+  }
+
+  // Merge: convert annual scenario values → monthly for dashboard child components
+  const propertiesWithFinancials = (properties ?? []).map(p => {
+    const base = baseScenarioMap.get(p.id)
+    return {
+      ...p,
+      'Gross Income': base ? (base['Gross Income'] ?? 0) / 12 : (p['Gross Income'] ?? null),
+      'Operating Expenses': base ? (base['Operating Expenses'] ?? 0) / 12 : (p['Operating Expenses'] ?? null),
+    }
+  })
+
+  const propertySummaries = propertiesWithFinancials.map(p => ({
     id: p.id,
     address: p.address,
     city: p.city,
@@ -85,12 +112,12 @@ export default async function PropertyDashboardPage({ searchParams }: DashboardP
         </div>
       </div>
 
-      {properties && properties.length > 0 && (
-        <PropertyPortfolioSummary properties={properties} />
+      {propertiesWithFinancials.length > 0 && (
+        <PropertyPortfolioSummary properties={propertiesWithFinancials} />
       )}
 
       <PropertyList
-        properties={properties || []}
+        properties={propertiesWithFinancials}
         loads={loads ?? []}
         initialLoadFilter={params.load}
       />

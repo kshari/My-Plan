@@ -25,10 +25,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {
   SCORE_AT_RISK_THRESHOLD,
   SCORE_MEDIUM_RISK_THRESHOLD,
-  SCORE_WEIGHT_SCENARIO_LONGEVITY,
-  SCORE_WEIGHT_SCENARIO_SCORE,
 } from '@/lib/constants/retirement-defaults'
 import { calculateAndSaveProjectionsForScenario } from '@/lib/utils/calculate-projections'
+import { calculateRetirementScore } from '@/components/retirement/tabs/analysis-tab'
+import { buildCalculatorSettings } from '@/lib/utils/retirement-projections'
+import type { CalculatorSettings } from '@/lib/utils/retirement-projections'
 
 interface Scenario {
   id: number
@@ -296,18 +297,49 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
 
   const loadMetrics = async () => {
     const map = new Map<number, ScenarioMetrics>()
+
+    // Fetch plan data + accounts once — shared across all scenarios
+    const [planResult, accountResult] = await Promise.all([
+      supabase
+        .from('rp_retirement_plans')
+        .select('birth_year, life_expectancy, include_spouse, filing_status, spouse_birth_year, spouse_life_expectancy')
+        .eq('id', planId)
+        .single(),
+      supabase
+        .from('rp_accounts')
+        .select('*')
+        .eq('plan_id', planId),
+    ])
+
+    const accounts = (accountResult.data || []).map((a: any) => ({
+      id: a.id,
+      account_name: a.account_name || '',
+      owner: a.owner || 'planner',
+      account_type: a.account_type,
+      balance: a.balance || 0,
+      annual_contribution: a.annual_contribution || 0,
+    }))
+
+    const planRow = planResult.data
+
     for (const scenario of scenarios) {
       try {
-        const { data: settings } = await supabase
-          .from('rp_calculator_settings')
-          .select('retirement_age, retirement_start_year, growth_rate_before_retirement, growth_rate_during_retirement, inflation_rate, ssa_start_age')
-          .eq('scenario_id', scenario.id)
-          .maybeSingle()
-        const { data: projections } = await supabase
-          .from('rp_projection_details')
-          .select('age, networth, gap_excess, total_income, tax, after_tax_income')
-          .eq('scenario_id', scenario.id)
-          .order('year')
+        // Use select('*') so buildCalculatorSettings gets every field it needs — same as analysis-tab
+        const [settingsResult, projectionsResult] = await Promise.all([
+          supabase
+            .from('rp_calculator_settings')
+            .select('*')
+            .eq('scenario_id', scenario.id)
+            .maybeSingle(),
+          supabase
+            .from('rp_projection_details')
+            .select('*')
+            .eq('scenario_id', scenario.id)
+            .order('year'),
+        ])
+
+        const settingsRow = settingsResult.data
+        const rawRows = projectionsResult.data || []
 
         let overallScore: number | undefined
         let startingNetworth: number | undefined
@@ -315,37 +347,58 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
         let avgMonthlyIncome: number | undefined
         let yearsMoneyLasts: number | 'full' | undefined
 
-        if (projections && projections.length > 0) {
-          const retireAge = settings?.retirement_age
-          const retireProjns = retireAge
-            ? projections.filter((p: any) => (p.age ?? 0) >= retireAge)
-            : projections
-          const retireProjn = retireProjns[0] ?? null
+        if (rawRows.length > 0) {
+          // Build settings the same way the analysis tab does so the retirement score
+          // is computed from identical inputs (parseFloat coercions, filing_status, etc.)
+          const currentYear: number = settingsRow?.current_year || new Date().getFullYear()
+          const retirementAge: number = settingsRow?.retirement_age || 65
+          const yearsToRetirement = settingsRow?.years_to_retirement != null
+            ? settingsRow.years_to_retirement
+            : Math.max(0, retirementAge - (currentYear - (planRow?.birth_year ?? currentYear - 50)))
+          const annualExpenses: number = settingsRow?.annual_retirement_expenses || 0
 
-          // Sustainability: % of RETIREMENT years where income covers expenses (no deficit)
-          const negYears = retireProjns.filter((p: any) => (p.gap_excess || 0) < -1000).length
-          const sustScore = Math.max(0, 100 - (negYears / Math.max(retireProjns.length, 1)) * 100)
-
-          // Income quality: surplus ratio in retirement (gap_excess / after_tax_income)
-          // Positive gap_excess = income exceeds expenses → score above 50; deficit → below 50
-          const totalAfterTax = retireProjns.reduce((s: number, p: any) => s + (p.after_tax_income || 0), 0)
-          const totalGap = retireProjns.reduce((s: number, p: any) => s + (p.gap_excess || 0), 0)
-          const incomeScore = totalAfterTax > 0
-            ? Math.min(100, Math.max(0, 50 + (totalGap / totalAfterTax) * 50))
-            : 50
-
-          // Longevity: net worth preservation through retirement (retirement-start → end)
-          const initRetireNW = retireProjn?.networth || 0
-          const finalNW = projections[projections.length - 1]?.networth || 0
-          const lonScore = initRetireNW > 0
-            ? Math.min(100, Math.max(0, (finalNW / initRetireNW) * 50))
-            : 0
-
-          overallScore = Math.round(
-            sustScore * SCORE_WEIGHT_SCENARIO_LONGEVITY +
-            incomeScore * SCORE_WEIGHT_SCENARIO_SCORE +
-            lonScore * SCORE_WEIGHT_SCENARIO_SCORE
+          const settings: CalculatorSettings = buildCalculatorSettings(
+            settingsRow,
+            planRow,
+            currentYear,
+            retirementAge,
+            yearsToRetirement,
+            annualExpenses,
           )
+
+          // Map projection rows explicitly — same coercions as analysis-tab to avoid NaN from raw DB values
+          const projections = rawRows.map((p: any) => ({
+            year: p.year,
+            age: p.age,
+            event: p.event,
+            ssa_income: p.ssa_income || 0,
+            distribution_401k: p.distribution_401k || 0,
+            distribution_roth: p.distribution_roth || 0,
+            investment_income: p.investment_income || 0,
+            other_recurring_income: p.other_recurring_income || 0,
+            total_income: p.total_income || 0,
+            after_tax_income: p.after_tax_income || 0,
+            living_expenses: p.living_expenses || 0,
+            total_expenses: p.total_expenses || 0,
+            gap_excess: p.gap_excess || 0,
+            cumulative_liability: p.cumulative_liability || 0,
+            networth: p.networth || 0,
+            balance_401k: p.balance_401k || 0,
+            balance_roth: p.balance_roth || 0,
+            balance_investment: p.balance_investment || 0,
+            taxable_income: p.taxable_income || 0,
+            tax: p.tax || 0,
+            healthcare_expenses: (p as any).healthcare_expenses || 0,
+            special_expenses: p.special_expenses || 0,
+          }))
+
+          const retireProjns = projections.filter(p => (p.age ?? 0) >= retirementAge)
+          const retireProjn = retireProjns[0] ?? null
+          const finalNW = projections[projections.length - 1]?.networth || 0
+
+          const retirementScore = calculateRetirementScore(projections, settings, accounts)
+          overallScore = retirementScore.overall
+
           startingNetworth = retireProjn?.networth ?? (projections[0]?.networth || 0)
           endingNetworth = finalNW
 
@@ -362,15 +415,15 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
 
         map.set(scenario.id, {
           scenarioId: scenario.id,
-          retirementAge: settings?.retirement_age,
-          retirementStartYear: settings?.retirement_start_year,
+          retirementAge: settingsRow?.retirement_age,
+          retirementStartYear: settingsRow?.retirement_start_year,
           overallScore,
           startingNetworth,
           endingNetworth,
-          growthRateBefore: settings?.growth_rate_before_retirement,
-          growthRateDuring: settings?.growth_rate_during_retirement,
-          inflationRate: settings?.inflation_rate,
-          ssaStartAge: settings?.ssa_start_age,
+          growthRateBefore: settingsRow?.growth_rate_before_retirement,
+          growthRateDuring: settingsRow?.growth_rate_during_retirement,
+          inflationRate: settingsRow?.inflation_rate,
+          ssaStartAge: settingsRow?.ssa_start_age,
           avgMonthlyIncome,
           yearsMoneyLasts,
         })
@@ -573,19 +626,22 @@ export default function ScenariosTable({ planId, onAddScenario, onModelScenarios
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="flex items-center gap-1">
-              Comparative Score
+              Retirement Score
               <Info className="h-3 w-3 text-muted-foreground" />
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs text-left space-y-2 p-3">
-            <p className="font-semibold text-sm">Comparative Score (0–100)</p>
+            <p className="font-semibold text-sm">Retirement Score (0–100)</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              A composite score for comparing scenarios across three dimensions:
+              The same multi-factor score shown in the Risk Analysis tab, computed from this scenario's saved projections:
             </p>
             <ul className="text-xs space-y-1">
-              <li><span className="font-medium">Sustainability (50%)</span> — % of retirement years with no significant income shortfall</li>
-              <li><span className="font-medium">Income Surplus (25%)</span> — how much after-tax income exceeds expenses on average</li>
-              <li><span className="font-medium">Wealth Preservation (25%)</span> — net worth at end of life vs net worth at retirement start</li>
+              <li><span className="font-medium">Longevity (40%)</span> — portfolio survives to life expectancy</li>
+              <li><span className="font-medium">Cashflow (10%)</span> — years with no significant income shortfall</li>
+              <li><span className="font-medium">Tax Efficiency (10%)</span> — effective rate vs income benchmark</li>
+              <li><span className="font-medium">Inflation (10%)</span> — income keeps pace with expense growth</li>
+              <li><span className="font-medium">Medical (10%)</span> — healthcare coverage readiness</li>
+              <li><span className="font-medium text-muted-foreground">Monte Carlo (20%)</span> — included once run</li>
             </ul>
             <p className="text-xs text-muted-foreground border-t pt-1.5">
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">≥ 75</span> strong ·{' '}
