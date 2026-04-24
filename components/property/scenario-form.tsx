@@ -84,27 +84,36 @@ export default function ScenarioForm({
   const [expensesIncrease, setExpensesIncrease] = useState(initialData?.['Expenses Increase']?.toString() || '0')
   const [propertyValueIncrease, setPropertyValueIncrease] = useState(initialData?.['Property Value Increase']?.toString() || '0')
 
-  // Expense breakdown fields
-  const [useExpenseBreakdown, setUseExpenseBreakdown] = useState(
-    !!initialData?.expense_breakdown
+  // ── Expense breakdown (canonical shape) ──────────────────────────────────
+  // JSONB keys: property_taxes, insurance, cdd, hoa, maintenance, other — all in $/month.
+  // Legacy rows written by earlier versions of this form stored annual dollars and
+  // misplaced the top-level rates (management_fee, vacancy_rate) inside the JSONB.
+  // We detect that shape here and migrate on read so users see sensible defaults.
+  const _rawBreakdown = initialData?.expense_breakdown as Record<string, number | null> | null | undefined
+  const _looksLegacy = !!_rawBreakdown && ('management_fee' in _rawBreakdown || 'vacancy_rate' in _rawBreakdown)
+  const _toMonthly = (v: number | null | undefined) =>
+    v == null || !isFinite(Number(v)) ? '' : (_looksLegacy ? (Number(v) / 12).toFixed(2) : String(v))
+
+  const [useExpenseBreakdown, setUseExpenseBreakdown] = useState(!!_rawBreakdown)
+  const [propertyTaxes, setPropertyTaxes] = useState(_toMonthly(_rawBreakdown?.property_taxes))
+  const [insurance, setInsurance] = useState(_toMonthly(_rawBreakdown?.insurance))
+  const [cdd, setCdd] = useState(_toMonthly(_rawBreakdown?.cdd))
+  const [hoa, setHoa] = useState(_toMonthly(_rawBreakdown?.hoa))
+  const [maintenance, setMaintenance] = useState(_toMonthly(_rawBreakdown?.maintenance))
+  const [otherExpenses, setOtherExpenses] = useState(_toMonthly(_rawBreakdown?.other))
+
+  // Top-level scenario rates (these are columns on pi_financial_scenarios,
+  // not part of the expense breakdown). If we detected a legacy breakdown
+  // that had them nested, promote those values up here.
+  const [vacancyRatePct, setVacancyRatePct] = useState(
+    initialData?.['Vacancy Rate']?.toString()
+      || (_looksLegacy ? _rawBreakdown?.vacancy_rate?.toString() ?? '' : '')
+      || ''
   )
-  const [propertyTaxes, setPropertyTaxes] = useState(
-    initialData?.expense_breakdown?.property_taxes?.toString() || ''
-  )
-  const [insurance, setInsurance] = useState(
-    initialData?.expense_breakdown?.insurance?.toString() || ''
-  )
-  const [maintenance, setMaintenance] = useState(
-    initialData?.expense_breakdown?.maintenance?.toString() || ''
-  )
-  const [managementFee, setManagementFee] = useState(
-    initialData?.expense_breakdown?.management_fee?.toString() || ''
-  )
-  const [vacancyRate, setVacancyRate] = useState(
-    initialData?.expense_breakdown?.vacancy_rate?.toString() || ''
-  )
-  const [otherExpenses, setOtherExpenses] = useState(
-    initialData?.expense_breakdown?.other?.toString() || ''
+  const [propertyManagementPct, setPropertyManagementPct] = useState(
+    initialData?.['Property Management Rate']?.toString()
+      || (_looksLegacy ? _rawBreakdown?.management_fee?.toString() ?? '' : '')
+      || ''
   )
 
   // Calculate net operating income (NOI) and net income
@@ -162,24 +171,23 @@ export default function ScenarioForm({
     }
   }, [purchasePrice, downPaymentPercent, initialData])
 
-  // Auto-calculate Operating Expenses from expense breakdown
+  // Auto-calculate annual Operating Expenses from the itemized breakdown.
+  // Breakdown values are $/month, so annual total = sum × 12. Vacancy loss and
+  // property-management fees are NOT operating expenses — they're computed
+  // separately by compute-metrics.ts as a revenue deduction and a % of
+  // effective income respectively, so they don't belong in this sum.
   useEffect(() => {
     if (useExpenseBreakdown) {
-      const taxes = parseFloat(propertyTaxes) || 0
-      const ins = parseFloat(insurance) || 0
-      const maint = parseFloat(maintenance) || 0
-      const mgmt = parseFloat(managementFee) || 0
-      const vacancy = parseFloat(vacancyRate) || 0
-      const other = parseFloat(otherExpenses) || 0
-
-      const gross = parseFloat(grossIncome) || 0
-      const vacancyLoss = gross > 0 && vacancy > 0 ? gross * (vacancy / 100) : 0
-      const mgmtAmount = gross > 0 && mgmt > 0 ? gross * (mgmt / 100) : 0
-
-      const total = taxes + ins + maint + mgmtAmount + vacancyLoss + other
-      setOperatingExpenses(total.toFixed(2))
+      const monthlyTotal =
+        (parseFloat(propertyTaxes) || 0) +
+        (parseFloat(insurance) || 0) +
+        (parseFloat(cdd) || 0) +
+        (parseFloat(hoa) || 0) +
+        (parseFloat(maintenance) || 0) +
+        (parseFloat(otherExpenses) || 0)
+      setOperatingExpenses((monthlyTotal * 12).toFixed(2))
     }
-  }, [useExpenseBreakdown, propertyTaxes, insurance, maintenance, managementFee, vacancyRate, otherExpenses, grossIncome])
+  }, [useExpenseBreakdown, propertyTaxes, insurance, cdd, hoa, maintenance, otherExpenses])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -217,12 +225,16 @@ export default function ScenarioForm({
         'Interest Rate': hasLoan && interestRate ? parseFloat(interestRate) : null,
         'Closing Costs': hasLoan && loanClosingCosts ? parseFloat(loanClosingCosts) : null,
         'Purchase Closing Costs': purchaseClosingCosts ? parseFloat(purchaseClosingCosts) : null,
+        'Vacancy Rate': vacancyRatePct === '' ? null : parseFloat(vacancyRatePct),
+        'Property Management Rate': propertyManagementPct === '' ? null : parseFloat(propertyManagementPct),
+        // Canonical breakdown shape: keys property_taxes/insurance/cdd/hoa/maintenance/other, values in $/month.
+        // Top-level rates (Vacancy Rate, Property Management Rate) live on scenario columns above — NOT in here.
         'expense_breakdown': useExpenseBreakdown ? {
           property_taxes: propertyTaxes ? parseFloat(propertyTaxes) : 0,
           insurance: insurance ? parseFloat(insurance) : 0,
+          cdd: cdd ? parseFloat(cdd) : 0,
+          hoa: hoa ? parseFloat(hoa) : 0,
           maintenance: maintenance ? parseFloat(maintenance) : 0,
-          management_fee: managementFee ? parseFloat(managementFee) : 0,
-          vacancy_rate: vacancyRate ? parseFloat(vacancyRate) : 0,
           other: otherExpenses ? parseFloat(otherExpenses) : 0,
         } : null,
       }
@@ -362,7 +374,7 @@ export default function ScenarioForm({
 
             <div>
               <label htmlFor="operatingExpenses" className="block text-sm font-medium text-foreground">
-                Operating Expenses ($)
+                Operating Expenses ($/yr)
               </label>
               <input
                 id="operatingExpenses"
@@ -375,6 +387,51 @@ export default function ScenarioForm({
                 readOnly={useExpenseBreakdown}
                 className={`mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring ${useExpenseBreakdown ? 'bg-muted' : ''}`}
               />
+              {useExpenseBreakdown && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Auto-calculated from the itemized breakdown below (sum of monthly × 12).
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="vacancyRatePct" className="block text-sm font-medium text-foreground">
+                Vacancy Rate (%)
+              </label>
+              <input
+                id="vacancyRatePct"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={vacancyRatePct}
+                onChange={(e) => setVacancyRatePct(e.target.value)}
+                placeholder="5"
+                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Revenue deduction. Effective Income = Gross × (1 − vacancy %).
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="propertyManagementPct" className="block text-sm font-medium text-foreground">
+                Property Management (%)
+              </label>
+              <input
+                id="propertyManagementPct"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={propertyManagementPct}
+                onChange={(e) => setPropertyManagementPct(e.target.value)}
+                placeholder="0"
+                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                % of Effective Income (collected rent). Added on top of Operating Expenses.
+              </p>
             </div>
 
             <div>
@@ -476,105 +533,38 @@ export default function ScenarioForm({
                     </label>
                   </div>
                   {useExpenseBreakdown && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="propertyTaxes" className="block text-sm font-medium text-foreground">
-                          Property Taxes ($/yr)
-                        </label>
-                        <input
-                          id="propertyTaxes"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={propertyTaxes}
-                          onChange={(e) => setPropertyTaxes(e.target.value)}
-                          placeholder="0.00"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Enter each cost in <strong>$/month</strong>. Operating Expenses (above) auto-updates to the annual sum.
+                        Vacancy Rate and Property Management % live at the top of the form — they aren't part of this breakdown.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {([
+                          { id: 'propertyTaxes', label: 'Property Taxes',      value: propertyTaxes, setter: setPropertyTaxes },
+                          { id: 'insurance',     label: 'Insurance',           value: insurance,     setter: setInsurance },
+                          { id: 'hoa',           label: 'HOA',                 value: hoa,           setter: setHoa },
+                          { id: 'cdd',           label: 'CDD',                 value: cdd,           setter: setCdd },
+                          { id: 'maintenance',   label: 'Maintenance / Repairs', value: maintenance, setter: setMaintenance },
+                          { id: 'otherExpenses', label: 'Other',               value: otherExpenses, setter: setOtherExpenses },
+                        ] as const).map(f => (
+                          <div key={f.id}>
+                            <label htmlFor={f.id} className="block text-sm font-medium text-foreground">
+                              {f.label} ($/mo)
+                            </label>
+                            <input
+                              id={f.id}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={f.value}
+                              onChange={(e) => f.setter(e.target.value)}
+                              placeholder="0.00"
+                              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <label htmlFor="insurance" className="block text-sm font-medium text-foreground">
-                          Insurance ($/yr)
-                        </label>
-                        <input
-                          id="insurance"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={insurance}
-                          onChange={(e) => setInsurance(e.target.value)}
-                          placeholder="0.00"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="maintenance" className="block text-sm font-medium text-foreground">
-                          Maintenance / Repairs ($/yr)
-                        </label>
-                        <input
-                          id="maintenance"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={maintenance}
-                          onChange={(e) => setMaintenance(e.target.value)}
-                          placeholder="0.00"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="managementFee" className="block text-sm font-medium text-foreground">
-                          Management Fee (% of income)
-                        </label>
-                        <input
-                          id="managementFee"
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          value={managementFee}
-                          onChange={(e) => setManagementFee(e.target.value)}
-                          placeholder="0"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="vacancyRate" className="block text-sm font-medium text-foreground">
-                          Vacancy Rate (%)
-                        </label>
-                        <input
-                          id="vacancyRate"
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          value={vacancyRate}
-                          onChange={(e) => setVacancyRate(e.target.value)}
-                          placeholder="5"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="otherExpenses" className="block text-sm font-medium text-foreground">
-                          Other Expenses ($/yr)
-                        </label>
-                        <input
-                          id="otherExpenses"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={otherExpenses}
-                          onChange={(e) => setOtherExpenses(e.target.value)}
-                          placeholder="0.00"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {useExpenseBreakdown && (
-                    <p className="text-xs text-muted-foreground">
-                      Operating Expenses will be auto-calculated from the breakdown above.
-                    </p>
+                    </>
                   )}
                 </div>
               </AccordionContent>

@@ -135,6 +135,9 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
   const [editDraft, setEditDraft] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // Expense card: optional itemized breakdown mode (Property Tax / Insurance / CDD / HOA / Maintenance / Other — all $/month)
+  const [expenseItemized, setExpenseItemized] = useState(false)
+  const [expenseBreakdownDraft, setExpenseBreakdownDraft] = useState<Record<string, string>>({})
 
   // ── Disclosure panels
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set())
@@ -177,6 +180,8 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
     setOpenPanels(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   // ── Inline editing
+  const EXPENSE_BREAKDOWN_KEYS = ['property_taxes', 'insurance', 'cdd', 'hoa', 'maintenance', 'other'] as const
+
   const startEdit = (section: string, draft: Record<string, unknown>) => {
     setEditSection(section)
     setSaveError(null)
@@ -185,9 +190,27 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
       s[k] = v != null ? String(v) : ''
     }
     setEditDraft(s)
+
+    // For Expenses, seed the itemized breakdown from the scenario (if it has one)
+    if (section === 'expenses') {
+      const bd = activeScenario['expense_breakdown'] as Record<string, number | null> | null | undefined
+      const seeded: Record<string, string> = {}
+      for (const k of EXPENSE_BREAKDOWN_KEYS) {
+        const v = bd?.[k]
+        seeded[k] = v != null && v !== 0 ? String(v) : ''
+      }
+      setExpenseBreakdownDraft(seeded)
+      setExpenseItemized(!!bd && Object.values(bd).some(v => v != null && v > 0))
+    }
   }
 
-  const cancelEdit = () => { setEditSection(null); setEditDraft({}); setSaveError(null) }
+  const cancelEdit = () => {
+    setEditSection(null)
+    setEditDraft({})
+    setSaveError(null)
+    setExpenseItemized(false)
+    setExpenseBreakdownDraft({})
+  }
 
   const saveEdit = async () => {
     if (!activeId) return
@@ -208,6 +231,27 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
         const dpPct = +(activeScenario['Down Payment Percentage'] ?? 0) || 0
         if (dpPct > 0) updates['Down Payment Amount'] = newPrice * dpPct / 100
       }
+
+      // Expense card: handle itemized breakdown
+      // - When itemized is ON: derive annual Operating Expenses = sum(monthly) × 12, and save the breakdown JSONB
+      // - When itemized is OFF: clear expense_breakdown so the rolled-up total is authoritative again
+      if (editSection === 'expenses') {
+        if (expenseItemized) {
+          const bd: Record<string, number> = {}
+          let monthlyTotal = 0
+          for (const k of EXPENSE_BREAKDOWN_KEYS) {
+            const n = parseFloat(expenseBreakdownDraft[k] ?? '')
+            const v = isFinite(n) && n > 0 ? n : 0
+            bd[k] = v
+            monthlyTotal += v
+          }
+          updates['expense_breakdown'] = bd
+          updates['Operating Expenses'] = monthlyTotal * 12
+        } else {
+          updates['expense_breakdown'] = null
+        }
+      }
+
       const { error } = await supabase
         .from('pi_financial_scenarios')
         .update(updates)
@@ -398,7 +442,7 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                   {subLabel}
                 </span>
               </span>
-              {!compareMode && !isThisBase && (
+              {!compareMode && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
                     <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -416,12 +460,15 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                         <ExternalLink className="h-3.5 w-3.5 mr-2" />View detail page
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => deleteScenario(s.id)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-2" />Delete
-                    </DropdownMenuItem>
+                    {/* Base scenario cannot be deleted — it's auto-created with the property */}
+                    {!isThisBase && (
+                      <DropdownMenuItem
+                        onClick={() => deleteScenario(s.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />Delete
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -737,12 +784,67 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                   </dl>
                 )
               })()}
-              editForm={
-                <div className="grid grid-cols-2 gap-3">
-                  <InlineField label="Annual Operating Expenses ($)" value={editDraft['Operating Expenses'] ?? ''} onChange={v => setEditDraft(d => ({ ...d, 'Operating Expenses': v }))} />
-                  <InlineField label="Property Management (%)" value={editDraft['Property Management Rate'] ?? String(activeScenario['Property Management Rate'] ?? '0')} onChange={v => setEditDraft(d => ({ ...d, 'Property Management Rate': v }))} />
-                </div>
-              }
+              editForm={(() => {
+                const ITEMIZED_FIELDS: { key: typeof EXPENSE_BREAKDOWN_KEYS[number]; label: string }[] = [
+                  { key: 'property_taxes', label: 'Property Tax' },
+                  { key: 'insurance',      label: 'Insurance' },
+                  { key: 'hoa',            label: 'HOA' },
+                  { key: 'cdd',            label: 'CDD' },
+                  { key: 'maintenance',    label: 'Maintenance' },
+                  { key: 'other',          label: 'Other' },
+                ]
+                const itemizedMonthlyTotal = ITEMIZED_FIELDS.reduce((sum, { key }) => {
+                  const n = parseFloat(expenseBreakdownDraft[key] ?? '')
+                  return sum + (isFinite(n) && n > 0 ? n : 0)
+                }, 0)
+                return (
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={expenseItemized}
+                        onChange={e => setExpenseItemized(e.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-input text-primary focus:ring-ring"
+                      />
+                      Itemize (Property Tax, Insurance, HOA…)
+                    </label>
+
+                    {expenseItemized ? (
+                      <>
+                        <p className="text-[11px] text-muted-foreground">
+                          Enter each cost in <strong>$/month</strong>. The annual total auto-updates from the sum.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {ITEMIZED_FIELDS.map(({ key, label }) => (
+                            <InlineField
+                              key={key}
+                              label={`${label} ($/mo)`}
+                              value={expenseBreakdownDraft[key] ?? ''}
+                              onChange={v => setExpenseBreakdownDraft(d => ({ ...d, [key]: v }))}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
+                          <span className="text-muted-foreground">Annual Operating Expenses (calculated)</span>
+                          <span className="font-semibold tabular-nums">{fmtDollar(itemizedMonthlyTotal * 12)}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <InlineField
+                            label="Property Management (%)"
+                            value={editDraft['Property Management Rate'] ?? String(activeScenario['Property Management Rate'] ?? '0')}
+                            onChange={v => setEditDraft(d => ({ ...d, 'Property Management Rate': v }))}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <InlineField label="Annual Operating Expenses ($)" value={editDraft['Operating Expenses'] ?? ''} onChange={v => setEditDraft(d => ({ ...d, 'Operating Expenses': v }))} />
+                        <InlineField label="Property Management (%)" value={editDraft['Property Management Rate'] ?? String(activeScenario['Property Management Rate'] ?? '0')} onChange={v => setEditDraft(d => ({ ...d, 'Property Management Rate': v }))} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             />
 
             {/* Purchase card */}
