@@ -6,7 +6,8 @@ import { X, ChevronRight, ChevronLeft, Check, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DEFAULT_ANALYSIS_INTEREST_RATE, DEFAULT_DOWN_PAYMENT_PCT,
-  DEFAULT_LOAN_TERM,
+  DEFAULT_LOAN_TERM, DEFAULT_PURCHASE_CLOSING_COST_PCT, DEFAULT_LOAN_CLOSING_COST_PCT,
+  DEFAULT_SALE_COST_PCT,
 } from '@/lib/constants/property-defaults'
 import { computeScenarioMetrics, fmtDollar } from '@/lib/property/compute-metrics'
 
@@ -106,12 +107,25 @@ export default function NewScenarioDialog({
   const [rate, setRate] = useState(String(DEFAULT_ANALYSIS_INTEREST_RATE))
   const [term, setTerm] = useState(String(DEFAULT_LOAN_TERM))
 
+  // Step 3 — closing costs (defaults seeded from base scenario; fall back to % of price/loan)
+  const defaultPurchaseCC = baseScenario?.['Purchase Closing Costs'] != null
+    ? String(+(baseScenario['Purchase Closing Costs'] ?? 0))
+    : basePrice > 0 ? String(Math.round(basePrice * DEFAULT_PURCHASE_CLOSING_COST_PCT / 100)) : ''
+  const defaultLoanCC = baseScenario?.['Closing Costs'] != null
+    ? String(+(baseScenario['Closing Costs'] ?? 0))
+    : basePrice > 0 ? String(Math.round(basePrice * (1 - DEFAULT_DOWN_PAYMENT_PCT / 100) * DEFAULT_LOAN_CLOSING_COST_PCT / 100)) : ''
+  const [purchaseCC, setPurchaseCC] = useState(defaultPurchaseCC)
+  const [loanCC, setLoanCC] = useState(defaultLoanCC)
+
   // Step 3 — growth rates (default to Base scenario values or 3%)
   const [incomeGrowth, setIncomeGrowth] = useState(String(+(baseScenario?.['Income Increase'] ?? 3)))
   const [expenseGrowth, setExpenseGrowth] = useState(String(+(baseScenario?.['Expenses Increase'] ?? 3)))
   const [propValueGrowth, setPropValueGrowth] = useState(String(+(baseScenario?.['Property Value Increase'] ?? 3)))
   const [vacancyRate, setVacancyRate] = useState(String(+(baseScenario?.['Vacancy Rate'] ?? 5)))
   const [propMgmtRate, setPropMgmtRate] = useState(String(+(baseScenario?.['Property Management Rate'] ?? 0)))
+  const [saleCostRate, setSaleCostRate] = useState(
+    String(+(baseScenario?.['Sale Cost Rate'] ?? DEFAULT_SALE_COST_PCT))
+  )
 
   // Apply defaults when starting point changes
   useEffect(() => {
@@ -123,6 +137,8 @@ export default function NewScenarioDialog({
       setDpPct(String(DEFAULT_DOWN_PAYMENT_PCT))
       setRate(String(DEFAULT_ANALYSIS_INTEREST_RATE))
       setTerm(String(DEFAULT_LOAN_TERM))
+      setPurchaseCC(defaultPurchaseCC)
+      setLoanCC(defaultLoanCC)
     } else if (startingPoint === 'clone' && activeScenario) {
       setPrice(String(clonePrice))
       setIncome(String(cloneIncome))
@@ -131,6 +147,8 @@ export default function NewScenarioDialog({
       setDpPct(String(activeScenario['Down Payment Percentage'] ?? DEFAULT_DOWN_PAYMENT_PCT))
       setRate(String(activeScenario['Interest Rate'] ?? DEFAULT_ANALYSIS_INTEREST_RATE))
       setTerm(String(activeScenario['Loan Term'] ?? DEFAULT_LOAN_TERM))
+      setPurchaseCC(String(+(activeScenario['Purchase Closing Costs'] ?? 0) || ''))
+      setLoanCC(String(+(activeScenario['Closing Costs'] ?? 0) || ''))
     } else {
       // suggestion
       const sug = SUGGESTIONS.find(s => s.id === startingPoint)
@@ -151,6 +169,8 @@ export default function NewScenarioDialog({
         setDpPct(String(r.dpPct ?? DEFAULT_DOWN_PAYMENT_PCT))
         setRate(String(r.rate ?? DEFAULT_ANALYSIS_INTEREST_RATE))
         setTerm(String(r.term ?? DEFAULT_LOAN_TERM))
+        setPurchaseCC(defaultPurchaseCC)
+        setLoanCC(defaultLoanCC)
       }
     }
   }, [startingPoint])
@@ -167,6 +187,8 @@ export default function NewScenarioDialog({
     'Down Payment Percentage': parseFloat(dpPct) || 0,
     'Interest Rate': hasLoan ? (parseFloat(rate) || 0) : 0,
     'Loan Term': hasLoan ? (parseInt(term) || 0) : 0,
+    'Purchase Closing Costs': parseFloat(purchaseCC) || 0,
+    'Closing Costs': hasLoan ? (parseFloat(loanCC) || 0) : 0,
   })
 
   const handleCreate = async () => {
@@ -194,6 +216,9 @@ export default function NewScenarioDialog({
           'Property Value Increase': parseFloat(propValueGrowth) ?? 3,
           'Vacancy Rate': parseFloat(vacancyRate) ?? 5,
           'Property Management Rate': parseFloat(propMgmtRate) ?? 0,
+          'Purchase Closing Costs': parseFloat(purchaseCC) || null,
+          'Closing Costs': hasLoan ? (parseFloat(loanCC) || null) : null,
+          'Sale Cost Rate': parseFloat(saleCostRate) || DEFAULT_SALE_COST_PCT,
         }])
         .select()
         .single()
@@ -339,6 +364,7 @@ export default function NewScenarioDialog({
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Interest Rate (%)</label>
                     <input type="number" min="0" max="25" step="0.125" value={rate} onChange={e => setRate(e.target.value)} className={inputCls} />
+                    <p className="mt-1 text-[11px] text-muted-foreground/70">Fixed rate for full loan term — ARM resets not modeled.</p>
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Term (years)</label>
@@ -350,6 +376,26 @@ export default function NewScenarioDialog({
                   </div>
                 </div>
               )}
+
+              {/* Closing costs */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">
+                    Purchase Closing Costs ($)
+                    <span className="ml-1 opacity-60">(title, taxes, inspection — ~{DEFAULT_PURCHASE_CLOSING_COST_PCT}%)</span>
+                  </label>
+                  <input type="number" min="0" value={purchaseCC} onChange={e => setPurchaseCC(e.target.value)} placeholder="0" className={inputCls} />
+                </div>
+                {hasLoan && (
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">
+                      Loan Closing Costs ($)
+                      <span className="ml-1 opacity-60">(origination, appraisal — ~{DEFAULT_LOAN_CLOSING_COST_PCT}%)</span>
+                    </label>
+                    <input type="number" min="0" value={loanCC} onChange={e => setLoanCC(e.target.value)} placeholder="0" className={inputCls} />
+                  </div>
+                )}
+              </div>
 
               {/* Growth rates */}
               <div className="grid grid-cols-2 gap-3 pt-1">
@@ -369,9 +415,14 @@ export default function NewScenarioDialog({
                   <label className="text-xs text-muted-foreground block mb-1">Vacancy Rate %</label>
                   <input type="number" min="0" max="50" step="0.5" value={vacancyRate} onChange={e => setVacancyRate(e.target.value)} className={inputCls} />
                 </div>
-                <div className="col-span-2">
+                <div>
                   <label className="text-xs text-muted-foreground block mb-1">Property Management % of rent (0 = self-managed)</label>
                   <input type="number" min="0" max="30" step="0.5" value={propMgmtRate} onChange={e => setPropMgmtRate(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Sale Costs % (realtor + closing)</label>
+                  <input type="number" min="0" max="15" step="0.5" value={saleCostRate} onChange={e => setSaleCostRate(e.target.value)} className={inputCls} />
+                  <p className="mt-1 text-[10px] text-muted-foreground/70">Applied to sale proceeds in IRR. Typical: 6–8%.</p>
                 </div>
               </div>
 

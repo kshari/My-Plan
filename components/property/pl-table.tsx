@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef } from 'react'
-import { IRR_INITIAL_GUESS, IRR_TOLERANCE, IRR_MAX_ITERATIONS, BALANCE_THRESHOLD } from '@/lib/constants/property-defaults'
+import { IRR_INITIAL_GUESS, IRR_TOLERANCE, IRR_MAX_ITERATIONS, BALANCE_THRESHOLD, DEFAULT_SALE_COST_PCT } from '@/lib/constants/property-defaults'
 import { Info } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -16,9 +16,16 @@ function fmtCompact(v: number): string {
   return `${sign}$${abs.toFixed(0)}`
 }
 
+/** Format a dollar amount with full precision: $11,283.84 */
+function fmtExact(v: number): string {
+  return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 interface PLTableProps {
   scenario: any
   years?: number
+  /** 'screen' (default) uses compact $K/$M; 'print' uses full-precision dollars for static output. */
+  variant?: 'screen' | 'print'
 }
 
 // Function to calculate IRR using Newton-Raphson method
@@ -76,7 +83,13 @@ function calculateIRR(cashFlows: number[]): number {
   return result
 }
 
-export default function PLTable({ scenario, years }: PLTableProps) {
+export default function PLTable({ scenario, years, variant = 'screen' }: PLTableProps) {
+  // In print mode we want full-precision numbers since tooltips aren't available.
+  const fmt = variant === 'print' ? (v: number): string => {
+    const abs = Math.abs(v)
+    const sign = v < 0 ? '-' : ''
+    return `${sign}$${abs.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+  } : fmtCompact
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(true)
   const purchasePrice = parseFloat(scenario['Purchase Price']?.toString() || '0') || 0
@@ -84,6 +97,11 @@ export default function PLTable({ scenario, years }: PLTableProps) {
   const baseOperatingExpenses = parseFloat(scenario['Operating Expenses']?.toString() || '0') || 0
   const scenarioVacancyRate = parseFloat(scenario['Vacancy Rate']?.toString() || '0') || 0
   const scenarioPropMgmtRate = parseFloat(scenario['Property Management Rate']?.toString() || '0') || 0
+  // Sale cost rate — realtor commission + closing fees applied to sale proceeds for IRR calc
+  const rawSaleCostRate = scenario['Sale Cost Rate']
+  const scenarioSaleCostRate = rawSaleCostRate === null || rawSaleCostRate === undefined || rawSaleCostRate === ''
+    ? DEFAULT_SALE_COST_PCT
+    : (parseFloat(String(rawSaleCostRate)) || 0)
 
   // Seed growth rates from scenario if saved, otherwise fall back to default 3%
   const scenarioIncomeIncrease = parseFloat(scenario['Income Increase']?.toString() || '')
@@ -236,41 +254,44 @@ export default function PLTable({ scenario, years }: PLTableProps) {
         cashFlow,
         cashOnCashReturn,
         remainingLoanBalance: hasLoan ? remainingLoanBalance : 0,
+        propertyValue: currentPropertyValue,
         equity,
         irr: 0, // Will be calculated below
       })
     }
 
     // Calculate IRR for each year
-    // For year-by-year IRR, each year assumes the property is sold at the end of that year
-    // Cash flows: [-initial investment, year1_cf, year2_cf, ..., yearN_cf + equity]
+    // For year-by-year IRR, each year assumes the property is sold at the end of that year.
+    // Sale proceeds = property value × (1 − sale cost rate) − remaining loan balance.
+    // Cash flows: [-initial investment, year1_cf, year2_cf, ..., yearN_cf + saleProceeds]
     for (let i = 0; i < data.length; i++) {
       const yearCashFlows: number[] = [-totalCashInvested] // Year 0: Initial investment (negative)
-      
-      // Add annual cash flows up to and including this year
+
       for (let j = 0; j <= i; j++) {
         if (j === i) {
-          // This year: include equity (assumes sale at end of year)
-          yearCashFlows.push(data[j].cashFlow + data[j].equity)
+          const saleCost = data[j].propertyValue * (scenarioSaleCostRate / 100)
+          const netSaleProceeds = data[j].equity - saleCost
+          yearCashFlows.push(data[j].cashFlow + netSaleProceeds)
         } else {
-          // Previous years: just the cash flow
           yearCashFlows.push(data[j].cashFlow)
         }
       }
-      
+
       data[i].irr = calculateIRR(yearCashFlows)
     }
 
     return data
-  }, [scenario, displayYears, purchasePrice, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage, totalCashInvested, scenarioVacancyRate, scenarioPropMgmtRate])
+  }, [scenario, displayYears, purchasePrice, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage, totalCashInvested, scenarioVacancyRate, scenarioPropMgmtRate, scenarioSaleCostRate])
 
   const totalClosingCosts = loanClosingCosts + purchaseClosingCosts
 
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <div className={`rounded-xl border bg-card p-6 ${variant === 'print' ? 'print-pl-landscape' : ''}`}>
       <h3 className="mb-4 text-base font-semibold">Annual Projections (Year by Year)</h3>
 
-      {/* Growth rate controls */}
+      {/* Growth rate controls — editable on screen only; hidden in print since
+          the same rates are already captured in the Scenario Details table. */}
+      {variant !== 'print' && (
       <div className="mb-5 rounded-lg border border-border/60 bg-muted/20 p-4">
         <div className="flex flex-wrap items-center gap-1 mb-3">
           <span className="text-sm font-medium">Growth &amp; Appreciation Rates</span>
@@ -337,6 +358,7 @@ export default function PLTable({ scenario, years }: PLTableProps) {
           ))}
         </div>
       </div>
+      )}
       <div className="mb-4 rounded-lg bg-muted/30 p-4">
         <div className="mb-2 font-semibold">Your Upfront Cash</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -400,7 +422,7 @@ export default function PLTable({ scenario, years }: PLTableProps) {
               <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Net Op.<br/>Income</th>
               {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Mortgage<br/>Interest</th>}
               {hasLoan && <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Principal<br/>Repaid</th>}
-              {hasLoan && (
+              {hasLoan && variant !== 'print' && (
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -424,7 +446,9 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                   </TooltipContent>
                 </Tooltip>
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">CoC<br/>Return %</th>
+              {variant !== 'print' && (
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">CoC<br/>Return %</th>
+              )}
               <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -440,9 +464,10 @@ export default function PLTable({ scenario, years }: PLTableProps) {
                   <TooltipTrigger asChild>
                     <span className="cursor-help underline decoration-dotted">IRR %</span>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-xs">
-                    Internal Rate of Return — assumes the property is sold at the end of this year at its appreciated value. Accounts for all cash flows and proceeds.
-                  </TooltipContent>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Internal Rate of Return — assumes the property is sold at the end of this year at its appreciated value.
+                      Sale proceeds = value × (1 − {scenarioSaleCostRate}% sale costs) − remaining loan. Edit Sale Cost % in the Assumptions card.
+                    </TooltipContent>
                 </Tooltip>
               </th>
               {hasLoan && (
@@ -464,43 +489,84 @@ export default function PLTable({ scenario, years }: PLTableProps) {
               <tr key={row.year} className="hover:bg-muted/50">
                 {/* Sticky year cell */}
                 <td className="sticky left-0 z-10 bg-card whitespace-nowrap px-4 py-3 text-sm font-semibold">{row.year}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.grossIncome)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmt(row.grossIncome)}</td>
                 {scenarioVacancyRate > 0 && (
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-destructive/70">−{fmtCompact(row.vacancyLoss)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-destructive/70">−{fmt(row.vacancyLoss)}</td>
                 )}
                 {scenarioVacancyRate > 0 && (
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.effectiveIncome)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmt(row.effectiveIncome)}</td>
                 )}
-                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.operatingExpenses)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmt(row.operatingExpenses)}</td>
                 {scenarioPropMgmtRate > 0 && (
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-amber-600 dark:text-amber-400">{fmtCompact(row.propMgmtExpense)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-amber-600 dark:text-amber-400">{fmt(row.propMgmtExpense)}</td>
                 )}
-                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.noi)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-default underline decoration-dotted decoration-muted-foreground/40">{fmt(row.noi)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      NOI: {fmtExact(row.noi)}
+                    </TooltipContent>
+                  </Tooltip>
+                </td>
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.interest)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmt(row.interest)}</td>
                 )}
                 {hasLoan && (
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.principal)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmt(row.principal)}</td>
                 )}
-                {/* After Interest: NOI − Interest (only shown when there's a loan) */}
-                {hasLoan && (
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">{fmtCompact(row.netIncome)}</td>
+                {/* After Interest: NOI − Interest (only shown when there's a loan; hidden in print) */}
+                {hasLoan && variant !== 'print' && (
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-default underline decoration-dotted decoration-muted-foreground/40">{fmt(row.netIncome)}</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        After Interest: {fmtExact(row.netIncome)}<br />
+                        (NOI {fmtExact(row.noi)} − Interest {fmtExact(row.interest)})
+                      </TooltipContent>
+                    </Tooltip>
+                  </td>
                 )}
                 {/* Cash Flow: NOI − Interest − Principal (the actual cash in hand) */}
                 <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-semibold ${row.cashFlow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                  {fmtCompact(row.cashFlow)}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-default underline decoration-dotted decoration-current/40">{fmt(row.cashFlow)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Cash Flow: {fmtExact(row.cashFlow)}/yr · {fmtExact(row.cashFlow / 12)}/mo
+                      {hasLoan && <><br />(NOI {fmtExact(row.noi)} − Interest {fmtExact(row.interest)} − Principal {fmtExact(row.principal)})</>}
+                    </TooltipContent>
+                  </Tooltip>
                 </td>
-                <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium ${row.cashOnCashReturn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                  {row.cashOnCashReturn.toFixed(1)}%
+                {variant !== 'print' && (
+                  <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium ${row.cashOnCashReturn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                    {row.cashOnCashReturn.toFixed(1)}%
+                  </td>
+                )}
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-default underline decoration-dotted decoration-muted-foreground/40">{fmt(row.equity)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Equity: {fmtExact(row.equity)}<br />
+                      {hasLoan
+                        ? `(Appreciated Value − Remaining Loan ${fmtExact(row.remainingLoanBalance)})`
+                        : '(Full property value — no loan)'}
+                    </TooltipContent>
+                  </Tooltip>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">{fmtCompact(row.equity)}</td>
                 <td className={`whitespace-nowrap px-4 py-3 text-right tabular-nums font-medium ${row.irr >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
                   {row.irr.toFixed(1)}%
                 </td>
                 {hasLoan && (
                   <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">
                     {/* Guard against NaN/floating-point residue; show $0 once fully paid */}
-                    {fmtCompact(Math.max(0, Number.isFinite(row.remainingLoanBalance) ? row.remainingLoanBalance : 0))}
+                    {fmt(Math.max(0, Number.isFinite(row.remainingLoanBalance) ? row.remainingLoanBalance : 0))}
                   </td>
                 )}
               </tr>
@@ -508,10 +574,22 @@ export default function PLTable({ scenario, years }: PLTableProps) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground text-right">Numbers in $K / $M — hover column headers for definitions</p>
+      <p className="mt-2 text-xs text-muted-foreground text-right">
+        {variant === 'print'
+          ? 'Full-precision dollars shown.'
+          : 'Numbers in $K / $M — hover column headers or values for exact amounts'}
+      </p>
+      {variant === 'print' && scenarioPropMgmtRate > 0 && (
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          <strong>Note:</strong> Property Management ({scenarioPropMgmtRate}%) is applied to <em>effective income</em>
+          {` (gross rent × (1 − ${scenarioVacancyRate || 0}% vacancy))`}, not to gross rent — the industry-standard convention.
+        </p>
+      )}
       {hasLoan && (
-        <div className="mt-3 rounded-lg bg-muted/20 border border-border/40 px-4 py-3 text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div><span className="font-semibold text-foreground">After Interest</span> = NOI − Mortgage Interest</div>
+        <div className={`mt-3 rounded-lg bg-muted/20 border border-border/40 px-4 py-3 text-xs text-muted-foreground grid grid-cols-1 gap-2 ${variant === 'print' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+          {variant !== 'print' && (
+            <div><span className="font-semibold text-foreground">After Interest</span> = NOI − Mortgage Interest</div>
+          )}
           <div><span className="font-semibold text-foreground">Cash Flow</span> = NOI − Interest − Principal Repaid</div>
           <div><span className="font-semibold text-foreground">Equity</span> = Appreciated Value − Remaining Loan. <span className="font-semibold text-foreground">IRR</span> = Return assuming sale at year-end</div>
         </div>

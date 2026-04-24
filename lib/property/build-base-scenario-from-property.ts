@@ -7,6 +7,9 @@ import {
   DEFAULT_CLOSING_COST_PCT,
   DEFAULT_DOWN_PAYMENT_PCT,
   DEFAULT_LOAN_TERM,
+  DEFAULT_PURCHASE_CLOSING_COST_PCT,
+  DEFAULT_LOAN_CLOSING_COST_PCT,
+  DEFAULT_SALE_COST_PCT,
   MONTHS_PER_YEAR,
 } from '@/lib/constants/property-defaults'
 
@@ -69,8 +72,9 @@ export function buildBaseScenarioSeed(
 
   const downPct = DEFAULT_DOWN_PAYMENT_PCT
   const downPayment = askingPrice > 0 ? askingPrice * (downPct / 100) : 0
-  const loanClosingCosts = askingPrice * (DEFAULT_CLOSING_COST_PCT / 100)
+  const purchaseClosingCosts = askingPrice * (DEFAULT_PURCHASE_CLOSING_COST_PCT / 100)
   const loanPrincipal = askingPrice > 0 ? askingPrice - downPayment : 0
+  const loanClosingCosts = loanPrincipal * (DEFAULT_LOAN_CLOSING_COST_PCT / 100)
 
   let monthlyPayment = 0
   if (askingPrice > 0 && loanPrincipal > 0) {
@@ -102,7 +106,8 @@ export function buildBaseScenarioSeed(
     'Interest Rate': DEFAULT_ANALYSIS_INTEREST_RATE,
     'Loan Term': DEFAULT_LOAN_TERM,
     'Closing Costs': loanClosingCosts,
-    'Purchase Closing Costs': 0,
+    'Purchase Closing Costs': purchaseClosingCosts,
+    'Sale Cost Rate': DEFAULT_SALE_COST_PCT,
     'Monthly Mortgage': monthlyPayment || null,
     is_base: true,
   }
@@ -183,6 +188,7 @@ export function buildBaseScenarioFromProperty(property: PropertyForBaseScenario)
     'Interest Rate': hasLoan ? interestRate : null,
     'Closing Costs': hasLoan ? loanClosingCosts : null,
     'Purchase Closing Costs': purchaseClosingCosts,
+    'Sale Cost Rate': DEFAULT_SALE_COST_PCT,
     'Monthly Mortgage': hasLoan ? monthlyPayment : null,
     'Annual Interest': hasLoan ? firstYearInterest : null,
     'Annual Principal': hasLoan ? firstYearPrincipal : null,

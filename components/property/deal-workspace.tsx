@@ -6,19 +6,24 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   Plus, BarChart2, ChevronDown, ChevronUp, Pencil, Check, X,
-  TrendingUp, DollarSign, Percent, Star, MoreHorizontal, Trash2,
+  TrendingUp, DollarSign, MoreHorizontal, Trash2,
   Info, Activity, GitCompare, Building2, ExternalLink, RefreshCw, Printer,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  DEFAULT_DOWN_PAYMENT_PCT,
+  DEFAULT_PURCHASE_CLOSING_COST_PCT,
 } from '@/lib/constants/property-defaults'
-import { computeScenarioMetrics, fmtDollar, fmtCompact, type ScenarioMetrics } from '@/lib/property/compute-metrics'
+import { computeScenarioMetrics, fmtDollar, type ScenarioMetrics } from '@/lib/property/compute-metrics'
 import { computeInvestmentScore, DEFAULT_SCORING_CONFIG } from '@/lib/property/scoring'
 import PLTable from '@/components/property/pl-table'
 import AmortizationTable from '@/components/property/amortization-table'
 import NewScenarioDialog from '@/components/property/new-scenario-dialog'
 import PropertyPrintView from '@/components/property/print/property-print-view'
+import { SensitivityHeatmap } from '@/components/property/shared/sensitivity-heatmap'
+import {
+  ScenarioComparisonTable,
+  type ScenarioComparisonItemInput,
+} from '@/components/property/shared/scenario-comparison-table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -72,71 +77,6 @@ const colorsMap = ['#3b82f6', '#10b981', '#f59e0b']
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function HeroCard({
-  label, value, sub, positive, neutral, icon: Icon, tip,
-}: {
-  label: string; value: string; sub?: string; positive?: boolean
-  neutral?: boolean; icon: React.ElementType; tip?: string
-}) {
-  const valueColor = neutral ? 'text-foreground' : positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
-  const card = (
-    <div className="rounded-xl border bg-card px-4 py-3 flex-1 min-w-0">
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs text-muted-foreground font-medium">{label}</span>
-      </div>
-      <p className={cn('text-xl font-bold tabular-nums truncate', valueColor)}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{sub}</p>}
-    </div>
-  )
-  if (!tip) return card
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild className="cursor-default">{card}</TooltipTrigger>
-      <TooltipContent className="max-w-xs text-xs">{tip}</TooltipContent>
-    </Tooltip>
-  )
-}
-
-/** Normalized horizontal bar strip for compare mode */
-function NormalizedBar({ label, entries, higherIsBetter }: {
-  label: string
-  entries: { name: string; raw: number; color: string }[]
-  higherIsBetter: boolean
-}) {
-  const vals = entries.map(e => e.raw)
-  const max = Math.max(...vals.filter(v => v > 0))
-  const min = Math.min(...vals.filter(v => v > 0))
-
-  return (
-    <div className="space-y-1.5 py-2 border-b border-border/60 last:border-0">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground font-medium">{label}</span>
-        <span className="text-xs text-muted-foreground">
-          {higherIsBetter ? '↑ higher better' : '↓ lower better'}
-        </span>
-      </div>
-      {entries.map(e => {
-        const basis = higherIsBetter ? max : min
-        const pct = basis > 0 ? Math.min(100, (higherIsBetter ? e.raw / basis : basis / e.raw) * 100) : 0
-        const isBest = higherIsBetter ? e.raw === max : e.raw === min
-        return (
-          <div key={e.name} className="flex items-center gap-2">
-            <span className="text-xs w-28 truncate shrink-0" style={{ color: e.color }}>{e.name}</span>
-            <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, backgroundColor: e.color, opacity: isBest ? 1 : 0.5 }}
-              />
-            </div>
-            <span className="text-xs tabular-nums w-20 text-right">{typeof e.raw === 'number' ? (e.raw > 1000 ? fmtDollar(e.raw) : e.raw.toFixed(2)) : e.raw}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 /** Inline editable field */
 function InlineField({
   label, value, onChange, type = 'number', step = '0.01', min, suffix, readOnly,
@@ -167,222 +107,9 @@ function InlineField({
 }
 
 // ─── Sensitivity heatmap ─────────────────────────────────────────────────────
-
-// 10 column steps: % change for price/rent/opex; scaled to ppts for rate/dp
-const HEATMAP_STEPS = [-20, -15, -10, -5, 0, 5, 10, 15, 20, 25] as const
-
-interface HeatmapRow {
-  label: string
-  sublabel: string
-  applyStep: (s: Record<string, unknown>, step: number) => Record<string, unknown>
-  formatStep: (step: number) => string
-  varValue: (s: Record<string, unknown>, step: number) => string
-}
-
-const HEATMAP_ROWS: HeatmapRow[] = [
-  {
-    label: 'Purchase Price',
-    sublabel: '% change',
-    applyStep: (s, step) => {
-      const p = +(s['Purchase Price'] ?? 0) || 0
-      return { ...s, 'Purchase Price': p * (1 + step / 100) }
-    },
-    formatStep: step => `${step > 0 ? '+' : ''}${step}%`,
-    varValue: (s, step) => {
-      const p = +(s['Purchase Price'] ?? 0) || 0
-      return fmtCompact(p * (1 + step / 100))
-    },
-  },
-  {
-    label: 'Gross Rent',
-    sublabel: '% change',
-    applyStep: (s, step) => {
-      const g = +(s['Gross Income'] ?? 0) || 0
-      return { ...s, 'Gross Income': g * (1 + step / 100) }
-    },
-    formatStep: step => `${step > 0 ? '+' : ''}${step}%`,
-    varValue: (s, step) => {
-      const g = +(s['Gross Income'] ?? 0) || 0
-      return `${fmtCompact(g * (1 + step / 100) / 12)}/mo`
-    },
-  },
-  {
-    label: 'Operating Expenses',
-    sublabel: '% change',
-    applyStep: (s, step) => {
-      const o = +(s['Operating Expenses'] ?? 0) || 0
-      return { ...s, 'Operating Expenses': o * (1 + step / 100) }
-    },
-    formatStep: step => `${step > 0 ? '+' : ''}${step}%`,
-    varValue: (s, step) => {
-      const o = +(s['Operating Expenses'] ?? 0) || 0
-      return `${fmtCompact(o * (1 + step / 100) / 12)}/mo`
-    },
-  },
-  {
-    label: 'Interest Rate',
-    sublabel: '±ppt (÷10)',
-    applyStep: (s, step) => {
-      const r = +(s['Interest Rate'] ?? 0) || 0
-      return { ...s, 'Interest Rate': Math.max(0, r + step / 10) }
-    },
-    formatStep: step => {
-      const ppt = step / 10
-      return `${ppt > 0 ? '+' : ''}${ppt.toFixed(1)}`
-    },
-    varValue: (s, step) => {
-      const r = +(s['Interest Rate'] ?? 0) || 0
-      return `${Math.max(0, r + step / 10).toFixed(2)}%`
-    },
-  },
-  {
-    label: 'Down Payment',
-    sublabel: '±ppt (÷2)',
-    applyStep: (s, step) => {
-      const base = +(s['Down Payment Percentage'] ?? DEFAULT_DOWN_PAYMENT_PCT) || DEFAULT_DOWN_PAYMENT_PCT
-      const newPct = Math.max(0, Math.min(100, base + step / 2))
-      const price = +(s['Purchase Price'] ?? 0) || 0
-      return { ...s, 'Down Payment Percentage': newPct, 'Down Payment Amount': price * newPct / 100 }
-    },
-    formatStep: step => {
-      const ppt = step / 2
-      return `${ppt > 0 ? '+' : ''}${ppt.toFixed(0)}`
-    },
-    varValue: (s, step) => {
-      const base = +(s['Down Payment Percentage'] ?? DEFAULT_DOWN_PAYMENT_PCT) || DEFAULT_DOWN_PAYMENT_PCT
-      return `${Math.max(0, Math.min(100, base + step / 2)).toFixed(0)}%`
-    },
-  },
-  {
-    label: 'Vacancy Rate',
-    sublabel: '±ppt',
-    applyStep: (s, step) => {
-      const v = +(s['Vacancy Rate'] ?? 0) || 0
-      return { ...s, 'Vacancy Rate': Math.max(0, Math.min(100, v + step / 5)) }
-    },
-    formatStep: step => {
-      const ppt = step / 5
-      return `${ppt > 0 ? '+' : ''}${ppt.toFixed(1)}`
-    },
-    varValue: (s, step) => {
-      const v = +(s['Vacancy Rate'] ?? 0) || 0
-      return `${Math.max(0, Math.min(100, v + step / 5)).toFixed(1)}%`
-    },
-  },
-]
-
-/** Returns inline style for a heatmap cell based on monthly cash flow. */
-function heatmapCellStyle(cf: number, maxAbsCF: number): React.CSSProperties {
-  const nearZero = 100
-  if (Math.abs(cf) <= nearZero) {
-    return { backgroundColor: 'hsl(45,90%,88%)', color: '#78350f' }
-  }
-  const intensity = Math.min(1, (Math.abs(cf) - nearZero) / Math.max(maxAbsCF - nearZero, 500))
-  const lightness = Math.round(92 - intensity * 56) // 92% (pale) → 36% (deep)
-  if (cf > 0) {
-    return {
-      backgroundColor: `hsl(142,65%,${lightness}%)`,
-      color: lightness < 58 ? '#fff' : '#14532d',
-    }
-  } else {
-    return {
-      backgroundColor: `hsl(0,78%,${lightness}%)`,
-      color: lightness < 58 ? '#fff' : '#7f1d1d',
-    }
-  }
-}
-
-function SensitivityPanel({ scenario }: { scenario: Record<string, unknown> }) {
-  // Pre-compute all cells: [rowIdx][colIdx] = { cf, varVal }
-  const heatmap = useMemo(() => {
-    return HEATMAP_ROWS.map(row =>
-      HEATMAP_STEPS.map(step => ({
-        cf: computeScenarioMetrics(row.applyStep(scenario, step)).monthlyCF,
-        varVal: row.varValue(scenario, step),
-      }))
-    )
-  }, [scenario])
-
-  // Max absolute cash flow across all cells — drives color saturation
-  const maxAbsCF = useMemo(() => {
-    const allVals = heatmap.flat().map(c => Math.abs(c.cf))
-    return Math.max(100, ...allVals)
-  }, [heatmap])
-
-  // Baseline cash flow (0% change column = index 4)
-  const baseCF = heatmap[0]?.[4]?.cf ?? 0
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            Each row stresses one variable independently. Cells show monthly cash flow.
-            Current baseline: <span className={cn('font-semibold', baseCF >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>{fmtDollar(baseCF)}/mo</span>
-          </p>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-emerald-500" /> Positive</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(45,90%,88%)' }} /> Near zero</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-red-500" /> Negative</span>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap border border-border/40 min-w-36">Variable</th>
-              {HEATMAP_STEPS.map((step, ci) => (
-                <th
-                  key={step}
-                  className={cn(
-                    'px-2 py-2 text-center font-medium whitespace-nowrap border border-border/40 min-w-14',
-                    step === 0 ? 'bg-muted/60 text-foreground' : 'text-muted-foreground bg-card'
-                  )}
-                >
-                  {step === 0 ? 'Base' : `${step > 0 ? '+' : ''}${step}%`}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {HEATMAP_ROWS.map((row, ri) => (
-              <tr key={row.label}>
-                <td className="sticky left-0 z-10 bg-card px-3 py-2 font-medium whitespace-nowrap border border-border/40">
-                  <div className="text-xs font-semibold">{row.label}</div>
-                  <div className="text-[10px] text-muted-foreground">{row.sublabel}</div>
-                </td>
-                {HEATMAP_STEPS.map((step, ci) => {
-                  const { cf, varVal } = heatmap[ri][ci]
-                  const isBase = step === 0
-                  const style = heatmapCellStyle(cf, maxAbsCF)
-                  return (
-                    <td
-                      key={step}
-                      style={style}
-                      className={cn(
-                        'px-2 py-1.5 text-center tabular-nums border border-border/20 font-medium leading-tight',
-                        isBase && 'ring-1 ring-inset ring-foreground/30'
-                      )}
-                      title={`${row.label} ${row.formatStep(step)} → Cash/mo: ${fmtDollar(cf)}`}
-                    >
-                      <div>{fmtCompact(cf)}</div>
-                      <div className="text-[9px] opacity-75 font-normal mt-0.5">({varVal})</div>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-[10px] text-muted-foreground">
-        Interest Rate column steps are ÷10 ppts (±2.5 ppt range) · Down Payment steps are ÷2 ppts (±10 ppt range) · Vacancy steps are ÷5 ppts (±4 ppt range)
-      </p>
-    </div>
-  )
-}
+// Heatmap constants, helpers and the panel component live in the shared module
+// so the Print-All report uses the exact same logic.
+// See: components/property/shared/sensitivity-heatmap.tsx
 
 // ─── Main DealWorkspace ───────────────────────────────────────────────────────
 
@@ -427,6 +154,21 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
 
   const score = useMemo(() => scoreForMetrics(activeMetrics), [activeMetrics])
 
+  // Year 5 cash-on-cash (projecting income/expense growth 4 more years)
+  const cocr5 = useMemo(() => {
+    if (activeMetrics.totalCashInvested <= 0) return 0
+    const incGrowth = +(activeScenario['Income Increase'] ?? 3) / 100
+    const expGrowth = +(activeScenario['Expenses Increase'] ?? 3) / 100
+    const { grossIncome, vacancyRate, propMgmtRate, opex, annualMortgage, hasLoan, totalCashInvested } = activeMetrics
+    const y5Gross = grossIncome * Math.pow(1 + incGrowth, 4)
+    const y5Effective = y5Gross * (1 - vacancyRate / 100)
+    const y5PropMgmt = y5Effective * (propMgmtRate / 100)
+    const y5Opex = opex * Math.pow(1 + expGrowth, 4)
+    const y5NOI = y5Effective - y5Opex - y5PropMgmt
+    const y5CF = hasLoan ? y5NOI - annualMortgage : y5NOI
+    return (y5CF / totalCashInvested) * 100
+  }, [activeScenario, activeMetrics])
+
   // ── Helpers
   const fmt$ = useCallback((v: number) => fmtDollar(v), [])
   const fmtPct = (v: number) => `${v.toFixed(2)}%`
@@ -460,6 +202,12 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
       }
       // Sync Has Loan boolean
       if ('Has Loan' in updates) updates['Has Loan'] = updates['Has Loan'] === true || updates['Has Loan'] === 'true'
+      // Recompute Down Payment Amount when Purchase Price changes
+      if ('Purchase Price' in updates) {
+        const newPrice = +(updates['Purchase Price'] ?? 0) || 0
+        const dpPct = +(activeScenario['Down Payment Percentage'] ?? 0) || 0
+        if (dpPct > 0) updates['Down Payment Amount'] = newPrice * dpPct / 100
+      }
       const { error } = await supabase
         .from('pi_financial_scenarios')
         .update(updates)
@@ -531,6 +279,10 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
     'Expenses Increase': activeScenario['Expenses Increase'],
     'Property Management Rate': activeScenario['Property Management Rate'],
   }
+  const purchaseFields = {
+    'Purchase Price': activeScenario['Purchase Price'],
+    'Purchase Closing Costs': activeScenario['Purchase Closing Costs'],
+  }
   const loanFields = {
     'Has Loan': activeScenario['Has Loan'],
     'Down Payment Percentage': activeScenario['Down Payment Percentage'],
@@ -600,12 +352,23 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
 
       {/* ── Scenario chips bar ───────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap mb-4 p-3 rounded-xl border bg-card">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mr-1 self-center">
+          Scenarios
+        </span>
         {/* All scenario chips (Base always first) */}
         {scenarios.map(s => {
           const isThisBase = s.is_base === true
           const isActive = activeId === s.id && !compareMode
           const isInCompare = compareMode && compareIds.has(s.id)
           const label = isThisBase ? 'Base' : String(s['Scenario Name'] || `Scenario #${s.id}`)
+          // Build a small loan-summary sub-label that updates with the scenario's current financing info
+          const sHasLoan = !!s['Has Loan']
+          const sTerm = +(s['Loan Term'] ?? 0) || 0
+          const sRate = +(s['Interest Rate'] ?? 0) || 0
+          const sDpPct = +(s['Down Payment Percentage'] ?? 0) || 0
+          const subLabel = sHasLoan && sTerm > 0
+            ? `${sTerm}Y fixed · ${sRate ? (sRate % 1 === 0 ? sRate.toFixed(0) : sRate.toFixed(2).replace(/0$/, '')) : '0'}% · ${sDpPct}% down`
+            : 'All Cash'
           return (
             <button
               key={s.id}
@@ -617,7 +380,7 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                 }
               }}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors group relative',
+                'inline-flex items-start gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors group relative',
                 isActive
                   ? 'border-primary bg-primary/10 text-primary'
                   : isInCompare
@@ -625,8 +388,16 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                     : 'border-border text-muted-foreground hover:bg-muted/50'
               )}
             >
-              {isThisBase && <Building2 className="h-3.5 w-3.5" />}
-              {label}
+              {isThisBase && <Building2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />}
+              <span className="flex flex-col items-start leading-tight">
+                <span>{label}</span>
+                <span className={cn(
+                  'text-[10px] font-normal mt-0.5',
+                  isActive ? 'text-primary/70' : isInCompare ? 'text-emerald-700/70 dark:text-emerald-400/70' : 'text-muted-foreground/70'
+                )}>
+                  {subLabel}
+                </span>
+              </span>
               {!compareMode && !isThisBase && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
@@ -688,9 +459,108 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
         )}
       </div>
 
-      {/* ── Hero strip ─────────────────────────────────────────────────────── */}
-      <div className="sticky top-14 z-10 bg-background/95 backdrop-blur-sm py-2 mb-4 -mx-1 px-1">
-        {compareMode ? (
+      {/* ── Investment Summary ────────────────────────────────────────────── */}
+      {!compareMode && (
+        <div className="rounded-xl border bg-card p-4 mb-4">
+          <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />Investment Summary
+          </h4>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-0 divide-x divide-border/60">
+            {/* Left — investment details */}
+            <dl className="space-y-2 pr-8">
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">Purchase Price</dt>
+                <dd className="text-xs font-semibold tabular-nums">{activeMetrics.price > 0 ? fmtDollar(activeMetrics.price) : '—'}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-1 cursor-default underline decoration-dotted">
+                        Cash Invested
+                        <Info className="h-3 w-3 opacity-50" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="text-xs space-y-1 max-w-[220px]">
+                      {activeMetrics.hasLoan ? (
+                        <>
+                          <p className="flex justify-between gap-4"><span>Down Payment</span><span className="tabular-nums">{fmtDollar(activeMetrics.dp)}</span></p>
+                          {activeMetrics.purchaseCC > 0 && <p className="flex justify-between gap-4"><span>Purchase Closing Costs</span><span className="tabular-nums">{fmtDollar(activeMetrics.purchaseCC)}</span></p>}
+                          {activeMetrics.loanCC > 0 && <p className="flex justify-between gap-4"><span>Loan Closing Costs</span><span className="tabular-nums">{fmtDollar(activeMetrics.loanCC)}</span></p>}
+                          <p className="flex justify-between gap-4 font-semibold border-t border-border/60 pt-1 mt-1"><span>Total</span><span className="tabular-nums">{fmtDollar(activeMetrics.totalCashInvested)}</span></p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="flex justify-between gap-4"><span>Purchase Price</span><span className="tabular-nums">{fmtDollar(activeMetrics.price)}</span></p>
+                          {activeMetrics.purchaseCC > 0 && <p className="flex justify-between gap-4"><span>Purchase Closing Costs</span><span className="tabular-nums">{fmtDollar(activeMetrics.purchaseCC)}</span></p>}
+                          <p className="flex justify-between gap-4 font-semibold border-t border-border/60 pt-1 mt-1"><span>Total</span><span className="tabular-nums">{fmtDollar(activeMetrics.totalCashInvested)}</span></p>
+                        </>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </dt>
+                <dd className="text-xs font-semibold tabular-nums">{fmtDollar(activeMetrics.totalCashInvested)}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">Cash Flow / month</dt>
+                <dd className={cn('text-xs font-semibold tabular-nums', activeMetrics.monthlyCF >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
+                  {fmtDollar(activeMetrics.monthlyCF)}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">Cash-on-Cash (Yr 1)</dt>
+                <dd className={cn('text-xs font-semibold tabular-nums', activeMetrics.cocr >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
+                  {activeMetrics.totalCashInvested > 0 ? `${activeMetrics.cocr.toFixed(1)}%` : '—'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">Cash-on-Cash (Yr 5)</dt>
+                <dd className={cn('text-xs font-semibold tabular-nums', cocr5 >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
+                  {activeMetrics.totalCashInvested > 0 ? `${cocr5.toFixed(1)}%` : '—'}
+                </dd>
+              </div>
+            </dl>
+            {/* Right — property metrics */}
+            <dl className="space-y-2 pl-8">
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">Cap Rate</dt>
+                <dd className={cn('text-xs font-semibold tabular-nums', activeMetrics.capRate >= 8 ? 'text-emerald-600 dark:text-emerald-400' : activeMetrics.capRate >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive')}>
+                  {activeMetrics.capRate.toFixed(2)}%
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">GRM (Price ÷ Gross Rent)</dt>
+                <dd className="text-xs font-semibold tabular-nums">{activeMetrics.grm > 0 ? `${activeMetrics.grm.toFixed(2)}×` : '—'}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">1% Rule</dt>
+                <dd className={cn('text-xs font-semibold tabular-nums', (activeMetrics.onePercent ?? 0) >= 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
+                  {activeMetrics.onePercent > 0 ? `${activeMetrics.onePercent.toFixed(2)}%` : '—'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground">Investment Score</dt>
+                <dd className={cn('text-xs font-bold tabular-nums', score != null ? (score >= 70 ? 'text-emerald-600 dark:text-emerald-400' : score >= 45 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive') : 'text-muted-foreground')}>
+                  {score != null ? `${score}/100` : '—'}
+                </dd>
+              </div>
+            </dl>
+          </div>
+          {isBaseActive ? (
+            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/60">
+              Base scenario — edit the cards below to refine assumptions.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/60">
+              {String(activeScenario['Scenario Name'] || `Scenario #${activeScenario.id}`)} — edit the cards below to refine assumptions.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── Compare mode hero strip ─────────────────────────────────────────── */}
+      {compareMode && (
+        <div className="mb-4">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {compareMetrics.map((m, i) => {
               const s = m.scenario
@@ -711,52 +581,8 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
               )
             })}
           </div>
-        ) : (
-          <div className="flex gap-2">
-            <HeroCard
-              label="Cash / month"
-              value={fmtDollar(activeMetrics.monthlyCF)}
-              sub={activeMetrics.hasLoan ? `Mortgage: ${fmtDollar(activeMetrics.monthlyMortgage)}/mo` : 'All cash'}
-              positive={activeMetrics.monthlyCF >= 0}
-              neutral={false}
-              icon={DollarSign}
-              tip="Annual cash flow after all operating expenses and mortgage payments, divided by 12."
-            />
-            <HeroCard
-              label="Cash-on-Cash"
-              value={`${activeMetrics.cocr.toFixed(1)}%`}
-              sub={`Invested: ${fmtDollar(activeMetrics.totalCashInvested)}`}
-              positive={activeMetrics.cocr >= 0}
-              neutral={false}
-              icon={Percent}
-              tip="Year 1 net cash flow ÷ total upfront cash (down payment + closing costs)."
-            />
-            <HeroCard
-              label="Cap Rate"
-              value={`${activeMetrics.capRate.toFixed(2)}%`}
-              sub={`Net Op. Income: ${fmtDollar(activeMetrics.noi)}/yr`}
-              positive={activeMetrics.capRate >= 5}
-              neutral={activeMetrics.capRate === 0}
-              icon={TrendingUp}
-              tip="Net Operating Income ÷ Purchase Price. Excludes financing. ≥8% great · 5–8% solid · <5% low yield."
-            />
-            <HeroCard
-              label="Score"
-              value={score != null ? `${score}/100` : '—'}
-              sub={score != null ? (score >= 70 ? 'Strong buy' : score >= 45 ? 'Moderate' : 'Weak') : 'Add price & rent'}
-              positive={score != null && score >= 70}
-              neutral={score == null}
-              icon={Star}
-              tip="Investment Score: Cap Rate (25%), Cash Return (25%), Cash Flow (20%), 1% Rule (15%), GRM (15%)."
-            />
-          </div>
-        )}
-        {isBaseActive && (
-          <p className="text-xs text-muted-foreground mt-1.5 px-0.5">
-            Base scenario uses your saved assumptions. Edit the cards below to refine the numbers.
-          </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Compare mode content ─────────────────────────────────────────── */}
       {compareMode && (
@@ -766,65 +592,16 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
           </div>
 
           {compareMetrics.length >= 2 && (
-            <div className="rounded-xl border bg-card p-4 space-y-1">
-              <h4 className="text-sm font-semibold mb-3">Normalized Performance Comparison</h4>
-              {[
-                { label: 'Cash/mo', vals: compareMetrics.map((m, i) => ({ name: String(m.scenario['Scenario Name'] || `Scenario #${m.scenario.id}`), raw: m.metrics.monthlyCF, color: colorsMap[i] })), hib: true },
-                { label: 'Cap Rate (%)', vals: compareMetrics.map((m, i) => ({ name: String(m.scenario['Scenario Name'] || `Scenario #${m.scenario.id}`), raw: m.metrics.capRate, color: colorsMap[i] })), hib: true },
-                { label: 'Cash-on-Cash (%)', vals: compareMetrics.map((m, i) => ({ name: String(m.scenario['Scenario Name'] || `Scenario #${m.scenario.id}`), raw: m.metrics.cocr, color: colorsMap[i] })), hib: true },
-                { label: 'NOI / yr', vals: compareMetrics.map((m, i) => ({ name: String(m.scenario['Scenario Name'] || `Scenario #${m.scenario.id}`), raw: m.metrics.noi, color: colorsMap[i] })), hib: true },
-                { label: 'Cash Invested', vals: compareMetrics.map((m, i) => ({ name: String(m.scenario['Scenario Name'] || `Scenario #${m.scenario.id}`), raw: m.metrics.totalCashInvested, color: colorsMap[i] })), hib: false },
-              ].map(r => <NormalizedBar key={r.label} label={r.label} entries={r.vals} higherIsBetter={r.hib} />)}
-            </div>
-          )}
-
-          {compareMetrics.length >= 2 && (
-            <div className="rounded-xl border bg-card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Metric</th>
-                      {compareScenarios.map((s, i) => (
-                        <th key={s.id} className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide" style={{ color: colorsMap[i] }}>
-                          {String(s['Scenario Name'] || `Scenario #${s.id}`)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {[
-                      { label: 'Purchase Price', vals: compareMetrics.map(m => fmtDollar(m.metrics.price)), raws: compareMetrics.map(m => m.metrics.price), hib: false },
-                      { label: 'Annual Income', vals: compareMetrics.map(m => fmtDollar(m.metrics.income)), raws: compareMetrics.map(m => m.metrics.income), hib: true },
-                      { label: 'Annual OpEx', vals: compareMetrics.map(m => fmtDollar(m.metrics.opex)), raws: compareMetrics.map(m => m.metrics.opex), hib: false },
-                      { label: 'NOI / yr', vals: compareMetrics.map(m => fmtDollar(m.metrics.noi)), raws: compareMetrics.map(m => m.metrics.noi), hib: true },
-                      { label: 'Cap Rate', vals: compareMetrics.map(m => `${m.metrics.capRate.toFixed(2)}%`), raws: compareMetrics.map(m => m.metrics.capRate), hib: true },
-                      { label: 'Cash / month', vals: compareMetrics.map(m => fmtDollar(m.metrics.monthlyCF)), raws: compareMetrics.map(m => m.metrics.monthlyCF), hib: true },
-                      { label: 'Cash-on-Cash', vals: compareMetrics.map(m => `${m.metrics.cocr.toFixed(2)}%`), raws: compareMetrics.map(m => m.metrics.cocr), hib: true },
-                      { label: 'Cash Invested', vals: compareMetrics.map(m => fmtDollar(m.metrics.totalCashInvested)), raws: compareMetrics.map(m => m.metrics.totalCashInvested), hib: false },
-                      { label: 'Gross Rent Multiplier (Price ÷ Gross Rent)', vals: compareMetrics.map(m => `${m.metrics.grm.toFixed(1)}×`), raws: compareMetrics.map(m => m.metrics.grm), hib: false },
-                    ].map(row => {
-                      const bestRaw = row.hib ? Math.max(...row.raws) : Math.min(...row.raws.filter(v => v > 0))
-                      return (
-                        <tr key={row.label} className="hover:bg-muted/30">
-                          <td className="px-4 py-2.5 font-medium text-sm">{row.label}</td>
-                          {row.vals.map((val, i) => (
-                            <td key={i} className={cn(
-                              'px-4 py-2.5 text-right tabular-nums',
-                              row.raws[i] === bestRaw
-                                ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                                : 'text-muted-foreground'
-                            )}>
-                              {val}{row.raws[i] === bestRaw && <span className="ml-1 text-xs">★</span>}
-                            </td>
-                          ))}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <ScenarioComparisonTable
+              variant="screen"
+              items={compareMetrics.map((m, i): ScenarioComparisonItemInput => ({
+                scenario: m.scenario,
+                label: String(m.scenario['Scenario Name'] || `Scenario #${m.scenario.id}`),
+                color: colorsMap[i % colorsMap.length],
+                isBase: Boolean(m.scenario.is_base),
+                id: `sc-${m.scenario.id}`,
+              }))}
+            />
           )}
         </div>
       )}
@@ -906,7 +683,17 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                       ) : fmtDollar(activeMetrics.opex)}
                     </dd>
                     {activeMetrics.propMgmtRate > 0 && <>
-                      <dt className="text-xs text-muted-foreground">Property Mgmt ({activeMetrics.propMgmtRate}%)</dt>
+                      <dt className="text-xs text-muted-foreground flex items-center gap-1">
+                        Property Mgmt ({activeMetrics.propMgmtRate}%)
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-xs">
+                            {activeMetrics.propMgmtRate}% of <strong>collected rent</strong> (Gross Rent × (1 − Vacancy %)). Applied to effective income, not gross rent.
+                          </TooltipContent>
+                        </Tooltip>
+                      </dt>
                       <dd className="text-xs tabular-nums text-right text-amber-600 dark:text-amber-400">
                         {fmtDollar(activeMetrics.propMgmtExpense)}/yr
                       </dd>
@@ -958,6 +745,55 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
               }
             />
 
+            {/* Purchase card */}
+            <AssumptionCard
+              title="Purchase"
+              icon={Building2}
+              canEdit={canEdit}
+              isEditing={editSection === 'purchase'}
+              onEdit={() => startEdit('purchase', purchaseFields)}
+              onCancel={cancelEdit}
+              onSave={saveEdit}
+              saving={saving}
+              saveError={saveError}
+              display={
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  <dt className="text-xs text-muted-foreground">Purchase Price</dt>
+                  <dd className="text-xs font-semibold tabular-nums text-right">
+                    {activeMetrics.price > 0 ? fmtDollar(activeMetrics.price) : '—'}
+                  </dd>
+                  {property['Asking Price'] != null && property['Asking Price'] !== activeMetrics.price && (
+                    <>
+                      <dt className="text-xs text-muted-foreground">Asking Price</dt>
+                      <dd className="text-xs tabular-nums text-right text-muted-foreground">
+                        {fmtDollar(Number(property['Asking Price']))}
+                      </dd>
+                    </>
+                  )}
+                  <dt className="text-xs text-muted-foreground">Purchase Closing Costs</dt>
+                  <dd className="text-xs tabular-nums text-right">
+                    {activeMetrics.purchaseCC > 0
+                      ? `${fmtDollar(activeMetrics.purchaseCC)} (${activeMetrics.price > 0 ? ((activeMetrics.purchaseCC / activeMetrics.price) * 100).toFixed(1) : '0'}%)`
+                      : '—'}
+                  </dd>
+                </dl>
+              }
+              editForm={
+                <div className="grid grid-cols-2 gap-3">
+                  <InlineField
+                    label="Purchase Price ($)"
+                    value={editDraft['Purchase Price'] ?? ''}
+                    onChange={v => setEditDraft(d => ({ ...d, 'Purchase Price': v }))}
+                  />
+                  <InlineField
+                    label={`Purchase Closing Costs ($) (~${DEFAULT_PURCHASE_CLOSING_COST_PCT}% of price)`}
+                    value={editDraft['Purchase Closing Costs'] ?? ''}
+                    onChange={v => setEditDraft(d => ({ ...d, 'Purchase Closing Costs': v }))}
+                  />
+                </div>
+              }
+            />
+
             {/* Financing card */}
             <AssumptionCard
               title="Financing"
@@ -982,6 +818,12 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                     </dd>
                     <dt className="text-xs text-muted-foreground">Monthly Payment</dt>
                     <dd className="text-xs tabular-nums text-right">{fmtDollar(activeMetrics.monthlyMortgage)}</dd>
+                    {activeMetrics.loanCC > 0 && <>
+                      <dt className="text-xs text-muted-foreground">Loan Closing Costs</dt>
+                      <dd className="text-xs tabular-nums text-right">
+                        {fmtDollar(activeMetrics.loanCC)} ({activeMetrics.principal > 0 ? ((activeMetrics.loanCC / activeMetrics.principal) * 100).toFixed(1) : '0'}%)
+                      </dd>
+                    </>}
                     {activeMetrics.dscr != null && <>
                       <dt className="text-xs text-muted-foreground">Debt Service Coverage</dt>
                       <dd className={cn('text-xs font-semibold tabular-nums text-right', activeMetrics.dscr >= 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
@@ -1015,36 +857,15 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                       <InlineField label="Loan Closing Costs ($)" value={editDraft['Closing Costs'] ?? ''} onChange={v => setEditDraft(d => ({ ...d, 'Closing Costs': v }))} />
                     </div>
                   )}
+                  {(editDraft['Has Loan'] === 'true') && (
+                    <p className="mt-1 text-[11px] text-muted-foreground/70">
+                      Fixed rate applied for the full loan term. Adjustable-rate (ARM) resets are not modeled — enter your expected blended rate.
+                    </p>
+                  )}
                 </div>
               }
             />
 
-            {/* Returns summary card */}
-            <div className="rounded-xl border bg-card p-4">
-              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Activity className="h-4 w-4 text-muted-foreground" />Returns Summary
-              </h4>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-                <dt className="text-xs text-muted-foreground">Cap Rate</dt>
-                <dd className={cn('text-xs font-semibold tabular-nums text-right',
-                  activeMetrics.capRate >= 8 ? 'text-emerald-600 dark:text-emerald-400' : activeMetrics.capRate >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'
-                )}>{activeMetrics.capRate.toFixed(2)}%</dd>
-                <dt className="text-xs text-muted-foreground">Gross Rent Multiplier (Price ÷ Gross Rent)</dt>
-                <dd className="text-xs tabular-nums text-right">{activeMetrics.grm > 0 ? `${activeMetrics.grm.toFixed(1)}×` : '—'}</dd>
-                <dt className="text-xs text-muted-foreground">1% Rule</dt>
-                <dd className={cn('text-xs font-semibold tabular-nums text-right',
-                  (activeMetrics.onePercent ?? 0) >= 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
-                )}>{activeMetrics.onePercent > 0 ? `${activeMetrics.onePercent.toFixed(2)}%` : '—'}</dd>
-                <dt className="text-xs text-muted-foreground">Cash Invested</dt>
-                <dd className="text-xs tabular-nums text-right">{fmtDollar(activeMetrics.totalCashInvested)}</dd>
-                {score != null && <>
-                  <dt className="text-xs text-muted-foreground">Investment Score</dt>
-                  <dd className={cn('text-xs font-bold tabular-nums text-right',
-                    score >= 70 ? 'text-emerald-600 dark:text-emerald-400' : score >= 45 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'
-                  )}>{score}/100</dd>
-                </>}
-              </dl>
-            </div>
           </div>
 
           {/* Assumptions — full width */}
@@ -1059,13 +880,14 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
               'Property Value Increase': activeScenario['Property Value Increase'],
               'Vacancy Rate': activeScenario['Vacancy Rate'],
               'Property Management Rate': activeScenario['Property Management Rate'],
+              'Sale Cost Rate': activeScenario['Sale Cost Rate'],
             })}
             onCancel={cancelEdit}
             onSave={saveEdit}
             saving={saving}
             saveError={saveError}
             display={
-              <dl className="grid grid-cols-3 sm:grid-cols-5 gap-x-6 gap-y-1.5">
+              <dl className="grid grid-cols-3 sm:grid-cols-6 gap-x-6 gap-y-1.5">
                 <div>
                   <dt className="text-xs text-muted-foreground">Rent Growth / yr</dt>
                   <dd className="text-sm font-semibold tabular-nums mt-0.5">
@@ -1093,17 +915,45 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Prop. Mgmt Rate</dt>
+                  <dt className="text-xs text-muted-foreground flex items-center gap-1">
+                    Prop. Mgmt Rate
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        Percentage of <strong>collected rent</strong> (Gross Rent × (1 − Vacancy %)) paid to a property manager.
+                        Applied to effective income, not gross rent.
+                      </TooltipContent>
+                    </Tooltip>
+                  </dt>
                   <dd className={cn('text-sm font-semibold tabular-nums mt-0.5',
                     +(activeScenario['Property Management Rate'] ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : ''
                   )}>
                     {+(activeScenario['Property Management Rate'] ?? 0)}% of eff. income
                   </dd>
                 </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground flex items-center gap-1">
+                    Sale Costs
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        Cost of selling the property (realtor commission + closing fees) as % of sale price.
+                        Applied to sale proceeds in the year-by-year IRR calculation. Typical range 6–8%.
+                      </TooltipContent>
+                    </Tooltip>
+                  </dt>
+                  <dd className="text-sm font-semibold tabular-nums mt-0.5">
+                    {+(activeScenario['Sale Cost Rate'] ?? 7)}% of sale price
+                  </dd>
+                </div>
               </dl>
             }
             editForm={
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
                 <InlineField
                   label="Rent Growth %/yr"
                   value={editDraft['Income Increase'] ?? String(+(activeScenario['Income Increase'] ?? 3))}
@@ -1129,6 +979,11 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                   value={editDraft['Property Management Rate'] ?? String(activeScenario['Property Management Rate'] ?? 0)}
                   onChange={v => setEditDraft(d => ({ ...d, 'Property Management Rate': v }))}
                 />
+                <InlineField
+                  label="Sale Costs %"
+                  value={editDraft['Sale Cost Rate'] ?? String(+(activeScenario['Sale Cost Rate'] ?? 7))}
+                  onChange={v => setEditDraft(d => ({ ...d, 'Sale Cost Rate': v }))}
+                />
               </div>
             }
           />
@@ -1138,8 +993,8 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
       {/* ── Disclosure panels ─────────────────────────────────────────────── */}
       <div className="space-y-2">
         {[
-          { id: 'pl', label: 'Year-by-Year Projections', icon: Activity },
-          ...(activeMetrics.hasLoan && !isBaseActive ? [{ id: 'amort', label: 'Amortization Schedule', icon: BarChart2 }] : []),
+          ...(!compareMode ? [{ id: 'pl', label: 'Year-by-Year Projections', icon: Activity }] : []),
+          ...(activeMetrics.hasLoan && !compareMode ? [{ id: 'amort', label: 'Amortization Schedule', icon: BarChart2 }] : []),
           ...(!compareMode ? [{ id: 'sensitivity', label: 'What-If Sensitivity', icon: TrendingUp }] : []),
         ].map(({ id, label, icon: Icon }) => (
           <div key={id} className="rounded-xl border bg-card overflow-hidden">
@@ -1157,7 +1012,7 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
             {openPanels.has(id) && (
               <div className="border-t border-border/80 p-4">
                 {id === 'pl' && <PLTable scenario={activeScenario} />}
-                {id === 'amort' && !isBaseActive && (() => {
+                {id === 'amort' && (() => {
                   const s = activeScenario
                   const term = +(s['Loan Term'] ?? 0) || 0
                   const price = +(s['Purchase Price'] ?? 0) || 0
@@ -1179,7 +1034,7 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                   )
                 })()}
                 {id === 'sensitivity' && (
-                  <SensitivityPanel scenario={activeScenario} />
+                  <SensitivityHeatmap scenario={activeScenario} variant="screen" />
                 )}
               </div>
             )}

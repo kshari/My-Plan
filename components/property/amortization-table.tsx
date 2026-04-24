@@ -10,6 +10,13 @@ interface AmortizationTableProps {
   principal: number | null
   interestRate: number | null
   monthlyPayment: number | null
+  /**
+   * 'screen' (default): paginated, searchable interactive table.
+   * 'print':  renders ALL rows in a single static table so they survive
+   *           the static PDF export (browsers otherwise only capture the
+   *           currently-visible UI page).
+   */
+  variant?: 'screen' | 'print'
 }
 
 interface AmortizationRow {
@@ -56,6 +63,7 @@ export default function AmortizationTable({
   principal,
   interestRate,
   monthlyPayment,
+  variant = 'screen',
 }: AmortizationTableProps) {
   const schedule = useMemo<AmortizationRow[]>(() => {
     if (!loanTerm || !principal || !interestRate || !monthlyPayment || principal <= 0 || interestRate <= 0 || monthlyPayment <= 0) {
@@ -131,19 +139,55 @@ export default function AmortizationTable({
         ))}
       </div>
 
-      {/* Table with pagination */}
-      <DataTable
-        columns={columns}
-        data={schedule}
-        searchPlaceholder="Jump to payment #…"
-        pageSize={24}
-        emptyMessage="No schedule generated."
-      />
+      {/* Table: paginated on screen, full static render for print */}
+      {variant === 'print' ? (
+        <div className="print-amort-table">
+          <table className="w-full border-collapse text-xs tabular-nums">
+            <thead>
+              <tr className="border-b border-border">
+                {columns.map((c) => (
+                  <th
+                    key={String(c.id ?? (c as { accessorKey?: string }).accessorKey)}
+                    className="px-2 py-1.5 text-left font-medium text-muted-foreground"
+                  >
+                    {typeof c.header === 'string' ? c.header : String(c.id ?? '')}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {schedule.map((row) => (
+                <tr key={row.paymentNumber} className="border-b border-border/40">
+                  <td className="px-2 py-1 font-medium">{row.paymentNumber}</td>
+                  <td className="px-2 py-1">{fmt(row.paymentAmount)}</td>
+                  <td className="px-2 py-1 text-emerald-700">{fmt(row.principal)}</td>
+                  <td className="px-2 py-1 text-red-700">{fmt(row.interest)}</td>
+                  <td className="px-2 py-1">{fmt(row.remainingBalance)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={schedule}
+          searchPlaceholder="Jump to payment #…"
+          pageSize={24}
+          emptyMessage="No schedule generated."
+        />
+      )}
 
-      <p className="text-xs text-muted-foreground">
-        {schedule.length} payments over {loanTerm} year{loanTerm !== 1 ? 's' : ''} ·{' '}
-        Total interest: {fmt(totals.totalInterest)}
-      </p>
+      {/* In print, the three summary cards above + the final row (#N with
+          $0.00 balance) already convey "N payments · Total interest $X",
+          so hide this trailing paragraph to avoid an orphan line when the
+          last schedule page fills completely. */}
+      {variant !== 'print' && (
+        <p className="text-xs text-muted-foreground">
+          {schedule.length} payments over {loanTerm} year{loanTerm !== 1 ? 's' : ''} ·{' '}
+          Total interest: {fmt(totals.totalInterest)}
+        </p>
+      )}
     </div>
   )
 }
