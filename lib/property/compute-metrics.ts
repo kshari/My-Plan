@@ -25,6 +25,8 @@ export interface ScenarioMetrics {
   rate: number
   term: number
   principal: number
+  loanCC: number          // loan closing costs
+  purchaseCC: number      // purchase (buyer-side) closing costs
   totalCashInvested: number
   // Returns
   capRate: number
@@ -101,6 +103,7 @@ export function computeScenarioMetrics(s: Record<string, unknown>): ScenarioMetr
     income: effectiveIncome, // back-compat alias
     opex, propMgmtRate, propMgmtExpense, totalExpenses, noi,
     hasLoan, dp, rate, term, principal,
+    loanCC, purchaseCC,
     totalCashInvested, capRate, grm, onePercent,
     annualMortgage, monthlyMortgage, firstYearInterest, firstYearPrincipal,
     firstYearCF, monthlyCF, cocr, dscr,

@@ -1,22 +1,19 @@
 'use client'
 
-import React, { useEffect, useRef, useState, useMemo } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Printer, Clock, CheckCircle, X } from 'lucide-react'
 import {
-  computeScenarioMetrics, fmtDollar, fmtCompact,
-  type ScenarioMetrics,
+  computeScenarioMetrics, fmtDollar,
 } from '@/lib/property/compute-metrics'
-import { computeInvestmentScore, DEFAULT_SCORING_CONFIG } from '@/lib/property/scoring'
 import PLTable from '@/components/property/pl-table'
 import AmortizationTable from '@/components/property/amortization-table'
-import { cn } from '@/lib/utils'
+import { SensitivityHeatmap } from '@/components/property/shared/sensitivity-heatmap'
 import {
-  DEFAULT_DOWN_PAYMENT_PCT,
-  DEFAULT_ANALYSIS_INTEREST_RATE,
-  DEFAULT_LOAN_TERM,
-  DEFAULT_CLOSING_COST_PCT,
-} from '@/lib/constants/property-defaults'
+  ScenarioComparisonTable,
+  type ScenarioComparisonItemInput,
+} from '@/components/property/shared/scenario-comparison-table'
+import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,111 +60,7 @@ const SECTIONS = [
 
 const AUTO_PRINT_DELAY_MS = 20_000
 
-const EXPENSE_LABELS: Record<string, string> = {
-  property_tax:       'Property Tax',
-  insurance:          'Insurance',
-  cdd:                'CDD',
-  hoa:                'HOA',
-  maintenance:        'Maintenance',
-  property_management:'Property Mgmt',
-  other:              'Other',
-}
-
-// ─── Sensitivity heatmap (shared logic, duplicated from deal-workspace) ───────
-
-const HEATMAP_STEPS = [-20, -15, -10, -5, 0, 5, 10, 15, 20, 25] as const
-
-interface HeatmapRow {
-  label: string
-  sublabel: string
-  applyStep: (s: Record<string, unknown>, step: number) => Record<string, unknown>
-  formatStep: (step: number) => string
-  varValue: (s: Record<string, unknown>, step: number) => string
-}
-
-const HEATMAP_ROWS: HeatmapRow[] = [
-  {
-    label: 'Purchase Price', sublabel: '% change',
-    applyStep: (s, step) => {
-      const p = +(s['Purchase Price'] ?? 0) || 0
-      return { ...s, 'Purchase Price': p * (1 + step / 100) }
-    },
-    formatStep: step => `${step > 0 ? '+' : ''}${step}%`,
-    varValue: (s, step) => fmtCompact(+(s['Purchase Price'] ?? 0) * (1 + step / 100)),
-  },
-  {
-    label: 'Gross Rent', sublabel: '% change',
-    applyStep: (s, step) => {
-      const g = +(s['Gross Income'] ?? 0) || 0
-      return { ...s, 'Gross Income': g * (1 + step / 100) }
-    },
-    formatStep: step => `${step > 0 ? '+' : ''}${step}%`,
-    varValue: (s, step) => `${fmtCompact(+(s['Gross Income'] ?? 0) * (1 + step / 100) / 12)}/mo`,
-  },
-  {
-    label: 'Operating Expenses', sublabel: '% change',
-    applyStep: (s, step) => {
-      const o = +(s['Operating Expenses'] ?? 0) || 0
-      return { ...s, 'Operating Expenses': o * (1 + step / 100) }
-    },
-    formatStep: step => `${step > 0 ? '+' : ''}${step}%`,
-    varValue: (s, step) => `${fmtCompact(+(s['Operating Expenses'] ?? 0) * (1 + step / 100) / 12)}/mo`,
-  },
-  {
-    label: 'Interest Rate', sublabel: '±ppt (÷10)',
-    applyStep: (s, step) => {
-      const r = +(s['Interest Rate'] ?? 0) || 0
-      return { ...s, 'Interest Rate': Math.max(0, r + step / 10) }
-    },
-    formatStep: step => { const p = step / 10; return `${p > 0 ? '+' : ''}${p.toFixed(1)}` },
-    varValue: (s, step) => `${Math.max(0, +(s['Interest Rate'] ?? 0) + step / 10).toFixed(2)}%`,
-  },
-  {
-    label: 'Down Payment', sublabel: '±ppt (÷2)',
-    applyStep: (s, step) => {
-      const base = +(s['Down Payment Percentage'] ?? DEFAULT_DOWN_PAYMENT_PCT) || DEFAULT_DOWN_PAYMENT_PCT
-      const newPct = Math.max(0, Math.min(100, base + step / 2))
-      const price = +(s['Purchase Price'] ?? 0) || 0
-      return { ...s, 'Down Payment Percentage': newPct, 'Down Payment Amount': price * newPct / 100 }
-    },
-    formatStep: step => { const p = step / 2; return `${p > 0 ? '+' : ''}${p.toFixed(0)}` },
-    varValue: (s, step) => {
-      const base = +(s['Down Payment Percentage'] ?? DEFAULT_DOWN_PAYMENT_PCT) || DEFAULT_DOWN_PAYMENT_PCT
-      return `${Math.max(0, Math.min(100, base + step / 2)).toFixed(0)}%`
-    },
-  },
-  {
-    label: 'Vacancy Rate', sublabel: '±ppt',
-    applyStep: (s, step) => {
-      const v = +(s['Vacancy Rate'] ?? 0) || 0
-      return { ...s, 'Vacancy Rate': Math.max(0, Math.min(100, v + step / 5)) }
-    },
-    formatStep: step => { const p = step / 5; return `${p > 0 ? '+' : ''}${p.toFixed(1)}` },
-    varValue: (s, step) => {
-      const v = +(s['Vacancy Rate'] ?? 0) || 0
-      return `${Math.max(0, Math.min(100, v + step / 5)).toFixed(1)}%`
-    },
-  },
-]
-
-function heatmapCellStyle(cf: number, maxAbsCF: number): React.CSSProperties {
-  const nearZero = 100
-  if (Math.abs(cf) <= nearZero) return { backgroundColor: 'hsl(45,90%,88%)', color: '#78350f' }
-  const intensity = Math.min(1, (Math.abs(cf) - nearZero) / Math.max(maxAbsCF - nearZero, 500))
-  const lightness = Math.round(92 - intensity * 56)
-  if (cf > 0) return { backgroundColor: `hsl(142,65%,${lightness}%)`, color: lightness < 58 ? '#fff' : '#14532d' }
-  return { backgroundColor: `hsl(0,78%,${lightness}%)`, color: lightness < 58 ? '#fff' : '#7f1d1d' }
-}
-
 // ─── Small helpers ────────────────────────────────────────────────────────────
-
-function scoreFor(m: ScenarioMetrics) {
-  if (m.price <= 0 || m.income <= 0) return null
-  return computeInvestmentScore(DEFAULT_SCORING_CONFIG, {
-    capRate: m.capRate, roi: m.cocr, annualCashFlow: m.firstYearCF,
-    noiForCalcs: m.noi, onePercentRatio: m.onePercent, grm: m.grm,
-  }, v => fmtDollar(v)).score
-}
 
 function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
@@ -240,114 +133,29 @@ function PropertyInfoSection({ property }: { property: Property }) {
   )
 }
 
-// ─── Section: Scenario Details ────────────────────────────────────────────────
+// ─── Section: Scenario Details (comparative table) ────────────────────────────
 
-function ScenarioCard({
-  scenario,
-  label,
-  color,
-  isBase,
-}: {
-  scenario: Record<string, unknown>
-  label: string
-  color: string
-  isBase: boolean
-}) {
-  const m = computeScenarioMetrics(scenario)
-  const score = scoreFor(m)
-  const hasLoan = m.hasLoan
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-      {/* Scenario header */}
-      <div className="px-4 py-3 border-b border-gray-200" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-              {isBase ? 'Base (listing)' : 'Scenario'}
-            </span>
-            <h4 className="text-sm font-bold text-gray-900">{label}</h4>
-          </div>
-          {score != null && (
-            <div className="text-right">
-              <div className="text-[10px] text-gray-400 uppercase tracking-wide">Score</div>
-              <div className={cn(
-                'text-lg font-bold tabular-nums',
-                score >= 70 ? 'text-emerald-600' : score >= 50 ? 'text-amber-600' : 'text-red-600'
-              )}>{score}</div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 divide-x divide-gray-100">
-        {/* Income */}
-        <div className="p-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Income</p>
-          <Row label="Gross Rent / yr" value={fmtDollar(m.grossIncome)} />
-          {m.vacancyRate > 0 && <Row label={`Vacancy (${m.vacancyRate}%)`} value={`-${fmtDollar(m.vacancyLoss)}`} />}
-          <Row label="Effective Income / yr" value={fmtDollar(m.effectiveIncome)} />
-        </div>
-
-        {/* Expenses */}
-        <div className="p-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Expenses</p>
-          <Row label="Oper. Expenses / yr" value={fmtDollar(m.opex)} />
-          {m.propMgmtRate > 0 && <Row label={`Prop. Mgmt (${m.propMgmtRate}%)`} value={fmtDollar(m.propMgmtExpense)} />}
-          <Row label="Total Expenses / yr" value={fmtDollar(m.totalExpenses)} />
-          <Row label="Net Op. Income / yr" value={fmtDollar(m.noi)} highlight />
-        </div>
-
-        {/* Financing */}
-        <div className="p-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Financing</p>
-          <Row label="Purchase Price" value={fmtDollar(m.price)} />
-          {hasLoan ? (
-            <>
-              <Row label="Down Payment" value={`${fmtDollar(m.dp)} (${scenario['Down Payment Percentage'] ?? DEFAULT_DOWN_PAYMENT_PCT}%)`} />
-              <Row label="Loan Amount" value={fmtDollar(m.principal)} />
-              <Row label="Interest Rate" value={`${m.rate}%`} />
-              <Row label="Loan Term" value={`${m.term} yrs`} />
-              <Row label="Monthly Payment" value={fmtDollar(m.monthlyMortgage)} />
-            </>
-          ) : (
-            <Row label="Purchase Type" value="All Cash" />
-          )}
-          <Row label="Total Cash Invested" value={fmtDollar(m.totalCashInvested)} highlight />
-        </div>
-
-        {/* Key Metrics */}
-        <div className="p-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Key Metrics</p>
-          <Row label="Cap Rate" value={`${m.capRate.toFixed(2)}%`} />
-          <Row label="Cash / mo" value={fmtDollar(m.monthlyCF)} highlight />
-          <Row label="Cash-on-Cash" value={`${m.cocr.toFixed(2)}%`} />
-          {m.dscr != null && <Row label="Debt Coverage" value={m.dscr.toFixed(2)} />}
-          <Row label="Gross Rent Multiplier (Price ÷ Gross Rent)" value={m.grm > 0 ? `${m.grm.toFixed(1)}×` : '—'} />
-          <Row label="1% Rule" value={m.onePercent > 0 ? `${m.onePercent.toFixed(2)}%` : '—'} />
-        </div>
-      </div>
-
-      {/* Growth assumptions + vacancy/prop mgmt */}
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 flex gap-6 flex-wrap">
-        <span className="text-[10px] text-gray-500">
-          Income Growth: <strong>{String(scenario['Income Increase'] ?? 3)}%/yr</strong>
-        </span>
-        <span className="text-[10px] text-gray-500">
-          Expense Growth: <strong>{String(scenario['Expenses Increase'] ?? 3)}%/yr</strong>
-        </span>
-        <span className="text-[10px] text-gray-500">
-          Appreciation: <strong>{String(scenario['Property Value Increase'] ?? 3)}%/yr</strong>
-        </span>
-        <span className="text-[10px] text-gray-500">
-          Vacancy Rate: <strong>{String(scenario['Vacancy Rate'] ?? 0)}%</strong>
-        </span>
-        <span className="text-[10px] text-gray-500">
-          Prop. Mgmt Rate: <strong>{String(scenario['Property Management Rate'] ?? 0)}% of eff. income</strong>
-        </span>
-      </div>
-    </div>
-  )
+function orderedScenarioList(
+  baseScenario: Record<string, unknown>,
+  scenarios: ScenarioRow[],
+): ScenarioComparisonItemInput[] {
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+  // Dedupe: scenarios already contains the base row; drop any base from `scenarios`
+  const nonBase = scenarios.filter(s => !s.is_base)
+  // Use the real base row if present; otherwise fall back to the passed-in baseScenario
+  const realBase = scenarios.find(s => s.is_base)
+  const base = realBase ?? baseScenario
+  const baseId = realBase ? `sc-${(realBase as ScenarioRow).id}` : 'base'
+  return [
+    { scenario: base, label: 'Base', color: '#6b7280', isBase: true, id: baseId },
+    ...nonBase.map((s, i) => ({
+      scenario: s,
+      label: String(s['Scenario Name'] || `Scenario #${s.id}`),
+      color: COLORS[i % COLORS.length],
+      isBase: false,
+      id: `sc-${s.id}`,
+    })),
+  ]
 }
 
 function ScenariosSection({
@@ -357,29 +165,11 @@ function ScenariosSection({
   baseScenario: Record<string, unknown>
   scenarios: ScenarioRow[]
 }) {
-  const COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
-  const allScenarios: Array<{ scenario: Record<string, unknown>; label: string; color: string; isBase: boolean }> = [
-    { scenario: baseScenario, label: 'Base (listing)', color: '#6b7280', isBase: true },
-    ...scenarios.map((s, i) => ({
-      scenario: s,
-      label: String(s['Scenario Name'] || `Scenario #${s.id}`),
-      color: COLORS[i % COLORS.length],
-      isBase: false,
-    })),
-  ]
-
   return (
-    <div className="space-y-4">
-      {allScenarios.map(({ scenario, label, color, isBase }) => (
-        <ScenarioCard
-          key={isBase ? 'base' : (scenario as ScenarioRow).id}
-          scenario={scenario}
-          label={label}
-          color={color}
-          isBase={isBase}
-        />
-      ))}
-    </div>
+    <ScenarioComparisonTable
+      variant="print"
+      items={orderedScenarioList(baseScenario, scenarios)}
+    />
   )
 }
 
@@ -392,23 +182,24 @@ function ProjectionsSection({
   baseScenario: Record<string, unknown>
   scenarios: ScenarioRow[]
 }) {
-  const allScenarios: Array<{ scenario: Record<string, unknown>; label: string }> = [
-    { scenario: baseScenario, label: 'Base (listing)' },
-    ...scenarios.map(s => ({
-      scenario: s,
-      label: String(s['Scenario Name'] || `Scenario #${s.id}`),
-    })),
-  ]
+  const allScenarios = orderedScenarioList(baseScenario, scenarios)
 
   return (
     <div className="space-y-8">
       {allScenarios.map(({ scenario, label }, idx) => (
-        <div key={idx} className={idx > 0 ? 'page-break-before' : ''}>
+        // `print-pl-landscape` on the OUTER wrapper ensures the scenario
+        // heading and the PL table share the same landscape page instead
+        // of the heading being orphaned on a portrait page before the
+        // orientation-switching table.
+        <div
+          key={idx}
+          className={`print-pl-landscape ${idx > 0 ? 'page-break-before' : ''}`}
+        >
           <h4 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">
             {label}
           </h4>
           <div className="print-pl-table">
-            <PLTable scenario={scenario} years={30} />
+            <PLTable scenario={scenario} years={30} variant="print" />
           </div>
         </div>
       ))}
@@ -425,13 +216,7 @@ function AmortizationSection({
   baseScenario: Record<string, unknown>
   scenarios: ScenarioRow[]
 }) {
-  const allScenarios: Array<{ scenario: Record<string, unknown>; label: string }> = [
-    { scenario: baseScenario, label: 'Base (listing)' },
-    ...scenarios.map(s => ({
-      scenario: s,
-      label: String(s['Scenario Name'] || `Scenario #${s.id}`),
-    })),
-  ]
+  const allScenarios = orderedScenarioList(baseScenario, scenarios)
 
   const financed = allScenarios.filter(({ scenario }) => {
     const m = computeScenarioMetrics(scenario)
@@ -456,6 +241,7 @@ function AmortizationSection({
               principal={m.principal}
               interestRate={m.rate}
               monthlyPayment={m.monthlyMortgage}
+              variant="print"
             />
           </div>
         )
@@ -467,91 +253,20 @@ function AmortizationSection({
 // ─── Section: Sensitivity Heatmap ─────────────────────────────────────────────
 
 function SensitivitySection({ scenario }: { scenario: Record<string, unknown> }) {
-  const heatmap = useMemo(() =>
-    HEATMAP_ROWS.map(row =>
-      HEATMAP_STEPS.map(step => ({
-        cf: computeScenarioMetrics(row.applyStep(scenario, step)).monthlyCF,
-        varVal: row.varValue(scenario, step),
-      }))
-    ), [scenario])
-
-  const maxAbsCF = useMemo(() => {
-    const all = heatmap.flat().map(c => Math.abs(c.cf))
-    return Math.max(100, ...all)
-  }, [heatmap])
-
-  const baseCF = heatmap[0]?.[4]?.cf ?? 0
-
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-gray-500">
-        Each row stresses one variable independently. Cells show monthly cash flow.
-        Baseline: <strong className={baseCF >= 0 ? 'text-emerald-700' : 'text-red-700'}>{fmtDollar(baseCF)}/mo</strong>
-      </p>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr>
-              <th className="px-3 py-2 text-left font-medium text-gray-500 border border-gray-200 bg-gray-50 whitespace-nowrap min-w-36">Variable</th>
-              {HEATMAP_STEPS.map(step => (
-                <th
-                  key={step}
-                  className={cn(
-                    'px-2 py-2 text-center font-medium whitespace-nowrap border border-gray-200 min-w-14',
-                    step === 0 ? 'bg-gray-200 text-gray-900' : 'bg-gray-50 text-gray-500'
-                  )}
-                >
-                  {step === 0 ? 'Base' : `${step > 0 ? '+' : ''}${step}%`}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {HEATMAP_ROWS.map((row, ri) => (
-              <tr key={row.label}>
-                <td className="px-3 py-2 font-medium bg-gray-50 whitespace-nowrap border border-gray-200">
-                  <div className="text-xs font-semibold text-gray-800">{row.label}</div>
-                  <div className="text-[10px] text-gray-400">{row.sublabel}</div>
-                </td>
-                {HEATMAP_STEPS.map((step, ci) => {
-                  const { cf, varVal } = heatmap[ri][ci]
-                  const style = heatmapCellStyle(cf, maxAbsCF)
-                  return (
-                    <td
-                      key={step}
-                      style={style}
-                      className={cn(
-                        'px-2 py-1.5 text-center tabular-nums border border-gray-200 font-medium leading-tight',
-                        step === 0 && 'ring-1 ring-inset ring-black/20'
-                      )}
-                    >
-                      <div>{fmtCompact(cf)}</div>
-                      <div className="text-[9px] opacity-75 font-normal mt-0.5">({varVal})</div>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex items-center gap-4 text-xs text-gray-500">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500" /> Positive cash flow
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(45,90%,88%)' }} /> Near zero (±$100)
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded-sm bg-red-500" /> Negative cash flow
-        </span>
-      </div>
-      <p className="text-[10px] text-gray-400">
-        Interest Rate steps are ÷10 ppts · Down Payment steps are ÷2 ppts · Vacancy steps are ÷5 ppts
-      </p>
-    </div>
+    <SensitivityHeatmap
+      scenario={scenario}
+      variant="print"
+      note={
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+          <p className="text-xs text-blue-800">
+            <strong>Note:</strong> Sensitivity analysis is run against the <strong>Base scenario</strong> only.
+            It stresses the listing-level assumptions to show how cash flow responds to changes, and is not tied to
+            any specific scenario above.
+          </p>
+        </div>
+      }
+    />
   )
 }
 
@@ -726,8 +441,9 @@ export default function PropertyPrintView({
   // Ordered section list to render
   const sectionsToRender = SECTIONS.filter(s => selectedSections.has(s.id))
 
-  // Best scenario for sensitivity (first real scenario, or base)
-  const sensitivityScenario = scenarios.length > 0 ? scenarios[0] : baseScenario
+  // Sensitivity always uses the Base scenario (it's a listing-level analysis, not scenario-specific)
+  const realBase = scenarios.find(s => s.is_base)
+  const sensitivityScenario = realBase ?? baseScenario
 
   const propertyName = [property.address, property.city].filter(Boolean).join(', ') || 'Property Report'
   const generatedAt = new Date().toLocaleDateString('en-US', {
@@ -820,16 +536,28 @@ export default function PropertyPrintView({
 
           /* Projection tables */
           .print-pl-table table {
-            font-size: 0.7rem !important;
+            font-size: 0.65rem !important;
             width: 100% !important;
           }
           .print-pl-table th,
           .print-pl-table td {
-            padding: 0.2rem 0.35rem !important;
+            padding: 0.15rem 0.25rem !important;
           }
           .print-pl-table .overflow-x-auto {
             overflow: visible !important;
           }
+
+          /* The PL table has many columns and full-precision dollars;
+             force landscape orientation so the full table fits without
+             horizontal clipping (IRR / Loan Left columns were getting cut). */
+          .print-pl-landscape { page: pl; }
+          @page pl { size: letter landscape; margin: 1.2cm; }
+
+          /* Amortization schedule: ensure all 360 rows print and break naturally */
+          .print-amort-table { page-break-inside: auto; }
+          .print-amort-table table { width: 100% !important; }
+          .print-amort-table thead { display: table-header-group; }
+          .print-amort-table tr { page-break-inside: avoid; }
 
           @page { margin: 1.5cm; }
 

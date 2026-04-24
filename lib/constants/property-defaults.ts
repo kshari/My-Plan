@@ -12,6 +12,12 @@ export const DEFAULT_DOWN_PAYMENT_PCT = 25
 export const DEFAULT_DOWN_PAYMENT_MIN = 20
 export const DEFAULT_DOWN_PAYMENT_MAX = 30
 export const DEFAULT_CLOSING_COST_PCT = 3
+/** Buyer-side purchase closing costs (title, transfer taxes, inspection, recording). */
+export const DEFAULT_PURCHASE_CLOSING_COST_PCT = 2  // % of purchase price
+/** Loan-specific closing costs (origination, appraisal, points). */
+export const DEFAULT_LOAN_CLOSING_COST_PCT = 1      // % of loan amount
+/** Default sale cost (realtor commission + closing) as % of sale price. Applied to IRR sale proceeds. */
+export const DEFAULT_SALE_COST_PCT = 7
 export const LOAN_TERMS = [15, 20, 30] as const
 export const DEFAULT_LOAN_TERM = 30
 export const MAX_INTEREST_RATE_SLIDER = 15
