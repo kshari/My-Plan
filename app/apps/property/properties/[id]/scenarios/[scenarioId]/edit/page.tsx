@@ -55,7 +55,7 @@ export default async function ScenarioEditPage({ params }: ScenarioEditPageProps
             </Link>
             <div className="flex items-center gap-4">
               <Link
-                href={`/apps/property/properties/${propertyId}/scenarios/${scenarioIdNum}`}
+                href={`/apps/property/properties/${propertyId}?scenario=${scenarioIdNum}`}
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
                 Back to Scenario
@@ -72,8 +72,8 @@ export default async function ScenarioEditPage({ params }: ScenarioEditPageProps
       </nav>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Link 
-          href={`/apps/property/properties/${propertyId}/scenarios/${scenarioIdNum}`}
+        <Link
+          href={`/apps/property/properties/${propertyId}?scenario=${scenarioIdNum}`}
           className="mb-6 inline-block text-sm text-blue-600 hover:text-blue-800"
         >
           ← Back to Scenario

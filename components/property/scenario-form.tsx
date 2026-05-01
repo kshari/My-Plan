@@ -256,19 +256,21 @@ export default function ScenarioForm({
           .from(scenTable)
           .update(scenarioData)
           .eq('id', scenarioId)
-        
+
         if (error) throw error
         router.refresh()
-        router.push(isTeam ? `${teamBase}/scenarios/recommended` : `/apps/property/properties/${propertyId}/scenarios/${scenarioId}`)
+        // Land on the deal workspace with this scenario active, instead of the
+        // standalone scenario-detail page (which duplicates the same metrics).
+        router.push(isTeam ? `${teamBase}/scenarios/recommended` : `/apps/property/properties/${propertyId}?scenario=${scenarioId}`)
       } else {
         const { data, error } = await supabase
           .from(scenTable)
           .insert([scenarioData])
           .select()
           .single()
-        
+
         if (error) throw error
-        router.push(isTeam ? `${teamBase}/scenarios/recommended` : `/apps/property/properties/${propertyId}/scenarios/${data.id}`)
+        router.push(isTeam ? `${teamBase}/scenarios/recommended` : `/apps/property/properties/${propertyId}?scenario=${data.id}`)
       }
     } catch (error: any) {
       setError(error.message || 'Failed to save scenario')
@@ -801,7 +803,7 @@ export default function ScenarioForm({
             {scenarioId && (
               <button
                 type="button"
-                onClick={() => router.push(`/apps/property/properties/${propertyId}/scenarios/${scenarioId}`)}
+                onClick={() => router.push(`/apps/property/properties/${propertyId}?scenario=${scenarioId}`)}
                 className="rounded-md bg-muted px-4 py-2 text-sm font-medium hover:bg-muted/80"
               >
                 Cancel
