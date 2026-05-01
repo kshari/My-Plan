@@ -9,10 +9,13 @@ import { buildBaseScenarioSeed } from '@/lib/property/build-base-scenario-from-p
 
 interface PropertyDetailPageProps {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ scenario?: string }>
 }
 
-export default async function PropertyDetailPage({ params }: PropertyDetailPageProps) {
+export default async function PropertyDetailPage({ params, searchParams }: PropertyDetailPageProps) {
   const { id } = await params
+  const { scenario: scenarioParam } = await searchParams
+  const initialScenarioId = scenarioParam ? parseInt(scenarioParam) : undefined
   const { supabase, user } = await requireAuth()
 
   const propertyId = parseInt(id)
@@ -94,6 +97,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
       <DealWorkspace
         property={property}
         initialScenarios={sortedScenarios}
+        initialScenarioId={initialScenarioId && !isNaN(initialScenarioId) ? initialScenarioId : undefined}
       />
     </div>
   )

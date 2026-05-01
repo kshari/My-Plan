@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Plus, BarChart2, ChevronDown, ChevronUp, Pencil, Check, X,
   TrendingUp, DollarSign, MoreHorizontal, Trash2,
-  Info, Activity, GitCompare, Building2, ExternalLink, RefreshCw, Printer,
+  Info, Activity, GitCompare, Building2, RefreshCw, Printer,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -57,6 +57,8 @@ type ScenarioRow = Record<string, unknown> & { id: number; created_at: string }
 interface DealWorkspaceProps {
   property: Property
   initialScenarios: ScenarioRow[]
+  /** Optional scenario id to activate on first render (e.g. from `?scenario=` query param). */
+  initialScenarioId?: number
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -113,16 +115,21 @@ function InlineField({
 
 // ─── Main DealWorkspace ───────────────────────────────────────────────────────
 
-export default function DealWorkspace({ property, initialScenarios }: DealWorkspaceProps) {
+export default function DealWorkspace({ property, initialScenarios, initialScenarioId }: DealWorkspaceProps) {
   const router = useRouter()
   const supabase = createClient()
   const [, startTransition] = useTransition()
 
   // ── Scenario state
   const [scenarios, setScenarios] = useState<ScenarioRow[]>(initialScenarios)
-  const [activeId, setActiveId] = useState<number>(
-    initialScenarios.find(s => s.is_base)?.id ?? initialScenarios[0]?.id ?? 0
-  )
+  // Prefer the explicit initialScenarioId (e.g. coming from `?scenario=` after
+  // a save in the full-form editor); fall back to Base, then to first.
+  const [activeId, setActiveId] = useState<number>(() => {
+    if (initialScenarioId != null && initialScenarios.some(s => s.id === initialScenarioId)) {
+      return initialScenarioId
+    }
+    return initialScenarios.find(s => s.is_base)?.id ?? initialScenarios[0]?.id ?? 0
+  })
   const [newDialogOpen, setNewDialogOpen] = useState(false)
 
   // ── Compare mode
@@ -443,34 +450,39 @@ export default function DealWorkspace({ property, initialScenarios }: DealWorksp
                 </span>
               </span>
               {!compareMode && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                    <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link href={`/apps/property/properties/${property.id}/scenarios/${s.id}/edit`}>
-                        <Pencil className="h-3.5 w-3.5 mr-2" />Edit full form
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href={`/apps/property/properties/${property.id}/scenarios/${s.id}`}>
-                        <ExternalLink className="h-3.5 w-3.5 mr-2" />View detail page
-                      </Link>
-                    </DropdownMenuItem>
-                    {/* Base scenario cannot be deleted — it's auto-created with the property */}
-                    {!isThisBase && (
-                      <DropdownMenuItem
-                        onClick={() => deleteScenario(s.id)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-2" />Delete
-                      </DropdownMenuItem>
+                <span className="ml-1 flex items-center gap-0.5">
+                  {/* Always-visible Edit affordance — opens the full scenario form */}
+                  <Link
+                    href={`/apps/property/properties/${property.id}/scenarios/${s.id}/edit`}
+                    onClick={e => e.stopPropagation()}
+                    title="Edit full form"
+                    aria-label={`Edit ${label} scenario`}
+                    className={cn(
+                      'inline-flex items-center justify-center rounded p-0.5 hover:bg-foreground/10 transition-colors',
+                      isActive ? 'text-primary/80 hover:text-primary' : 'text-muted-foreground/70 hover:text-foreground'
                     )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Link>
+                  {/* Base scenario can't be deleted; with no delete, no kebab needed */}
+                  {!isThisBase && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-0.5 rounded hover:bg-foreground/10">
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </span>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => deleteScenario(s.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-2" />Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </span>
               )}
             </button>
           )
