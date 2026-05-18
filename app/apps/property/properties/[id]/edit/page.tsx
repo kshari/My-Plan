@@ -37,6 +37,7 @@ export default async function PropertyEditPage({ params }: PropertyEditPageProps
     'Has HOA': property['Has HOA'],
     swimming_pool: property.swimming_pool ?? null,
     'Asking Price': property['Asking Price'],
+    current_market_value: property.current_market_value ?? null,
     listing_status: property.listing_status ?? null,
     source: property.source ?? null,
     mls_number: property.mls_number ?? null,

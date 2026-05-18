@@ -6,6 +6,13 @@
 
 export interface ScenarioMetrics {
   price: number
+  /**
+   * Current market value (a.k.a. appraised value) used as the Year-0 basis for
+   * forward-looking IRR projections. Falls back to `price` when not set on the
+   * scenario. The cash actually invested at acquisition (down payment + closing
+   * costs) is still derived from `price`.
+   */
+  currentMarketValue: number
   // Income
   grossIncome: number       // annual gross rent before vacancy
   vacancyRate: number       // vacancy % (e.g. 5 = 5%)
@@ -44,6 +51,9 @@ export interface ScenarioMetrics {
 
 export function computeScenarioMetrics(s: Record<string, unknown>): ScenarioMetrics {
   const price = +(s['Purchase Price'] ?? 0) || 0
+  const rawCMV = s['Current Market Value']
+  const parsedCMV = rawCMV == null || rawCMV === '' ? 0 : +rawCMV || 0
+  const currentMarketValue = parsedCMV > 0 ? parsedCMV : price
   const grossIncome = +(s['Gross Income'] ?? 0) || 0
   const opex = +(s['Operating Expenses'] ?? 0) || 0
   const vacancyRate = +(s['Vacancy Rate'] ?? 0) || 0
@@ -99,6 +109,7 @@ export function computeScenarioMetrics(s: Record<string, unknown>): ScenarioMetr
 
   return {
     price,
+    currentMarketValue,
     grossIncome, vacancyRate, vacancyLoss, effectiveIncome,
     income: effectiveIncome, // back-compat alias
     opex, propMgmtRate, propMgmtExpense, totalExpenses, noi,

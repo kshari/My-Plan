@@ -15,6 +15,7 @@ import {
   computeScenarioMetrics, fmtDollar,
   type ScenarioMetrics,
 } from '@/lib/property/compute-metrics'
+import { computeYearMetrics, type YearMetricSet } from '@/lib/property/irr'
 import { computeInvestmentScore, DEFAULT_SCORING_CONFIG } from '@/lib/property/scoring'
 import { DEFAULT_DOWN_PAYMENT_PCT } from '@/lib/constants/property-defaults'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,13 @@ export interface ScenarioComparisonItemInput {
   id?: string
 }
 
+/** Holding-period years shown in the Multi-Year Returns block. Keep this in
+ *  one place so the row order, headers, and per-scenario computation stay in
+ *  sync. Year-1 metrics already exist on `ScenarioMetrics` (`firstYearCF`,
+ *  `cocr`) — for the comparison table we still source them from this map so
+ *  the row sequence is consistent. */
+const RETURN_YEARS = [1, 3, 5, 10] as const
+
 interface ComputedItem {
   scenario: Record<string, unknown>
   label: string
@@ -38,6 +46,8 @@ interface ComputedItem {
   id: string
   m: ScenarioMetrics
   score: number | null
+  /** Cash Flow, CoC, IRR at each holding-period in RETURN_YEARS. */
+  byYear: Record<number, YearMetricSet>
 }
 
 interface RowDef {
@@ -82,6 +92,19 @@ const GROUPS: GroupDef[] = [
     title: 'Purchase & Financing',
     rows: [
       { label: 'Purchase Price', cell: ({ m }) => fmtDollar(m.price), raw: ({ m }) => m.price, hib: false },
+      {
+        label: 'Current Market Value',
+        // Only show a dollar value when the scenario has an explicit
+        // appraised/market value distinct from Purchase Price. Otherwise
+        // render an em-dash with a hint so readers know the IRR fell back to
+        // Purchase Price as its Year-0 basis.
+        cell: ({ m }) =>
+          m.currentMarketValue > 0 && m.currentMarketValue !== m.price
+            ? fmtDollar(m.currentMarketValue)
+            : '— (uses Purchase Price)',
+        raw: ({ m }) => (m.currentMarketValue > 0 && m.currentMarketValue !== m.price ? m.currentMarketValue : null),
+        hib: false,
+      },
       { label: 'Purchase Closing Costs', cell: ({ m }) => m.purchaseCC > 0 ? `${fmtDollar(m.purchaseCC)} (${m.price > 0 ? ((m.purchaseCC / m.price) * 100).toFixed(2) : '0'}%)` : '—', raw: ({ m }) => m.purchaseCC, hib: false },
       { label: 'Purchase Type', cell: ({ m }) => m.hasLoan ? 'Financed' : 'All Cash' },
       { label: 'Down Payment', cell: ({ m, scenario }) => m.hasLoan ? `${fmtDollar(m.dp)} (${scenario['Down Payment Percentage'] ?? DEFAULT_DOWN_PAYMENT_PCT}%)` : '—', raw: ({ m }) => m.hasLoan ? m.dp : null, hib: false },
@@ -117,12 +140,55 @@ const GROUPS: GroupDef[] = [
     rows: [
       { label: 'Cap Rate', cell: ({ m }) => `${m.capRate.toFixed(2)}%`, raw: ({ m }) => m.capRate, hib: true },
       { label: 'Cash Flow / mo', cell: ({ m }) => fmtDollar(m.monthlyCF), raw: ({ m }) => m.monthlyCF, hib: true, highlight: true },
-      { label: 'Cash Flow / yr', cell: ({ m }) => fmtDollar(m.firstYearCF), raw: ({ m }) => m.firstYearCF, hib: true },
-      { label: 'Cash-on-Cash (Yr 1)', cell: ({ m }) => m.totalCashInvested > 0 ? `${m.cocr.toFixed(2)}%` : '—', raw: ({ m }) => m.totalCashInvested > 0 ? m.cocr : null, hib: true },
       { label: 'Debt Coverage', cell: ({ m }) => m.dscr != null ? `${m.dscr.toFixed(2)}×` : '—', raw: ({ m }) => m.dscr, hib: true, neg: ({ m }) => m.dscr != null && m.dscr < 1 },
       { label: 'GRM (Price ÷ Gross Rent)', cell: ({ m }) => m.grm > 0 ? `${m.grm.toFixed(2)}×` : '—', raw: ({ m }) => m.grm > 0 ? m.grm : null, hib: false },
       { label: '1% Rule', cell: ({ m }) => m.onePercent > 0 ? `${m.onePercent.toFixed(2)}%` : '—', raw: ({ m }) => m.onePercent, hib: true },
       { label: 'Investment Score', cell: ({ score }) => score != null ? `${score}/100` : '—', raw: ({ score }) => score, hib: true, highlight: true },
+    ],
+  },
+  {
+    // Multi-year returns block — Cash Flow / CoC / IRR at the same four
+    // holding-period horizons (Y1, Y3, Y5, Y10). Useful for comparing a
+    // short-hold flip strategy against long-hold buy-and-rent, in one place.
+    title: 'Multi-Year Returns',
+    rows: [
+      // Cash Flow rows. Year-1 may be negative for high-leverage scenarios, so
+      // negative-return highlighting is enabled. We keep `hib: true` so the
+      // best scenario per row still earns the ★ marker.
+      ...RETURN_YEARS.map((yr): RowDef => ({
+        label: `Cash Flow (Yr ${yr})`,
+        cell: ({ byYear }) => {
+          const v = byYear[yr]?.cashFlow
+          return v != null ? fmtDollar(v) : '—'
+        },
+        raw: ({ byYear }) => byYear[yr]?.cashFlow ?? null,
+        hib: true,
+        highlight: yr === 1,
+      })),
+      // Cash-on-Cash. Same definition as the headline CoC, but computed using
+      // the projected cash flow at year N (so income growth shows up).
+      ...RETURN_YEARS.map((yr): RowDef => ({
+        label: `Cash-on-Cash (Yr ${yr})`,
+        cell: ({ byYear }) => {
+          const v = byYear[yr]?.cocr
+          return v != null ? `${v.toFixed(2)}%` : '—'
+        },
+        raw: ({ byYear }) => byYear[yr]?.cocr ?? null,
+        hib: true,
+        highlight: yr === 1,
+      })),
+      // IRR rows mirror the Cash Flow / CoC year set so a reader can scan one
+      // column and see all three return measures over the same holding period.
+      ...RETURN_YEARS.map((yr): RowDef => ({
+        label: `IRR (Yr ${yr})`,
+        cell: ({ byYear }) => {
+          const v = byYear[yr]?.irr
+          return v != null ? `${v.toFixed(2)}%` : '—'
+        },
+        raw: ({ byYear }) => byYear[yr]?.irr ?? null,
+        hib: true,
+        highlight: yr === 3 || yr === 10,
+      })),
     ],
   },
   {
@@ -206,6 +272,7 @@ export function ScenarioComparisonTable({
       id: item.id ?? (item.scenario.id != null ? `sc-${item.scenario.id}` : (item.isBase ? 'base' : item.label)),
       m,
       score: scoreFor(m),
+      byYear: computeYearMetrics(item.scenario, [...RETURN_YEARS]),
     }
   })
 

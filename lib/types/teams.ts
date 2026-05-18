@@ -51,6 +51,7 @@ export interface SharedProperty {
   'Has HOA': boolean | null
   swimming_pool: boolean | null
   'Asking Price': number | null
+  current_market_value: number | null
   listing_status: string | null
   source: string | null
   mls_number: string | null
@@ -76,6 +77,7 @@ export interface Scenario {
   id: number
   'Scenario Name': string | null
   'Purchase Price': number | null
+  'Current Market Value': number | null
   'Gross Income': number | null
   'Operating Expenses': number | null
   'Vacancy Rate': number | null

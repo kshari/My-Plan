@@ -219,6 +219,13 @@ export default function NewScenarioDialog({
           'Purchase Closing Costs': parseFloat(purchaseCC) || null,
           'Closing Costs': hasLoan ? (parseFloat(loanCC) || null) : null,
           'Sale Cost Rate': parseFloat(saleCostRate) || DEFAULT_SALE_COST_PCT,
+          // Inherit Current Market Value from the source scenario (clone) or
+          // the Base scenario. Falls back to null so the IRR uses Purchase
+          // Price unless the user later sets one explicitly.
+          'Current Market Value':
+            startingPoint === 'clone' && activeScenario
+              ? (activeScenario['Current Market Value'] ?? null)
+              : (baseScenario?.['Current Market Value'] ?? null),
         }])
         .select()
         .single()
