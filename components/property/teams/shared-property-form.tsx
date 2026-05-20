@@ -31,6 +31,7 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
   const [hasHOA, setHasHOA] = useState<boolean | null>(initialData['Has HOA'] ?? null)
   const [swimmingPool, setSwimmingPool] = useState<boolean | null>(initialData.swimming_pool ?? null)
   const [askingPrice, setAskingPrice] = useState(initialData['Asking Price']?.toString() || '')
+  const [currentMarketValue, setCurrentMarketValue] = useState(initialData.current_market_value?.toString() || '')
   const [listingStatus, setListingStatus] = useState(initialData.listing_status ?? '')
   const [source, setSource] = useState(initialData.source || '')
   const [mlsNumber, setMlsNumber] = useState(initialData.mls_number || '')
@@ -61,6 +62,7 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
         'Has HOA': hasHOA,
         swimming_pool: swimmingPool,
         'Asking Price': askingPrice ? parseFloat(askingPrice) : null,
+        current_market_value: currentMarketValue ? parseFloat(currentMarketValue) : null,
         listing_status: listingStatus || null,
         source: source.trim() || null,
         mls_number: mlsNumber.trim() || null,
@@ -112,6 +114,11 @@ export default function SharedPropertyForm({ teamId, propertyId, initialData, cu
           <div className="space-y-1.5">
             <label className={labelClass}>Asking Price ($)</label>
             <input type="number" value={askingPrice} onChange={e => setAskingPrice(e.target.value)} className={inputClass} />
+          </div>
+          <div className="space-y-1.5">
+            <label className={labelClass}>Current Market Value ($)</label>
+            <input type="number" value={currentMarketValue} onChange={e => setCurrentMarketValue(e.target.value)} placeholder="Appraised / today's value" className={inputClass} />
+            <p className="text-[11px] text-muted-foreground">Used as Year-0 basis for forward-looking IRR. Blank = fall back to Purchase Price.</p>
           </div>
           <div className="space-y-1.5">
             <label className={labelClass}>Property Type</label>

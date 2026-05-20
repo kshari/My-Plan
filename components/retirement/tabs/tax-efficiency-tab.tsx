@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useScenario } from '../scenario-context'
 import { Save, Edit, X, Check } from 'lucide-react'
 import {
+  calculateRetirementProjections,
   type Account,
   type Expense,
   type OtherIncome,
@@ -34,6 +35,13 @@ interface TaxEfficiencyTabProps {
   initialShowRothDetails?: boolean
 }
 
+type ProjectionInputsForRule55 = ReturnType<typeof buildProjectionInputs>
+
+interface Rule55AnalysisContext {
+  inputs: ProjectionInputsForRule55
+  projections: ProjectionDetail[]
+}
+
 export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: TaxEfficiencyTabProps) {
   const supabase = createClient()
   const { selectedScenarioId, setSelectedScenarioId } = useScenario()
@@ -57,6 +65,8 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
   const [showContributionAnalysis, setShowContributionAnalysis] = useState(true)
   const [contributionAnalysis, setContributionAnalysis] = useState<any>(null)
   const [showRetirementBracketExplanation, setShowRetirementBracketExplanation] = useState(false)
+  const [rule55EligiblePreTax, setRule55EligiblePreTax] = useState(0)
+  const [rule55AnalysisContext, setRule55AnalysisContext] = useState<Rule55AnalysisContext | null>(null)
 
   // Analyze traditional vs Roth contribution strategy
   const analyzeContributionStrategy = (
@@ -436,6 +446,7 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
   useEffect(() => {
     // Clear previous analysis when scenario changes
     setTaxEfficiency(null)
+    setRule55AnalysisContext(null)
     if (selectedScenarioId) {
       calculateTaxEfficiencyAnalysis()
     }
@@ -508,6 +519,10 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
         ssa_income: p.ssa_income || 0,
         distribution_401k: p.distribution_401k || 0,
         distribution_roth: p.distribution_roth || 0,
+        distribution_taxable: p.distribution_taxable || 0,
+        distribution_hsa: p.distribution_hsa || 0,
+        distribution_ira: p.distribution_ira || 0,
+        distribution_other: p.distribution_other || 0,
         investment_income: p.investment_income || 0,
         other_recurring_income: p.other_recurring_income || 0,
         total_income: p.total_income || 0,
@@ -520,9 +535,13 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
         balance_401k: p.balance_401k || 0,
         balance_roth: p.balance_roth || 0,
         balance_investment: p.balance_investment || 0,
+        balance_other_investments: p.balance_other_investments || 0,
+        balance_hsa: p.balance_hsa || 0,
+        balance_ira: p.balance_ira || 0,
         taxable_income: p.taxable_income || 0,
         tax: p.tax || 0,
       }))
+      setRule55AnalysisContext({ inputs, projections })
 
       // Pass all simulation inputs (including SSA params) so the Roth conversion total
       // is computed with the exact same inputs as the Strategy Comparison table.
@@ -666,6 +685,96 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
       </div>
     )
   }
+
+  const formatCurrency = (value: number) =>
+    `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+
+  const summarizeProjectionSet = (projectionSet: ProjectionDetail[], retirementAge: number) => {
+    const retirementRows = projectionSet.filter(p => (p.age || 0) >= retirementAge)
+    const finalRow = projectionSet[projectionSet.length - 1]
+    const taxTotal = retirementRows.reduce((sum, p) => sum + (p.tax || 0), 0)
+    const incomeTotal = retirementRows.reduce((sum, p) => sum + (p.total_income || 0), 0)
+    return {
+      finalNetworth: finalRow?.networth || 0,
+      taxTotal,
+      incomeTotal,
+      taxEfficiencyRate: incomeTotal > 0 ? (taxTotal / incomeTotal) * 100 : 0,
+      rule55WindowYears: retirementRows.filter(p => {
+        const rowAge = p.age || 0
+        return rowAge >= 55 && rowAge < 60
+      }).length,
+      rule55Window401kWithdrawals: retirementRows.reduce((sum, p) => {
+        const rowAge = p.age || 0
+        return rowAge >= 55 && rowAge < 60 ? sum + (p.distribution_401k || 0) : sum
+      }, 0),
+    }
+  }
+
+  const getStrategyLabel = (strategyType?: string) => {
+    switch (strategyType) {
+      case 'amount_based_4_percent': return '4% Rule'
+      case 'amount_based_fixed_percentage': return 'Fixed Percentage'
+      case 'amount_based_fixed_dollar': return 'Fixed Dollar'
+      case 'amount_based_swp': return 'SWP Earnings Only'
+      case 'sequence_proportional': return 'Proportional Withdrawals'
+      case 'sequence_bracket_topping': return 'Bracket-Topping'
+      case 'market_bucket': return 'Bucket Strategy'
+      case 'market_guardrails': return 'Guardrails'
+      case 'market_floor_upside': return 'Floor-and-Upside'
+      case 'tax_roth_conversion': return 'Roth Conversion Bridge'
+      case 'tax_qcd': return 'QCDs'
+      case 'amount_based_expense_coverage':
+      default: return 'Selected Withdrawal Strategy'
+    }
+  }
+
+  const rule55Inputs = rule55AnalysisContext?.inputs
+  const rule55RetirementAge = rule55Inputs?.baseSettings.retirement_age || currentSettings?.retirement_age || DEFAULT_RETIREMENT_AGE
+  const currentStrategySummary = rule55AnalysisContext
+    ? summarizeProjectionSet(rule55AnalysisContext.projections, rule55RetirementAge)
+    : null
+  const employerPlanPreTaxBalance = rule55Inputs?.accounts
+    .filter(acc => (acc.account_type || '').trim() === '401k')
+    .reduce((sum, acc) => sum + (acc.balance || 0), 0) || 0
+  let rule55Comparison: ReturnType<typeof summarizeProjectionSet> | null = null
+
+  if (rule55Inputs && rule55EligiblePreTax > 0) {
+    try {
+      const rule55Projections = calculateRetirementProjections(
+        rule55Inputs.birthYear,
+        rule55Inputs.accounts,
+        rule55Inputs.expenses,
+        rule55Inputs.otherIncome,
+        {
+          ...rule55Inputs.baseSettings,
+          enable_rule55_withdrawals: true,
+          rule55_eligible_pretax_amount: rule55EligiblePreTax,
+        },
+        rule55Inputs.lifeExpectancy,
+        rule55Inputs.spouseBirthYear,
+        rule55Inputs.spouseLifeExpectancy,
+        rule55Inputs.includePlannerSsa,
+        rule55Inputs.includeSpouseSsa,
+        rule55Inputs.estimatedPlannerSsaAtStart,
+        rule55Inputs.estimatedSpouseSsaAtStart
+      )
+
+      rule55Comparison = summarizeProjectionSet(rule55Projections, rule55RetirementAge)
+    } catch (error) {
+      console.error('Error calculating Rule 55 comparison:', error)
+    }
+  }
+
+  const rule55TaxSavings = currentStrategySummary && rule55Comparison
+    ? currentStrategySummary.taxTotal - rule55Comparison.taxTotal
+    : 0
+  const rule55EfficiencyDelta = currentStrategySummary && rule55Comparison
+    ? rule55Comparison.taxEfficiencyRate - currentStrategySummary.taxEfficiencyRate
+    : 0
+  const rule55NetworthDelta = currentStrategySummary && rule55Comparison
+    ? rule55Comparison.finalNetworth - currentStrategySummary.finalNetworth
+    : 0
+  const selectedStrategyLabel = getStrategyLabel(currentSettings?.withdrawal_strategy_type)
 
   return (
     <div className="relative min-h-screen pb-32">
@@ -903,6 +1012,102 @@ export default function TaxEfficiencyTab({ planId, initialShowRothDetails }: Tax
         
         {/* Tax Efficiency Levers */}
         <h3 className="text-lg font-semibold text-gray-900 mb-4 mt-6">Tax Efficiency Levers</h3>
+
+        {/* Rule 55 Analysis */}
+        <div className="mb-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <h4 className="font-semibold text-gray-900">Rule 55 Withdrawal Analysis</h4>
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200">
+                  Ages 55-59
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-700">
+                Compare your current <span className="font-medium">{selectedStrategyLabel}</span> with a version that uses eligible employer-plan pre-tax funds during the Rule 55 window. This helps identify whether drawing from that pool improves lifetime tax efficiency before other retirement accounts are tapped.
+              </p>
+              <p className="mt-2 text-xs text-gray-500">
+                Current modeled 401(k) balance: <span className="font-medium text-gray-700">{formatCurrency(employerPlanPreTaxBalance)}</span>
+              </p>
+            </div>
+
+            <div className="w-full lg:w-72">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1" htmlFor="rule55-eligible-pre-tax">
+                Rule 55 eligible pre-tax funds
+              </label>
+              <div className="flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                <span className="text-sm text-gray-500">$</span>
+                <input
+                  id="rule55-eligible-pre-tax"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={rule55EligiblePreTax || ''}
+                  onChange={(event) => setRule55EligiblePreTax(Math.max(0, Number(event.target.value) || 0))}
+                  placeholder="0"
+                  className="ml-1 w-full border-0 bg-transparent p-0 text-sm text-gray-900 outline-none focus:ring-0"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Enter the amount in the employer plan tied to the job you leave at or after age 55.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-medium text-gray-600">Lifetime Tax Difference</div>
+              <div className={`mt-1 text-xl font-bold ${rule55TaxSavings > 0 ? 'text-green-700' : rule55TaxSavings < 0 ? 'text-red-700' : 'text-gray-900'}`}>
+                {rule55Comparison ? `${rule55TaxSavings >= 0 ? '+' : '-'}${formatCurrency(Math.abs(rule55TaxSavings))}` : 'Enter amount'}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Positive means Rule 55 pays less lifetime tax</p>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-medium text-gray-600">Tax Efficiency Rate</div>
+              <div className="mt-1 text-xl font-bold text-gray-900">
+                {rule55Comparison ? `${rule55Comparison.taxEfficiencyRate.toFixed(1)}%` : '--'}
+              </div>
+              <p className={`mt-1 text-xs ${rule55EfficiencyDelta < 0 ? 'text-green-700' : rule55EfficiencyDelta > 0 ? 'text-red-700' : 'text-gray-500'}`}>
+                {rule55Comparison ? `${rule55EfficiencyDelta >= 0 ? '+' : ''}${rule55EfficiencyDelta.toFixed(1)} pts vs current` : 'Compared with current strategy'}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-medium text-gray-600">Rule 55 Withdrawals</div>
+              <div className="mt-1 text-xl font-bold text-gray-900">
+                {rule55Comparison ? formatCurrency(rule55Comparison.rule55Window401kWithdrawals) : '--'}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Modeled 401(k) withdrawals from ages 55-59</p>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-xs font-medium text-gray-600">End Net Worth Impact</div>
+              <div className={`mt-1 text-xl font-bold ${rule55NetworthDelta > 0 ? 'text-green-700' : rule55NetworthDelta < 0 ? 'text-red-700' : 'text-gray-900'}`}>
+                {rule55Comparison ? `${rule55NetworthDelta >= 0 ? '+' : '-'}${formatCurrency(Math.abs(rule55NetworthDelta))}` : '--'}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Versus the current withdrawal strategy</p>
+            </div>
+          </div>
+
+          {rule55EligiblePreTax > 0 && rule55Comparison && (
+            <div className={`mt-4 rounded-lg border p-3 text-xs sm:text-sm ${
+              rule55Comparison.rule55WindowYears === 0
+                ? 'border-gray-200 bg-gray-50 text-gray-700'
+                : rule55TaxSavings > 0
+                  ? 'border-green-200 bg-green-50 text-green-800'
+                  : 'border-amber-200 bg-amber-50 text-amber-800'
+            }`}>
+              {rule55Comparison.rule55WindowYears === 0
+                ? 'No retirement years fall inside the Rule 55 window, so this option does not change the modeled tax result.'
+                : rule55Comparison.rule55Window401kWithdrawals <= 1
+                  ? 'The current strategy did not need eligible 401(k) withdrawals during ages 55-59, so Rule 55 has little modeled impact.'
+                  : rule55TaxSavings > 0
+                    ? 'Rule 55 improves this scenario by using eligible pre-tax employer-plan funds during the early-retirement window while preserving other accounts.'
+                    : 'Rule 55 does not improve lifetime tax efficiency in this scenario; the current withdrawal order is already more favorable under these assumptions.'}
+            </div>
+          )}
+        </div>
         
         {/* Roth Conversion Analysis */}
         <div className="mb-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">

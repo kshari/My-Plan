@@ -43,6 +43,11 @@ export default function ScenarioForm({
   const defaultPurchasePrice = initialData?.['Purchase Price'] || propertyAskingPrice || 0
   const [scenarioName, setScenarioName] = useState(initialData?.['Scenario Name'] || '')
   const [purchasePrice, setPurchasePrice] = useState(defaultPurchasePrice.toString())
+  // Current Market Value (appraised value today). Used as Year-0 basis for IRR
+  // projections; falls back to Purchase Price when empty.
+  const [currentMarketValue, setCurrentMarketValue] = useState(
+    initialData?.['Current Market Value']?.toString() || ''
+  )
   // If editing, use initialData; if creating new, use property values as defaults
   const defaultGrossIncome = initialData?.['Gross Income'] ?? (scenarioId ? null : propertyGrossIncome)
   const defaultOperatingExpenses = initialData?.['Operating Expenses'] ?? (scenarioId ? null : propertyOperatingExpenses)
@@ -161,15 +166,48 @@ export default function ScenarioForm({
     }
   }, [purchasePrice, grossIncome, operatingExpenses, scenarioId])
 
-  // Calculate down payment amount from percentage
-  useEffect(() => {
-    if (purchasePrice && downPaymentPercent) {
-      const calculated = (parseFloat(purchasePrice) * parseFloat(downPaymentPercent)) / 100
-      if (!initialData) {
-        setDownPaymentAmount(calculated.toFixed(2))
-      }
+  // ── Coupled inputs: Purchase Price ⇆ Down Payment % ⇆ Down Payment $ ──
+  // These three values are mathematically linked: $ = price × % / 100. We keep
+  // them in sync inside onChange handlers (not in a useEffect — that caused
+  // loops, and the previous guard `if (!initialData)` accidentally disabled
+  // sync entirely whenever an existing scenario was being edited).
+  // Convention: changing Purchase Price preserves the user's chosen % and
+  // recomputes $. Changing % recomputes $. Changing $ recomputes %.
+  const handlePurchasePriceChange = (next: string) => {
+    setPurchasePrice(next)
+    const priceNum = parseFloat(next)
+    const pctNum = parseFloat(downPaymentPercent)
+    if (isFinite(priceNum) && priceNum > 0 && isFinite(pctNum)) {
+      setDownPaymentAmount(((priceNum * pctNum) / 100).toFixed(2))
     }
-  }, [purchasePrice, downPaymentPercent, initialData])
+  }
+
+  const handleDownPaymentPercentChange = (next: string) => {
+    setDownPaymentPercent(next)
+    const priceNum = parseFloat(purchasePrice)
+    const pctNum = parseFloat(next)
+    if (next === '') {
+      setDownPaymentAmount('')
+      return
+    }
+    if (isFinite(priceNum) && priceNum > 0 && isFinite(pctNum)) {
+      setDownPaymentAmount(((priceNum * pctNum) / 100).toFixed(2))
+    }
+  }
+
+  const handleDownPaymentAmountChange = (next: string) => {
+    setDownPaymentAmount(next)
+    const priceNum = parseFloat(purchasePrice)
+    const amtNum = parseFloat(next)
+    if (next === '') {
+      setDownPaymentPercent('')
+      return
+    }
+    if (isFinite(priceNum) && priceNum > 0 && isFinite(amtNum)) {
+      // Round to 2 decimals to avoid noisy long-tail floats like 19.999999%.
+      setDownPaymentPercent(((amtNum / priceNum) * 100).toFixed(2))
+    }
+  }
 
   // Auto-calculate annual Operating Expenses from the itemized breakdown.
   // Breakdown values are $/month, so annual total = sum × 12. Vacancy loss and
@@ -210,6 +248,7 @@ export default function ScenarioForm({
       const scenarioData: any = {
         'Scenario Name': scenarioName || null,
         'Purchase Price': purchasePrice ? parseFloat(purchasePrice) : null,
+        'Current Market Value': currentMarketValue ? parseFloat(currentMarketValue) : null,
         'Gross Income': grossIncome ? parseFloat(grossIncome) : null,
         'Operating Expenses': operatingExpenses ? parseFloat(operatingExpenses) : null,
         'Cap Rate': capRate ? parseFloat(capRate) : null,
@@ -343,7 +382,7 @@ export default function ScenarioForm({
                   max={propertyAskingPrice ? propertyAskingPrice * 2 : 10000000}
                   step={1000}
                   value={parseFloat(purchasePrice) || 0}
-                  onChange={(e) => setPurchasePrice(e.target.value)}
+                  onChange={(e) => handlePurchasePriceChange(e.target.value)}
                   className="w-full"
                 />
                 <input
@@ -351,11 +390,31 @@ export default function ScenarioForm({
                   min="0"
                   step="0.01"
                   value={purchasePrice}
-                  onChange={(e) => setPurchasePrice(e.target.value)}
+                  onChange={(e) => handlePurchasePriceChange(e.target.value)}
                   placeholder="0.00"
                   className="block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="currentMarketValue" className="block text-sm font-medium text-foreground">
+                Current Market Value ($)
+                <span className="text-xs text-muted-foreground ml-2">(optional)</span>
+              </label>
+              <input
+                id="currentMarketValue"
+                type="number"
+                min="0"
+                step="0.01"
+                value={currentMarketValue}
+                onChange={(e) => setCurrentMarketValue(e.target.value)}
+                placeholder="Appraised / today's value"
+                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Used as Year-0 basis for IRR. Blank = fall back to Purchase Price.
+              </p>
             </div>
 
             <div>
@@ -705,7 +764,7 @@ export default function ScenarioForm({
                           max="100"
                           step="0.01"
                           value={downPaymentPercent}
-                          onChange={(e) => setDownPaymentPercent(e.target.value)}
+                          onChange={(e) => handleDownPaymentPercentChange(e.target.value)}
                           placeholder="20.00"
                           className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                         />
@@ -721,7 +780,7 @@ export default function ScenarioForm({
                           min="0"
                           step="0.01"
                           value={downPaymentAmount}
-                          onChange={(e) => setDownPaymentAmount(e.target.value)}
+                          onChange={(e) => handleDownPaymentAmountChange(e.target.value)}
                           placeholder="0.00"
                           className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                         />

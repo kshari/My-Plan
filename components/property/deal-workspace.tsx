@@ -14,11 +14,13 @@ import {
   DEFAULT_PURCHASE_CLOSING_COST_PCT,
 } from '@/lib/constants/property-defaults'
 import { computeScenarioMetrics, fmtDollar, type ScenarioMetrics } from '@/lib/property/compute-metrics'
+import { computeIrrForHoldingPeriod } from '@/lib/property/irr'
 import { computeInvestmentScore, DEFAULT_SCORING_CONFIG } from '@/lib/property/scoring'
 import PLTable from '@/components/property/pl-table'
 import AmortizationTable from '@/components/property/amortization-table'
 import NewScenarioDialog from '@/components/property/new-scenario-dialog'
 import PropertyPrintView from '@/components/property/print/property-print-view'
+import ComparePrintView from '@/components/property/print/compare-print-view'
 import { SensitivityHeatmap } from '@/components/property/shared/sensitivity-heatmap'
 import {
   ScenarioComparisonTable,
@@ -152,6 +154,8 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
 
   // ── Print All
   const [printAllOpen, setPrintAllOpen] = useState(false)
+  // ── Print compare-mode view
+  const [printCompareOpen, setPrintCompareOpen] = useState(false)
 
   // ── Active scenario data
   const baseScenario = useMemo(() => scenarios.find(s => s.is_base) ?? scenarios[0], [scenarios])
@@ -163,6 +167,13 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
   const activeMetrics = useMemo(() => computeScenarioMetrics(activeScenario), [activeScenario])
 
   const score = useMemo(() => scoreForMetrics(activeMetrics), [activeMetrics])
+
+  // Forward-looking IRR for the two most-quoted holding horizons. Year-3 is
+  // the typical short-hold flip / refinance horizon; Year-10 is the long-hold
+  // wealth-building horizon. Computed from the same projection model as the
+  // year-by-year P&L table so values match.
+  const irr3 = useMemo(() => computeIrrForHoldingPeriod(activeScenario, 3), [activeScenario])
+  const irr10 = useMemo(() => computeIrrForHoldingPeriod(activeScenario, 10), [activeScenario])
 
   // Year 5 cash-on-cash (projecting income/expense growth 4 more years)
   const cocr5 = useMemo(() => {
@@ -332,6 +343,7 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
   }
   const purchaseFields = {
     'Purchase Price': activeScenario['Purchase Price'],
+    'Current Market Value': activeScenario['Current Market Value'],
     'Purchase Closing Costs': activeScenario['Purchase Closing Costs'],
   }
   const loanFields = {
@@ -598,6 +610,40 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
                 </dd>
               </div>
               <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground flex items-center gap-1">
+                  IRR (Yr 3)
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Internal Rate of Return assuming you hold 3 years and sell at the appreciated value, net of {+(activeScenario['Sale Cost Rate'] ?? 7)}% sale costs and remaining loan.
+                      Includes annual cash flow + equity gain. Short-hold horizon.
+                    </TooltipContent>
+                  </Tooltip>
+                </dt>
+                <dd className={cn('text-xs font-semibold tabular-nums', irr3 == null ? 'text-muted-foreground' : irr3 >= 10 ? 'text-emerald-600 dark:text-emerald-400' : irr3 >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive')}>
+                  {irr3 != null ? `${irr3.toFixed(1)}%` : '—'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-xs text-muted-foreground flex items-center gap-1">
+                  IRR (Yr 10)
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Internal Rate of Return assuming you hold 10 years and sell at the appreciated value, net of {+(activeScenario['Sale Cost Rate'] ?? 7)}% sale costs and remaining loan.
+                      Includes annual cash flow + equity gain. Long-hold wealth-building horizon.
+                    </TooltipContent>
+                  </Tooltip>
+                </dt>
+                <dd className={cn('text-xs font-semibold tabular-nums', irr10 == null ? 'text-muted-foreground' : irr10 >= 10 ? 'text-emerald-600 dark:text-emerald-400' : irr10 >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive')}>
+                  {irr10 != null ? `${irr10.toFixed(1)}%` : '—'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
                 <dt className="text-xs text-muted-foreground">Investment Score</dt>
                 <dd className={cn('text-xs font-bold tabular-nums', score != null ? (score >= 70 ? 'text-emerald-600 dark:text-emerald-400' : score >= 45 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive') : 'text-muted-foreground')}>
                   {score != null ? `${score}/100` : '—'}
@@ -648,6 +694,15 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
         <div className="space-y-4 mb-4">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm text-muted-foreground">Comparing {compareIds.size} scenarios. Click chips above to add/remove (2–3).</p>
+            <button
+              type="button"
+              onClick={() => setPrintCompareOpen(true)}
+              disabled={compareMetrics.length < 2}
+              className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-md px-2 py-1.5 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={compareMetrics.length < 2 ? 'Select 2 or 3 scenarios to print a comparison' : 'Print this comparison'}
+            >
+              <Printer className="h-3 w-3" /> Print Comparison
+            </button>
           </div>
 
           {compareMetrics.length >= 2 && (
@@ -761,19 +816,6 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
                       <dt className="text-xs text-muted-foreground font-medium">Total Expenses</dt>
                       <dd className="text-xs font-semibold tabular-nums text-right">{fmtDollar(activeMetrics.totalExpenses)}</dd>
                     </>}
-                    <dt className="text-xs text-muted-foreground">Monthly</dt>
-                    <dd className="text-xs tabular-nums text-right">
-                      {hasBd ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowExpenseBreakdown(v => !v)}
-                          className="underline decoration-dotted hover:text-foreground transition-colors"
-                          title="Click to show itemized breakdown"
-                        >
-                          {fmtDollar(activeMetrics.opex / 12)} {showExpenseBreakdown ? '▲' : '▼'}
-                        </button>
-                      ) : fmtDollar(activeMetrics.opex / 12)}
-                    </dd>
                     {showExpenseBreakdown && hasBd && (
                       <>
                         <dt className="col-span-2 mt-1 border-t border-border/60 pt-1.5 text-xs font-medium text-muted-foreground">
@@ -884,6 +926,23 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
                       </dd>
                     </>
                   )}
+                  <dt className="text-xs text-muted-foreground flex items-center gap-1">
+                    Current Market Value
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        Today&apos;s appraised value. Used as the Year-0 basis for property-value projections in the year-by-year IRR.
+                        Leave blank to fall back to Purchase Price.
+                      </TooltipContent>
+                    </Tooltip>
+                  </dt>
+                  <dd className="text-xs tabular-nums text-right">
+                    {activeMetrics.currentMarketValue > 0 && activeMetrics.currentMarketValue !== activeMetrics.price
+                      ? <span className="font-semibold">{fmtDollar(activeMetrics.currentMarketValue)}</span>
+                      : <span className="text-muted-foreground">— (using Purchase Price)</span>}
+                  </dd>
                   <dt className="text-xs text-muted-foreground">Purchase Closing Costs</dt>
                   <dd className="text-xs tabular-nums text-right">
                     {activeMetrics.purchaseCC > 0
@@ -900,10 +959,18 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
                     onChange={v => setEditDraft(d => ({ ...d, 'Purchase Price': v }))}
                   />
                   <InlineField
+                    label="Current Market Value ($)"
+                    value={editDraft['Current Market Value'] ?? ''}
+                    onChange={v => setEditDraft(d => ({ ...d, 'Current Market Value': v }))}
+                  />
+                  <InlineField
                     label={`Purchase Closing Costs ($) (~${DEFAULT_PURCHASE_CLOSING_COST_PCT}% of price)`}
                     value={editDraft['Purchase Closing Costs'] ?? ''}
                     onChange={v => setEditDraft(d => ({ ...d, 'Purchase Closing Costs': v }))}
                   />
+                  <p className="col-span-2 text-[11px] text-muted-foreground/80">
+                    Current Market Value is the property&apos;s appraised value <em>today</em>. The year-by-year IRR projects appreciation forward from this value (or from Purchase Price if blank).
+                  </p>
                 </div>
               }
             />
@@ -962,9 +1029,29 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
                   </label>
                   {(editDraft['Has Loan'] === 'true') && (
                     <div className="grid grid-cols-2 gap-3">
+                      {/* Down Payment % ⇆ Down Payment $ are coupled via the
+                          current Purchase Price. Editing either field updates
+                          the other live, so the two stay consistent without
+                          waiting for save. */}
                       <InlineField label="Down Payment %" value={editDraft['Down Payment Percentage'] ?? ''} onChange={v => {
                         const price = +(activeScenario['Purchase Price'] ?? 0) || 0
-                        setEditDraft(d => ({ ...d, 'Down Payment Percentage': v, 'Down Payment Amount': String(price * parseFloat(v) / 100) }))
+                        const pct = parseFloat(v)
+                        if (v === '') {
+                          setEditDraft(d => ({ ...d, 'Down Payment Percentage': '', 'Down Payment Amount': '' }))
+                          return
+                        }
+                        const amt = price > 0 && isFinite(pct) ? (price * pct / 100).toFixed(2) : (editDraft['Down Payment Amount'] ?? '')
+                        setEditDraft(d => ({ ...d, 'Down Payment Percentage': v, 'Down Payment Amount': amt }))
+                      }} />
+                      <InlineField label="Down Payment $" value={editDraft['Down Payment Amount'] ?? ''} onChange={v => {
+                        const price = +(activeScenario['Purchase Price'] ?? 0) || 0
+                        const amt = parseFloat(v)
+                        if (v === '') {
+                          setEditDraft(d => ({ ...d, 'Down Payment Amount': '', 'Down Payment Percentage': '' }))
+                          return
+                        }
+                        const pct = price > 0 && isFinite(amt) ? ((amt / price) * 100).toFixed(2) : (editDraft['Down Payment Percentage'] ?? '')
+                        setEditDraft(d => ({ ...d, 'Down Payment Amount': v, 'Down Payment Percentage': pct }))
                       }} />
                       <InlineField label="Interest Rate %" value={editDraft['Interest Rate'] ?? ''} onChange={v => setEditDraft(d => ({ ...d, 'Interest Rate': v }))} />
                       <InlineField label="Loan Term (yr)" value={editDraft['Loan Term'] ?? ''} onChange={v => setEditDraft(d => ({ ...d, 'Loan Term': v }))} />
@@ -1195,6 +1282,31 @@ export default function DealWorkspace({ property, initialScenarios, initialScena
           baseScenario={baseScenario}
           scenarios={scenarios}
           onClose={() => setPrintAllOpen(false)}
+        />
+      )}
+
+      {/* ── Print Comparison overlay ─────────────────────────────────────── */}
+      {printCompareOpen && compareMode && compareMetrics.length >= 2 && (
+        <ComparePrintView
+          property={{
+            address: property.address,
+            city: property.city,
+            county: property.county,
+            type: property.type,
+          }}
+          items={compareMetrics.map((m, i) => ({
+            scenario: m.scenario,
+            metrics: {
+              monthlyCF: m.metrics.monthlyCF,
+              cocr: m.metrics.cocr,
+              capRate: m.metrics.capRate,
+              noi: m.metrics.noi,
+            },
+            color: colorsMap[i % colorsMap.length],
+            label: String(m.scenario['Scenario Name'] || `Scenario #${m.scenario.id}`),
+            isBase: Boolean(m.scenario.is_base),
+          }))}
+          onClose={() => setPrintCompareOpen(false)}
         />
       )}
     </div>

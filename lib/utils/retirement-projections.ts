@@ -163,6 +163,8 @@ export interface CalculatorSettings {
   guardrails_ceiling?: number // For guardrails strategy (e.g., 0.06 for 6%)
   guardrails_floor?: number // For guardrails strategy (e.g., 0.03 for 3%)
   bracket_topping_threshold?: number // Tax bracket threshold for bracket-topping
+  enable_rule55_withdrawals?: boolean // Model Rule 55 access to eligible employer-plan pre-tax funds
+  rule55_eligible_pretax_amount?: number // Lifetime dollar cap for Rule 55 eligible 401(k)/employer-plan funds
   /** Optional override: per-year decimal returns for pre-retirement years. Falls back to growth_rate_before_retirement for any year beyond the array length. */
   pre_retirement_return_sequence?: number[]
   /** Optional override: per-year decimal returns for retirement years (e.g. [-0.15, -0.05, 0.02] for stress test). Falls back to growth_rate_during_retirement for any year beyond the array length. */
@@ -574,6 +576,7 @@ export function calculateRetirementProjections(
   let year = currentYear
   let age = currentAge
   let initialRetirementPortfolioValue: number | null = null // Track initial portfolio value for 4% rule
+  let rule55EligiblePretaxRemaining = Math.max(0, settings.rule55_eligible_pretax_amount ?? 0)
   
   // Track cost basis for taxable account to avoid double taxation
   // Initialize with current taxable balance as principal (already taxed)
@@ -721,6 +724,28 @@ export function calculateRetirementProjections(
     // Initial estimate: assume we need to withdraw enough to cover expenses
     // Taxes will be calculated on withdrawals, so we need to account for that
     const totalLivingAndHealthcare = livingExpenses + healthcareExpenses
+    const isRule55Window = settings.enable_rule55_withdrawals === true && age >= 55 && age < 60
+    const withdrawRule55Pretax = (cashNeed: number, grossUpForTax = false): number => {
+      if (!isRule55Window || cashNeed <= 0 || rule55EligiblePretaxRemaining <= 0 || accountBalances['401k'] <= 0) {
+        return 0
+      }
+
+      const marginalRate = grossUpForTax
+        ? estimateMarginalTaxRate(distribution401k + distributionIra + otherRecurringIncome, filingStatus)
+        : 0
+      const grossNeed = grossUpForTax && marginalRate < 1
+        ? cashNeed / (1 - marginalRate)
+        : cashNeed
+      const withdrawal = Math.min(grossNeed, accountBalances['401k'], rule55EligiblePretaxRemaining)
+
+      if (withdrawal > 0) {
+        distribution401k += withdrawal
+        accountBalances['401k'] -= withdrawal
+        rule55EligiblePretaxRemaining -= withdrawal
+      }
+
+      return withdrawal
+    }
     const initialExpensesToCover = totalLivingAndHealthcare - totalSsaIncome - otherRecurringIncome
     
     // Estimate taxes on initial withdrawal using IRS tax brackets
@@ -894,6 +919,8 @@ export function calculateRetirementProjections(
         remainingNeed = Math.max(0, targetWithdrawalAmount - otherIncomeTotal)
       }
       // For other strategies, remainingNeed stays as calculated (expenses - other income)
+      const rule55Withdrawal = withdrawRule55Pretax(remainingNeed)
+      remainingNeed = Math.max(0, remainingNeed - rule55Withdrawal)
       
       // Execute withdrawals based on strategy type
       if (strategyType === 'sequence_proportional') {
@@ -1471,6 +1498,14 @@ export function calculateRetirementProjections(
         
         // Need to withdraw more to cover the shortfall
         let additionalNeed = shortfall
+
+        // During the Rule 55 window, test whether eligible employer-plan funds
+        // should cover incremental cash need before drawing tax-free Roth assets.
+        const additionalRule55 = withdrawRule55Pretax(additionalNeed, true)
+        if (additionalRule55 > 0) {
+          totalIncome += additionalRule55
+          additionalNeed = Math.max(0, additionalNeed - additionalRule55)
+        }
         
         // Withdraw additional from Roth (tax-free) first - best option
         if (additionalNeed > 0 && accountBalances['Roth IRA'] > 0) {

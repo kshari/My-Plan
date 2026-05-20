@@ -24,6 +24,7 @@ interface PropertyFormProps {
     'Has HOA': boolean | null
     swimming_pool?: boolean | null
     'Asking Price': number | null
+    current_market_value?: number | null
     listing_status: string | null
     source: string | null
     mls_number: string | null
@@ -58,6 +59,7 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
   const [hasHOA, setHasHOA] = useState<boolean | null>(initialData?.['Has HOA'] ?? null)
   const [swimmingPool, setSwimmingPool] = useState<boolean | null>(initialData?.swimming_pool ?? null)
   const [askingPrice, setAskingPrice] = useState(initialData?.['Asking Price']?.toString() || '')
+  const [currentMarketValue, setCurrentMarketValue] = useState(initialData?.current_market_value?.toString() || '')
   const [listingStatus, setListingStatus] = useState(initialData?.listing_status ?? '')
   const [source, setSource] = useState(initialData?.source || '')
   const [mlsNumber, setMlsNumber] = useState(initialData?.mls_number || '')
@@ -96,6 +98,7 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
         'Has HOA': hasHOA,
         swimming_pool: swimmingPool,
         'Asking Price': askingPrice ? parseFloat(askingPrice) : null,
+        current_market_value: currentMarketValue ? parseFloat(currentMarketValue) : null,
         listing_status: listingStatus.trim() || null,
         source: source || null,
         mls_number: mlsNumber || null,
@@ -131,6 +134,7 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
         // Auto-create the Base scenario with the asking price as seed data
         const baseSeed = buildBaseScenarioSeed(newProperty.id, {
           'Asking Price': askingPrice ? parseFloat(askingPrice) : null,
+          current_market_value: currentMarketValue ? parseFloat(currentMarketValue) : null,
         })
 
         const { error: scenarioError } = await supabase
@@ -302,6 +306,25 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
               A Base scenario will be auto-created. Edit financials in the Deal Workspace.
             </p>
           )}
+        </div>
+
+        <div>
+          <label htmlFor="currentMarketValue" className="block text-sm font-medium text-foreground">
+            Current Market Value ($)
+          </label>
+          <input
+            id="currentMarketValue"
+            type="number"
+            min="0"
+            step="0.01"
+            value={currentMarketValue}
+            onChange={(e) => setCurrentMarketValue(e.target.value)}
+            placeholder="Appraised / today's value"
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Today&apos;s appraised value. Used as the Year-0 basis for forward-looking IRR. Leave blank to fall back to Purchase Price.
+          </p>
         </div>
       </div>
 

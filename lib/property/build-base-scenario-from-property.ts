@@ -24,6 +24,7 @@ export type PropertyForBaseScenario = {
   income_increase?: number | null
   expenses_increase?: number | null
   property_value_increase?: number | null
+  current_market_value?: number | null
 }
 
 export const BASE_SCENARIO_NAME = 'Base'
@@ -92,6 +93,7 @@ export function buildBaseScenarioSeed(
     'Property ID': propertyId,
     'Scenario Name': BASE_SCENARIO_NAME,
     'Purchase Price': askingPrice,
+    'Current Market Value': property.current_market_value ?? null,
     'Gross Income': annualGross,
     'Operating Expenses': annualOpex,
     expense_breakdown: property.expense_breakdown ?? null,

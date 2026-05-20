@@ -47,6 +47,14 @@ function calculateIRR(cashFlows: number[]): number {
 
 export default function FinancialMetrics({ scenario, loan, showTitle = true }: FinancialMetricsProps) {
   const purchasePrice = parseFloat(scenario['Purchase Price']?.toString() || '0') || 0
+  // Current Market Value (when set) replaces Purchase Price as the Year-0 basis
+  // for the year-1 sale-value used in the first-year IRR. Falls back to Purchase
+  // Price when unset.
+  const rawCurrentMarketValue = scenario['Current Market Value']
+  const parsedCurrentMarketValue = rawCurrentMarketValue === null || rawCurrentMarketValue === undefined || rawCurrentMarketValue === ''
+    ? 0
+    : (parseFloat(String(rawCurrentMarketValue)) || 0)
+  const projectionBasis = parsedCurrentMarketValue > 0 ? parsedCurrentMarketValue : purchasePrice
   const downPaymentAmount = parseFloat(scenario['Down Payment Amount']?.toString() || '0') || 0
   const loanClosingCosts = parseFloat(scenario['Closing Costs']?.toString() || '0') || 0
   const purchaseClosingCosts = parseFloat(scenario['Purchase Closing Costs']?.toString() || '0') || 0
@@ -99,7 +107,12 @@ export default function FinancialMetrics({ scenario, loan, showTitle = true }: F
 
     const netIncome = noi - firstYearInterest
     const cashFlow = netIncome - firstYearPrincipal
-    const equity = hasLoan ? purchasePrice - remainingBalance : purchasePrice
+    // Equity at end of Year 1 uses the current market value (or purchase price
+    // if unset) as the Year-0 basis. We apply the scenario's appreciation rate
+    // for a single year so this matches the year-by-year IRR in the P&L table.
+    const propertyValueIncreasePct = parseFloat(scenario['Property Value Increase']?.toString() || '0') || 0
+    const yearOneValue = projectionBasis * (1 + propertyValueIncreasePct / 100)
+    const equity = hasLoan ? yearOneValue - remainingBalance : yearOneValue
     const cashFlows = [-totalCashInvested, cashFlow + equity]
     firstYearIRR = calculateIRR(cashFlows)
   }
@@ -115,7 +128,7 @@ export default function FinancialMetrics({ scenario, loan, showTitle = true }: F
       label: 'Total Return % (IRR)',
       value: `${firstYearIRR.toFixed(2)}%`,
       highlight: false,
-      tip: `Year 1 Internal Rate of Return — combines your cash flow AND the equity you'd gain if you sold after one year, into a single annual return percentage.\n\nRule of thumb: ≥15% great · 10–15% good · <10% low.\nGood to compare against stocks (historically ~10%/yr).`,
+      tip: `Year 1 Internal Rate of Return — combines your cash flow AND the equity you'd gain if you sold after one year, into a single annual return percentage.\n\nRule of thumb: ≥15% great · 10–15% good · <10% low.\nGood to compare against stocks (historically ~10%/yr).${parsedCurrentMarketValue > 0 && parsedCurrentMarketValue !== purchasePrice ? `\n\nValue projected from Current Market Value $${parsedCurrentMarketValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}, not Purchase Price.` : ''}`,
     }] : []),
     ...(hasLoan && debtServiceCoverageRatio !== null ? [{
       label: 'Loan Coverage Ratio (DSCR)',

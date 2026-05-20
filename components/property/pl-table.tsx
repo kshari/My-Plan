@@ -93,6 +93,15 @@ export default function PLTable({ scenario, years, variant = 'screen' }: PLTable
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(true)
   const purchasePrice = parseFloat(scenario['Purchase Price']?.toString() || '0') || 0
+  // Current Market Value (appraised value today) drives the Year-0 basis for
+  // property-value projections. When the scenario doesn't carry one, fall back
+  // to the Purchase Price so legacy scenarios keep their existing IRR.
+  const rawCurrentMarketValue = scenario['Current Market Value']
+  const parsedCurrentMarketValue = rawCurrentMarketValue === null || rawCurrentMarketValue === undefined || rawCurrentMarketValue === ''
+    ? 0
+    : (parseFloat(String(rawCurrentMarketValue)) || 0)
+  const projectionBasis = parsedCurrentMarketValue > 0 ? parsedCurrentMarketValue : purchasePrice
+  const usingMarketValueBasis = parsedCurrentMarketValue > 0 && parsedCurrentMarketValue !== purchasePrice
   const baseGrossIncome = parseFloat(scenario['Gross Income']?.toString() || '0') || 0
   const baseOperatingExpenses = parseFloat(scenario['Operating Expenses']?.toString() || '0') || 0
   const scenarioVacancyRate = parseFloat(scenario['Vacancy Rate']?.toString() || '0') || 0
@@ -198,7 +207,10 @@ export default function PLTable({ scenario, years, variant = 'screen' }: PLTable
       
       const grossIncome = baseGrossIncome * incomeMultiplier
       const operatingExpenses = baseOperatingExpenses * expensesMultiplier
-      const currentPropertyValue = purchasePrice * propertyValueMultiplier
+      // Project property value forward from the current market value (or
+      // purchase price if no market value is set). This makes the year-by-year
+      // IRR forward-looking from today's appraised value.
+      const currentPropertyValue = projectionBasis * propertyValueMultiplier
       
       // Apply vacancy: effective income = gross * (1 - vacancy%)
       const vacancyLoss = grossIncome * (scenarioVacancyRate / 100)
@@ -281,13 +293,21 @@ export default function PLTable({ scenario, years, variant = 'screen' }: PLTable
     }
 
     return data
-  }, [scenario, displayYears, purchasePrice, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage, totalCashInvested, scenarioVacancyRate, scenarioPropMgmtRate, scenarioSaleCostRate])
+  }, [scenario, displayYears, purchasePrice, projectionBasis, baseGrossIncome, baseOperatingExpenses, incomeIncreasePercent, expensesIncreasePercent, propertyValueIncreasePercent, hasLoan, loanTerm, loanPrincipal, interestRate, monthlyMortgage, totalCashInvested, scenarioVacancyRate, scenarioPropMgmtRate, scenarioSaleCostRate])
 
   const totalClosingCosts = loanClosingCosts + purchaseClosingCosts
 
   return (
     <div className={`rounded-xl border bg-card p-6 ${variant === 'print' ? 'print-pl-landscape' : ''}`}>
-      <h3 className="mb-4 text-base font-semibold">Annual Projections (Year by Year)</h3>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-base font-semibold">Annual Projections (Year by Year)</h3>
+        {usingMarketValueBasis && (
+          <p className="text-xs text-muted-foreground">
+            Value &amp; IRR projected from <span className="font-medium text-foreground">Current Market Value {fmtCompact(projectionBasis)}</span>
+            <span className="text-muted-foreground/70"> · Purchase Price {fmtCompact(purchasePrice)}</span>
+          </p>
+        )}
+      </div>
 
       {/* Growth rate controls — editable on screen only; hidden in print since
           the same rates are already captured in the Scenario Details table. */}
@@ -467,6 +487,9 @@ export default function PLTable({ scenario, years, variant = 'screen' }: PLTable
                     <TooltipContent side="top" className="max-w-xs text-xs">
                       Internal Rate of Return — assumes the property is sold at the end of this year at its appreciated value.
                       Sale proceeds = value × (1 − {scenarioSaleCostRate}% sale costs) − remaining loan. Edit Sale Cost % in the Assumptions card.
+                      {usingMarketValueBasis && (
+                        <><br /><br />Projected from <strong>Current Market Value</strong> ({fmtCompact(projectionBasis)}), not Purchase Price ({fmtCompact(purchasePrice)}).</>
+                      )}
                     </TooltipContent>
                 </Tooltip>
               </th>
