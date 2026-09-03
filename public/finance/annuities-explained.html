@@ -1,0 +1,1042 @@
+<meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Annuities Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA;
+  --paper-raised:#FAFAF6;
+  --ink:#1C2431;
+  --ink-soft:#57606F;
+  --ink-faint:#8B93A0;
+  --rule:#D8D7C9;
+  --rule-strong:#B9B8A8;
+  --gold:#B8842A;
+  --gold-wash:#B8842A1a;
+  --teal:#0A8A73;
+  --teal-wash:#0A8A731a;
+  --rust:#A8462F;
+  --rust-wash:#A8462F1a;
+  --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C;
+    --paper-raised:#1B212A;
+    --ink:#E7E5DC;
+    --ink-soft:#9AA3AF;
+    --ink-faint:#6B7480;
+    --rule:#2B323D;
+    --rule-strong:#3A4250;
+    --gold:#BB8A3A;
+    --gold-wash:#BB8A3A22;
+    --teal:#29A88F;
+    --teal-wash:#29A88F22;
+    --rust:#C96A4A;
+    --rust-wash:#C96A4A22;
+    --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C;
+  --paper-raised:#1B212A;
+  --ink:#E7E5DC;
+  --ink-soft:#9AA3AF;
+  --ink-faint:#6B7480;
+  --rule:#2B323D;
+  --rule-strong:#3A4250;
+  --gold:#BB8A3A;
+  --gold-wash:#BB8A3A22;
+  --teal:#29A88F;
+  --teal-wash:#29A88F22;
+  --rust:#C96A4A;
+  --rust-wash:#C96A4A22;
+  --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:760px; margin:0 auto; padding:64px 28px 96px;}
+.prose{max-width:660px}
+
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
+  color:var(--ink-faint); margin:0 0 10px;
+}
+h1{font-size:44px; line-height:1.08; color:var(--ink);}
+.subtitle{
+  font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500;
+  font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:600px; line-height:1.45;
+}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; color:var(--ink); margin-bottom:6px;}
+
+p{font-size:16px; line-height:1.68; color:var(--ink); margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7;}
+.ink-soft{color:var(--ink-soft)}
+
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+
+header.masthead{
+  padding-bottom:36px; margin-bottom:44px;
+  border-bottom:1px solid var(--rule-strong);
+}
+
+section{margin:64px 0;}
+section.tight{margin:40px 0}
+
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.chart-card{
+  background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px;
+  padding:24px 24px 16px; box-shadow:var(--shadow); margin-top:20px;
+}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:6px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:16px; font-size:12.5px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.chart-svg-wrap{overflow-x:auto;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit-area{fill:transparent; cursor:crosshair;}
+.bar-hit{cursor:pointer;}
+.chart-foot{font-size:12px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:480px;}
+th,td{padding:10px 14px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong);
+}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+tbody tr:last-child td{border-bottom:1px solid var(--rule-strong); font-weight:600;}
+
+/* Comparison table (prose cells, not numeric) */
+.compare table{min-width:760px;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:14px 18px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-variant-numeric:normal; font-size:14px; line-height:1.55; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink);}
+.compare .type-name{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:15.5px; color:var(--ink); display:block; margin-bottom:2px;}
+.compare .type-tag{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint);}
+.compare tbody tr:last-child td{font-weight:400;}
+td.gold, .gold{color:var(--gold)}
+td.teal, .teal{color:var(--teal)}
+td.rust, .rust{color:var(--rust)}
+.row-flag{font-size:11px; font-family:"Public Sans",sans-serif; font-weight:600;}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+@media (max-width:640px){ .verdicts{grid-template-columns:1fr} }
+.verdict{
+  border:1px solid var(--rule); border-radius:3px; padding:22px; background:var(--paper-raised); box-shadow:var(--shadow);
+}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;}
+.verdict h3{margin-bottom:10px}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+
+.lever-row{
+  display:grid; grid-template-columns:80px 1fr; gap:18px; padding:18px 0;
+  border-top:1px solid var(--rule);
+}
+.lever-row:last-child{border-bottom:1px solid var(--rule)}
+.lever-tag{
+  font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600;
+  letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;
+}
+.lever-row h3{margin-bottom:6px}
+.lever-row p{font-size:15.5px}
+
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+section[id]{scroll-margin-top:24px;}
+
+.status-note{
+  background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold);
+  border-radius:3px; padding:16px 20px; margin-top:28px; font-size:13.5px; color:var(--ink-soft); line-height:1.6;
+}
+.status-note strong{color:var(--ink)}
+
+.tldr{
+  background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal);
+  border-radius:3px; padding:20px 22px; margin-top:28px;
+}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; color:var(--ink); margin:0;}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px; color:var(--ink);}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+
+.pitch{
+  border-top:1px solid var(--rule); padding:26px 0;
+}
+.pitch:last-child{border-bottom:1px solid var(--rule)}
+.pitch-claim{
+  font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px;
+  color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold);
+  padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;
+}
+.reality-tag{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+  color:var(--rust); font-weight:600; display:block; margin-bottom:6px;
+}
+.pitch-reality p{font-size:15.5px; margin:0}
+
+footer{
+  margin-top:72px; padding-top:24px; border-top:1px solid var(--rule);
+  font-size:12.5px; color:var(--ink-faint); line-height:1.6;
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Annuities · A Running Field Guide</p>
+    <h1>Annuities Explained</h1>
+    <p class="subtitle">The major components of annuity products, in plain terms and from a personal-finance perspective — not tied to any one carrier or contract. This installment covers what an annuity is, compares the main types against each other, and then digs into why fixed indexed annuities specifically — and how the indexing that credits your interest actually works.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>An annuity is an insurance contract, not an investment — you're paying an insurer to take on a risk (usually running out of money) in exchange for guarantees, most often a 0% floor on market losses and/or income for life. Those guarantees are real, but never free: they're funded by caps on your upside, ongoing fees, multi-year surrender charges, and headline features like bonuses that often apply only to a notional number you can never spend directly. For most people still building wealth, the fundamentals — emergency fund, employer match, maxed tax-advantaged accounts, broad low-cost investing — come first; an annuity is a late-stage, narrow-purpose tool, not a growth strategy. This episode walks through the mechanics, the trade-offs, and where — if anywhere — one might actually fit.</p>
+    </div>
+
+    <nav class="toc">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#annuities-101">What an annuity actually is</a>
+      <a href="#annuity-types">Comparing the main types</a>
+      <a href="#why-fia">Why fixed indexed annuities get the deep dive</a>
+      <a href="#indexing-participation">Indexing, participation, and the price of the floor</a>
+      <a href="#bonuses-vesting-riders">Bonuses, vesting, and income riders</a>
+      <a href="#fees-beyond-crediting">Fees beyond the crediting drag</a>
+      <a href="#surrender-liquidity">Surrender charges and liquidity</a>
+      <a href="#reading-illustration">Reading a contract's own illustration</a>
+      <a href="#no-free-lunch">What the sales pitch highlights — and what it costs</a>
+      <a href="#true-value">What this is really worth to the policyholder</a>
+      <a href="#who-pays-whom">Who's actually paying whom</a>
+      <a href="#where-it-fits">Where annuities fit in the bigger picture</a>
+      <a href="#buyers-checklist">A buyer's checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+    </nav>
+  </header>
+
+  <section id="annuities-101">
+    <p class="eyebrow">Start here</p>
+    <h2>What an annuity actually is</h2>
+    <p class="lede" style="margin-top:14px;">Strip away the marketing and an annuity is a simple trade: you hand an insurance company a sum of money, and in exchange it takes on a risk you'd rather manage yourself — usually the risk of running out of money before you run out of life. Everything past that — riders, indexing, bonuses — is a variation on that one trade.</p>
+    <p>Annuities split along two independent lines. <strong>When income starts:</strong> an <em>immediate</em> annuity begins paying within about a year of purchase; a <em>deferred</em> annuity accumulates for years first, and converts to income later — or never; you can also simply take the money back out. <strong>How money grows while deferred:</strong> a <em>fixed</em> annuity credits a flat interest rate the insurer declares each year; a <em>variable</em> annuity invests directly in mutual-fund-like subaccounts and can lose value along with the market; a <strong>fixed indexed annuity (FIA)</strong> — the type the rest of this episode focuses on — credits interest linked to a market index like the S&amp;P 500, with a guaranteed floor of 0%, but only up to a cap, participation rate, or spread that limits how much of the index's gain you actually get.</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">How the carrier actually delivers on that promise</h3>
+    <p style="margin-top:10px;">Two different mechanisms are doing the work behind those guarantees — one for growing the money, a separate one for the lifetime income.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">GROWS</div>
+      <div><h3>Pooled, institutional-scale investing</h3><p>The carrier pools your premium with everyone else's into one large, conservative general-account portfolio — overwhelmingly high-grade bonds — and invests it at a scale and access most individuals can't match on their own. A slice of what that portfolio earns funds the index-linked crediting formula covered next; the rest covers the carrier's own costs, profit, and the reserves regulators require it to hold against every promise it's made.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">INSURES</div>
+      <div><h3>Pooled mortality risk, not investment return</h3><p>The lifetime-income promise runs on a different principle entirely: actuaries price it by pooling longevity risk across a large group, so the premiums of people who don't live as long help fund the payments of those who do. That's the one piece of this trade no individual can replicate alone — no amount of personal saving guarantees you won't outlive your own money, but a large enough risk pool, priced correctly, can guarantee it for the group. It's the same mechanism behind Social Security and a traditional pension, run here by a private insurer.</p></div>
+    </div>
+
+    <p style="margin-top:8px;">That pooling is the genuine value being sold here — a real, if narrow, service. The rest of this episode is about what it costs to buy, and how to tell whether a specific contract is pricing it fairly.</p>
+
+    <div class="verdicts" style="margin-top:28px;">
+      <div class="verdict good">
+        <div class="book-label" style="color:var(--teal)">Worth a look, if —</div>
+        <h3>you're within a decade of retirement and want a floor under part of your savings</h3>
+        <p>FIAs are built for money you want protected from a market crash in the years just before or after you stop working — "sequence of returns" risk, where a bad year or two right at retirement does outsized, hard-to-recover-from damage. Used for a slice of a portfolio, alongside stocks, bonds, and cash you can still reach, the trade — capped upside for a real floor — can be a reasonable one.</p>
+      </div>
+      <div class="verdict bad">
+        <div class="book-label" style="color:var(--rust)">Usually a mismatch, if —</div>
+        <h3>you're decades from retirement, or need the money to stay liquid</h3>
+        <p>A long time horizon is exactly when uncapped market exposure tends to win — you have the years to ride out a downturn, which makes giving up decades of compounding to a cap rate expensive. Multi-year surrender charges also make FIAs a poor fit for an emergency fund or any money you might need on short notice.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:28px;">On growth: in a typical year, an FIA buyer should expect a credited return well below what the stock market itself has historically returned. Industry sources put realistic long-run FIA crediting somewhere around <strong>3%–7% a year</strong>; the S&amp;P 500 itself has averaged roughly <strong>9%–10% a year</strong> in total return (price gains plus dividends) over long stretches of its history — about 9.7%/yr from 2005–2024, and an even higher ~14%/yr over just the last, unusually strong decade. The next section works through exactly why that gap exists, and what it buys you.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="annuity-types">
+    <p class="eyebrow">Before the deep dive</p>
+    <h2>Comparing the main types</h2>
+    <p class="lede" style="margin-top:14px;">"Annuity" is an umbrella term covering several structurally different products — the right starting question isn't which one credits the best rate, it's when you need the money and how much risk you're willing to hold in the meantime. Six types cover most of what's sold today; the table below lines them up before this episode narrows in on the fifth.</p>
+
+    <div class="tbl-wrap compare">
+      <table>
+        <thead>
+          <tr><th>Type</th><th>How it grows</th><th>Typically for</th><th>Choose this over the others when —</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="type-tag">Immediate</span><span class="type-name">SPIA</span></td>
+            <td>Converts a lump sum straight into guaranteed income starting within about a year. Nothing accumulates — there's no cash value to tap later.</td>
+            <td>Someone already retired, or about to be, who wants savings turned into a paycheck-like stream today.</td>
+            <td>you want income <em>now</em>, not later, and won't need this money back as a lump sum — you're trading away liquidity for the highest guaranteed payout per dollar available immediately.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Deferred income</span><span class="type-name">DIA / QLAC</span></td>
+            <td>Same mechanics as an SPIA, but you pick a future start date, often a decade or more out. The long deferral plus mortality pooling buys more income per premium dollar than waiting and buying an SPIA later.</td>
+            <td>Someone in their 50s–60s insuring specifically against living well past their money — income that switches on at, say, 80 or 85.</td>
+            <td>you're not worried about running out early, only late — you want the cheapest possible insurance against outliving savings, and don't need any access to this money before the start date.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Fixed</span><span class="type-name">MYGA</span></td>
+            <td>Locks a flat, guaranteed interest rate for a set term — commonly 3–10 years. Economically similar to a bank CD, but tax-deferred.</td>
+            <td>A conservative saver who wants predictable, guaranteed growth with zero market exposure, shopping the rate against CDs and bonds.</td>
+            <td>you want the simplest possible guarantee — one known rate, no cap or participation math to evaluate — and don't need an income rider or any market-linked upside.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Market-invested</span><span class="type-name">Variable</span></td>
+            <td>Invests directly in mutual-fund-like subaccounts. Account value rises and falls with the market, including real losses to principal.</td>
+            <td>An investor who wants continued market growth potential inside a tax-deferred wrapper, often layering on an optional income or death-benefit rider.</td>
+            <td>you want more upside than any index-linked product can offer and can accept market risk on your principal — typically at a higher combined cost of fund fees, rider fees, and mortality &amp; expense charges.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Index-linked, floored</span><span class="type-name">FIA — this episode</span></td>
+            <td>Credits interest linked to a market index, bounded by a cap, participation rate, or spread, with a guaranteed 0% floor.</td>
+            <td>Someone within a decade of retirement who wants more growth potential than a fixed rate but can't accept a variable annuity's real downside.</td>
+            <td>you want a share of market upside without ever crediting a negative year, and you're willing to give up everything above the cap in exchange for that floor.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Index-linked, buffered</span><span class="type-name">RILA</span></td>
+            <td>Also index-linked, but trades the 0% floor for a buffer or floor level — e.g. the insurer absorbs the first 10–20% of a loss, you absorb the rest — and offers meaningfully higher caps and participation than an FIA in exchange.</td>
+            <td>Someone who wants FIA-style index exposure but with more upside, and can tolerate a defined, bounded loss in a bad year.</td>
+            <td>you want higher caps than an FIA offers and are willing to give up the 0% floor for a limited — not unlimited — amount of principal risk.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="why-fia">
+    <p class="eyebrow">Why this episode goes deep on one type</p>
+    <h2>Fixed indexed annuities, and why they get the rest of this episode</h2>
+    <p class="lede" style="margin-top:14px;">FIAs aren't a niche corner of the market. Insurers sold <strong>$127.9 billion</strong> of them in 2025 — a fifth consecutive year of growth and a new sales record for the product line — making FIA the second-largest annuity category by dollars sold, behind only plain fixed-rate deferred annuities (MYGA-type, $165.3B) and well ahead of variable annuities ($63.1B) and income annuities (SPIA + DIA combined, $19.2B), per LIMRA's final 2025 sales report. Registered index-linked annuities (RILAs) are newer and growing fastest — up 20% in 2025 to $79.5B — but still sell at roughly two-thirds FIA's volume.</p>
+
+    <p style="margin-top:16px;">The reason FIA draws that much of the market — and that much of this episode — is the seat it occupies in the comparison above: it's the only major type that lets someone still years from needing the money keep a share of market-linked growth while guaranteeing the account can never post a losing year. That combination is exactly what makes it attractive to pre-retirees rattled by market swings, and exactly why it's the type most commonly paired with the income riders and bonus features examined elsewhere in this project — the 50% upfront bonus contract, the Athene Agility 10. Riders and bonuses are almost always layered onto an FIA chassis, not a fixed or variable one.</p>
+
+    <p style="margin-top:16px;">It's also the type whose mechanics are hardest to judge at a glance. A MYGA's rate is one number, full stop. An FIA's actual return depends on which index it tracks, which of the three crediting levers it uses, how that lever is set today versus five years from now, and how a specific historical stretch would have played out under those rules — the kind of math a sales illustration can make look better than it will likely perform, precisely because it's hard to see through. That's the gap the rest of this episode closes, starting with how the crediting itself actually works.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="indexing-participation">
+    <p class="eyebrow">The mechanism behind the number on your statement</p>
+    <h2>Indexing, participation, and the price of the floor</h2>
+    <p class="lede" style="margin-top:14px;">An indexed annuity never actually invests in the index. The insurer puts your premium into its own conservative portfolio — mostly bonds — and spends a slice of the interest that generates on index-linked options. What lands on your statement is whatever those options pay out, run through three possible levers.</p>
+
+    <p style="margin-top:20px;">Two concepts anchor everything below — a <strong>floor</strong> and a <strong>cap</strong> — and they exist as a pair, because one is quite literally the price of the other.</p>
+
+    <div class="verdicts" style="margin-top:20px;">
+      <div class="verdict" style="border-top:3px solid var(--teal)">
+        <div class="book-label" style="color:var(--teal)">What you get: the floor</div>
+        <h3>A guaranteed minimum credit, almost always 0%</h3>
+        <p>Whatever the index does, your credited return for the period can't fall below a stated minimum. That's the entire purpose of an FIA: protecting a slice of savings from a market crash landing at exactly the wrong moment — the sequence-of-returns risk raised earlier in this episode, where a bad year or two right before or after retirement can do damage a portfolio never fully recovers from.</p>
+      </div>
+      <div class="verdict" style="border-top:3px solid var(--gold)">
+        <div class="book-label" style="color:var(--gold)">What it costs: the cap</div>
+        <h3>A ceiling on how much of a good year you keep</h3>
+        <p>A guarantee that never credits a loss has to be funded somehow, and the cap is how: a ceiling on how much of the index's gain you're allowed to keep in a good year. The insurer keeps the rest — often most of it — to pay for the years it has to credit 0% instead of a loss. The floor isn't free; it's paid for out of the tail of your best years.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:24px;">The three levers below are simply the different ways a contract can set that cap — and, on some contracts, layer on a second cost alongside it.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">CAP</div>
+      <div><h3>A ceiling on the gain</h3><p>The most the contract will credit in one period, however far the index rises. Current cap rates on common annual point-to-point strategies run roughly <strong>5%–11%</strong> depending on carrier and contract term — so a year the index returns 20% might still credit only 8%.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">PAR</div>
+      <div><h3>A fraction of the gain</h3><p>A participation rate credits only a percentage of the index's move, instead of or alongside a cap. At 75% participation, a 10% index gain becomes a 7.5% credit; paired with a 5% cap, that same 10% gain would be trimmed further, down to the 5% ceiling. Some contracts advertise participation rates well above 100% — even 150%–190% — which sounds like more than the market's own gain. The quick catch: a rate that high is almost never attached to the plain S&amp;P 500. It's paired with a proprietary "engineered" index instead, one already carrying its own embedded costs and volatility controls that tend to move less than the raw market — so 190% of a muted, cost-laden index can still credit less, over time, than 100% of the real thing would have.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">SPREAD</div>
+      <div><h3>A fee taken off the top</h3><p>A spread (or "margin") is subtracted from the index's move before crediting — a 2-point spread on a 10% gain credits 8%. Whichever lever a contract uses, the direction is identical: you receive a bounded fraction of the index's upside, never all of it.</p></div>
+    </div>
+
+    <p style="margin-top:8px;">Whichever lever a contract uses, the floor described above still applies underneath it: a down year for the index credits exactly 0%, never negative. The chart below makes the full trade concrete, using one real ten-year stretch of the actual S&amp;P 500.</p>
+
+    <p class="prose ink-soft" style="margin-top:20px; font-size:13.5px;">Illustrative crediting rule applied below: 8% annual cap, 100% participation up to the cap, 0% floor — representative of, not identical to, any specific contract.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Same $100,000, two paths, 2015–2024 — real S&amp;P 500 annual returns</div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--teal)"></i>Direct S&amp;P 500 (dividends reinvested)</span>
+          <span><i class="swatch" style="background:var(--gold)"></i>Indexed annuity (8% cap / 0% floor)</span>
+        </div>
+      </div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-index-fia" viewBox="0 0 640 300" preserveAspectRatio="xMinYMin meet"></svg></div>
+      <div class="chart-foot">Same actual index returns applied two ways: fully, versus capped and floored. Source: S&amp;P 500 total return by calendar year, 2015–2024.</div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>What ten years bought</th><th>Direct S&amp;P 500</th><th>Indexed annuity</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>$100,000, 2015–2024</td><td class="teal">$342,574 · 3.43×</td><td class="gold">$173,748 · 1.74×</td></tr>
+          <tr><td>Annualized (CAGR)</td><td class="teal">13.10%/yr</td><td class="gold">5.68%/yr</td></tr>
+          <tr><td>Worst single year</td><td class="rust">&minus;18.11% (2022)</td><td class="gold">0.00% — floor held, in both 2018 &amp; 2022</td></tr>
+          <tr><td>Dividends received along the way</td><td class="teal">Yes, reinvested every year</td><td class="ink-faint">None — not part of what's credited</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose ink-soft" style="margin-top:16px; font-size:14px;">2015–2024 was an unusually strong run for US stocks — two mild-to-sharp down years (2018, 2022) out of ten, and several years above the 8% cap used here. That's precisely what makes it a fair stress test of the trade-off, not proof the annuity was the wrong call: in a decade with more or deeper down years, this gap narrows, sometimes a lot. Most FIAs also credit against a price-only version of an index, excluding dividends, which would trim the "indexed annuity" figures above further still.</p>
+
+    <p style="margin-top:24px;">Layer on the cost of holding the policy itself. The S&amp;P 500's current dividend yield is about 1.0%, versus a decade-average closer to 1.6%–1.9% — money a direct index investor collects every single year that an FIA holder simply never sees, capped years and down years alike. If a lifetime-income rider is attached, add an annual rider fee, typically <strong>0.95%–1.50% of the benefit base</strong>, deducted from account value whether or not the index moves at all that year. Between the cap, the forgone dividends, and the rider fee, the realistic 3%–7% range cited above is the sum of everything this section just walked through — not a separate, unexplained number.</p>
+
+  </section>
+
+  <hr class="rule">
+
+  <section id="bonuses-vesting-riders">
+    <p class="eyebrow">Beyond the crediting rate</p>
+    <h2>Bonuses, vesting schedules, and income riders</h2>
+    <p class="lede" style="margin-top:14px;">Once the crediting mechanics above are clear, most of what actually differs from one FIA contract to the next comes down to three features stacked on top: a premium bonus, the vesting schedule that governs when it's really yours, and an income rider that turns the account into a paycheck. Each runs on its own logic.</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">The premium bonus</h3>
+    <p style="margin-top:10px;">A bonus adds a stated percentage — commonly 5%–55% depending on the contract — to your account on day one. The detail worth reading closely: does the bonus land on the <strong>real account value</strong> (money you could actually withdraw or annuitize as cash) or only on the <strong>income base</strong> (a notional figure used solely to calculate future guaranteed lifetime withdrawals)? Carriers disclose which, but it's easy to skim past — and a 10% bonus on real cash is a genuinely different offer from a 55% bonus on a number you can only ever convert into income payments.</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">The vesting schedule</h3>
+    <p style="margin-top:10px;">A bonus is rarely fully yours the day it's credited. Most contracts vest it gradually, in step with the surrender-charge schedule — surrender or withdraw beyond the free amount before it's fully vested, and you forfeit whatever portion hasn't vested yet.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Contract year</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Bonus vested (illustrative linear schedule)</td><td>10%</td><td>20%</td><td>30%</td><td>40%</td><td>50%</td><td>60%</td><td>70%</td><td>80%</td><td>90%</td><td>100%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose ink-soft" style="margin-top:14px; font-size:14px;">On a schedule like this, a "50% bonus" contract surrendered in year 3 has only actually vested 30% of that bonus — 15 percentage points of premium, not 50. Real schedules vary by carrier; some vest in even steps like this one, others back-load or front-load differently.</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">The income rider</h3>
+    <p style="margin-top:10px;">A guaranteed lifetime withdrawal benefit (GLWB) rider is the mechanism that turns an income base into guaranteed lifetime income, and it runs in two phases. During the <strong>growth phase</strong>, the benefit base grows by a stated rollup — either a flat guaranteed percentage, or, on some newer products, an indexed rollup tied to actual index performance. During the <strong>income phase</strong>, once you elect to start withdrawals — usually after a minimum deferral period and minimum age — the carrier applies an age-banded payout percentage to the benefit base to set your guaranteed annual withdrawal amount, for as long as you live, even if the real account value ever reaches zero.</p>
+    <p style="margin-top:12px;">The rollup is not compounding growth of spendable money — it's an actuarial input the carrier uses to price a lifetime-income promise, applied to a number that only ever becomes income payments, never a lump sum. It's entirely possible, and common, for a contract to guarantee an 8% rollup on the income base while the real account value grows at the 3%–7% realistic range covered above — both numbers are accurate, they're just describing two different books.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="fees-beyond-crediting">
+    <p class="eyebrow">What else comes out of the account</p>
+    <h2>Fees beyond the crediting drag</h2>
+    <p class="lede" style="margin-top:14px;">The cap, forgone dividends, and rider-fee drag already covered explain why FIA growth runs lower than the index — but that's about what you don't get credited. A separate question is what can actively come <em>out</em> of the account in dollar terms. A few fee types work that way.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">RIDER</div>
+      <div><h3>The income rider fee</h3><p>Deducted as a percentage of the benefit base — not the account value — typically <strong>0.95%–1.50% a year</strong>, taken whether or not the index credited anything that year. This is the one that matters most: the 0% floor protects the index-linked <em>credit</em>, not the account from this deduction. A contract's real account value can go down in dollar terms in a year the index-linked side floored at exactly 0%, because the fee still comes out.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">ADMIN</div>
+      <div><h3>Contract or administrative fee</h3><p>A smaller flat annual charge — commonly in the $30–$50 range — that some contracts still bill for administration, separate from any rider, sometimes waived above a premium threshold (e.g., $100k).</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">OPTIONAL</div>
+      <div><h3>Optional-rider fees</h3><p>An enhanced death benefit, a return-of-premium guarantee, or other optional endorsements each typically carry their own percentage charge, stacking on top of a lifetime-income rider fee if more than one is elected.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">GROWS</div>
+      <div><h3>Why the fee gets bigger even when the rate doesn't</h3><p>Rider fees are charged on the benefit base, and the benefit base itself grows every year via the bonus and rollup — so the dollar size of the fee tends to climb even when the stated percentage never changes. A fee that looks modest at issue can be a meaningfully larger deduction a decade in.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="surrender-liquidity">
+    <p class="eyebrow">What it costs to change your mind</p>
+    <h2>Surrender charges and liquidity</h2>
+    <p class="lede" style="margin-top:14px;">Almost every FIA carries a surrender-charge period — commonly 6 to 10 years — during which withdrawing beyond a set allowance triggers a declining penalty. The chart below models a common shape for that decline, alongside the bonus-vesting schedule from the previous section, so the two can be read together: early on, both the exit penalty and the bonus you'd walk away with are working against you at the same time.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">A common surrender-charge shape, 10-year schedule</div>
+      </div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-surrender" viewBox="0 0 640 280" preserveAspectRatio="xMinYMin meet"></svg></div>
+      <div class="chart-foot">Illustrative — modeled on a real disclosed 10-year schedule (9/8/7/6/5/4/3/2/1/0%); exact percentages and number of years vary by carrier and product.</div>
+    </div>
+
+    <p style="margin-top:24px;">A few features soften that penalty. Most contracts allow a <strong>free withdrawal</strong> — commonly up to 10% of account value per year — with no surrender charge at all, even during the surrender period. Withdrawals beyond that free amount, while still in the surrender period, can also trigger a <strong>Market Value Adjustment (MVA)</strong>: an adjustment, up or down, that reflects how interest rates have moved since the contract was purchased — it can either add to or subtract from what you'd otherwise receive, on top of the stated surrender charge. And some contracts build in hardship-specific relief valves — a terminal-illness waiver, a confinement or nursing-home waiver, or a "bailout" provision that lifts the surrender charge entirely if a specific crediting rate falls below a stated threshold — that grant full or partial access without the usual penalty in defined situations.</p>
+    <p class="prose ink-soft" style="margin-top:16px; font-size:14px;">None of this replaces real liquidity. Money earmarked for an emergency fund, or that might be needed on short notice for any reason, is generally a poor fit for the surrender-charge years of any FIA, waivers and free-withdrawal allowances included.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="reading-illustration">
+    <p class="eyebrow">Before you sign anything</p>
+    <h2>How to read a contract's own illustration against these mechanics</h2>
+    <p class="lede" style="margin-top:14px;">An illustration is the carrier's own numeric projection for your specific contract, built from exactly the mechanics covered above. A handful of checks turn it from a glossy printout into a real evaluation tool.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">01</div>
+      <div><h3>Guaranteed vs. illustrated</h3><p>Every illustration shows at least two columns: guaranteed minimum values, which assume the contractual floor — sometimes as low as a 0%–1% minimum guaranteed rate — every year, and non-guaranteed illustrated values, which assume today's current cap, participation, or rollup holds for the life of the contract. Only the guaranteed column is actually promised.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">02</div>
+      <div><h3>The cap can move</h3><p>Ask for the contractually guaranteed minimum cap or participation rate — the true floor the carrier can reset down to, usually annually after year one, within the contract's own limits — not just today's current, marketed rate.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">03</div>
+      <div><h3>Whose number is growing</h3><p>For any rider, confirm on the page whether a given growth figure applies to the real account value or the benefit base. The two numbers can, and routinely do, diverge completely — see the two books above.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">04</div>
+      <div><h3>The one number that's really yours</h3><p>Find the surrender value or cash value column for each policy year — account value minus any applicable surrender charge and MVA. That's the figure that answers "what would I actually walk away with if I needed this money on this date."</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">05</div>
+      <div><h3>The crediting method, not just the cap</h3><p>Two contracts advertising the same 8% cap can perform very differently depending on whether crediting is annual point-to-point, a monthly sum, or a monthly average — ask which method applies, since it changes how a volatile year translates into a credited return.</p></div>
+    </div>
+
+    <p style="margin-top:24px;">With that reading list in hand, it's worth returning to what a sales conversation tends to lead with — the closing section below walks through the headline features most often used to bring people to the table, and what pays for each one.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="no-free-lunch">
+    <p class="eyebrow">Before you sit down with an agent</p>
+    <h2>What the sales pitch highlights — and what it actually costs</h2>
+    <p class="lede" style="margin-top:14px;">An insurance company prices risk for a living; it doesn't hand out free upside. Every headline feature in an annuity pitch is paid for somewhere in the same contract, whether or not that somewhere comes up in the same conversation. None of the claims below are false — a 50% bonus really is credited, a 190% participation rate really does multiply whatever the index does. What's rarely offered upfront is where the cost of each one shows up elsewhere in the fine print. The gold line is the pitch; underneath it, the mechanism that pays for it.</p>
+
+    <div class="pitch-list">
+      <div class="pitch">
+        <div class="pitch-claim">"Up to a 50% premium bonus, credited on day one."</div>
+        <div class="pitch-reality"><span class="reality-tag">The trade-off</span><p>The bonus almost always lands on a notional <em>income base</em> used only to calculate future guaranteed withdrawals — not on the real, spendable account value you could take as a lump sum. The real account typically starts at or near 100% of premium, and the bonus is usually funded by a lower cap or participation rate than the same carrier's no-bonus contract offers, plus a longer surrender-charge schedule. Two numbers grow on the same statement; only one of them is money you can actually walk away with.</p></div>
+      </div>
+      <div class="pitch">
+        <div class="pitch-claim">"Participation rates up to 190% of the index."</div>
+        <div class="pitch-reality"><span class="reality-tag">The trade-off</span><p>Triple-digit participation is almost always attached to a proprietary or "engineered" index — often volatility-controlled, or a decrement index with a servicing cost (commonly 0.50%–0.85% a year) built directly into how the index itself is calculated — rather than a plain S&amp;P 500 strategy. Those indices are frequently designed to move less than the raw market. 190% of a muted, cost-laden index can still credit less over time than 100% of the real S&amp;P 500 would under an ordinary cap.</p></div>
+      </div>
+      <div class="pitch">
+        <div class="pitch-claim">"Uncapped growth potential."</div>
+        <div class="pitch-reality"><span class="reality-tag">The trade-off</span><p>"No cap" doesn't mean "no limit" — it usually means the limit moved somewhere less visible: a spread deducted from the index's move before anything is credited, a monthly-sum design where down months count in full but up months are individually capped, or, again, a proprietary index with its cost already baked in. The question worth asking isn't whether a strategy is capped, it's what replaced the cap.</p></div>
+      </div>
+      <div class="pitch">
+        <div class="pitch-claim">"A lifetime income rider, included at no additional cost."</div>
+        <div class="pitch-reality"><span class="reality-tag">The trade-off</span><p>"No additional charge" describes how the fee is billed, not whether one exists. Riders marketed this way typically have their cost folded into lower caps and participation rates on the crediting side, rather than itemized as a separate line — you're still paying for it, just not anywhere you'd see it as a deduction.</p></div>
+      </div>
+      <div class="pitch">
+        <div class="pitch-claim">"Your principal can never lose money."</div>
+        <div class="pitch-reality"><span class="reality-tag">The trade-off</span><p>True, against a down index year — the 0% floor is real. It says nothing about the other two ways the number you can actually walk away with falls short of expectations: a multi-year surrender charge, routinely 8–10% in the early years, if you need the money out before the schedule ends; and the fact that "can't lose" isn't "keeps up with inflation" — flat and capped years both quietly erode what the balance can buy.</p></div>
+      </div>
+      <div class="pitch">
+        <div class="pitch-claim">"A guaranteed 7%–8% annual rollup."</div>
+        <div class="pitch-reality"><span class="reality-tag">The trade-off</span><p>Like the bonus above, a guaranteed rollup almost always compounds the same notional income base — a number you can only ever convert into income payments, never withdraw as a lump sum. It's entirely possible for a contract to be honestly advertising an 8% guaranteed rate and a realistic 3–7% real-money return in the very same sentence, because the two figures are describing different books.</p></div>
+      </div>
+    </div>
+
+    <p style="margin-top:28px;">None of this means walk away from every annuity with these features — a bonus, a high participation rate, or an income rider can still be the right tool for the right situation. It means the feature list isn't the whole picture. Before signing anything, it's worth asking, for every headline number: what's the real account value doing while this notional number grows, and what's paying for it?</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="true-value">
+    <p class="eyebrow">The bottom line, from the policyholder's chair</p>
+    <h2>What this is really worth to the policyholder</h2>
+    <p class="lede" style="margin-top:14px;">Every mechanic covered above — cap, rider fee, vesting, surrender charge, mortality pooling — resolves into one question for the person who signed the contract: what do I actually end up with, and when? Weighting each possible outcome by how likely it is turns the brochure's single headline number into what it actually is: a distribution.</p>
+
+    <p class="prose ink-soft" style="margin-top:18px; font-size:13.5px;">Model below: one generic illustration, not any specific contract — $100,000 premium, no bonus, a 5%/yr average index credit (mid of the realistic 3%–7% range established earlier), a 1.20%/yr rider fee on the benefit base, a 7%/yr guaranteed simple rollup, a 10-year deferral, and a 5.5% payout rate applied at election. Mortality bands use the same SSA 2023-style survival curve, from age 70, used elsewhere in this project.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Outcome</th><th>Share</th><th>Premium in</th><th>What they receive</th><th>Time in contract</th><th>Effective annual return</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Lapses early, year 5</td><td class="num">20.0%</td><td class="num">$100,000</td><td class="num">$114,109<br><span style="font-size:11.5px; color:var(--ink-faint)">net of 5% surrender charge</span></td><td class="num">5 yrs</td><td class="num">2.67%/yr</td></tr>
+          <tr><td>Full term, takes lump sum<br><span style="font-size:11.5px; color:var(--ink-faint)">income never exercised</span></td><td class="num">40.0%</td><td class="num">$100,000</td><td class="num">$143,465</td><td class="num">10 yrs</td><td class="num">3.68%/yr</td></tr>
+          <tr><td>Exercises income<br><span class="row-flag" style="color:var(--rust)">dies ~75, shorter-lived</span></td><td class="num">10.1%</td><td class="num">$100,000</td><td class="num rust">$47,121<br><span style="font-size:11.5px; color:var(--ink-faint)">total lifetime income</span></td><td class="num">~15 yrs<br><span style="font-size:11.5px; color:var(--ink-faint)">10 deferring + ~5 collecting</span></td><td class="num rust" style="font-weight:600">&minus;6.04%/yr</td></tr>
+          <tr><td>Exercises income<br><span class="row-flag" style="color:var(--gold)">dies ~86, median</span></td><td class="num">20.6%</td><td class="num">$100,000</td><td class="num gold">$147,095<br><span style="font-size:11.5px; color:var(--ink-faint)">total lifetime income</span></td><td class="num">~26 yrs<br><span style="font-size:11.5px; color:var(--ink-faint)">10 deferring + ~16 collecting</span></td><td class="num gold">2.28%/yr</td></tr>
+          <tr><td>Exercises income<br><span class="row-flag" style="color:var(--teal)">dies ~95, longer-lived</span></td><td class="num">9.3%</td><td class="num">$100,000</td><td class="num teal">$235,676<br><span style="font-size:11.5px; color:var(--ink-faint)">total lifetime income</span></td><td class="num">~35 yrs<br><span style="font-size:11.5px; color:var(--ink-faint)">10 deferring + ~25 collecting</span></td><td class="num teal">4.16%/yr</td></tr>
+          <tr><td style="font-weight:600">All policyholders, probability-weighted</td><td class="num" style="font-weight:600">100.0%</td><td class="num" style="font-weight:600">$100,000</td><td class="num" style="font-weight:600">≈$137,224<br><span style="font-size:11.5px; color:var(--ink-faint); font-weight:400">expected total received</span></td><td class="num" style="font-weight:600">varies</td><td class="num" style="font-weight:600">≈2.25%/yr<br><span style="font-size:11.5px; color:var(--ink-faint); font-weight:400">blended</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose ink-soft" style="margin-top:14px; font-size:14px;">The blended figure is a probability-weighted average of each outcome's own IRR, not a single cash-flow IRR — the five outcomes run for different lengths of time (5 to 35 years), so there's no one dated stream to solve for. Treat it as a summary of the shape of the distribution, not a return anyone actually earns.</p>
+
+    <div class="verdicts" style="margin-top:28px;">
+      <div class="verdict good">
+        <div class="book-label" style="color:var(--teal)">For comparison</div>
+        <h3>Direct S&amp;P 500, same real 2015–2024 stretch</h3>
+        <p>13.10%/yr — the figure from the indexing section earlier, over the same ten years the account-value column above is built on.</p>
+      </div>
+      <div class="verdict bad">
+        <div class="book-label" style="color:var(--rust)">For comparison</div>
+        <h3>Long-run U.S. inflation</h3>
+        <p>Roughly 2.4%/yr over the last 30 years, 3.9%/yr over the last 50 — commonly cited near 3% depending on the window measured (usinflationcalculator.com).</p>
+      </div>
+    </div>
+
+    <p style="margin-top:28px;">The ≈2.25%/yr blended figure sits close to, or even below, long-run inflation, and well behind what the same $100,000 could plausibly have earned invested directly. That's not a defect specific to this illustration — it's what a 0% floor and a capped, fee-drag crediting formula are built to do. The real value being purchased here isn't growth; it's insurance against the worst row in the table. The long-lived exerciser and the direct-market investor both do well. The product's actual job is making sure the shortest-lived exerciser and the earliest lapse — the two outcomes an index fund can't protect anyone against — land disappointing rather than catastrophic.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="who-pays-whom">
+    <p class="eyebrow">Every dollar in this contract belongs to somebody</p>
+    <h2>Who's actually paying whom</h2>
+    <p class="lede" style="margin-top:14px;">Behind that blended figure are very different deals for very different parties. Lay the same contract out across everyone who touches it — the broker, the carrier, and each segment of policyholders from the table above — and it becomes a single ledger of who put in what, and what they got for it.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Party</th><th>Capital committed</th><th>What they receive</th><th>Horizon</th><th>True IRR</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Broker</td><td class="num">$0<br><span style="font-size:11.5px; color:var(--ink-faint)">no capital of their own at risk</span></td><td class="num">$6,000 commission<br><span style="font-size:11.5px; color:var(--ink-faint)">paid by the carrier, day one</span></td><td class="num">Instant</td><td class="num ink-faint">n/a — paid upfront</td></tr>
+          <tr><td>Carrier</td><td class="num gold">$6,000<br><span style="font-size:11.5px; color:var(--ink-faint)">the commission it fronts to the broker</span></td><td class="num gold">≈$21,705<br><span style="font-size:11.5px; color:var(--ink-faint)">accumulated spread + rider-fee margin through year 10, before any income payments begin</span></td><td class="num">10 yrs<br><span style="font-size:11.5px; color:var(--ink-faint)">accumulation phase only</span></td><td class="num gold" style="font-weight:600">≈30.4%/yr</td></tr>
+          <tr><td>Policyholder — lapses early, yr 5</td><td class="num">$100,000</td><td class="num">$114,109</td><td class="num">5 yrs</td><td class="num">2.67%/yr</td></tr>
+          <tr><td>Policyholder — full term, lump sum</td><td class="num">$100,000</td><td class="num">$143,465</td><td class="num">10 yrs</td><td class="num">3.68%/yr</td></tr>
+          <tr><td>Policyholder — exercises income<br><span class="row-flag" style="color:var(--rust)">dies ~75</span></td><td class="num">$100,000</td><td class="num rust">$47,121</td><td class="num">~15 yrs</td><td class="num rust" style="font-weight:600">&minus;6.04%/yr</td></tr>
+          <tr><td>Policyholder — exercises income<br><span class="row-flag" style="color:var(--gold)">dies ~86</span></td><td class="num">$100,000</td><td class="num gold">$147,095</td><td class="num">~26 yrs</td><td class="num gold">2.28%/yr</td></tr>
+          <tr><td>Policyholder — exercises income<br><span class="row-flag" style="color:var(--teal)">dies ~95</span></td><td class="num">$100,000</td><td class="num teal">$235,676</td><td class="num">~35 yrs</td><td class="num teal">4.16%/yr</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:20px;">The broker and carrier rows aren't paid out of thin air. The full $100,000 premium is credited to the policyholder's account — the commission comes out of the carrier's own funds up front, and the carrier recoups it, with a healthy margin, out of exactly the mechanics covered earlier in this episode: the gap between what its own investments earn and what it credits the index-linked side (the cap), plus the ongoing rider fee. The bonus, the cap, and the rider fee aren't incidental costs sitting next to the product — they're what pays the carrier back for the commission it already spent.</p>
+    <p style="margin-top:16px;">The asymmetry is structural, not a quirk of this one illustration. The broker is paid first and with certainty. The carrier's return — roughly 30%/yr on the capital it actually risks — is high, arrives early, and is pooled across the whole block, so it barely depends on any single policyholder's mortality. The policyholder is the only party whose return is genuinely uncertain, resolved only years later by how long they live and whether they ever need the money back early — ranging from a real loss in nominal dollars to a real win, on the very same contract.</p>
+    <p class="prose ink-soft" style="margin-top:16px; font-size:14px;">As with the rest of this episode, these are generic, illustrative figures, not any specific carrier's actual commission, margin, or claims experience — real contracts disclose their own. The two contract-specific case studies elsewhere in this project size these same mechanics against real, disclosed terms for an actual 50% bonus contract and for Athene's Agility 10.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">Zooming out</p>
+    <h2>Where annuities fit in the bigger picture</h2>
+    <p class="lede" style="margin-top:14px;">Everything above has stayed inside the annuity itself — how it works, what it costs, who profits. The question a savvy investor actually needs answered is different: where does this sit relative to everything else the same dollar could do?</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">The ordering question</h3>
+    <p style="margin-top:10px;">An annuity is almost always a late-stage, narrow-purpose tool — not a place to start.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">01</div>
+      <div><h3>Emergency fund first</h3><p>Three to six months of expenses, fully liquid — before anything carrying a multi-year surrender charge.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">02</div>
+      <div><h3>High-interest debt</h3><p>Paying down credit-card-rate debt is a guaranteed after-tax return that few products, annuities included, can match.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">03</div>
+      <div><h3>The employer match</h3><p>Free money in a 401(k)/403(b) match beats any commission-funded bonus a salesperson can offer.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">04</div>
+      <div><h3>Tax-advantaged room</h3><p>Max Roth and traditional IRA/401(k) space before reaching for an insurance product for its "tax-deferred growth."</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">05</div>
+      <div><h3>Broad, low-cost investing</h3><p>A diversified index portfolio, sized to your actual time horizon and risk tolerance.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">06</div>
+      <div><h3>Only then, a narrow purpose</h3><p>A guaranteed floor under one slice of near-retirement savings, or lifetime-income insurance against outliving your money — a specific job, not a growth strategy.</p></div>
+    </div>
+
+    <p style="margin-top:24px;">An annuity competing for step 1–5 money is almost always the wrong tool for the job. It's priced, and sold, as a step-6 product.</p>
+
+    <h3 style="margin-top:36px; font-size:19px; font-style:normal;">Before buying the guarantee, price the alternative</h3>
+    <p style="margin-top:10px;">A savvy investor can often replicate — or beat — what an annuity is selling, more cheaply and with more control.</p>
+
+    <div class="verdicts" style="margin-top:20px;">
+      <div class="verdict good">
+        <div class="book-label" style="color:var(--teal)">Instead of an FIA's floor</div>
+        <h3>A bond or TIPS ladder, timed to your spending</h3>
+        <p>More liquid, no surrender charge, no cap on the underlying instrument's own yield, and you keep control of the money. The trade: you manage it yourself, and there's no pooled lifetime-income guarantee unless you add one deliberately.</p>
+      </div>
+      <div class="verdict good">
+        <div class="book-label" style="color:var(--teal)">Instead of a DIA or QLAC</div>
+        <h3>Delaying Social Security</h3>
+        <p>Between full retirement age and 70, Social Security benefits grow by a guaranteed 8% a year — two-thirds of one percent a month — inflation-adjusted for life, backed by the federal government. For most people who can bridge the gap with savings, that's a better-priced version of exactly what a commercial longevity annuity is selling, and worth pricing first.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:36px; font-size:19px; font-style:normal;">Tax treatment, compared honestly</h3>
+    <p style="margin-top:10px;">The "tax-deferred growth" pitch only tells half the story — what matters just as much is how the money is taxed coming back out, and what heirs inherit.</p>
+
+    <div class="tbl-wrap compare">
+      <table>
+        <thead>
+          <tr><th>&nbsp;</th><th>Deferred annuity<br><span style="font-weight:400; text-transform:none; letter-spacing:0;">(non-qualified)</span></th><th>Taxable brokerage<br><span style="font-weight:400; text-transform:none; letter-spacing:0;">(index funds)</span></th><th>Roth IRA / 401(k)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Growth while invested</strong></td><td>Tax-deferred</td><td>Taxed yearly on dividends and realized gains</td><td>Tax-free</td></tr>
+          <tr><td><strong>Withdrawals taxed as</strong></td><td>Ordinary income rates, gains come out first</td><td>Long-term capital gains rates (lower than ordinary income) on sale</td><td>Tax-free, if qualified</td></tr>
+          <tr><td><strong>Step-up in basis at death</strong></td><td>No — heirs owe ordinary income tax on the embedded gain</td><td>Yes — heirs' cost basis resets to date-of-death value</td><td>N/A — no income tax on qualified withdrawals for heirs either</td></tr>
+          <tr><td><strong>Early-withdrawal penalty</strong></td><td>10% before 59½, on the gain portion</td><td>None</td><td>10% before 59½ on earnings, with exceptions</td></tr>
+          <tr><td><strong>Required minimum distributions</strong></td><td>None on non-qualified money</td><td>None</td><td>None for Roth IRA; waived for Roth 401(k) since SECURE 2.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:20px;">For money that doesn't specifically need the guarantee, ordinary-income treatment on the way out and the lost step-up in basis at death mean an annuity is frequently the tax-<em>inefficient</em> choice, not the efficient one.</p>
+
+    <h3 style="margin-top:36px; font-size:19px; font-style:normal;">Where it can still make sense for a savvy investor</h3>
+
+    <div class="lever-row">
+      <div class="lever-tag">MIND</div>
+      <div><h3>Behavioral protection</h3><p>Some investors know, honestly, that a real market crash will make them sell everything at the bottom. A guaranteed floor that's structurally hard to touch can be worth its cost purely as a commitment device — a rational response to real, if uncomfortable, self-knowledge.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">GAP</div>
+      <div><h3>Thin guaranteed income otherwise</h3><p>Someone with no pension, modest Social Security, and real longevity in the family has genuinely more to gain from mortality pooling than someone whose guaranteed-income floor is already large.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">RMD</div>
+      <div><h3>QLAC-specific RMD management</h3><p>A Qualified Longevity Annuity Contract lets you exclude up to <strong>$210,000</strong> (2026 limit) of IRA/401(k) money from required-minimum-distribution calculations, deferring both the distributions and the tax on that slice until income starts — as late as age 85.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">LEGAL</div>
+      <div><h3>Creditor protection</h3><p>In many states, annuity cash value carries some protection from creditors and lawsuits, similar to — and sometimes stronger than — a taxable brokerage account. A real, if narrow, consideration for people in litigation-exposed professions.</p></div>
+    </div>
+
+    <p style="margin-top:24px;">None of this is a verdict on annuities in general — it's the actual comparison set the decision needs. The product can be the right tool for a specific job; it's very rarely the right first tool, or the right tool for money that hasn't already cleared everything above it.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="buyers-checklist">
+    <p class="eyebrow">If you're going to buy one anyway</p>
+    <h2>A buyer's checklist</h2>
+    <p class="lede" style="margin-top:14px;">None of the above rules annuities out — it means going in with a plan. A few concrete checks before signing anything.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">01</div>
+      <div><h3>Use the free-look period</h3><p>Every state guarantees a window — commonly 10 to 30 days, longer in some states for buyers 65 and older (Arizona extends to 30 days, for example) — to cancel and get your premium back after receiving the contract. Know the exact number of days for your state, and use the window to read the actual contract, not just the illustration you were shown.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">02</div>
+      <div><h3>Check the carrier's financial strength</h3><p>This is a promise to pay you money for decades. Check the carrier's rating from AM Best, S&amp;P, or Moody's before buying — a strong sales pitch doesn't tell you whether the company backing it will still be strong in year 25.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">03</div>
+      <div><h3>Get the Certificate of Disclosure, not just the illustration</h3><p>Ask for the actual contract disclosure document, which spells out guarantees, formulas, and fine print an illustration only summarizes — sometimes omits.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">04</div>
+      <div><h3>Get a fee-only second opinion</h3><p>A fee-only fiduciary advisor, paid a flat or hourly rate rather than a commission on the sale, has no financial stake in whether you buy. Worth the cost of an hour of their time before a decision measured in decades.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">05</div>
+      <div><h3>Know which standard you're getting</h3><p>FIAs are regulated as insurance under state law, not as securities under the SEC — no prospectus, and in most states a "suitability" standard rather than a fiduciary one. The seller has to believe it's reasonably suitable, not that it's in your single best interest.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">06</div>
+      <div><h3>Understand state guaranty coverage, not FDIC</h3><p>Annuities aren't bank deposits and carry no FDIC insurance. If a carrier fails, state guaranty associations typically cover up to $250,000 per owner per insurer — higher, $500,000, in New York, Washington, and New Jersey. A real backstop, but a capped one, worth knowing before concentrating a large sum with a single carrier.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">Common questions</p>
+    <h2>Frequently asked, in plain language</h2>
+
+    <div class="faq-item">
+      <h3>Can I lose all my money in one of these?</h3>
+      <p>No — the 0% floor means the index-linked side of the contract can't credit a loss. But fees, especially a rider fee, are deducted regardless of index performance, and withdrawing early triggers a surrender charge — so "can't lose to the market" isn't the same as "guaranteed to never go down."</p>
+    </div>
+    <div class="faq-item">
+      <h3>Is this the same as my 401(k)?</h3>
+      <p>No. A 401(k) is your own account, holding investments you largely choose and own outright. An annuity is an insurance contract — you're transferring a risk to a carrier in exchange for a formula-based promise, not owning a portfolio.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What happens to my money when I die?</h3>
+      <p>Depends on the contract, and on whether income had started. Before income starts, most contracts pay a death benefit — commonly the greater of account value or a minimum guaranteed contract value — to your named beneficiary. Once lifetime income has started, it depends on the payout option chosen: a life-only option stops at death; a period-certain or joint option keeps paying for a set time, or to a surviving spouse.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Can I get my money out early if I need it?</h3>
+      <p>Partially. Most contracts allow a free withdrawal — commonly up to 10% a year — with no penalty. Beyond that, during the surrender-charge years, you'll pay a declining penalty and possibly a market value adjustment — see the surrender charges section above for the mechanics.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Is this some kind of scam?</h3>
+      <p>No — it's a real, regulated insurance product, and the guarantees it makes are generally honored. "Complex and commission-driven" is a real concern worth taking seriously; it isn't the same thing as fraudulent.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Do I need one if I already have a pension or a solid 401(k)?</h3>
+      <p>Not necessarily — see "where annuities fit" above. Someone with substantial guaranteed income already has less to gain from paying for more of it.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What if the insurance company goes bankrupt?</h3>
+      <p>State guaranty associations back annuities up to a state-set limit — commonly $250,000, higher in a few states — see the buyer's checklist above.</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <p class="lede" style="margin-top:14px;">The terms this episode leans on most, in one place.</p>
+
+    <dl class="glossary">
+      <div class="gterm"><dt>Premium</dt><dd>The amount you pay the insurer to buy the contract.</dd></div>
+      <div class="gterm"><dt>Cap rate</dt><dd>The most an FIA will credit in one period, however far the index rises.</dd></div>
+      <div class="gterm"><dt>Participation rate</dt><dd>The fraction of the index's gain that's credited.</dd></div>
+      <div class="gterm"><dt>Spread</dt><dd>A fee subtracted from the index's move before crediting.</dd></div>
+      <div class="gterm"><dt>Floor</dt><dd>The guaranteed minimum credit — 0% on almost every FIA.</dd></div>
+      <div class="gterm"><dt>Crediting method</dt><dd>How a period's index move is measured — annual point-to-point, monthly sum, monthly average.</dd></div>
+      <div class="gterm"><dt>Bonus</dt><dd>A stated percentage added at issue, usually to the benefit base rather than real account value.</dd></div>
+      <div class="gterm"><dt>Vesting schedule</dt><dd>The timetable that governs how much of a bonus you actually keep if you exit early.</dd></div>
+      <div class="gterm"><dt>Benefit base / income base</dt><dd>The notional figure an income rider uses to calculate guaranteed withdrawals — not spendable as a lump sum.</dd></div>
+      <div class="gterm"><dt>Rollup rate</dt><dd>The guaranteed rate the benefit base grows by during the deferral period.</dd></div>
+      <div class="gterm"><dt>GLWB (income rider)</dt><dd>Guaranteed Lifetime Withdrawal Benefit — the rider that turns a benefit base into income for life.</dd></div>
+      <div class="gterm"><dt>Payout rate</dt><dd>The age-banded percentage applied to the benefit base to set your guaranteed annual income.</dd></div>
+      <div class="gterm"><dt>Surrender charge</dt><dd>The declining penalty for withdrawing beyond the free amount during the surrender period.</dd></div>
+      <div class="gterm"><dt>Free withdrawal</dt><dd>The amount, commonly 10% a year, you can take out with no surrender charge.</dd></div>
+      <div class="gterm"><dt>MVA (Market Value Adjustment)</dt><dd>An up-or-down adjustment on excess withdrawals during the surrender period, reflecting rate moves since purchase.</dd></div>
+      <div class="gterm"><dt>Rider fee</dt><dd>The ongoing charge, typically 0.95%–1.50%/yr of the benefit base, for an income or other rider.</dd></div>
+      <div class="gterm"><dt>Free-look period</dt><dd>A state-guaranteed window, commonly 10–30 days, to cancel for a full refund after receiving the contract.</dd></div>
+      <div class="gterm"><dt>SPIA</dt><dd>Single Premium Immediate Annuity — converts a lump sum straight into income starting within about a year.</dd></div>
+      <div class="gterm"><dt>DIA / QLAC</dt><dd>Deferred Income Annuity / Qualified Longevity Annuity Contract — income that starts years or decades later.</dd></div>
+      <div class="gterm"><dt>MYGA</dt><dd>Multi-Year Guaranteed Annuity — a flat guaranteed rate for a set term, like a CD.</dd></div>
+      <div class="gterm"><dt>RILA</dt><dd>Registered Index-Linked Annuity — index-linked with a buffer instead of a 0% floor, and higher caps.</dd></div>
+      <div class="gterm"><dt>FIA</dt><dd>Fixed Indexed Annuity — this episode's main subject.</dd></div>
+      <div class="gterm"><dt>IRR</dt><dd>Internal rate of return — the annualized return that makes a stream of dated cash flows net to zero.</dd></div>
+      <div class="gterm"><dt>Illustration</dt><dd>The carrier's own numeric projection for a specific contract — guaranteed and non-guaranteed columns both.</dd></div>
+    </dl>
+  </section>
+
+  <footer>
+    Educational material, not a quote, a recommendation, or financial advice. Cap, participation, and spread figures reflect a general market survey as of 2026 and vary by carrier, product, and contract term — compare actual contract illustrations, or work with a licensed advisor, before buying.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var years = [0,1,2,3,4,5,6,7,8,9,10];
+
+  function fmt$(v){
+    return "$" + Math.round(v).toLocaleString("en-US");
+  }
+  function fmt$k(v){
+    return "$" + Math.round(v/1000) + "k";
+  }
+
+  function drawLineChart(svgId, seriesList, opts){
+    var svg = document.getElementById(svgId);
+    var W = 640, H = 300;
+    var padL = 56, padR = 18, padT = 24, padB = 34;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var allVals = [];
+    seriesList.forEach(function(s){ allVals = allVals.concat(s.data); });
+    var vMin = opts.yMin !== undefined ? opts.yMin : Math.min.apply(null, allVals);
+    var vMax = opts.yMax !== undefined ? opts.yMax : Math.max.apply(null, allVals);
+
+    function x(i){ return padL + (plotW * i / (years.length-1)); }
+    function y(v){ return padT + plotH - (plotH * (v - vMin) / (vMax - vMin)); }
+
+    var svgns = "http://www.w3.org/2000/svg";
+    function el(tag, attrs){
+      var e = document.createElementNS(svgns, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    var ticks = opts.yTicks;
+    ticks.forEach(function(t){
+      svg.appendChild(el("line", {x1:padL, x2:W-padR, y1:y(t), y2:y(t), class:"gridline"}));
+      var lab = el("text", {x:padL-8, y:y(t)+4, class:"axis-label", "text-anchor":"end"});
+      lab.textContent = fmt$k(t);
+      svg.appendChild(lab);
+    });
+    years.forEach(function(yr, i){
+      if (yr % 2 !== 0) return;
+      var lab = el("text", {x:x(yr), y:H-10, class:"axis-label", "text-anchor":"middle"});
+      lab.textContent = opts.xLabels ? opts.xLabels[i] : "Yr " + yr;
+      svg.appendChild(lab);
+    });
+
+    seriesList.forEach(function(s){
+      var d = s.data.map(function(v,i){ return (i===0?"M":"L") + x(i).toFixed(1) + " " + y(v).toFixed(1); }).join(" ");
+      svg.appendChild(el("path", {d:d, fill:"none", stroke:s.color, "stroke-width":2, "stroke-linecap":"round", "stroke-linejoin":"round"}));
+      s.data.forEach(function(v,i){
+        if (i===0 || i===years.length-1){
+          svg.appendChild(el("circle", {cx:x(i), cy:y(v), r:3.5, fill:s.color}));
+        }
+      });
+      var lastI = years.length-1;
+      var lab = el("text", {x:x(lastI)-6, y:y(s.data[lastI]) - 10, class:"axis-label", "text-anchor":"end", fill:s.color, style:"font-weight:600"});
+      lab.textContent = fmt$(s.data[lastI]);
+      svg.appendChild(lab);
+    });
+
+    var hoverGroup = el("g", {class:"tooltip-group", opacity:0});
+    var crosshair = el("line", {class:"crosshair", y1:padT, y2:padT+plotH});
+    hoverGroup.appendChild(crosshair);
+    var dots = seriesList.map(function(s){
+      var c = el("circle", {r:4, fill:s.color, stroke:"var(--paper-raised)", "stroke-width":2});
+      hoverGroup.appendChild(c);
+      return c;
+    });
+    var tipW = 150, tipH = 22 + seriesList.length*16;
+    var tipBg = el("rect", {class:"tooltip-bg", width:tipW, height:tipH, rx:3});
+    hoverGroup.appendChild(tipBg);
+    var tipTitle = el("text", {class:"tooltip-text", x:10, y:16, style:"font-weight:600"});
+    hoverGroup.appendChild(tipTitle);
+    var tipLines = seriesList.map(function(s, idx){
+      var t = el("text", {class:"tooltip-text", x:10, y:34 + idx*16, fill:s.color});
+      hoverGroup.appendChild(t);
+      return t;
+    });
+    svg.appendChild(hoverGroup);
+
+    var hit = el("rect", {class:"hit-area", x:padL, y:padT, width:plotW, height:plotH});
+    svg.appendChild(hit);
+
+    function showAt(i){
+      hoverGroup.setAttribute("opacity", 1);
+      crosshair.setAttribute("x1", x(i)); crosshair.setAttribute("x2", x(i));
+      seriesList.forEach(function(s, idx){
+        dots[idx].setAttribute("cx", x(i));
+        dots[idx].setAttribute("cy", y(s.data[i]));
+        tipLines[idx].textContent = s.label + ": " + fmt$(s.data[i]);
+      });
+      tipTitle.textContent = opts.xLabels ? opts.xLabels[i] : "Year " + i;
+      var tx = x(i) + 12;
+      if (tx + tipW > W - padR) tx = x(i) - tipW - 12;
+      var ty = padT + 4;
+      tipBg.setAttribute("x", tx); tipBg.setAttribute("y", ty);
+      tipTitle.setAttribute("x", tx+10); tipTitle.setAttribute("y", ty+16);
+      tipLines.forEach(function(t, idx){ t.setAttribute("x", tx+10); t.setAttribute("y", ty+34+idx*16); });
+    }
+
+    hit.addEventListener("mousemove", function(e){
+      var rect = svg.getBoundingClientRect();
+      var scale = W / rect.width;
+      var mx = (e.clientX - rect.left) * scale;
+      var i = Math.round((mx - padL) / plotW * (years.length-1));
+      i = Math.max(0, Math.min(years.length-1, i));
+      showAt(i);
+    });
+    hit.addEventListener("mouseleave", function(){ hoverGroup.setAttribute("opacity", 0); });
+    hit.addEventListener("touchstart", function(e){ e.preventDefault(); }, {passive:false});
+  }
+
+  var sp500Returns = [0.0138,0.1196,0.2183,-0.0438,0.3149,0.1840,0.2871,-0.1811,0.2629,0.2502];
+  var directIndex = [100000], indexedFia = [100000];
+  sp500Returns.forEach(function(r){
+    directIndex.push(directIndex[directIndex.length-1] * (1+r));
+    var credited = Math.max(0, Math.min(r, 0.08));
+    indexedFia.push(indexedFia[indexedFia.length-1] * (1+credited));
+  });
+
+  drawLineChart("chart-index-fia", [
+    {data:directIndex, color:"var(--teal)", label:"Direct S&P 500"},
+    {data:indexedFia, color:"var(--gold)", label:"Indexed annuity"}
+  ], {yTicks:[100000,175000,250000,325000], yMin:95000, yMax:350000,
+      xLabels:["Start","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024"]});
+
+  // ---------- surrender charge / bonus vesting bar chart ----------
+  (function(){
+    var svg = document.getElementById("chart-surrender");
+    if (!svg) return;
+    var W = 640, H = 280;
+    var padL = 40, padR = 18, padT = 16, padB = 56;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var barYears = years.slice(1); // 1..10
+    var surrenderBonus = [null,9,8,7,6,5,4,3,2,1,0]; // index by year, year0 unused
+    var vestedBonus     = [0,10,20,30,40,50,60,70,80,90,100];
+    var n = barYears.length;
+    var gap = 10;
+    var bw = (plotW - gap*(n-1)) / n;
+    var vMax = 9;
+
+    var svgns = "http://www.w3.org/2000/svg";
+    function el(tag, attrs){
+      var e = document.createElementNS(svgns, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+    function y(v){ return padT + plotH - (plotH * v / vMax); }
+
+    [0,2,4,6,8].forEach(function(t){
+      svg.appendChild(el("line", {x1:padL, x2:W-padR, y1:y(t), y2:y(t), class:"gridline"}));
+      var lab = el("text", {x:padL-8, y:y(t)+4, class:"axis-label", "text-anchor":"end"});
+      lab.textContent = t + "%";
+      svg.appendChild(lab);
+    });
+
+    var tipG = el("g", {class:"tooltip-group", opacity:0});
+    var tipBg = el("rect", {class:"tooltip-bg", width:170, height:52, rx:3});
+    var tipT1 = el("text", {class:"tooltip-text", style:"font-weight:600"});
+    var tipT2 = el("text", {class:"tooltip-text", fill:"var(--rust)"});
+    var tipT3 = el("text", {class:"tooltip-text", fill:"var(--gold)"});
+    tipG.appendChild(tipBg); tipG.appendChild(tipT1); tipG.appendChild(tipT2); tipG.appendChild(tipT3);
+
+    barYears.forEach(function(yr, idx){
+      var bx = padL + idx*(bw+gap);
+      var charge = surrenderBonus[yr];
+      var by = y(charge);
+      var rect = el("rect", {class:"bar-hit", x:bx, y:by, width:bw, height:(padT+plotH-by), rx:2, fill:"var(--rust)"});
+      svg.appendChild(rect);
+
+      var vlab = el("text", {x:bx+bw/2, y:padT+plotH+16, class:"axis-label", "text-anchor":"middle"});
+      vlab.textContent = "Yr " + yr;
+      svg.appendChild(vlab);
+
+      var vested = el("text", {x:bx+bw/2, y:padT+plotH+30, class:"axis-label", "text-anchor":"middle", fill:"var(--gold)", style:"font-weight:600"});
+      vested.textContent = vestedBonus[yr] + "%";
+      svg.appendChild(vested);
+
+      rect.addEventListener("mousemove", function(){
+        tipG.setAttribute("opacity", 1);
+        var tx = Math.min(bx, W - padR - 170);
+        var ty = by - 60 < padT ? by + 10 : by - 60;
+        tipBg.setAttribute("x", tx); tipBg.setAttribute("y", ty);
+        tipT1.setAttribute("x", tx+10); tipT1.setAttribute("y", ty+16); tipT1.textContent = "Year " + yr;
+        tipT2.setAttribute("x", tx+10); tipT2.setAttribute("y", ty+32); tipT2.textContent = "Surrender charge: " + charge + "%";
+        tipT3.setAttribute("x", tx+10); tipT3.setAttribute("y", ty+48); tipT3.textContent = "Bonus vested: " + vestedBonus[yr] + "%";
+      });
+      rect.addEventListener("mouseleave", function(){ tipG.setAttribute("opacity", 0); });
+    });
+    svg.appendChild(tipG);
+
+    var capLab = el("text", {x:padL, y:padT+plotH+46, class:"axis-label"});
+    capLab.textContent = "Rust bars: surrender charge · gold figure below: cumulative bonus vested";
+    svg.appendChild(capLab);
+  })();
+})();
+</script>

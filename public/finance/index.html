@@ -1,0 +1,121 @@
+<meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>The Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA;
+  --paper-raised:#FAFAF6;
+  --ink:#1C2431;
+  --ink-soft:#57606F;
+  --ink-faint:#8B93A0;
+  --rule:#D8D7C9;
+  --rule-strong:#B9B8A8;
+  --gold:#B8842A;
+  --gold-wash:#B8842A1a;
+  --teal:#0A8A73;
+  --teal-wash:#0A8A731a;
+  --rust:#A8462F;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250; --gold:#BB8A3A; --gold-wash:#BB8A3A22;
+    --teal:#29A88F; --teal-wash:#29A88F22; --rust:#C96A4A;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250; --gold:#BB8A3A; --gold-wash:#BB8A3A22;
+  --teal:#29A88F; --teal-wash:#29A88F22; --rust:#C96A4A;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px; margin:0 auto; padding:64px 28px 96px;}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:46px; line-height:1.06; color:var(--ink);}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:16px; max-width:600px; line-height:1.5;}
+p{font-size:16px; line-height:1.68; color:var(--ink); margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+header.masthead{padding-bottom:36px; margin-bottom:52px; border-bottom:1px solid var(--rule-strong);}
+section{margin:56px 0;}
+.topic-label{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--teal); margin-bottom:16px;}
+.card-list{display:flex; flex-direction:column; gap:14px;}
+a.card{
+  display:block; background:var(--paper-raised); border:1px solid var(--rule); border-radius:4px;
+  padding:22px 24px; box-shadow:var(--shadow); text-decoration:none; color:inherit;
+  transition:border-color .15s ease;
+}
+a.card:hover{border-color:var(--rule-strong)}
+.card-kicker{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:6px;}
+.card-title{font-family:"Newsreader",serif; font-weight:600; font-size:20px; color:var(--ink); margin-bottom:6px;}
+.card-desc{font-size:14.5px; color:var(--ink-soft); line-height:1.55;}
+.card-arrow{float:right; color:var(--ink-faint); font-family:"IBM Plex Mono",monospace; font-size:18px;}
+.card.primary{border-left:3px solid var(--teal)}
+.card.secondary{border-left:3px solid var(--gold)}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+.coming-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px;}
+@media (max-width:560px){ .coming-grid{grid-template-columns:1fr} }
+.coming-chip{
+  border:1px dashed var(--rule-strong); border-radius:4px; padding:16px 18px;
+  color:var(--ink-faint); font-size:14px;
+}
+.coming-chip strong{display:block; color:var(--ink-soft); font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:15.5px; margin-bottom:3px;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">A running personal-finance library</p>
+    <h1>The Field Guide</h1>
+    <p class="subtitle">Plain-language, numbers-first explainers on how financial products actually work — mechanics, trade-offs, and where each one fits in a real financial life. Built to share with friends and family, one topic at a time.</p>
+  </header>
+
+  <section>
+    <p class="topic-label">Topic 01 — Annuities</p>
+    <div class="card-list">
+      <a class="card primary" href="/finance/annuities-explained.html">
+        <span class="card-arrow">↗</span>
+        <div class="card-kicker">Start here</div>
+        <div class="card-title">Annuities Explained</div>
+        <div class="card-desc">The major components of annuity products, from a personal-finance perspective — what they are, how the main types compare, how indexed crediting actually works, what the sales pitch highlights (and what it costs), what it's really worth to the policyholder, who's paying whom, and where annuities fit in the bigger financial picture. A buyer's checklist, FAQ, and glossary included.</div>
+      </a>
+      <a class="card secondary" href="https://claude.ai/code/artifact/f9d11e4e-b1dd-488d-9695-9f785a009fa1">
+        <span class="card-arrow">↗</span>
+        <div class="card-kicker">Case study</div>
+        <div class="card-title">The Bonus Ledger</div>
+        <div class="card-desc">A close, numbers-first look at one specific, aggressive structure: a 50% upfront premium bonus. Two books, vesting, the carrier's ledger, and a mortality-weighted true-IRR table across every policyholder outcome.</div>
+      </a>
+      <a class="card secondary" href="https://claude.ai/code/artifact/4ce20f0f-e042-4994-bdb5-c9cccf43a295">
+        <span class="card-arrow">↗</span>
+        <div class="card-kicker">Case study</div>
+        <div class="card-title">The Agility Ledger</div>
+        <div class="card-desc">How Athene's Agility 10 income and death-benefit rider actually works, derived from the carrier's own disclosed product guide — a real contract's rules, not a hypothetical.</div>
+      </a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <p class="topic-label" style="color:var(--ink-faint)">Coming next</p>
+    <p style="max-width:560px;">More topics will land here the same way this one did: mechanics first, then the trade-offs, then where it fits in a real plan.</p>
+    <div class="coming-grid">
+      <div class="coming-chip"><strong>Mortgages</strong>Fixed vs. adjustable, points, refinancing math.</div>
+      <div class="coming-chip"><strong>Index funds vs. active management</strong>Fees, taxes, and what actually explains the gap.</div>
+      <div class="coming-chip"><strong>Life insurance</strong>Term vs. whole/universal, and who actually needs which.</div>
+      <div class="coming-chip"><strong>Tax-advantaged accounts</strong>401(k), IRA, Roth, HSA — ordering and trade-offs.</div>
+    </div>
+  </section>
+
+  <footer>
+    Educational material, not financial advice. Each piece names its own sources and assumptions inline — nothing here is a recommendation to buy, sell, or avoid any specific product.
+  </footer>
+
+</div>
