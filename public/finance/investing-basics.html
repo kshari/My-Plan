@@ -115,6 +115,8 @@ thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing
 tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
 tbody td:first-child{font-family:"Public Sans",sans-serif;}
 .compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
 .compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
 .compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
 .compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
@@ -180,18 +182,19 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   <header class="masthead">
     <p class="eyebrow">Financial Education — Investing &amp; Retirement · Part of Personal Finance Library</p>
     <h1>Investing Basics: The Honest Baseline</h1>
-    <p class="subtitle">What you actually own when you invest, why time beats timing, why owning the whole market beats picking pieces of it, and what fees really cost — with 98 years of real returns to test every claim against. It ends by defining the simple, low-cost portfolio that every other product in this library has to beat.</p>
+    <p class="subtitle">What you actually own when you invest, why time beats timing, why owning the whole market is the safer default (and how to own individual stocks sensibly if you want to), and what fees really cost — with 98 years of real returns to test every claim against. It ends by defining the simple, low-cost portfolio that every other product in this library has to beat.</p>
 
     <div class="tldr">
       <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
-      <p>Investing is owning businesses (stocks) and lending money (bonds) for long enough that their growth outruns inflation. From 1928 through 2025, U.S. stocks returned about <strong>10% a year</strong> (roughly 6.8% after inflation) against 4.5% for 10-year Treasury bonds and 3.4% for T-bills — but stocks fell in 26 of those 98 years, once by 44%. Time is what tames that: <strong>no 20-year stretch of the S&amp;P 500 ever lost money</strong>, even after inflation. Picking individual stocks is a long shot, because a tiny share of companies produce nearly all the gains, so the honest default is to <strong>own all of them through an index fund</strong> for a few hundredths of a percent a year. Over 20 years, about <strong>93% of actively managed large-company funds trailed the S&amp;P 500</strong>, and costs are the main reason: at 1.64% a year in combined fund and advisor fees, $500 a month for 30 years grows to about $428,000 instead of $579,000. Set the stock/bond mix by when you'll need the money, automate contributions, and rebalance once a year. That simple, cheap, liquid portfolio is <strong>the honest baseline</strong>: any annuity, insurance policy, or managed product has to beat it after all costs to earn a place in your plan.</p>
+      <p>Investing is owning businesses (stocks) and lending money (bonds) for long enough that their growth outruns inflation. From 1928 through 2025, U.S. stocks returned about <strong>10% a year</strong> (roughly 6.8% after inflation) against 4.5% for 10-year Treasury bonds and 3.4% for T-bills — but stocks fell in 26 of those 98 years, once by 44%. Time is what tames that: <strong>no 20-year stretch of the S&amp;P 500 ever lost money</strong>, even after inflation. Because a tiny share of companies produce nearly all the gains, the honest default for most people is to <strong>own all of them through an index fund</strong> for a few hundredths of a percent a year. That doesn't rule out individual stocks: plenty of long-term investors build real wealth with a diversified set of companies, or an index core with hand-picked stocks around it, as long as they spread the risk, hold for years, and check their results against the index. Over 20 years, about <strong>93% of actively managed large-company funds trailed the S&amp;P 500</strong>, and costs are the main reason: at 1.64% a year in combined fund and advisor fees, $500 a month for 30 years grows to about $428,000 instead of $579,000. Set the stock/bond mix by when you'll need the money, automate contributions, and rebalance once a year. That simple, cheap, liquid portfolio is <strong>the honest baseline</strong>: any annuity, insurance policy, or managed product has to beat it after all costs to earn a place in your plan.</p>
     </div>
 
     <nav class="toc" aria-label="Contents">
       <div class="toc-part-label">In this piece</div>
       <a href="#what-you-own">What you're actually buying: stocks, bonds and cash</a>
       <a href="#time">Why time matters more than timing</a>
-      <a href="#diversification">One stock is a lottery ticket; the market is the lottery</a>
+      <a href="#diversification">Owning the whole market vs. picking stocks</a>
+      <a href="#individual-stocks">If you want to own individual stocks</a>
       <a href="#index-funds">Index funds: owning the whole haystack</a>
       <a href="#fees">What fees really cost (calculator)</a>
       <a href="#allocation">The stock/bond dial (explorer)</a>
@@ -287,7 +290,7 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
 
   <section id="diversification">
     <p class="eyebrow">Diversification</p>
-    <h2>One stock is a lottery ticket; the market is the lottery</h2>
+    <h2>Owning the whole market vs. picking stocks</h2>
     <p class="lede">The S&amp;P 500's 10% a year is the return of owning all of it. Owning a handful of individual companies is a very different bet, because the market's long-run gains come from a surprisingly small number of huge winners.</p>
 
     <div class="chart-card">
@@ -300,12 +303,57 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
     </div>
 
     <p style="margin-top:22px;">Finance professor Hendrik Bessembinder traced every U.S. stock listed since 1926 and found that about <strong>4% of companies accounted for all of the stock market's net wealth creation</strong>. The other 96%, taken together, did no better than one-month Treasury bills. A later global study found the same pattern from 1991 to 2020: <strong>55% of U.S. stocks</strong> returned less than T-bills over their lifetimes, and the top 2.4% of companies worldwide produced all $75.7 trillion of net wealth created.</p>
-    <p>If you own five or ten stocks, the odds are good that you'll miss most of the handful that end up mattering. If you own all of them, you are guaranteed to hold every one of the eventual winners. That's what diversification buys: it doesn't raise the market's average, it makes sure you actually get it. The same logic stretches in three directions:</p>
+    <p>If you own five or ten stocks, the odds are good that you'll miss most of the handful that end up mattering. If you own all of them, you are guaranteed to hold every one of the eventual winners. That's what diversification buys: it doesn't raise the market's average, it makes sure you actually get it. (That isn't the same as saying stock picking can't work. It means the fewer companies you hold, the wider the range of outcomes, in both directions. The next part covers how to do it sensibly.) The same logic stretches in three directions:</p>
     <ul class="plain">
       <li><strong>Across companies:</strong> thousands, not dozens. A total-market index fund holds essentially every public U.S. company.</li>
       <li><strong>Across countries:</strong> U.S. stocks are close to two-thirds of the world's stock market value (about 64% of the MSCI All Country World Index in September 2026), and leadership between the U.S. and the rest of the world has swung back and forth over the decades. An international fund covers the other part.</li>
       <li><strong>Across asset types:</strong> bonds and cash don't fall with stocks in most bad years (2022 was the painful exception), which is what makes the stock/bond dial <a href="#allocation">further down</a> work.</li>
     </ul>
+  </section>
+
+  <hr class="rule">
+
+  <section id="individual-stocks">
+    <p class="eyebrow">A fair hearing</p>
+    <h2>If you want to own individual stocks</h2>
+    <p class="lede">Index funds are the safer default, not the only road. Many long-term investors have built real wealth owning individual companies, some of them for decades. What separates the ones who did well from the ones who got hurt is rarely brilliance. It's a handful of habits that keep a stock portfolio from turning into a concentrated bet.</p>
+
+    <div class="verdicts three">
+      <div class="verdict good">
+        <div class="book-label">All index</div>
+        <h3>The baseline</h3>
+        <p>You get the market's return with almost no effort, cost or decisions to get wrong. The right fit for most people, and for anyone who doesn't enjoy researching companies.</p>
+      </div>
+      <div class="verdict neutral">
+        <div class="book-label">Core + satellite</div>
+        <h3>Index core, stocks around it</h3>
+        <p>Most of the money stays in index funds, and a smaller slice goes into companies you've researched. You keep the market's return on the bulk of your savings while having room to act on your own ideas. A common middle ground.</p>
+      </div>
+      <div class="verdict neutral">
+        <div class="book-label">Mostly individual</div>
+        <h3>A hand-built portfolio</h3>
+        <p>Works for investors who enjoy the research, hold many companies across industries, and stay patient for years. It takes more time and more nerve, and the results can land far above or far below the index.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">The caveats that make it work</h3>
+    <div class="lever-row" style="margin-top:10px;">
+      <div class="lever-tag">SPREAD</div>
+      <div><h3>Own enough companies, in different industries</h3><p>A few dozen companies across different industries, rather than five or ten in one favorite sector, reduces the damage any single failure can do. Keep any one stock to a small share of the total, and be especially careful with your employer's stock, since your paycheck already depends on that company.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">HOLD</div>
+      <div><h3>Think in years, and trade rarely</h3><p>The investors who do well with stocks usually buy businesses they understand and hold them through bad stretches. Frequent trading adds taxes (gains on shares held a year or less are taxed at your regular income rate, not the lower long-term rate) and more chances to buy high and sell low.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">SCORE</div>
+      <div><h3>Keep score honestly against the index</h3><p>Once a year, compare your portfolio's return, after taxes, with what the same money would have earned in a total-market index fund. If you're consistently behind, that's useful information, not a failure. Moving more into the index core is a perfectly good response.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">FIT</div>
+      <div><h3>Fit it into the rest of the plan</h3><p>Stocks you pick still count toward your stock/bond mix. Picking stocks doesn't mean skipping bonds, the emergency fund or the employer match. It also costs less than it used to: most major brokers now charge no commission on stock trades, and a stock has no yearly expense ratio.</p></div>
+    </div>
+    <p class="small-note" style="margin-top:16px;">A word on success stories: you mostly hear from the people whose picks worked. The research in the previous section is what the full picture looks like, winners and losers together. That's the reason to build in the habits above rather than rely on picking well.</p>
   </section>
 
   <hr class="rule">
@@ -463,6 +511,7 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
         <p>A fixed-mix balanced index fund, or an automated service that builds and rebalances an index portfolio for you. Robo-advisors add a management fee on top of the funds, so check the all-in cost against the other two.</p>
       </div>
     </div>
+    <p class="small-note" style="margin-top:16px;">Any of the three also works as the core of a core-and-satellite portfolio, with <a href="#individual-stocks">individual stocks</a> held around it.</p>
 
     <h3 style="margin-top:32px; font-size:19px; font-style:normal;">Habits that matter more than the fund you pick</h3>
     <div class="lever-row" style="margin-top:10px;">
@@ -484,31 +533,32 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   <section id="judge">
     <p class="eyebrow">Why this piece comes first</p>
     <h2>Using the baseline to judge everything else</h2>
-    <p class="lede">This is the benchmark the rest of the library uses. Annuities, cash-value life insurance and managed accounts are each sold as an improvement on "just investing." The fair test is whether they beat this simple portfolio after all their costs, for your specific need.</p>
+    <p class="lede">This is the benchmark the rest of the library uses. Target-date funds, a portfolio of individual stocks, actively managed funds and insurance-based products are all alternatives to (or variations on) "just investing." The fair test is whether each one beats this simple portfolio after all its costs, for your specific need.</p>
 
     <p><strong>Five questions to ask about any financial product:</strong></p>
     <ul class="plain">
-      <li><strong>What does it cost all-in, per year?</strong> Include fund, advisory, rider and insurance charges, and any cost built into caps or spreads.</li>
+      <li><strong>What does it cost all-in, per year?</strong> Include fund and advisory fees, taxes from trading, and any insurance charges or costs built into caps.</li>
       <li><strong>What do I give up in a great year, and what am I protected from in a bad one?</strong> Then check whether that protection is worth the price, using the "time" chart above.</li>
       <li><strong>How and when can I get my money out, and what does leaving early cost?</strong></li>
       <li><strong>How is the person recommending it paid?</strong> A commission ties the pay to the sale, whether or not the product fits.</li>
       <li><strong>What is it being compared to?</strong> If the answer is a savings account or "the market with no floor," ask to see it compared with a low-cost index portfolio at your own stock/bond mix.</li>
     </ul>
 
-    <div class="tbl-wrap compare">
+    <div class="tbl-wrap compare wide-compare">
       <table>
-        <thead><tr><th></th><th class="base">Honest baseline (index portfolio)</th><th>Fixed indexed annuity</th><th>Whole life / IUL</th><th>Active funds + advisor</th></tr></thead>
+        <thead><tr><th></th><th class="base">Honest baseline (index portfolio)</th><th>Target-date fund</th><th>Individual stock portfolio</th><th>Actively managed funds</th><th>Cash-value policies</th></tr></thead>
         <tbody>
-          <tr><td>Yearly cost</td><td class="base">About 0.05%–0.3%, all-in</td><td>Built into caps and participation rates, plus rider fees (often around 1% a year) if you add income riders</td><td>Cost of insurance and policy charges, which rise with age</td><td>Around 0.6% in fund fees plus about 1% advisory, roughly 1.6%</td></tr>
-          <tr><td>In a great year</td><td class="base">The full market return, minus a sliver</td><td>Capped, often well below the index</td><td>Capped (IUL) or a declared dividend (whole life)</td><td>The market return, minus about 1.6%</td></tr>
-          <tr><td>In a terrible year</td><td class="base">You take the loss, cushioned by your bond share</td><td>0% floor, so no market loss</td><td>0% floor on credits, but charges keep coming out</td><td>You take the loss, plus the fee</td></tr>
-          <tr><td>Getting your money out</td><td class="base">Any business day (taxes and account rules aside)</td><td>Surrender charges, typically for 7–10 years</td><td>Surrender charges for many years; loans and withdrawals reduce the policy</td><td>Any business day</td></tr>
-          <tr><td>How the seller is paid</td><td class="base">No one is selling it</td><td>Commission, commonly 4%–7% of the premium</td><td>Commission, largely from first-year premiums</td><td>A percentage of your balance, every year</td></tr>
-          <tr><td>Where it can earn its place</td><td class="base">The default for long-term money</td><td>Guaranteed lifetime income, if you need it <a href="/finance/annuities-explained.html#where-it-fits">→</a></td><td>A permanent death benefit need <a href="/finance/life-insurance-explained.html#where-it-fits">→</a></td><td>Planning and behavioral coaching, if you'll actually use it</td></tr>
+          <tr><td>Yearly cost</td><td class="base">About 0.05%–0.3%, all-in</td><td>Averaged 0.27% in 2025; index versions cost much less</td><td>No expense ratio and usually no commission; the costs are your time and taxes when you sell</td><td>Averaged 0.64% in 2025, plus about 1% more if an advisor manages them</td><td>Built into the product (caps, insurance and rider charges), so harder to see</td></tr>
+          <tr><td>In a great year</td><td class="base">The full market return, minus a sliver</td><td>A bit less than all-stocks, because part is always in bonds</td><td>Whatever your companies do: well above or well below the market</td><td>The market return minus fees; most funds trail their index over 10+ years</td><td>Limited by caps or a declared rate</td></tr>
+          <tr><td>In a terrible year</td><td class="base">You take the loss, cushioned by your bond share</td><td>Cushioned by bonds, more so as the target year nears</td><td>Can be worse than the market if you're concentrated; one company can go to zero</td><td>You take the loss, plus the fee</td><td>Floors limit market losses, but fees keep coming out</td></tr>
+          <tr><td>Getting your money out</td><td class="base">Any business day (taxes and account rules aside)</td><td>Any business day</td><td>Any business day; selling winners can trigger capital-gains tax</td><td>Any business day</td><td>Surrender charges, often for many years</td></tr>
+          <tr><td>How the seller is paid</td><td class="base">No one is selling it</td><td>Usually no one; it's often a 401(k) default</td><td>No one, unless you use a paid advisor</td><td>The fund's fee, and sometimes a sales charge or advisor fee</td><td>A commission on the sale</td></tr>
+          <tr><td>Where it can earn its place</td><td class="base">The default for long-term money</td><td>The simplest one-decision version of the baseline</td><td>Investors with the time, diversification and patience, often as a slice around an index core</td><td>Rarely, since picking the few winning managers in advance is hard</td><td>Specific needs like guaranteed lifetime income or a permanent death benefit</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="small-note" style="margin-top:14px;">Rows are simplified to show how each product works in general, not any specific contract. The annuity and life insurance pieces show the real calculations. None of this means those products are never right. It means they have to show why they're worth more than the baseline.</p>
+    <div class="callout" style="margin-top:18px;"><strong>New to cash-value policies?</strong> This column covers annuities and permanent life insurance (whole life and IUL) only at a glance. They're complex products with their own vocabulary, so read up before buying one: <a href="/finance/annuities-explained.html">Annuities Explained</a> and <a href="/finance/life-insurance-explained.html">Life Insurance Explained</a> walk through how they work, what they really cost and when they make sense.</div>
+    <p class="small-note" style="margin-top:14px;">Rows are simplified to show how each option works in general, not any specific fund, stock or contract. None of this means the alternatives are never right. It means each one has to show why it's worth more than the baseline for your situation.</p>
   </section>
 
   <hr class="rule">
@@ -536,6 +586,7 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
       <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Take the full employer match</h3><p>Contribute at least enough to your 401(k) to get every matching dollar. It's the best return available anywhere.</p></div></div>
       <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Choose your stock/bond mix by date</h3><p>Use the dial above: when will you need this money, and what drop could you sit through without selling?</p></div></div>
       <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Pick one of the three baseline builds</h3><p>Target-date index fund, three-fund portfolio, or a balanced fund or robo-advisor. Look for broad index funds.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Adding individual stocks? Set your rules first</h3><p>Decide how much of your portfolio they get, how many companies across how many industries, and when you'll compare your results with the index. See <a href="#individual-stocks">the caveats</a>.</p></div></div>
       <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check every expense ratio</h3><p>Look up each fund's expense ratio. For broad index funds, anything much above 0.2% deserves a question. In a 401(k), the plan's index options are often the cheapest on the menu.</p></div></div>
       <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Automate it</h3><p>Payroll deduction or an automatic monthly transfer. Raise it whenever your pay goes up.</p></div></div>
       <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Put a yearly check-up on the calendar</h3><p>Rebalance to your target, confirm your beneficiaries, and skip the daily balance checks.</p></div></div>
@@ -550,7 +601,7 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
     <h2>Frequently asked, in plain language</h2>
     <div style="margin-top:20px;">
       <div class="faq-item"><h3>Is now a bad time to start? The market seems high.</h3><p>The market is at or near an all-time high a large share of the time, because over long periods it mostly goes up. Waiting for a drop means sitting in cash that has barely beaten inflation, and nobody reliably knows when the drop will come. Vanguard's research found that investing a lump sum right away beat spreading it out about three times in four. If you're nervous, automatic monthly investing is a fine compromise. The worst option is waiting indefinitely.</p></div>
-      <div class="faq-item"><h3>Can I just pick a few great companies I believe in?</h3><p>You can with a small "fun money" slice. But the research above shows that most individual stocks trail even T-bills over their lifetimes, and a few rare winners drive the market's gains. Owning a few stocks makes it very likely you'll miss those winners. Owning the index guarantees you'll hold them.</p></div>
+      <div class="faq-item"><h3>Can I build wealth picking my own stocks?</h3><p>Yes. Many long-term investors have, but the ones who do tend to own a few dozen companies across industries, hold for years, and keep a limit on any single stock. The risk is concentration: most individual stocks trail even T-bills over their lifetimes, and a few rare winners drive the market's gains, so a handful of picks can easily miss them. A popular middle ground is an index-fund core with a slice of individual stocks around it. Whatever you choose, compare your results with the index once a year. See <a href="#individual-stocks">If you want to own individual stocks</a>.</p></div>
       <div class="faq-item"><h3>ETF or mutual fund?</h3><p>For a long-term investor it matters much less than cost and what the fund holds. Inside a 401(k) you'll usually get mutual funds, and that's fine. In a regular brokerage account, ETFs are often a bit more tax-efficient. Either way, a broad index fund with a very low expense ratio is what you're looking for.</p></div>
       <div class="faq-item"><h3>Do I need international stocks?</h3><p>U.S. stocks have led the world for most of the past 15 years, but not in every era, and nobody knows which region will lead next. Owning both spreads your bet across the whole global economy. Target-date funds already include international stocks. In a three-fund portfolio, a common range is 20%–40% of the stock portion.</p></div>
       <div class="faq-item"><h3>What about gold, crypto, or real estate?</h3><p>Gold jumped about 66% in 2025 and has also gone through long stretches with no real gain. Unlike stocks and bonds, it produces no profits or interest. Crypto is even more volatile and has a much shorter history. Neither is part of the baseline. If you want some, treat it as a small side bet you could lose. Your home is real estate exposure already, and broad stock index funds include real estate companies.</p></div>
