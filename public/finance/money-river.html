@@ -1,0 +1,470 @@
+<meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>The Money River</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA;
+  --paper-raised:#FAFAF6;
+  --ink:#1C2431;
+  --ink-soft:#57606F;
+  --ink-faint:#8B93A0;
+  --rule:#D8D7C9;
+  --rule-strong:#B9B8A8;
+  --gold:#B8842A;
+  --teal:#0A8A73;
+  --rust:#A8462F;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+  --lane-income:#0A8A73;
+  --lane-cash:#00ADD8;
+  --lane-debt:#A8462F;
+  --lane-insurance:#7F78D6;
+  --lane-investing:#B8842A;
+  --lane-assets:#EC4F92;
+  --lane-family:#881998;
+  --lane-estate:#006AC9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250; --gold:#BB8A3A; --teal:#29A88F; --rust:#C96A4A;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+    --lane-income:#29A88F; --lane-cash:#0074B5; --lane-debt:#C96A4A; --lane-insurance:#7971D0;
+    --lane-investing:#BB8A3A; --lane-assets:#B30863; --lane-family:#BF6DCB; --lane-estate:#326AAC;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250; --gold:#BB8A3A; --teal:#29A88F; --rust:#C96A4A;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  --lane-income:#29A88F; --lane-cash:#0074B5; --lane-debt:#C96A4A; --lane-insurance:#7971D0;
+  --lane-investing:#BB8A3A; --lane-assets:#B30863; --lane-family:#BF6DCB; --lane-estate:#326AAC;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:1180px; margin:0 auto; padding:64px 28px 96px;}
+.prose{max-width:660px}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08; color:var(--ink);}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:720px; line-height:1.5;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; color:var(--ink); margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; color:var(--ink); margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7;}
+.ink-soft{color:var(--ink-soft)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+.tldr{background:color-mix(in srgb, var(--teal) 12%, transparent); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; color:var(--ink); margin:0;}
+
+.river-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:20px 20px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.river-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:10px;}
+.river-title{font-family:"Newsreader",serif; font-weight:600; font-size:17px;}
+.river-hint{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-faint);}
+.river-svg-wrap{overflow-x:auto; border-radius:3px;}
+svg.river{display:block; width:100%; height:auto; min-width:980px;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.lane-label{font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; fill:var(--ink);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.gridline-strong{stroke:var(--rule-strong); stroke-width:1;}
+.death-line{stroke:var(--ink-soft); stroke-width:1.5; stroke-dasharray:3,3;}
+.death-label{font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; fill:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em;}
+.heir-label{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:12.5px; fill:var(--ink);}
+.marker-dot{cursor:pointer; stroke:var(--paper-raised); stroke-width:1.5; pointer-events:none;}
+.marker-hit{fill:transparent; cursor:pointer;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-title{font-family:"Newsreader",serif; font-weight:600; font-size:13px; fill:var(--ink);}
+.tooltip-text{font-family:"Public Sans",sans-serif; font-size:11.5px; fill:var(--ink-soft);}
+.tooltip-age{font-family:"IBM Plex Mono",monospace; font-size:10px; fill:var(--ink-faint);}
+.river-foot{font-size:12px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace;}
+
+.lane-key{display:grid; grid-template-columns:1fr 1fr; gap:10px 28px; margin-top:24px;}
+@media (max-width:640px){ .lane-key{grid-template-columns:1fr} }
+.lane-key-item{display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--rule);}
+.lane-swatch{width:14px; height:14px; border-radius:3px; flex:0 0 auto; margin-top:3px;}
+.lane-key-item h3{font-size:15px; font-style:normal; margin-bottom:3px;}
+.lane-key-item p{font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px;}
+th,td{padding:9px 12px; text-align:left; vertical-align:top; border-bottom:1px solid var(--rule);}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong);}
+tbody td{color:var(--ink-soft); line-height:1.5;}
+tbody td:first-child{font-family:"IBM Plex Mono",monospace; color:var(--ink); white-space:nowrap;}
+tbody td.lane-cell{white-space:nowrap;}
+.lane-chip{display:inline-flex; align-items:center; gap:6px; font-family:"Public Sans",sans-serif; font-size:12.5px; color:var(--ink);}
+.lane-chip i{width:9px; height:9px; border-radius:2px; display:inline-block;}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px; font-style:normal;}
+.faq-item p{font-size:15.5px}
+
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — One Chart · Part of Personal Finance Library</p>
+    <h1>The Money River</h1>
+    <p class="subtitle">One life, one chart: pocket money at five to an estate settled at the end, with everything in between — income, savings, debt, insurance, investing, a home, a family, and finally what's left to pass on. Eight threads run the whole way; each one thickens, thins, and disappears exactly when the underlying thing does. Hover or tap any dot for the story behind it.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">How to read it</p>
+      <p>Age runs left to right, 5 to 90+. Each horizontal band is one thread of financial life — its thickness is roughly "how active or large this is right now," not a precise dollar scale. Bands appear when that thing starts (a first job, a mortgage, a first child) and disappear when it ends (debt paid off, kids independent) or taper together at the dashed line marking death, where whatever's left converges into the estate and forks to the next generation. This traces one representative path — married, a home, two kids, a career of steady raises — not a prediction or a template everyone should match.</p>
+    </div>
+  </header>
+
+  <section id="the-chart">
+    <div class="river-card">
+      <div class="river-head">
+        <div class="river-title">One lifetime, eight threads — age 5 to estate transfer</div>
+        <div class="river-hint">hover or tap a dot for detail</div>
+      </div>
+      <div class="river-svg-wrap"><svg class="river" id="money-river-svg" viewBox="0 0 1550 560" preserveAspectRatio="xMinYMin meet" role="img" aria-label="A braided timeline from age 5 to death showing eight overlapping financial threads — income, cash savings, debt, insurance, investing, major assets, family, and estate — each widening and narrowing as it becomes more or less active over a lifetime, ending with the estate forking into two heirs."></svg></div>
+      <div class="river-foot">Illustrative widths, not to a dollar scale. One representative life path — see the FAQ below for what varies for other paths.</div>
+    </div>
+  </section>
+
+  <section id="the-lanes">
+    <p class="eyebrow">Reading key</p>
+    <h2>The eight threads</h2>
+    <p class="lede" style="margin-top:14px;">What each band tracks, and roughly when it's usually alive.</p>
+
+    <div class="lane-key" id="lane-key"></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="milestone-table">
+    <p class="eyebrow">Full detail</p>
+    <h2>Every marker, in order</h2>
+    <p class="lede" style="margin-top:14px;">The same ~30 events plotted above, as a plain table — useful for scanning the whole sequence at once, or if hovering isn't convenient.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Age</th><th>Thread</th><th>Event</th><th>Why it's here</th></tr></thead>
+        <tbody id="milestone-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">Common questions</p>
+    <h2>Frequently asked, in plain language</h2>
+
+    <div class="faq-item">
+      <h3>Why does my life not look like this?</h3>
+      <p>Because this is deliberately one representative path — married with two kids, buys a home, works a steady career. Someone single, renting long-term, self-employed, or without kids would see several bands shift, shrink, or disappear entirely (no mortgage, a differently-timed family band, and so on). The mechanism — bands starting and ending with real events, converging at death — holds regardless of the specific path.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What does a band's thickness actually mean?</h3>
+      <p>Relative intensity or size within that thread, not a precise dollar amount — mortgage debt at its peak is drawn thicker than a starter emergency fund because it's a larger, more active part of that person's finances at that moment, not because of an exact ratio between them.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Where do I go for more depth on any one of these?</h3>
+      <p>The <a href="https://claude.ai/artifact/Q7CyrTyqaaWyQrwgTwEi76" style="color:var(--teal)">Money Roadmap</a> covers the vocabulary, the priority order, and life-stage detail behind most of these threads. <a href="https://claude.ai/code/artifact/32de41d2-154d-44ed-b560-316f3252cedc" style="color:var(--teal)">Annuities Explained</a> goes deep on one specific tool that sometimes shows up inside the Investing thread near retirement.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Why does the Estate thread barely exist until the very end?</h3>
+      <p>Legally, it mostly doesn't — a will and beneficiary forms are just paperwork sitting quietly in the background for decades. The thread spikes at death because that's the one moment everything else (remaining cash, investments, home equity, life insurance) actually becomes "the estate" and gets distributed.</p>
+    </div>
+  </section>
+
+  <footer>
+    Educational material, not a recommendation or financial advice. This traces one illustrative life path to show how financial threads relate to each other over time — actual timing, amounts, and which threads apply at all vary enormously by individual circumstances.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var svgns = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(svgns, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // ---------------- geometry ----------------
+  var W = 1550, H = 560;
+  var PAD_L = 150, AGE_MIN = 0, AGE_MAX = 93;
+  var PX_PER_YEAR = (W - PAD_L - 60) / (AGE_MAX - AGE_MIN);
+  function x(age){ return PAD_L + (age - AGE_MIN) * PX_PER_YEAR; }
+
+  var TOP = 54, TRACK_H = 58;
+  var LANES = [
+    {id:"income",    label:"Income & Career",          color:"var(--lane-income)",    track:0},
+    {id:"cash",      label:"Cash & Emergency Fund",    color:"var(--lane-cash)",      track:1},
+    {id:"debt",      label:"Debt",                     color:"var(--lane-debt)",      track:2},
+    {id:"insurance", label:"Insurance & Protection",   color:"var(--lane-insurance)", track:3},
+    {id:"investing", label:"Investing & Retirement",   color:"var(--lane-investing)", track:4},
+    {id:"assets",    label:"Major Assets",             color:"var(--lane-assets)",    track:5},
+    {id:"family",    label:"Family & Dependents",      color:"var(--lane-family)",    track:6},
+    {id:"estate",    label:"Estate & Legacy",          color:"var(--lane-estate)",    track:7}
+  ];
+  var laneById = {};
+  LANES.forEach(function(l){ l.centerY = TOP + l.track*TRACK_H + TRACK_H/2; laneById[l.id] = l; });
+
+  var LANE_DESC = {
+    income: "Paychecks, then Social Security. Starts with a childhood allowance, becomes a real paycheck at a first job, peaks mid-career, and steps down hard at retirement to whatever Social Security pays.",
+    cash: "Liquid savings held for the unexpected — starts as a small starter fund, grows to a full 3–6 month cushion, and stays roughly steady through retirement as a spending buffer.",
+    debt: "Every balance owed, combined: a first credit card, student loans, and — by far the largest — a mortgage. The one thread that's meant to shrink to zero on its own.",
+    insurance: "Whatever transfers risk to someone else: health coverage, renters/auto/home policies, term life once there are dependents, an umbrella policy, and Medicare from 65 on.",
+    investing: "Retirement and investment accounts — small 401(k) contributions at first, compounding for decades, then flipping from growth to a managed drawdown after retirement.",
+    assets: "Equity in things owned outright, mainly a home — small at first with a mortgage attached, then equal to the full value once that mortgage is paid off.",
+    family: "People who depend on this household's finances — starts at marriage, grows with kids, and narrows once they're financially independent.",
+    estate: "The legal paperwork (a will, beneficiary forms) sitting quietly in the background for decades, until death turns it into the vehicle that distributes everything else to the next generation."
+  };
+  var LANE_RANGE = {
+    income:"5–85", cash:"24–85", debt:"18–56", insurance:"22–85",
+    investing:"22–85", assets:"30–85", family:"28–85", estate:"30–92 (forks at 85)"
+  };
+
+  // width control points: [age, halfWidthPx]. Lane is only drawn across the age
+  // span its own points cover — nothing before the first point or after the last.
+  var WIDTH_POINTS = {
+    income:    [[5,1.5],[16,5],[18,5.5],[22,15],[30,17],[40,22],[50,25],[60,24],[66.9,23],[67,8],[75,6],[84.9,6],[85,0]],
+    cash:      [[24,2],[26,7],[35,13],[65,14],[80,15],[84.9,15],[85,0]],
+    debt:      [[18,1.5],[22,6],[26,4],[29,3],[30,22],[35,20],[40,17],[50,10],[54,4],[56,0]],
+    insurance: [[22,5],[28,7],[30,9],[32,15],[45,17],[58,10],[65,12],[80,13],[84.9,13],[85,0]],
+    investing: [[22,3],[30,8],[40,15],[50,20],[60,23],[67,22],[75,17],[84.9,10],[85,3]],
+    assets:    [[30,4],[40,9],[55,20],[75,21],[84.9,21],[85,0]],
+    family:    [[28,4],[32,10],[36,14],[58,7],[84.9,7],[85,0]],
+    estate:    [[30,1.5],[50,2],[83,2],[84.9,2],[85,26]]
+  };
+
+  // sample a lane's control points at 1-year resolution (linear), return [{age,half}]
+  function sampleLane(points){
+    var out = [];
+    for (var i=0;i<points.length-1;i++){
+      var a0=points[i][0], w0=points[i][1], a1=points[i+1][0], w1=points[i+1][1];
+      var steps = Math.max(1, Math.round(a1-a0));
+      for (var s=0; s<steps; s++){
+        var t = s/steps;
+        out.push({age: a0+(a1-a0)*t, half: w0+(w1-w0)*t});
+      }
+    }
+    out.push({age: points[points.length-1][0], half: points[points.length-1][1]});
+    return out;
+  }
+
+  // smooth a polyline (array of {x,y}) into a path 'd' fragment using
+  // quadratic midpoint smoothing; startCmd is "M" or "L" for the first point.
+  function smoothSegment(pts, startCmd){
+    if (pts.length === 1) return startCmd + " " + pts[0].x.toFixed(1) + " " + pts[0].y.toFixed(1);
+    var d = startCmd + " " + pts[0].x.toFixed(1) + " " + pts[0].y.toFixed(1);
+    for (var i=1;i<pts.length-1;i++){
+      var mx = (pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
+      d += " Q " + pts[i].x.toFixed(1) + " " + pts[i].y.toFixed(1) + " " + mx.toFixed(1) + " " + my.toFixed(1);
+    }
+    var last = pts[pts.length-1];
+    d += " L " + last.x.toFixed(1) + " " + last.y.toFixed(1);
+    return d;
+  }
+
+  function buildRibbonPath(lane){
+    var samples = sampleLane(WIDTH_POINTS[lane.id]);
+    var top = samples.map(function(p){ return {x:x(p.age), y:lane.centerY-p.half}; });
+    var bot = samples.map(function(p){ return {x:x(p.age), y:lane.centerY+p.half}; }).reverse();
+    return smoothSegment(top,"M") + " " + smoothSegment(bot,"L") + " Z";
+  }
+
+  var svg = document.getElementById("money-river-svg");
+
+  // background hit rect (dismisses pinned tooltip on tap-away)
+  var bgRect = el("rect", {x:0,y:0,width:W,height:H, fill:"transparent"});
+  svg.appendChild(bgRect);
+
+  // vertical age gridlines every 10 years, ticks every 5
+  for (var ga=0; ga<=90; ga+=5){
+    var strong = (ga % 10 === 0);
+    svg.appendChild(el("line", {x1:x(ga),x2:x(ga),y1:TOP-10,y2:TOP+8*TRACK_H, class: strong?"gridline-strong":"gridline"}));
+    if (strong){
+      var lab = el("text", {x:x(ga), y:TOP-16, class:"axis-label", "text-anchor":"middle"});
+      lab.textContent = "Age " + ga;
+      svg.appendChild(lab);
+    }
+  }
+
+  // lane ribbons + left-edge labels
+  LANES.forEach(function(lane){
+    var path = el("path", {d: buildRibbonPath(lane), fill: lane.color, opacity:0.88});
+    svg.appendChild(path);
+    var swatch = el("rect", {x:4, y:lane.centerY-6, width:9, height:9, rx:2, fill:lane.color});
+    svg.appendChild(swatch);
+    var lab = el("text", {x:18, y:lane.centerY+4, class:"lane-label"});
+    lab.textContent = lane.label;
+    svg.appendChild(lab);
+  });
+
+  // ---------------- death line + estate fork ----------------
+  var xDeath = x(85), xEnd = x(92);
+  var estateLane = laneById.estate;
+  svg.appendChild(el("line", {x1:xDeath, x2:xDeath, y1:TOP-24, y2:TOP+8*TRACK_H, class:"death-line"}));
+  var deathLab = el("text", {x:xDeath, y:TOP-30, class:"death-label", "text-anchor":"middle"});
+  deathLab.textContent = "Death · age 85";
+  svg.appendChild(deathLab);
+
+  function forkPath(x0,x1,topStart,botStart,topEnd,botEnd){
+    var midX = (x0+x1)/2;
+    var d = "M "+x0.toFixed(1)+" "+topStart.toFixed(1);
+    d += " C "+midX.toFixed(1)+" "+topStart.toFixed(1)+" "+midX.toFixed(1)+" "+topEnd.toFixed(1)+" "+x1.toFixed(1)+" "+topEnd.toFixed(1);
+    d += " L "+x1.toFixed(1)+" "+botEnd.toFixed(1);
+    d += " C "+midX.toFixed(1)+" "+botEnd.toFixed(1)+" "+midX.toFixed(1)+" "+botStart.toFixed(1)+" "+x0.toFixed(1)+" "+botStart.toFixed(1);
+    d += " Z";
+    return d;
+  }
+  var spikeTop = estateLane.centerY-26, spikeBot = estateLane.centerY+26;
+  var forkA = forkPath(xDeath, xEnd, spikeTop, estateLane.centerY, estateLane.centerY-22, estateLane.centerY-8);
+  var forkB = forkPath(xDeath, xEnd, estateLane.centerY, spikeBot, estateLane.centerY+8, estateLane.centerY+22);
+  svg.appendChild(el("path", {d:forkA, fill:estateLane.color, opacity:0.88}));
+  svg.appendChild(el("path", {d:forkB, fill:estateLane.color, opacity:0.88}));
+  var heirA = el("text", {x:xEnd+6, y:estateLane.centerY-13, class:"heir-label"});
+  heirA.textContent = "Heir 1";
+  svg.appendChild(heirA);
+  var heirB = el("text", {x:xEnd+6, y:estateLane.centerY+18, class:"heir-label"});
+  heirB.textContent = "Heir 2";
+  svg.appendChild(heirB);
+
+  // ---------------- milestones ----------------
+  var MILESTONES = [
+    [5,"income","First allowance","Pocket money — the first exposure to deciding what to do with money of your own."],
+    [16,"income","First job","A part-time job brings a real paycheck, and the first payroll taxes."],
+    [18,"debt","First credit card","Used carefully and paid in full each month, it starts the credit-history clock."],
+    [22,"income","Full-time career begins","Income steps up meaningfully; most of the other threads below start around here too."],
+    [22,"insurance","Employer health insurance","Often the first real insurance decision, bundled with a first full-time job."],
+    [22,"investing","401(k) enrollment","Contributing enough to capture the full employer match — the earliest high-priority step."],
+    [24,"cash","Starter emergency fund","A first $1,000–$2,000 cushion, built before tackling anything else."],
+    [26,"debt","Student loans paid off","Aggressive early payoff of higher-rate education debt."],
+    [28,"family","Marriage","Two incomes and two sets of debts and benefits — usually the first real combined-finances conversation."],
+    [30,"assets","Buys first home","A 20% down payment avoids private mortgage insurance."],
+    [30,"debt","Mortgage begins","The largest debt most people ever carry, amortizing over 15–30 years."],
+    [30,"estate","First will & beneficiary forms","Naming a guardian for future children and who inherits what — done proactively."],
+    [32,"family","First child","Dependents change almost every other thread: insurance, taxes, savings goals."],
+    [32,"insurance","Term life insurance","Sized to replace lost income for as long as a dependent would need it."],
+    [32,"investing","529 education savings","Started small and early rather than funded all at once later."],
+    [35,"cash","Full emergency fund","Three to six months of essential expenses, fully liquid."],
+    [40,"income","Peak earning years begin","Typically the highest-income, highest-savings-rate stretch of a career."],
+    [45,"insurance","Umbrella policy added","Extra liability coverage once net worth is meaningful."],
+    [50,"investing","Catch-up contributions","Extra 401(k)/IRA room opens at 50, and a larger “super” catch-up from 60–63."],
+    [50,"estate","Will, POA & healthcare proxy updated","Revisited as kids grow, income changes, or the family moves."],
+    [55,"debt","Mortgage paid off","The largest recurring expense of the last 25 years disappears."],
+    [58,"family","Kids financially independent","The household shrinks; insurance and savings targets shift with it."],
+    [62,"income","Earliest Social Security claiming age","Only 70% of the full benefit if claimed now instead of at Full Retirement Age — a permanent reduction."],
+    [65,"insurance","Medicare begins","A separate seven-month enrollment window around 65 — missing it means a lifelong late penalty."],
+    [67,"income","Retires; claims Social Security","At Full Retirement Age (67 for anyone born 1960+), paying 100% of the calculated benefit."],
+    [67,"investing","Accumulation flips to decumulation","The portfolio's job changes from growing to generating income built to last an unknown number of years."],
+    [75,"investing","Required Minimum Distributions begin","Mandatory annual withdrawals from traditional accounts, starting at 73 or 75 depending on birth year."],
+    [80,"insurance","Long-term care costs","Medicare covers only limited stays — a cost many end up self-funding or insuring separately."]
+  ];
+
+  // ---------------- shared tooltip ----------------
+  var tip = el("g", {class:"tooltip-group", opacity:0});
+  var tipBg = el("rect", {class:"tooltip-bg", rx:4});
+  var tipAge = el("text", {class:"tooltip-age"});
+  var tipTitle = el("text", {class:"tooltip-title"});
+  tip.appendChild(tipBg); tip.appendChild(tipAge); tip.appendChild(tipTitle);
+  var tipLines = [];
+  for (var li=0; li<4; li++){ var t = el("text", {class:"tooltip-text"}); tip.appendChild(t); tipLines.push(t); }
+
+  function wrapText(str, maxChars){
+    var words = str.split(" "), lines = [], cur = "";
+    words.forEach(function(w){
+      if ((cur + " " + w).trim().length > maxChars){ lines.push(cur.trim()); cur = w; }
+      else cur = (cur + " " + w).trim();
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function showTooltip(px, py, ageLabel, title, detail){
+    var lines = wrapText(detail, 40);
+    var tipW = 270, lineH = 15, tipH = 40 + lines.length*lineH;
+    var tx = px + 14;
+    if (tx + tipW > W - 10) tx = px - tipW - 14;
+    var ty = py - tipH/2;
+    if (ty < 4) ty = 4;
+    if (ty + tipH > H-4) ty = H-4-tipH;
+    tipBg.setAttribute("x", tx); tipBg.setAttribute("y", ty); tipBg.setAttribute("width", tipW); tipBg.setAttribute("height", tipH);
+    tipAge.setAttribute("x", tx+14); tipAge.setAttribute("y", ty+18); tipAge.textContent = ageLabel;
+    tipTitle.setAttribute("x", tx+14); tipTitle.setAttribute("y", ty+35); tipTitle.textContent = title;
+    tipLines.forEach(function(t,i){
+      if (i < lines.length){ t.setAttribute("x", tx+14); t.setAttribute("y", ty+52+i*lineH); t.textContent = lines[i]; t.setAttribute("opacity",1); }
+      else t.setAttribute("opacity",0);
+    });
+    tip.setAttribute("opacity", 1);
+  }
+  function hideTooltip(){ tip.setAttribute("opacity", 0); }
+  bgRect.addEventListener("click", hideTooltip);
+
+  MILESTONES.forEach(function(m){
+    var age = m[0], laneId = m[1], title = m[2], detail = m[3];
+    var lane = laneById[laneId];
+    var px = x(age), py = lane.centerY;
+    var hit = el("circle", {cx:px, cy:py, r:9, class:"marker-hit"});
+    var dot = el("circle", {cx:px, cy:py, r:4, fill:lane.color, class:"marker-dot"});
+    var titleEl = el("title", {});
+    titleEl.textContent = "Age " + age + " — " + title;
+    hit.appendChild(titleEl);
+    function show(){ showTooltip(px, py, "AGE " + age, title, detail); }
+    hit.addEventListener("mouseenter", show);
+    hit.addEventListener("mouseleave", hideTooltip);
+    hit.addEventListener("click", function(e){ e.stopPropagation(); show(); });
+    hit.addEventListener("touchstart", function(e){ e.preventDefault(); e.stopPropagation(); show(); }, {passive:false});
+    svg.appendChild(hit);
+    svg.appendChild(dot);
+  });
+
+  svg.appendChild(tip); // tooltip drawn last, on top
+
+  // ---------------- lane key (HTML) ----------------
+  var laneKeyEl = document.getElementById("lane-key");
+  LANES.forEach(function(lane){
+    var item = document.createElement("div");
+    item.className = "lane-key-item";
+    var swatch = document.createElement("div");
+    swatch.className = "lane-swatch";
+    swatch.style.background = lane.color;
+    var textWrap = document.createElement("div");
+    var h3 = document.createElement("h3");
+    h3.textContent = lane.label + " ";
+    var span = document.createElement("span");
+    span.style.color = "var(--ink-faint)";
+    span.style.fontFamily = "IBM Plex Mono, monospace";
+    span.style.fontSize = "11px";
+    span.style.fontWeight = "500";
+    span.textContent = "· ages " + LANE_RANGE[lane.id];
+    h3.appendChild(span);
+    var p = document.createElement("p");
+    p.textContent = LANE_DESC[lane.id];
+    textWrap.appendChild(h3); textWrap.appendChild(p);
+    item.appendChild(swatch); item.appendChild(textWrap);
+    laneKeyEl.appendChild(item);
+  });
+
+  // ---------------- milestone table (HTML) ----------------
+  var tbody = document.getElementById("milestone-tbody");
+  MILESTONES.forEach(function(m){
+    var age = m[0], laneId = m[1], title = m[2], detail = m[3];
+    var lane = laneById[laneId];
+    var tr = document.createElement("tr");
+    var tdAge = document.createElement("td"); tdAge.textContent = age;
+    var tdLane = document.createElement("td"); tdLane.className = "lane-cell";
+    tdLane.innerHTML = '<span class="lane-chip"><i style="background:' + lane.color + '"></i>' + lane.label + "</span>";
+    var tdTitle = document.createElement("td"); tdTitle.style.color = "var(--ink)"; tdTitle.style.fontWeight = "500"; tdTitle.textContent = title;
+    var tdDetail = document.createElement("td"); tdDetail.textContent = detail;
+    tr.appendChild(tdAge); tr.appendChild(tdLane); tr.appendChild(tdTitle); tr.appendChild(tdDetail);
+    tbody.appendChild(tr);
+  });
+})();
+</script>

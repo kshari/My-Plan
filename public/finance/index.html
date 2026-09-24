@@ -1,5 +1,5 @@
 <meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">
-<title>Money, Explained</title>
+<title>Personal Finance Library</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -67,22 +67,46 @@ a.card:hover{border-color:var(--rule-strong)}
 }
 .coming-chip strong{display:block; color:var(--ink-soft); font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:15.5px; margin-bottom:3px;}
 footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
 </style>
 
 <div class="wrap">
 
+  <a class="back-link" href="/">← Back to My Plan</a>
+
   <header class="masthead">
     <p class="eyebrow">A running personal-finance library</p>
-    <h1>Money, Explained</h1>
+    <h1>Personal Finance Library</h1>
     <p class="subtitle">Plain-language, numbers-first explainers on how financial products actually work — mechanics, trade-offs, and where each one fits in a real financial life. Built to share with friends and family, one topic at a time.</p>
   </header>
+
+  <section>
+    <p class="topic-label">Foundations</p>
+    <div class="card-list">
+      <a class="card primary" href="/finance/money-river.html">
+        <span class="card-arrow">↗</span>
+        <div class="card-kicker">Start here</div>
+        <div class="card-title">The Money River</div>
+        <div class="card-desc">One life, one chart: pocket money at five to an estate settled at the end. Income, saving, debt, insurance, investing, a home, a family, and what's left to pass on — eight threads running the whole way, each one thickening, thinning, and disappearing exactly when the underlying thing does. The fastest way to see how it all fits together before going deep on any one piece.</div>
+      </a>
+      <a class="card secondary" href="/finance/money-roadmap.html">
+        <span class="card-arrow">↗</span>
+        <div class="card-kicker">Then, the details</div>
+        <div class="card-title">The Money Roadmap</div>
+        <div class="card-desc">The core moves (earn, spend, save, protect), the priority order for where money should go first, and a stage-by-stage guide from starting out through nearing retirement — three levels, roughly matched to where you are in life. Read this once the river has shown you the shape of the whole thing.</div>
+      </a>
+    </div>
+  </section>
+
+  <hr class="rule">
 
   <section>
     <p class="topic-label">Topic 01 — Annuities</p>
     <div class="card-list">
       <a class="card primary" href="/finance/annuities-explained.html">
         <span class="card-arrow">↗</span>
-        <div class="card-kicker">Start here</div>
+        <div class="card-kicker">Deep dive</div>
         <div class="card-title">Annuities Explained</div>
         <div class="card-desc">The major components of annuity products, from a personal-finance perspective — what they are, how the main types compare, how indexed crediting actually works, what the sales pitch highlights (and what it costs), what it's really worth to the policyholder, who's paying whom, and where annuities fit in the bigger financial picture. A buyer's checklist, FAQ, and glossary included.</div>
       </a>
@@ -104,12 +128,25 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   <hr class="rule">
 
   <section>
+    <p class="topic-label">Topic 02 — Life Insurance</p>
+    <div class="card-list">
+      <a class="card primary" href="/finance/life-insurance-explained.html">
+        <span class="card-arrow">↗</span>
+        <div class="card-kicker">Start here</div>
+        <div class="card-title">Life Insurance Explained</div>
+        <div class="card-desc">What life insurance actually is, how the main policy types compare, and a deep dive into the two permanent types getting the most sales dollars — whole life and indexed universal life (IUL): how each credits cash value, cost of insurance and the fees that grow with age, what the sales pitch highlights (and what it costs), a 20-year worked example against buying term and investing the difference, who's paying whom, and where permanent insurance actually fits. A buyer's checklist, FAQ, and glossary included.</div>
+      </a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
     <p class="topic-label" style="color:var(--ink-faint)">Coming next</p>
-    <p style="max-width:560px;">More topics will land here the same way this one did: mechanics first, then the trade-offs, then where it fits in a real plan.</p>
+    <p style="max-width:560px;">More topics will land here the same way these did: mechanics first, then the trade-offs, then where it fits in a real plan.</p>
     <div class="coming-grid">
       <div class="coming-chip"><strong>Mortgages</strong>Fixed vs. adjustable, points, refinancing math.</div>
       <div class="coming-chip"><strong>Index funds vs. active management</strong>Fees, taxes, and what actually explains the gap.</div>
-      <div class="coming-chip"><strong>Life insurance</strong>Term vs. whole/universal, and who actually needs which.</div>
       <div class="coming-chip"><strong>Tax-advantaged accounts</strong>401(k), IRA, Roth, HSA — ordering and trade-offs.</div>
     </div>
   </section>
