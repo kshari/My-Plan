@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Which Account?</title>
+<meta name="description" content="Which Account? Where Each Dollar Goes — 401(k), IRA, Roth, HSA, 529 and taxable accounts, the order to fill them, and 2026 limits.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Investing &amp; Retirement · Part of Personal Finance Library</p>
+    <h1>Which Account? Where Each Dollar Goes</h1>
+    <p class="subtitle">401(k), IRA, Roth, HSA, 529, a plain brokerage account: what each one actually is, what it does with your taxes, and the order to fill them in. Includes a planner that takes the amount you can save each year and shows where each dollar should go, using 2026 limits.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>An account isn't an investment. It's a <strong>tax wrapper</strong> around your investments, and the wrapper decides when the IRS takes its share: now (Roth), later (traditional), for medical costs never (HSA), or a little every year (a regular brokerage account). The order that works for most people follows the <a href="/finance/money-roadmap.html#priority-waterfall">Money Roadmap</a>: a small emergency fund, then <strong>enough in your 401(k) to get the full employer match</strong>, then pay off high-interest debt, finish the emergency fund, fill an <strong>HSA</strong> if you can, then an <strong>IRA</strong>, then the rest of the 401(k), then goals like a <strong>529</strong>, and only then a taxable account. For 2026 the limits are <strong>$24,500</strong> for a 401(k) (more from age 50), <strong>$7,500</strong> for an IRA, and <strong>$4,400 / $8,750</strong> for an HSA. Roth versus traditional comes down to one question: is your tax rate higher now or in retirement? If you can't tell, split between them. Inside every account, the investments are the same honest baseline from <a href="/finance/investing-basics.html">Investing Basics</a>.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#wrappers">Accounts are wrappers, not investments</a>
+      <a href="#order">The order: where each dollar goes (planner)</a>
+      <a href="#accounts">The accounts, one at a time</a>
+      <a href="#roth-vs-traditional">Roth or traditional? Pay the tax now or later</a>
+      <a href="#limits">2026 limits on one page</a>
+      <a href="#access">Getting money out early</a>
+      <a href="#mistakes">Common, costly mistakes</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A setup checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="wrappers">
+    <p class="eyebrow">Start here</p>
+    <h2>Accounts are wrappers, not investments</h2>
+    <p class="lede">People say "I have a Roth" or "I'm in my 401(k)" as if those were investments. They aren't. Each is a container with its own tax rules, and inside it you choose the actual investments, ideally the low-cost index funds from <a href="/finance/investing-basics.html">Investing Basics</a>. The same fund can sit in any of them. What changes is when, and whether, you pay tax.</p>
+
+    <p>Money in an account can be taxed at three points: when you put it in, while it grows, and when you take it out. Every account type is just a different combination of those three.</p>
+
+    <div class="tbl-wrap taxmap">
+      <table>
+        <thead><tr><th>Account</th><th>Going in</th><th>While it grows</th><th>Coming out</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Traditional 401(k) / IRA</strong></td><td><span class="tag free">Tax break now</span><span class="sub">Contributions lower this year's taxable income</span></td><td><span class="tag free">No tax</span></td><td><span class="tag tax">Taxed as income</span><span class="sub">Every dollar withdrawn, at your rate then</span></td></tr>
+          <tr><td><strong>Roth 401(k) / Roth IRA</strong></td><td><span class="tag tax">Taxed now</span><span class="sub">You contribute money you've already paid tax on</span></td><td><span class="tag free">No tax</span></td><td><span class="tag free">Tax-free</span><span class="sub">After age 59½ and 5 years</span></td></tr>
+          <tr><td><strong>HSA</strong></td><td><span class="tag free">Tax break now</span></td><td><span class="tag free">No tax</span></td><td><span class="tag free">Tax-free for medical</span><span class="sub">Other uses taxed like a traditional IRA after 65</span></td></tr>
+          <tr><td><strong>529 education plan</strong></td><td><span class="tag part">Taxed now</span><span class="sub">Many states give a state tax deduction</span></td><td><span class="tag free">No tax</span></td><td><span class="tag free">Tax-free for education</span></td></tr>
+          <tr><td><strong>Taxable brokerage</strong></td><td><span class="tag tax">Taxed now</span></td><td><span class="tag part">Partly taxed</span><span class="sub">Dividends and any gains you realize, each year</span></td><td><span class="tag part">Gains taxed</span><span class="sub">Only the growth, usually at lower capital-gains rates</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:20px;">The trade for all those breaks is <strong>rules</strong>: yearly contribution limits, and penalties for taking money out early or for the wrong purpose. The brokerage account has no limits and no restrictions, which is exactly why it comes last. Every other account gives you a tax deal in exchange for patience.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="order">
+    <p class="eyebrow">The core of this episode</p>
+    <h2>The order: where each dollar goes</h2>
+    <p class="lede">Fill the accounts in the same order as the <a href="/finance/money-roadmap.html#priority-waterfall">Money Roadmap's priority list</a>. Each step beats the one after it on guaranteed return, tax benefit, or safety. Put in what you can save in a year and your situation, and the planner pours it down the list.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Your yearly savings, poured down the list</div>
+      </div>
+      <div class="presets" role="group" aria-label="Example households">
+        <span>Try</span>
+        <button type="button" data-preset="first" aria-pressed="true">First job, 24</button>
+        <button type="button" data-preset="family" aria-pressed="false">Family of four, 38</button>
+        <button type="button" data-preset="peak" aria-pressed="false">Peak earner, 57</button>
+      </div>
+      <div class="planner" id="planner">
+        <div class="field"><label for="p-save">Amount you can save this year</label><input id="p-save" type="number" min="0" step="500" inputmode="numeric"></div>
+        <div class="field"><label for="p-salary">Salary at the job with a 401(k)</label><input id="p-salary" type="number" min="0" step="1000" inputmode="numeric"></div>
+        <div class="field"><label for="p-match">Employer match</label>
+          <select id="p-match">
+            <option value="0,0">No match / no 401(k)</option>
+            <option value="0.5,6">50% of the first 6% of pay</option>
+            <option value="1,3">100% of the first 3%</option>
+            <option value="1,4">100% of the first 4%</option>
+            <option value="safe">100% of 3% + 50% of the next 2%</option>
+            <option value="1,6">100% of the first 6%</option>
+          </select></div>
+        <div class="field"><label for="p-filing">Tax filing status</label>
+          <select id="p-filing"><option value="single">Single</option><option value="mfj">Married, filing jointly</option></select></div>
+        <div class="field"><label for="p-income">Household income (for Roth IRA limits)</label><input id="p-income" type="number" min="0" step="1000" inputmode="numeric"></div>
+        <div class="field"><label for="p-age">Your age</label>
+          <select id="p-age"><option value="u50">Under 50</option><option value="50">50–54</option><option value="55">55–59</option><option value="60">60–63</option><option value="64">64 and older</option></select></div>
+        <div class="field"><label for="p-hsa">HSA-eligible health plan?</label>
+          <select id="p-hsa"><option value="none">No</option><option value="self">Yes, self-only</option><option value="family">Yes, family</option></select></div>
+        <div class="field"><label for="p-debt">High-interest debt (credit cards, etc.)</label><input id="p-debt" type="number" min="0" step="500" inputmode="numeric"></div>
+        <div class="field"><label for="p-ef">Emergency fund still to build</label><input id="p-ef" type="number" min="0" step="500" inputmode="numeric"></div>
+        <div class="field"><label for="p-529">Education savings goal this year (529)</label><input id="p-529" type="number" min="0" step="500" inputmode="numeric"></div>
+      </div>
+
+      <div class="plan-summary" id="plan-summary" aria-live="polite"></div>
+      <div class="legend-inline" aria-hidden="true">
+        <span><i class="swatch" style="background:var(--ink-faint)"></i>Safety cash</span>
+        <span><i class="swatch" style="background:var(--rust)"></i>Debt</span>
+        <span><i class="swatch" style="background:var(--gold)"></i>Retirement accounts</span>
+        <span><i class="swatch" style="background:var(--blue)"></i>Health (HSA)</span>
+        <span><i class="swatch" style="background:var(--plum)"></i>Other goals</span>
+        <span><i class="swatch" style="background:var(--teal)"></i>Taxable</span>
+      </div>
+      <div class="buckets" id="buckets"></div>
+      <div class="bonus" id="plan-tiles"></div>
+      <div class="chart-foot">2026 federal limits. Bars show how full each step gets; hatched steps don't apply to you. The starter emergency fund is the first $2,000 of the gap, per the Roadmap. Married: IRA room is doubled for a spousal IRA; if you both have 401(k)s, the second one's room is extra space before the taxable step. Not tax advice; your plan's rules and state taxes can change the picture.</div>
+    </div>
+
+    <h3 style="margin-top:30px; font-size:19px; font-style:normal;">Why the steps come in this order</h3>
+    <div class="lever-row" style="margin-top:10px;">
+      <div class="lever-tag">01 · 04</div>
+      <div><h3>Emergency cash brackets everything</h3><p>A small cushion comes first so a car repair doesn't land on a credit card, and the full three to six months comes once the match and expensive debt are handled. Where to hold it is its own topic (<a href="/finance/index.html#piece-9">Where to Keep Your Cash</a>, coming in Tier 2).</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">02</div>
+      <div><h3>The match is an instant 50%–100% return</h3><p>If your employer puts in 50 cents for every dollar you contribute, that's a 50% gain before the money is invested at all. Nothing else on this list is guaranteed to come close. The average employer contribution in Vanguard's plans hit a record 4.7% of pay in 2025. Not taking it is the costliest mistake on this page.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">03</div>
+      <div><h3>Credit card debt beats any investment</h3><p>Paying off a card charging 20%+ is a guaranteed 20%+ return. No account on this list reliably earns that.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">05</div>
+      <div><h3>The HSA is the only triple tax break</h3><p>Money goes in untaxed, grows untaxed, and comes out untaxed for medical costs, which everyone eventually has. That's why it jumps ahead of the IRA, if your health plan qualifies.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">06 · 07</div>
+      <div><h3>IRA, then back to the 401(k)</h3><p>After the match, an IRA usually offers a wider, cheaper fund menu than a workplace plan, and a Roth IRA's contributions stay reachable in a pinch. Once the IRA is full, go back and raise the 401(k) toward its $24,500 limit. If your 401(k) has excellent low-cost index funds, the order of these two matters less.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">08 · 09</div>
+      <div><h3>Other goals, then taxable investing</h3><p>A 529 for a child's education, a house down payment, extra payments on low-rate debt: these are weighed against each other by timeline, not in a fixed order. The Roadmap puts retirement room first because students can borrow for college, but nobody lends you money to retire. Anything left goes into a plain brokerage account with the same index funds.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="accounts">
+    <p class="eyebrow">Reference</p>
+    <h2>The accounts, one at a time</h2>
+    <p class="lede">Each card covers what the account is for, the 2026 limit, the tax deal, when you can get the money, and the thing people most often get wrong.</p>
+
+    <div class="acct-grid">
+      <div class="acct" style="--c:var(--gold)">
+        <div class="acct-kind">Workplace</div>
+        <h3>401(k), 403(b), 457(b), TSP</h3>
+        <p>Retirement plans run by your employer, funded straight from your paycheck. Most now offer both a traditional (pre-tax) and a Roth version: 98% of Vanguard-administered plans did at the end of 2025, though only 18% of workers used it.</p>
+        <dl>
+          <dt>2026 limit</dt><dd><strong>$24,500</strong> from you; +$8,000 catch-up at 50+, or +$11,250 at ages 60–63. Up to $72,000 total with employer money.</dd>
+          <dt>Tax</dt><dd>Traditional: deduct now, taxed later. Roth: taxed now, tax-free later.</dd>
+          <dt>Access</dt><dd>Generally from age 59½. Earlier usually means income tax plus a 10% penalty, with exceptions (leaving your job in or after the year you turn 55, for example). Many plans allow loans.</dd>
+          <dt>Watch for</dt><dd>High-fee fund menus (choose the index or target-date options), and a vesting schedule on the match. New for 2026: if your 2025 wages were over $150,000, catch-up contributions must go in as Roth.</dd>
+        </dl>
+      </div>
+      <div class="acct" style="--c:var(--teal)">
+        <div class="acct-kind">Individual · after-tax</div>
+        <h3>Roth IRA</h3>
+        <p>An account you open yourself at any brokerage. You contribute money you've already paid tax on, and everything, including decades of growth, comes out tax-free in retirement.</p>
+        <dl>
+          <dt>2026 limit</dt><dd><strong>$7,500</strong> (+$1,100 at 50+), shared with any traditional IRA. You need earned income at least equal to what you put in.</dd>
+          <dt>Income cap</dt><dd>Phases out between <strong>$153,000–$168,000</strong> (single) and <strong>$242,000–$252,000</strong> (married, joint).</dd>
+          <dt>Access</dt><dd>Your contributions can come out any time, tax- and penalty-free. Earnings are tax-free after 59½ once the account is 5 years old.</dd>
+          <dt>Watch for</dt><dd>Over the income cap? The "backdoor" route (a nondeductible traditional IRA converted to Roth) works, but get tax help if you have other pre-tax IRA money. The pro-rata rule can make part of the conversion taxable.</dd>
+        </dl>
+      </div>
+      <div class="acct" style="--c:var(--gold)">
+        <div class="acct-kind">Individual · pre-tax</div>
+        <h3>Traditional IRA</h3>
+        <p>The pre-tax version of the IRA. Most useful as the landing spot when you roll over an old 401(k), or for a deduction when you don't have a workplace plan.</p>
+        <dl>
+          <dt>2026 limit</dt><dd><strong>$7,500</strong> (+$1,100 at 50+), shared with any Roth IRA.</dd>
+          <dt>Deduction</dt><dd>Full if neither spouse has a workplace plan. If you do, it phases out at $81,000–$91,000 (single) or $129,000–$149,000 (joint). If only your spouse does, it phases out at $242,000–$252,000.</dd>
+          <dt>Access</dt><dd>Like a 401(k): taxed as income, 10% penalty before 59½ with some exceptions. Required withdrawals start at 73 (75 if born 1960 or later).</dd>
+          <dt>Watch for</dt><dd>Leaving a rollover in cash. Money moved into an IRA isn't invested until you choose investments.</dd>
+        </dl>
+      </div>
+      <div class="acct" style="--c:var(--blue)">
+        <div class="acct-kind">Health</div>
+        <h3>HSA (health savings account)</h3>
+        <p>A savings and investment account paired with a high-deductible health plan. It's the only account that's tax-free going in, while growing, and coming out (for medical costs), and the money is yours for life, even if you change jobs or plans.</p>
+        <dl>
+          <dt>2026 limit</dt><dd><strong>$4,400</strong> self-only, <strong>$8,750</strong> family; +$1,000 from age 55.</dd>
+          <dt>Eligible if</dt><dd>Your plan's deductible is at least $1,700 (self) or $3,400 (family). New for 2026: bronze and catastrophic marketplace plans also qualify. No contributions once you're on Medicare.</dd>
+          <dt>Access</dt><dd>Tax-free for qualified medical costs any time. Other uses before 65: tax plus a 20% penalty. After 65: taxed like a traditional IRA, no penalty.</dd>
+          <dt>Watch for</dt><dd>Leaving it all in cash. If you can pay today's bills out of pocket, invest the HSA and keep receipts. You can reimburse yourself years later.</dd>
+        </dl>
+      </div>
+      <div class="acct" style="--c:var(--plum)">
+        <div class="acct-kind">Education</div>
+        <h3>529 plan</h3>
+        <p>State-sponsored education savings. You don't have to use your own state's plan, but many states give a tax deduction only for theirs.</p>
+        <dl>
+          <dt>Limit</dt><dd>No federal yearly cap. Contributions count as gifts ($19,000 per person per child in 2026 before any gift-tax paperwork).</dd>
+          <dt>Tax</dt><dd>Grows tax-free; withdrawals are tax-free for college, up to $20,000 a year of K–12 tuition (up from $10,000), and, since 2025, some K–12 costs and workforce credentials.</dd>
+          <dt>Leftovers</dt><dd>Switch to another family member, or roll up to $35,000 over the child's lifetime into their Roth IRA (account open 15+ years, within the yearly IRA limit).</dd>
+          <dt>Watch for</dt><dd>Non-qualified withdrawals pay tax plus a 10% penalty on the earnings. Some states haven't adopted the newer uses for state-tax purposes.</dd>
+        </dl>
+      </div>
+      <div class="acct" style="--c:var(--teal)">
+        <div class="acct-kind">No strings</div>
+        <h3>Taxable brokerage account</h3>
+        <p>A regular investment account. No limits, no penalties, no age rules. You pay tax on dividends and on gains when you sell.</p>
+        <dl>
+          <dt>Limit</dt><dd>None.</dd>
+          <dt>Tax</dt><dd>Long-term gains (held over a year) are taxed at 0% up to $49,450 of taxable income (single) or $98,900 (joint) in 2026, 15% above that, and 20% at the top. Short-term gains are taxed as ordinary income.</dd>
+          <dt>Best for</dt><dd>Goals before 59½, and money beyond the other accounts' limits. Broad index funds and ETFs keep the yearly tax bill low.</dd>
+          <dt>Watch for</dt><dd>Frequent selling, which turns long-term growth into this year's tax bill.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">Also on the menu</h3>
+    <ul class="plain" style="margin-top:10px;">
+      <li><strong>Self-employed?</strong> A Solo 401(k) or SEP IRA lets you save as both employee and employer, up to $72,000 in 2026 depending on your earnings.</li>
+      <li><strong>Trump accounts (new in 2026).</strong> A retirement-style account for children under 18. Children born 2025–2028 can get a one-time $1,000 government deposit, and families can add up to $5,000 a year (employers up to $2,500 of that) since July 4, 2026. The money must sit in low-cost U.S. stock index funds, and from 18 the account follows traditional-IRA rules. For college savings a 529 is usually better. <em>Kids &amp; Money</em> (Tier 2) compares them.</li>
+      <li><strong>Flexible spending accounts (FSAs).</strong> Not investment accounts, but real tax breaks: up to $3,400 for health costs and, new for 2026, up to $7,500 per household for dependent care (up from $5,000). Mostly use-it-or-lose-it within the year.</li>
+    </ul>
+  </section>
+
+  <hr class="rule">
+
+  <section id="roth-vs-traditional">
+    <p class="eyebrow">The big choice inside most accounts</p>
+    <h2>Roth or traditional? Pay the tax now or later</h2>
+    <p class="lede">This decision sounds complicated, but it rests on one comparison: <strong>your tax rate on this money today, versus your tax rate when you take it out</strong>. If the rates are equal, the two come out exactly the same. Try it.</p>
+
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">The same paycheck money, two ways, after all taxes</div></div>
+      <div class="controls">
+        <div class="control"><label for="r-amt">Set aside from pay (before tax) <output id="o-amt"></output></label><input type="range" id="r-amt" min="1000" max="24500" step="500" value="6000"></div>
+        <div class="control"><label for="r-years">Years until you withdraw <output id="o-ryears"></output></label><input type="range" id="r-years" min="5" max="45" step="1" value="30"></div>
+        <div class="control"><label for="r-now">Your tax rate now (federal bracket + state) <output id="o-now"></output></label><input type="range" id="r-now" min="0" max="45" step="1" value="27"></div>
+        <div class="control"><label for="r-later">Your tax rate when you withdraw <output id="o-later"></output></label><input type="range" id="r-later" min="0" max="45" step="1" value="17"></div>
+      </div>
+      <div class="rt-bars" id="rt-bars"></div>
+      <div class="rt-verdict" id="rt-verdict" aria-live="polite"></div>
+      <div class="chart-foot">Assumes a steady 7% yearly return and that the paycheck cost is the same either way: traditional invests the full amount pre-tax; Roth invests what's left after tax. Try setting both rates equal. The defaults are a 22% federal bracket plus a 5% state tax now, and 12% plus 5% in retirement.</div>
+    </div>
+
+    <p style="margin-top:22px;">For reference, 2026 federal brackets on <em>taxable</em> income (after the $16,100 single / $32,200 joint standard deduction): <strong>12%</strong> up to $50,400 single or $100,800 joint, <strong>22%</strong> up to $105,700 / $211,400, <strong>24%</strong> up to $201,775 / $403,550, then 32%, 35% and 37%. Taxes 101 (the next episode) explains why your bracket and your average rate are different numbers.</p>
+
+    <div class="verdicts">
+      <div class="verdict good">
+        <div class="book-label">Lean Roth if —</div>
+        <h3>your tax rate is low now, or likely to rise</h3>
+        <p>Early career in the 10%–12% brackets, a big income jump ahead, or already holding plenty of pre-tax money. Roth money also has no required withdrawals (Roth 401(k)s included, since 2024), and heirs inherit it tax-free. A maxed Roth also holds more after-tax money than a maxed traditional account, because the limit is the same dollar amount.</p>
+      </div>
+      <div class="verdict neutral">
+        <div class="book-label">Lean traditional if —</div>
+        <h3>you're in your peak earning years</h3>
+        <p>In the 22%–24% brackets or higher now and expecting less income in retirement. The deduction also lowers this year's adjusted gross income, which can help you qualify for credits and subsidies. Withdrawals in retirement fill the low brackets first, so your average rate then is often lower than your top rate today.</p>
+      </div>
+    </div>
+    <div class="callout"><strong>Can't tell? Split it.</strong> Nobody knows future tax rates. Putting some money in each gives you <em>tax diversification</em>: in retirement you can pull from whichever bucket costs less in tax that year. Also note that employer matches usually go in as pre-tax money even if you choose Roth, so most people end up with some of both anyway.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="limits">
+    <p class="eyebrow">Reference</p>
+    <h2>2026 limits on one page</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Account</th><th>Under 50</th><th>50+</th><th>Ages 60–63</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>401(k), 403(b), 457(b), TSP</td><td>$24,500</td><td>$32,500</td><td>$35,750</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">$72,000 total with employer</td></tr>
+          <tr><td>IRA (traditional + Roth combined)</td><td>$7,500</td><td>$8,600</td><td>$8,600</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">Roth income limits apply</td></tr>
+          <tr><td>HSA, self-only</td><td>$4,400</td><td>$4,400 · $5,400 at 55+</td><td>$5,400</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">+$1,000 from age 55</td></tr>
+          <tr><td>HSA, family</td><td>$8,750</td><td>$8,750 · $9,750 at 55+</td><td>$9,750</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">+$1,000 from age 55</td></tr>
+          <tr><td>SIMPLE IRA</td><td colspan="3" style="text-align:center">$17,000, plus catch-ups</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">Small-employer plan; $18,100 at some employers</td></tr>
+          <tr><td>Solo 401(k) / SEP IRA</td><td colspan="3" style="text-align:center">Up to $72,000 (based on earnings)</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">Self-employed</td></tr>
+          <tr><td>529 plan</td><td colspan="3" style="text-align:center">No federal cap</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">$19,000/yr gift exclusion per giver</td></tr>
+          <tr><td>Trump account (child)</td><td colspan="3" style="text-align:center">$5,000 a year</td><td style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">Under 18 only</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:12px;">HSA catch-ups start at 55, not 50, and one catch-up applies per account holder. A married couple where both are 55+ needs two HSAs to use both. SIMPLE IRA limits vary by employer size; check your plan.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="access">
+    <p class="eyebrow">The fine print that matters</p>
+    <h2>Getting money out early</h2>
+    <p class="lede">The biggest worry about retirement accounts is "what if I need the money?" The rules are less locking than most people think, but each account has its own.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Account</th><th>Before 59½ (or 65 for HSA)</th><th>Ways around the penalty</th></tr></thead>
+        <tbody>
+          <tr><td>401(k) / 403(b)</td><td>Income tax + 10% penalty</td><td>Plan loans; leaving your job in or after the year you turn 55; disability; and other IRS exceptions. Governmental 457(b) plans have no 10% penalty after you leave the employer.</td></tr>
+          <tr><td>Traditional IRA</td><td>Income tax + 10% penalty</td><td>Several IRS exceptions (first-home purchase up to $10,000 lifetime, higher education, disability, some medical costs).</td></tr>
+          <tr><td>Roth IRA</td><td>Contributions: nothing. Earnings: tax + 10%</td><td>Your own contributions always come out first, tax- and penalty-free.</td></tr>
+          <tr><td>HSA</td><td>Medical: nothing. Other uses: tax + 20%</td><td>Any qualified medical expense, including old ones with receipts.</td></tr>
+          <tr><td>529</td><td>Education: nothing. Other uses: tax + 10% on earnings</td><td>Change the beneficiary, or the Roth IRA rollover for leftovers.</td></tr>
+          <tr><td>Taxable brokerage</td><td>Tax on gains only</td><td>No restrictions at all.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="mistakes">
+    <p class="eyebrow">Avoid these</p>
+    <h2>Common, costly mistakes</h2>
+    <div class="lever-row" style="margin-top:18px;"><div class="lever-tag">01</div><div><h3>Leaving the match on the table</h3><p>Contributing 3% when your employer matches up to 6% gives away free pay every year. Automatic enrollment often starts you below the match, so check your rate.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">02</div><div><h3>Cashing out an old 401(k) when you change jobs</h3><p>That triggers income tax plus a 10% penalty, and ends decades of growth. Leave it, roll it into the new plan, or do a direct rollover to an IRA.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">03</div><div><h3>Money sitting uninvested</h3><p>Contributions and rollovers into an IRA or HSA often land in cash until you pick investments. Opening the account is only step one.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">04</div><div><h3>Contributing to a Roth IRA over the income limit</h3><p>Excess contributions are charged a 6% penalty every year until fixed. If a raise pushes you into the phase-out range, check before contributing, or use the backdoor route.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">05</div><div><h3>Forgetting beneficiaries</h3><p>Retirement accounts pass by the beneficiary form, not your will. Update it after marriage, divorce, and births.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">06</div><div><h3>Picking an account for its product, not its tax deal</h3><p>An annuity or insurance policy sold "inside" a retirement account adds cost without adding any tax benefit, because the account is already tax-sheltered. Compare against the baseline in <a href="/finance/investing-basics.html#judge">Investing Basics</a>.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">This episode answers <em>where</em> money goes. <a href="/finance/investing-basics.html">Investing Basics</a> answers <em>what to hold</em> once it's there, and the <a href="/finance/money-roadmap.html">Money Roadmap</a> shows how the answer shifts as life changes. On the <a href="/finance/money-river.html">Money River</a>, this is the start of the Investing &amp; Retirement thread.</p>
+    <div class="next-links">
+      <a class="soon" href="/finance/index.html#piece-3"><div class="nl-k">Tier 1 · #3 · coming next</div><div class="nl-t">Taxes 101</div><div class="nl-d">Marginal vs. effective rates, capital gains, and which funds belong in which account.</div></a>
+      <a class="soon" href="/finance/index.html#piece-11"><div class="nl-k">Tier 2 · #11</div><div class="nl-t">Turning Savings into a Paycheck</div><div class="nl-d">Which accounts to draw from first, Roth conversions, and RMDs.</div></a>
+      <a href="/finance/investing-basics.html"><div class="nl-k">Tier 1 · #1</div><div class="nl-t">Investing Basics</div><div class="nl-d">What to put inside every one of these accounts.</div></a>
+      <a href="/finance/index.html#map"><div class="nl-k">Library</div><div class="nl-t">The library map</div><div class="nl-d">Every topic, on the line it belongs to.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A setup checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Find your match formula</h3><p>Look in your benefits portal or plan summary for how much the employer matches and the vesting schedule. Set your contribution to at least the full-match rate.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Choose the funds inside the 401(k)</h3><p>A target-date index fund or a broad index fund. Check each option's expense ratio.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check whether your health plan is HSA-eligible</h3><p>If it is, fund the HSA and switch its cash to investments beyond what you'll spend this year.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Open an IRA at a low-cost brokerage</h3><p>Roth if your income allows and your tax rate is modest now. Set up an automatic monthly transfer, and make sure it's invested, not sitting in cash.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Decide Roth vs. traditional for the 401(k)</h3><p>Use the comparison above. Unsure? Split it.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Round up old accounts</h3><p>List every old 401(k) and IRA. Consolidate where it simplifies things, by direct rollover only.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Name beneficiaries everywhere</h3><p>Every 401(k), IRA, HSA and 529 has its own form.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Raise your rate every year</h3><p>Add 1% each time you get a raise until you reach your target. Many plans can do this automatically.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>How much should I be saving in total?</h3><p>A common target is around 15% of pay for retirement, counting any employer match, started early. Vanguard's plan participants averaged 12.1% including employer money in 2025, a record. If that's out of reach, start with the match and raise your rate 1% a year.</p></div>
+      <div class="faq-item"><h3>401(k) or IRA first?</h3><p>401(k) first, up to the match. After that, the IRA usually wins on fund choice and cost, then return to the 401(k). If your 401(k) offers very cheap index funds, simply raising the 401(k) is fine too.</p></div>
+      <div class="faq-item"><h3>My 401(k) funds are expensive. Should I skip it?</h3><p>Never skip the match. It outweighs even high fees. Beyond the match, use the plan's cheapest broad index or target-date option, fill the IRA first, and when you leave the job, roll the money into a low-cost IRA.</p></div>
+      <div class="faq-item"><h3>I earn too much for a Roth IRA. Am I out of luck?</h3><p>No. A Roth 401(k) has no income limit, and the backdoor Roth IRA (contribute to a nondeductible traditional IRA, then convert) is allowed. If you hold other pre-tax IRA money, get tax help first because of the pro-rata rule.</p></div>
+      <div class="faq-item"><h3>Can my Roth IRA double as my emergency fund?</h3><p>It can serve as a backstop, since contributions come out penalty-free. But money you take out can't be put back beyond that year's limit, so you lose tax-free room for good. Keep the real emergency fund in cash.</p></div>
+      <div class="faq-item"><h3>529, Trump account, or custodial Roth IRA for my kids?</h3><p>For college, the 529 is the purpose-built tool. A custodial Roth IRA needs the child to have earned income. Trump accounts are new, retirement-style, and restricted until 18. <em>Kids &amp; Money</em> (Tier 2) covers all three side by side.</p></div>
+      <div class="faq-item"><h3>Should I pay down my mortgage instead?</h3><p>Usually not before the match, the HSA and IRA, since most mortgage rates are below long-run stock returns and have no tax shelter. It's a "step 08" goal weighed on rate and peace of mind. <em>Credit &amp; Debt</em> and <em>Rent vs. Buy &amp; Mortgages</em> (Tier 2) go deeper.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Tax-advantaged account</dt><dd>An account with a tax break (now, later, or both) in exchange for limits and withdrawal rules.</dd></div>
+      <div class="gterm"><dt>Traditional (pre-tax)</dt><dd>Contributions lower this year's taxable income; withdrawals are taxed as income.</dd></div>
+      <div class="gterm"><dt>Roth</dt><dd>Contributions are made with taxed money; qualified withdrawals are tax-free.</dd></div>
+      <div class="gterm"><dt>Employer match</dt><dd>Money your employer adds to your 401(k) based on what you contribute.</dd></div>
+      <div class="gterm"><dt>Vesting</dt><dd>The schedule by which employer contributions become fully yours.</dd></div>
+      <div class="gterm"><dt>Catch-up contribution</dt><dd>Extra contribution room from age 50 (401(k), IRA) or 55 (HSA).</dd></div>
+      <div class="gterm"><dt>Phase-out range</dt><dd>The income band over which a tax benefit (like Roth IRA eligibility) shrinks to zero.</dd></div>
+      <div class="gterm"><dt>MAGI</dt><dd>Modified adjusted gross income, the income figure used for Roth IRA and deduction limits.</dd></div>
+      <div class="gterm"><dt>Backdoor Roth</dt><dd>Contributing to a nondeductible traditional IRA, then converting it to a Roth.</dd></div>
+      <div class="gterm"><dt>Pro-rata rule</dt><dd>When converting, the IRS treats all your pre-tax IRA money together, which can make part of a conversion taxable.</dd></div>
+      <div class="gterm"><dt>Rollover</dt><dd>Moving retirement money between accounts without tax. Direct rollovers avoid withholding and mistakes.</dd></div>
+      <div class="gterm"><dt>RMD</dt><dd>Required minimum distribution: yearly withdrawals from pre-tax accounts starting at 73 or 75.</dd></div>
+      <div class="gterm"><dt>HDHP</dt><dd>High-deductible health plan: the kind of health insurance that makes you HSA-eligible.</dd></div>
+      <div class="gterm"><dt>Qualified expense</dt><dd>A use the account's tax break covers: medical for an HSA, education for a 529.</dd></div>
+      <div class="gterm"><dt>Taxable brokerage</dt><dd>A regular investment account with no special tax treatment and no restrictions.</dd></div>
+      <div class="gterm"><dt>Capital gain</dt><dd>Profit from selling an investment for more than you paid. Long-term (held over a year) gains get lower rates.</dd></div>
+      <div class="gterm"><dt>Marginal tax rate</dt><dd>The rate on your next dollar of income: your bracket.</dd></div>
+      <div class="gterm"><dt>Tax diversification</dt><dd>Holding both pre-tax and Roth money so you can choose which to draw from in retirement.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>401(k), IRA, catch-up, IRA deduction and Roth IRA phase-out figures, SIMPLE limits: IRS news release "401(k) limit increases to $24,500 for 2026, IRA limit increases to $7,500" (November 2025).</li>
+      <li>HSA and HDHP 2026 figures: IRS Rev. Proc. 2025-19 (via Thomson Reuters). HSA eligibility changes (bronze and catastrophic plans, direct primary care, telehealth): Treasury/IRS guidance under the One Big Beautiful Bill Act (Notice 2026-5).</li>
+      <li>Roth catch-up rule for 2025 FICA wages over $150,000: SECURE 2.0 §603, as summarized by CAPTRUST.</li>
+      <li>$72,000 annual additions limit, FSA limits ($3,400 health; $7,500 dependent care): Mayer Brown summary of 2026 IRS cost-of-living adjustments.</li>
+      <li>529 rules (K–12 $20,000, expanded expenses, $35,000 Roth rollover): Savingforcollege.com, "The Latest 529 Plan Rule Changes: What's New for 2026."</li>
+      <li>Trump accounts: Center for Retirement Research at Boston College, "Trump Accounts: A Primer for Parents."</li>
+      <li>2026 tax brackets, standard deduction and capital-gains thresholds: Tax Foundation, "2026 Tax Brackets and Federal Income Tax Rates."</li>
+      <li>Plan statistics (4.7% average employer contribution, 12.1% savings rate, 98% of plans with Roth, 18% usage): Vanguard, <em>How America Saves 2026</em>, as reported by Vanguard and TheStreet.</li>
+      <li>Priority order: this library's <a href="/finance/money-roadmap.html#priority-waterfall">Money Roadmap</a>.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not tax, legal or investment advice. Limits and rules are federal 2026 figures checked in September 2026; state tax treatment varies, and plan-specific rules (matches, vesting, loans, Roth options) are set by each employer. Confirm details with your plan, the IRS, or a tax professional before acting.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function money(v){ return "$" + Math.round(v).toLocaleString("en-US"); }
+
+  /* ---------------- 2026 limits ---------------- */
+  var L = {
+    k401: 24500, k401CU50: 8000, k401CU60: 11250,
+    ira: 7500, iraCU: 1100,
+    hsaSelf: 4400, hsaFam: 8750, hsaCU: 1000,
+    rothSingle: [153000, 168000], rothJoint: [242000, 252000],
+    starter: 2000
+  };
+  var PRESETS = {
+    first:  {save:6000,  salary:55000,  match:"0.5,6", filing:"single", income:55000,  age:"u50", hsa:"none",   debt:3000, ef:8000, edu:0},
+    family: {save:30000, salary:120000, match:"1,4",   filing:"mfj",    income:160000, age:"u50", hsa:"family", debt:0,    ef:0,    edu:3000},
+    peak:   {save:60000, salary:200000, match:"0.5,6", filing:"mfj",    income:260000, age:"55",  hsa:"self",   debt:0,    ef:0,    edu:0}
+  };
+  var F = ["save","salary","match","filing","income","age","hsa","debt","ef","529"];
+  var KEY = {save:"save",salary:"salary",match:"match",filing:"filing",income:"income",age:"age",hsa:"hsa",debt:"debt",ef:"ef","529":"edu"};
+
+  function setPreset(name){
+    var p = PRESETS[name];
+    F.forEach(function(f){ $("p-"+f).value = p[KEY[f]]; });
+    document.querySelectorAll("[data-preset]").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.preset===name ? "true":"false"); });
+    plan();
+  }
+  function num(id){ var v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : 0; }
+
+  function plan(){
+    var save = num("p-save"), salary = num("p-salary"), income = num("p-income");
+    var m = $("p-match").value, filing = $("p-filing").value, age = $("p-age").value, hsa = $("p-hsa").value;
+    var debt = num("p-debt"), ef = num("p-ef"), edu = num("p-529");
+
+    // employee % needed and match value
+    var needPct = 0, matchVal = 0;
+    if (m === "safe"){ needPct = 5; matchVal = salary*0.04; }
+    else { var mm = m.split(","), rate = +mm[0], upTo = +mm[1]; needPct = upTo; matchVal = salary*rate*upTo/100; }
+    var k401Limit = salary > 0 ? L.k401 + (age==="50"||age==="55"||age==="64" ? L.k401CU50 : age==="60" ? L.k401CU60 : 0) : 0;
+    var needForMatch = Math.min(salary*needPct/100, k401Limit);
+    if (needPct === 0) matchVal = 0;
+
+    var hsaCap = hsa==="none" ? 0 : (hsa==="self" ? L.hsaSelf : L.hsaFam) + ((age==="55"||age==="60"||age==="64") ? L.hsaCU : 0);
+    var people = filing==="mfj" ? 2 : 1;
+    var iraEach = L.ira + (age!=="u50" ? L.iraCU : 0);
+    var iraCap = iraEach * people;
+    var band = filing==="mfj" ? L.rothJoint : L.rothSingle;
+    var iraLabel, iraNote;
+    if (income <= band[0]){ iraLabel = "Roth IRA"; iraNote = people===2 ? "One for each spouse" : "Income is under the Roth limit"; }
+    else if (income < band[1]){ iraLabel = "Roth IRA (reduced) + traditional"; iraNote = "Income is inside the Roth phase-out"; }
+    else { iraLabel = "Backdoor Roth IRA"; iraNote = "Income is over the Roth limit; see the FAQ"; }
+
+    var steps = [
+      {n:"01", name:"Starter emergency fund", note:"First $2,000, in savings", cap:Math.min(ef, L.starter), c:"var(--ink-faint)"},
+      {n:"02", name:"401(k) up to the full match", note: needPct ? (needPct+"% of pay earns "+money(matchVal)+" free") : "No match available", cap:needForMatch, c:"var(--gold)"},
+      {n:"03", name:"High-interest debt", note:"Credit cards and similar", cap:debt, c:"var(--rust)"},
+      {n:"04", name:"Rest of the emergency fund", note:"Three to six months of expenses", cap:Math.max(0, ef - L.starter), c:"var(--ink-faint)"},
+      {n:"05", name:"HSA", note: hsa==="none" ? "Needs an HSA-eligible plan" : "Triple tax break", cap:hsaCap, c:"var(--blue)"},
+      {n:"06", name:iraLabel, note:iraNote, cap:iraCap, c:"var(--gold)"},
+      {n:"07", name:"401(k) up to the limit", note: salary ? money(k401Limit)+" limit at your age" : "No workplace plan", cap:Math.max(0, k401Limit - needForMatch), c:"var(--gold)"},
+      {n:"08", name:"529 and other goals", note:"Education, house, other named goals", cap:edu, c:"var(--plum)"},
+      {n:"09", name:"Taxable brokerage", note:"Everything left over", cap:Infinity, c:"var(--teal)"}
+    ];
+    var left = save;
+    steps.forEach(function(s){ s.amt = Math.min(left, s.cap); left -= s.amt; });
+    var maxCap = Math.max.apply(null, steps.filter(function(s){return isFinite(s.cap);}).map(function(s){return s.cap;}).concat([steps[8].amt, 1]));
+
+    $("buckets").innerHTML = steps.map(function(s){
+      var skip = isFinite(s.cap) && s.cap === 0;
+      var pctFill = isFinite(s.cap) ? (s.cap>0 ? 100*s.amt/s.cap : 0) : (s.amt>0 ? 100 : 0);
+      var sub = skip ? "n/a" : (isFinite(s.cap) ? "of " + money(s.cap) : "no limit");
+      return '<div class="bucket'+(skip?' skip':'')+'" style="--c:'+s.c+'"><span class="step">'+s.n+'</span>'+
+        '<div class="name">'+s.name+'<small>'+s.note+'</small></div>'+
+        '<div class="track" role="img" aria-label="'+s.name+': '+money(s.amt)+' '+sub+'"><div class="fill" style="width:'+pctFill.toFixed(1)+'%"></div></div>'+
+        '<div class="amt">'+money(s.amt)+'<small>'+sub+'</small></div></div>';
+    }).join("");
+
+    var used = steps.filter(function(s){return s.amt>0;});
+    var taxAdv = steps[1].amt + steps[4].amt + steps[5].amt + steps[6].amt + steps[7].amt;
+    var matchEarned = needForMatch>0 ? matchVal * Math.min(1, steps[1].amt/needForMatch) : 0;
+    var summary;
+    if (save <= 0) summary = "Enter an amount to see where it goes.";
+    else {
+      var stopAt = used.length ? used[used.length-1] : null;
+      summary = "Your <strong>"+money(save)+"</strong> reaches step <strong>"+(stopAt?stopAt.n:"—")+"</strong> ("+(stopAt?stopAt.name:"")+"). ";
+      if (needForMatch>0 && steps[1].amt < needForMatch) summary += "It doesn't yet cover the full match, which is worth "+money(matchVal)+" a year. That's the first thing to grow. ";
+      else if (matchVal>0) summary += "You capture the full "+money(matchVal)+" employer match. ";
+      if (steps[2].amt>0 && steps[2].amt<steps[2].cap) summary += "Debt payoff continues next year before later steps. ";
+      if (edu>0 && steps[7].amt<edu) summary += "Your "+money(edu)+" education goal "+(steps[7].amt>0?"is only partly":"isn't")+" reached, because the list fills retirement room first. Many families choose to split between steps 07 and 08; see why the order runs this way below. ";
+      if (steps[8].amt>0) summary += "Every tax-advantaged step is full, so "+money(steps[8].amt)+" goes to a regular brokerage account.";
+      if (salary > 150000 && age!=="u50") summary += " Because your wages are over $150,000, any 401(k) catch-up must go in as Roth.";
+    }
+    $("plan-summary").innerHTML = summary;
+    $("plan-tiles").innerHTML =
+      '<div class="tile"><div class="k">Employer match earned</div><div class="v">'+money(matchEarned)+'</div><div class="s">on top of your '+money(save)+'</div></div>'+
+      '<div class="tile"><div class="k">Into tax-advantaged accounts</div><div class="v">'+money(taxAdv)+'</div><div class="s">steps 02, 05, 06, 07, 08</div></div>'+
+      '<div class="tile"><div class="k">Safety and debt</div><div class="v">'+money(steps[0].amt+steps[2].amt+steps[3].amt)+'</div><div class="s">steps 01, 03, 04</div></div>';
+  }
+
+  F.forEach(function(f){ $("p-"+f).addEventListener("input", function(){
+    document.querySelectorAll("[data-preset]").forEach(function(b){ b.setAttribute("aria-pressed","false"); });
+    plan();
+  }); });
+  document.querySelectorAll("[data-preset]").forEach(function(b){ b.addEventListener("click", function(){ setPreset(b.dataset.preset); }); });
+  setPreset("first");
+
+  /* ---------------- Roth vs traditional ---------------- */
+  var R = 0.07;
+  function rt(){
+    var amt = +$("r-amt").value, yrs = +$("r-years").value, now = +$("r-now").value/100, later = +$("r-later").value/100;
+    $("o-amt").textContent = money(amt);
+    $("o-ryears").textContent = yrs + " yrs";
+    $("o-now").textContent = Math.round(now*100) + "%";
+    $("o-later").textContent = Math.round(later*100) + "%";
+    var g = Math.pow(1+R, yrs);
+    var trad = amt * g * (1-later), roth = amt * (1-now) * g;
+    var mx = Math.max(trad, roth, 1);
+    $("rt-bars").innerHTML =
+      '<div class="rt-row"><div class="lab">Traditional<small>invest '+money(amt)+', tax at the end</small></div><div class="track"><div class="fill" style="width:'+(100*trad/mx).toFixed(1)+'%; background:var(--gold)"></div></div><div class="val">'+money(trad)+'</div></div>'+
+      '<div class="rt-row"><div class="lab">Roth<small>invest '+money(amt*(1-now))+' after tax</small></div><div class="track"><div class="fill" style="width:'+(100*roth/mx).toFixed(1)+'%; background:var(--teal)"></div></div><div class="val">'+money(roth)+'</div></div>';
+    var diff = Math.abs(trad-roth), v;
+    if (diff < 1) v = "<strong>A tie.</strong> With equal tax rates, Roth and traditional leave you exactly the same amount. Only the difference in rates matters.";
+    else if (trad > roth) v = "<strong>Traditional comes out "+money(diff)+" ahead</strong>, because your rate today ("+Math.round(now*100)+"%) is higher than the rate you'd pay on withdrawal ("+Math.round(later*100)+"%).";
+    else v = "<strong>Roth comes out "+money(diff)+" ahead</strong>, because you'd pay tax at "+Math.round(now*100)+"% today instead of "+Math.round(later*100)+"% later.";
+    $("rt-verdict").innerHTML = v;
+  }
+  ["r-amt","r-years","r-now","r-later"].forEach(function(id){ $(id).addEventListener("input", rt); });
+  rt();
+})();
+</script>
+</body>
+</html>
