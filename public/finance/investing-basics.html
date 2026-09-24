@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Investing Basics</title>
+<meta name="description" content="Investing Basics: The Honest Baseline — index funds, asset allocation, diversification and what fees really cost, with 98 years of real returns.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Investing &amp; Retirement · Part of Personal Finance Library</p>
+    <h1>Investing Basics: The Honest Baseline</h1>
+    <p class="subtitle">What you actually own when you invest, why time beats timing, why owning the whole market beats picking pieces of it, and what fees really cost — with 98 years of real returns to test every claim against. It ends by defining the simple, low-cost portfolio that every other product in this library has to beat.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Investing is owning businesses (stocks) and lending money (bonds) for long enough that their growth outruns inflation. From 1928 through 2025, U.S. stocks returned about <strong>10% a year</strong> (roughly 6.8% after inflation) against 4.5% for 10-year Treasury bonds and 3.4% for T-bills — but stocks fell in 26 of those 98 years, once by 44%. Time is what tames that: <strong>no 20-year stretch of the S&amp;P 500 ever lost money</strong>, even after inflation. Picking individual stocks is a long shot, because a tiny share of companies produce nearly all the gains, so the honest default is to <strong>own all of them through an index fund</strong> for a few hundredths of a percent a year. Over 20 years, about <strong>93% of actively managed large-company funds trailed the S&amp;P 500</strong>, and costs are the main reason: at 1.64% a year in combined fund and advisor fees, $500 a month for 30 years grows to about $428,000 instead of $579,000. Set the stock/bond mix by when you'll need the money, automate contributions, and rebalance once a year. That simple, cheap, liquid portfolio is <strong>the honest baseline</strong>: any annuity, insurance policy, or managed product has to beat it after all costs to earn a place in your plan.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this piece</div>
+      <a href="#what-you-own">What you're actually buying: stocks, bonds and cash</a>
+      <a href="#time">Why time matters more than timing</a>
+      <a href="#diversification">One stock is a lottery ticket; the market is the lottery</a>
+      <a href="#index-funds">Index funds: owning the whole haystack</a>
+      <a href="#fees">What fees really cost (calculator)</a>
+      <a href="#allocation">The stock/bond dial (explorer)</a>
+      <a href="#baseline">The honest baseline, built three ways</a>
+      <a href="#judge">Using the baseline to judge everything else</a>
+      <a href="#where-it-fits">Where investing fits in the bigger picture</a>
+      <a href="#checklist">A getting-started checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="what-you-own">
+    <p class="eyebrow">Start here</p>
+    <h2>What you're actually buying: stocks, bonds and cash</h2>
+    <p class="lede">Strip away the jargon and there are only three things most people ever invest in. You can own a slice of a business, you can lend money to a government or a company, or you can park cash somewhere safe and short-term. Nearly every fund, account and product is some mix of those three in a different wrapper.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">OWN</div>
+      <div><h3>Stocks: a share of a business</h3><p>A share of stock is a small slice of ownership in a company, with a claim on its future profits. When the business grows, the share is worth more, and many companies also pay part of their profits out as dividends. There is no promise attached: if the business struggles the share price falls, and if it fails the share can go to zero. That lack of a promise is exactly why stocks have paid the most over time. Investors demand extra return for carrying the risk.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">LEND</div>
+      <div><h3>Bonds: a loan with a schedule</h3><p>A bond is a loan. You hand over money, and the borrower (the U.S. Treasury, a city, a company) promises regular interest and your money back on a set date. The promise makes bonds steadier than stocks, but not risk-free: when interest rates rise, older bonds paying lower rates lose value. That is what happened in 2022, when 10-year Treasuries lost 17.8% in the same year stocks fell 18%.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">PARK</div>
+      <div><h3>Cash: short-term and safe, but barely ahead of prices</h3><p>Savings accounts, money market funds and Treasury bills (very short government loans) almost never lose value, which makes them the right home for an emergency fund or money you'll spend soon. The catch is that over long periods they have only just kept pace with inflation. Cash protects your balance but does little to grow its buying power.</p></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">What $1 invested at the start of 1928 became, 1928–2025</div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--teal)"></i>Stocks (S&amp;P 500)</span>
+          <span><i class="swatch" style="background:var(--gold)"></i>10-yr Treasury bonds</span>
+          <span><i class="swatch" style="background:var(--blue)"></i>T-bills (cash)</span>
+          <span><i class="swatch dash"></i>Prices (inflation)</span>
+        </div>
+      </div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-growth" viewBox="0 0 680 330" role="img" aria-label="Log-scale line chart of $1 growing from 1928 to 2025: stocks to about $11,576, bonds to about $77, T-bills to about $26, while prices rose about 19-fold."></svg></div>
+      <div class="chart-foot">Log scale: each gridline is ten times the one below, so equal slopes mean equal percentage growth. Returns include reinvested dividends and interest, before taxes and fees. Hover or tap for any year.</div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>1928–2025 (98 years)</th><th>Per year</th><th>Per year after inflation</th><th>Worst year</th><th>Best year</th><th>Down years</th><th>$1 became</th></tr></thead>
+        <tbody>
+          <tr><td>Stocks (S&amp;P 500)</td><td>10.0%</td><td>6.8%</td><td>&minus;43.8% (1931)</td><td>+52.6% (1954)</td><td>26</td><td>$11,576</td></tr>
+          <tr><td>10-year Treasury bonds</td><td>4.5%</td><td>1.5%</td><td>&minus;17.8% (2022)</td><td>+32.8% (1982)</td><td>20</td><td>$77</td></tr>
+          <tr><td>T-bills (cash)</td><td>3.4%</td><td>0.3%</td><td>+0.03% (2014)</td><td>+14.0% (1981)</td><td>0</td><td>$26</td></tr>
+          <tr><td>Inflation (prices)</td><td>3.0%</td><td>—</td><td colspan="4" style="text-align:left; font-family:'Public Sans',sans-serif; color:var(--ink-soft)">Something that cost $1 in 1928 cost about $18.70 by the end of 2025.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:14px;">"Per year" is the compound (geometric) annual return, the rate that actually turns the starting dollar into the ending one. It is lower than the simple average of yearly returns (11.9% for stocks) because losses hurt compounding more than equal gains help it.</p>
+
+    <p style="margin-top:22px;">The gap in that last column is the whole case for investing. A dollar in cash roughly kept up with prices. A dollar in stocks multiplied its buying power more than 600-fold. The price of that growth is the ride: stocks fell in more than one year out of four. The rest of this piece is about how to take the growth while surviving the ride.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="time">
+    <p class="eyebrow">Risk, measured honestly</p>
+    <h2>Why time matters more than timing</h2>
+    <p class="lede">Over one year, the stock market is close to a coin toss with a heavy thumb on the scale. Over twenty years, it has never lost. The chart below takes every possible holding period in the 98-year record and shows the best and worst annual return an investor actually got.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Best and worst annualized S&amp;P 500 return, by how long you held</div>
+        <div class="seg" role="group" aria-label="Return basis">
+          <button type="button" data-basis="nominal" aria-pressed="true">Before inflation</button>
+          <button type="button" data-basis="real" aria-pressed="false">After inflation</button>
+        </div>
+      </div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-rolling" viewBox="0 0 680 320" role="img" aria-label="Range bars showing the best and worst annualized stock returns for 1, 5, 10, 15, 20 and 30-year holding periods since 1928. The range narrows as the holding period lengthens, and every 20- and 30-year period was positive."></svg></div>
+      <div class="chart-foot">Every rolling window that starts in a calendar year from 1928 on (98 one-year windows, 79 twenty-year windows). The number under each bar is the share of windows that lost money. Hover or tap a bar for the years.</div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table id="rolling-table">
+        <thead><tr><th>Held for</th><th>Best (per year)</th><th>Worst (per year)</th><th>Windows that lost money</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:22px;">Two lessons fall out of that picture. First, <strong>money you need within about five years doesn't belong in stocks</strong>. More than one five-year window in ten lost money, and the worst lost 12.7% a year. Second, <strong>long-term money that sits out of stocks pays a steep price for comfort</strong>. Even measured after inflation, the worst 20-year stretch (1929–1948, through the Depression and a world war) still came out slightly ahead, at +0.6% a year.</p>
+    <p>That's also why "timing the market" is a trap. The big up years tend to arrive right after the big down years (1933 followed 1931–32; 2009 followed 2008). An investor who sells to wait out the storm has to be right twice: when to get out, and when to get back in. The dependable edge isn't timing. It's staying invested long enough for the range to narrow.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="diversification">
+    <p class="eyebrow">Diversification</p>
+    <h2>One stock is a lottery ticket; the market is the lottery</h2>
+    <p class="lede">The S&amp;P 500's 10% a year is the return of owning all of it. Owning a handful of individual companies is a very different bet, because the market's long-run gains come from a surprisingly small number of huge winners.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Of every 100 U.S. stocks listed since 1926…</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--teal)"></i>Accounted for all net wealth created</span><span><i class="swatch" style="background:var(--rule)"></i>The rest, together, about matched T-bills</span></div>
+      </div>
+      <div class="waffle" id="waffle" role="img" aria-label="A grid of 100 squares, 4 highlighted: about 4 in 100 stocks accounted for all the net wealth the U.S. stock market created from 1926 to 2016."></div>
+      <div class="chart-foot">Hendrik Bessembinder, "Do Stocks Outperform Treasury Bills?" (Journal of Financial Economics, 2018), covering U.S. stocks 1926–2016.</div>
+    </div>
+
+    <p style="margin-top:22px;">Finance professor Hendrik Bessembinder traced every U.S. stock listed since 1926 and found that about <strong>4% of companies accounted for all of the stock market's net wealth creation</strong>. The other 96%, taken together, did no better than one-month Treasury bills. A later global study found the same pattern from 1991 to 2020: <strong>55% of U.S. stocks</strong> returned less than T-bills over their lifetimes, and the top 2.4% of companies worldwide produced all $75.7 trillion of net wealth created.</p>
+    <p>If you own five or ten stocks, the odds are good that you'll miss most of the handful that end up mattering. If you own all of them, you are guaranteed to hold every one of the eventual winners. That's what diversification buys: it doesn't raise the market's average, it makes sure you actually get it. The same logic stretches in three directions:</p>
+    <ul class="plain">
+      <li><strong>Across companies:</strong> thousands, not dozens. A total-market index fund holds essentially every public U.S. company.</li>
+      <li><strong>Across countries:</strong> U.S. stocks are close to two-thirds of the world's stock market value (about 64% of the MSCI All Country World Index in September 2026), and leadership between the U.S. and the rest of the world has swung back and forth over the decades. An international fund covers the other part.</li>
+      <li><strong>Across asset types:</strong> bonds and cash don't fall with stocks in most bad years (2022 was the painful exception), which is what makes the stock/bond dial <a href="#allocation">further down</a> work.</li>
+    </ul>
+  </section>
+
+  <hr class="rule">
+
+  <section id="index-funds">
+    <p class="eyebrow">The vehicle</p>
+    <h2>Index funds: owning the whole haystack</h2>
+    <p class="lede">An index fund doesn't try to find the needle. It buys the entire haystack, meaning every stock (or bond) in a published list like the S&amp;P 500, in proportion to its size, and simply holds it. No research team, no forecasts, very little trading. That's why it can charge almost nothing.</p>
+
+    <p>Index funds come in two wrappers that hold the same kinds of portfolios. <strong>Mutual funds</strong> trade once a day at the closing price and are what most 401(k) plans offer. <strong>ETFs</strong> (exchange-traded funds) trade all day like a stock and tend to be a little more tax-efficient in a regular brokerage account. For a long-term investor the difference is minor. What matters is what the fund holds and what it charges.</p>
+
+    <h3 style="margin-top:28px; font-size:19px; font-style:normal;">Why the "boring" option keeps winning</h3>
+    <p style="margin-top:8px;">There's a piece of simple arithmetic behind it, first spelled out by Nobel laureate William Sharpe. Before costs, all the money invested in U.S. stocks <em>is</em> the market, so the average actively managed dollar has to earn the market's return, no better. Active funds then charge more, trade more, and hold some cash, so <strong>after costs, the average active dollar has to trail the index</strong>. Some managers will beat it in any given year, but picking which ones in advance is the hard part, and winners rarely stay winners.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Share of actively managed U.S. stock funds that trailed their index</div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--teal)"></i>Large-company funds vs. S&amp;P 500</span>
+          <span><i class="swatch" style="background:var(--gold)"></i>All U.S. stock funds vs. S&amp;P 1500</span>
+        </div>
+      </div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-spiva" viewBox="0 0 680 300" role="img" aria-label="Grouped bar chart: over 1, 3, 5, 10, 15 and 20 years ending 2025, between 67% and 95% of active U.S. stock funds underperformed their benchmark, rising with the time period."></svg></div>
+      <div class="chart-foot">S&amp;P Dow Jones Indices, SPIVA U.S. Scorecard, Year-End 2025 (periods ending December 31, 2025). Counts funds that closed or merged as underperformers. Dashed line: half of all funds.</div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Trailed the index over…</th><th>1 yr</th><th>3 yrs</th><th>5 yrs</th><th>10 yrs</th><th>15 yrs</th><th>20 yrs</th></tr></thead>
+        <tbody>
+          <tr><td>Large-company funds</td><td>79%</td><td>67%</td><td>89%</td><td>86%</td><td>90%</td><td>93%</td></tr>
+          <tr><td>All U.S. stock funds</td><td>80%</td><td>80%</td><td>91%</td><td>90%</td><td>93%</td><td>95%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:14px;">S&amp;P's methodology has its critics, but the direction of the result (most active funds trail over long periods, mostly by about what they charge) shows up across independent research and keeps showing up year after year.</p>
+
+    <div class="verdicts">
+      <div class="verdict good">
+        <div class="book-label">Index fund</div>
+        <h3>You get the market's return, minus a sliver</h3>
+        <p>The average asset-weighted expense ratio for index stock mutual funds was <strong class="num">0.05%</strong> in 2025 — $5 a year on every $10,000.</p>
+      </div>
+      <div class="verdict bad">
+        <div class="book-label">Actively managed fund</div>
+        <h3>You pay for a chance at beating it</h3>
+        <p>The average for actively managed stock mutual funds was <strong class="num">0.64%</strong> — $64 a year per $10,000, about 13 times as much, before any advisor fee on top.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="fees">
+    <p class="eyebrow">The cost</p>
+    <h2>What fees really cost</h2>
+    <p class="lede">A fee of "only 1%" sounds small because it's quoted against your balance. Measured against what your money <em>earns</em> each year, and compounded over a working life, it's one of the biggest numbers in personal finance. Move the sliders to see it on your own figures.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Same savings, same market, three price tags</div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--teal)"></i>Index fund · 0.05%</span>
+          <span><i class="swatch" style="background:var(--gold)"></i>Average active fund · 0.64%</span>
+          <span><i class="swatch" style="background:var(--blue)"></i>Active fund + 1% advisor · 1.64%</span>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="control"><label for="f-monthly">Monthly contribution <output id="o-monthly"></output></label><input type="range" id="f-monthly" min="0" max="2000" step="50" value="500"></div>
+        <div class="control"><label for="f-start">Starting balance <output id="o-start"></output></label><input type="range" id="f-start" min="0" max="500000" step="5000" value="0"></div>
+        <div class="control"><label for="f-years">Years invested <output id="o-years"></output></label><input type="range" id="f-years" min="5" max="45" step="1" value="30"></div>
+        <div class="control"><label for="f-return">Market return before fees <output id="o-return"></output></label><input type="range" id="f-return" min="3" max="10" step="0.5" value="7"></div>
+      </div>
+      <div class="tiles" id="fee-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-fees" viewBox="0 0 680 300" role="img" aria-label="Line chart of account balance over time under three fee levels; the gap widens every year."></svg></div>
+      <div class="chart-foot">Monthly contributions, monthly compounding, a steady return every year, fees deducted continuously. Real markets are bumpy, but fees are charged in good years and bad ones alike, so the gap holds up.</div>
+    </div>
+
+    <p style="margin-top:22px;">At the default settings ($500 a month for 30 years at 7%), the index fund ends near <strong>$579,000</strong>, the average active fund near <strong>$516,000</strong>, and the active fund with a 1% advisor on top near <strong>$428,000</strong>. That's about $151,000, or a quarter of the index result, handed over in fees, on $180,000 of contributions. Put $100,000 in once and leave it for 30 years, and the 1.64% version finishes about 38% behind.</p>
+
+    <h3 style="margin-top:28px; font-size:19px; font-style:normal;">Where costs hide</h3>
+    <p style="margin-top:8px;">The expense ratio is only the most visible layer. When you compare anything against the baseline, add up all of them:</p>
+    <ul class="plain">
+      <li><strong>Fund expense ratio</strong>, taken out of the fund's returns every day. Index stock funds averaged 0.05% in 2025, actively managed stock funds 0.64%, and target-date funds 0.27%.</li>
+      <li><strong>Advisory fee</strong>, often charged as a percentage of your balance each year (about 1% is common). It's paid on top of the funds' own fees.</li>
+      <li><strong>Sales charges and commissions</strong>: front-end "loads" on some mutual funds, and commissions built into insurance and annuity products.</li>
+      <li><strong>Costs built into the product</strong>: caps, participation rates and spreads on indexed annuities and IUL, cost-of-insurance charges, rider fees. They never appear as an "expense ratio" but reduce what you get just the same. <a href="/finance/annuities-explained.html#no-free-lunch">Annuities Explained</a> and <a href="/finance/life-insurance-explained.html#no-free-lunch">Life Insurance Explained</a> put numbers on them.</li>
+      <li><strong>Exit costs</strong>: surrender charges that lock money in for years.</li>
+      <li><strong>Tax drag</strong>: high-turnover funds in a taxable account pass capital gains through to you every year. <em>Taxes 101</em> (coming next in this tier) covers this.</li>
+    </ul>
+    <div class="callout"><strong>The one rule to remember:</strong> future returns are uncertain, but fees are guaranteed. Every dollar of cost comes straight out of your return, every year, whether the market is up or down.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="allocation">
+    <p class="eyebrow">The main decision you control</p>
+    <h2>The stock/bond dial</h2>
+    <p class="lede">Once you own the whole market cheaply, almost everything left comes down to one setting: how much goes in stocks and how much in bonds. More stocks means more growth and deeper drops. More bonds means a smoother ride and less growth. Turn the dial and see what each mix actually did from 1928 to 2025.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">A stock/bond mix, rebalanced every January, 1928–2025</div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--teal)"></i>Up year</span>
+          <span><i class="swatch" style="background:var(--rust)"></i>Down year</span>
+        </div>
+      </div>
+      <div class="controls" style="grid-template-columns:1fr;">
+        <div class="control"><label for="a-mix">Stocks / bonds <output id="o-mix"></output></label><input type="range" id="a-mix" min="0" max="100" step="10" value="60" aria-describedby="alloc-tiles"></div>
+      </div>
+      <div class="tiles five" id="alloc-tiles" aria-live="polite"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-alloc" viewBox="0 0 680 260" role="img" aria-label="Bar chart of the chosen mix's return in each year from 1928 to 2025."></svg></div>
+      <div class="chart-foot">Stocks: S&amp;P 500 with dividends. Bonds: 10-year U.S. Treasury notes (a stand-in for a bond fund). Rebalanced back to the target mix at the start of each year, before taxes and fees.</div>
+    </div>
+
+    <p style="margin-top:22px;">A few settings worth trying. At <strong>100% stocks</strong>, $10,000 in 1928 grew past $115 million, but you'd have lived through a 44% loss in 1931 and 37% in 2008. At <strong>60/40</strong>, it grew to about $25.7 million, the 2008 loss shrank to about 14%, and the worst year was 27%. At <strong>0% stocks</strong>, the worst year was only 18%, but the ending balance was 1/150th of the all-stock result.</p>
+    <p>No mix is "right" in the abstract. The honest way to set the dial is by <strong>when you'll need the money</strong> and <strong>how much of a drop you can sit through without selling</strong>. The second one matters as much as the first, because the worst outcome is picking an aggressive mix, panicking in a crash, and locking in the loss.</p>
+
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>When you'll need the money</th><th>A reasonable starting point</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Within ~3 years</td><td>Cash and short-term bonds</td><td>Stocks lost money in about one year in four. There's no time to recover.</td></tr>
+          <tr><td>In 3–10 years</td><td>A balance of bonds and stocks, leaning more to bonds the sooner the date</td><td>Five-year stock windows lost money about 12% of the time; ten-year windows about 6%.</td></tr>
+          <tr><td>10+ years away (most retirement money)</td><td>Mostly stocks, with bonds added as the date gets closer</td><td>Every 20-year window was positive. Long-term money needs the growth to beat inflation.</td></tr>
+          <tr><td>Spending it through retirement</td><td>Still a meaningful stock share, since a 65-year-old's money may need to last 30 years</td><td>The drawdown piece, <em>Turning Savings into a Paycheck</em> (Tier 2), covers this.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:14px;">Target-date funds do this automatically: you pick the fund named for roughly the year you'll retire, and it shifts from mostly stocks toward more bonds as that year approaches (the "glide path").</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="baseline">
+    <p class="eyebrow">Putting it together</p>
+    <h2>The honest baseline, built three ways</h2>
+    <p class="lede">Everything above comes together in one simple portfolio: own the whole market through index funds, set the stock/bond mix by your timeline, keep costs near zero, and leave it alone. There are three common ways to build it, and they differ in convenience, not in substance.</p>
+
+    <div class="verdicts three">
+      <div class="verdict good">
+        <div class="book-label">Simplest</div>
+        <h3>One target-date index fund</h3>
+        <p>One fund holds U.S. stocks, international stocks and bonds, and rebalances and shifts its mix for you over time. Pick the index version: the average target-date fund charged 0.27% in 2025, and low-cost index series charge a fraction of that. Hard to beat inside a 401(k).</p>
+      </div>
+      <div class="verdict neutral">
+        <div class="book-label">More control</div>
+        <h3>A three-fund portfolio</h3>
+        <p>A U.S. total stock market index fund, an international total stock index fund and a U.S. total bond index fund, in the mix you choose. The cheapest and most flexible version, but you do the rebalancing, about once a year.</p>
+      </div>
+      <div class="verdict neutral">
+        <div class="book-label">Hands-off</div>
+        <h3>A balanced fund or robo-advisor</h3>
+        <p>A fixed-mix balanced index fund, or an automated service that builds and rebalances an index portfolio for you. Robo-advisors add a management fee on top of the funds, so check the all-in cost against the other two.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">Habits that matter more than the fund you pick</h3>
+    <div class="lever-row" style="margin-top:10px;">
+      <div class="lever-tag">AUTO</div>
+      <div><h3>Automate contributions</h3><p>Money that moves on payday, whether through a 401(k) deduction or an automatic transfer, gets invested whether the headlines are good or bad. Investing a fixed amount on a schedule also buys more shares when prices are low, which is called dollar-cost averaging.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">LUMP</div>
+      <div><h3>Got a lump sum? Investing it sooner usually wins</h3><p>Vanguard compared investing a windfall all at once against spreading it over a year. In the U.S. (1979–2022), investing it right away came out ahead <strong>73.7%</strong> of the time, simply because markets rise more often than they fall. Spreading it out is a fine choice if it's what gets you to invest at all. Just set an end date.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">ONCE</div>
+      <div><h3>Rebalance once a year, then look away</h3><p>Once a year, move money from whatever grew past its target back to what fell behind. It keeps your risk where you chose it, and it makes you sell high and buy low without having to predict anything. Checking the balance daily adds worry and nothing else.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="judge">
+    <p class="eyebrow">Why this piece comes first</p>
+    <h2>Using the baseline to judge everything else</h2>
+    <p class="lede">This is the benchmark the rest of the library uses. Annuities, cash-value life insurance and managed accounts are each sold as an improvement on "just investing." The fair test is whether they beat this simple portfolio after all their costs, for your specific need.</p>
+
+    <p><strong>Five questions to ask about any financial product:</strong></p>
+    <ul class="plain">
+      <li><strong>What does it cost all-in, per year?</strong> Include fund, advisory, rider and insurance charges, and any cost built into caps or spreads.</li>
+      <li><strong>What do I give up in a great year, and what am I protected from in a bad one?</strong> Then check whether that protection is worth the price, using the "time" chart above.</li>
+      <li><strong>How and when can I get my money out, and what does leaving early cost?</strong></li>
+      <li><strong>How is the person recommending it paid?</strong> A commission ties the pay to the sale, whether or not the product fits.</li>
+      <li><strong>What is it being compared to?</strong> If the answer is a savings account or "the market with no floor," ask to see it compared with a low-cost index portfolio at your own stock/bond mix.</li>
+    </ul>
+
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th></th><th class="base">Honest baseline (index portfolio)</th><th>Fixed indexed annuity</th><th>Whole life / IUL</th><th>Active funds + advisor</th></tr></thead>
+        <tbody>
+          <tr><td>Yearly cost</td><td class="base">About 0.05%–0.3%, all-in</td><td>Built into caps and participation rates, plus rider fees (often around 1% a year) if you add income riders</td><td>Cost of insurance and policy charges, which rise with age</td><td>Around 0.6% in fund fees plus about 1% advisory, roughly 1.6%</td></tr>
+          <tr><td>In a great year</td><td class="base">The full market return, minus a sliver</td><td>Capped, often well below the index</td><td>Capped (IUL) or a declared dividend (whole life)</td><td>The market return, minus about 1.6%</td></tr>
+          <tr><td>In a terrible year</td><td class="base">You take the loss, cushioned by your bond share</td><td>0% floor, so no market loss</td><td>0% floor on credits, but charges keep coming out</td><td>You take the loss, plus the fee</td></tr>
+          <tr><td>Getting your money out</td><td class="base">Any business day (taxes and account rules aside)</td><td>Surrender charges, typically for 7–10 years</td><td>Surrender charges for many years; loans and withdrawals reduce the policy</td><td>Any business day</td></tr>
+          <tr><td>How the seller is paid</td><td class="base">No one is selling it</td><td>Commission, commonly 4%–7% of the premium</td><td>Commission, largely from first-year premiums</td><td>A percentage of your balance, every year</td></tr>
+          <tr><td>Where it can earn its place</td><td class="base">The default for long-term money</td><td>Guaranteed lifetime income, if you need it <a href="/finance/annuities-explained.html#where-it-fits">→</a></td><td>A permanent death benefit need <a href="/finance/life-insurance-explained.html#where-it-fits">→</a></td><td>Planning and behavioral coaching, if you'll actually use it</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:14px;">Rows are simplified to show how each product works in general, not any specific contract. The annuity and life insurance pieces show the real calculations. None of this means those products are never right. It means they have to show why they're worth more than the baseline.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where investing fits in the bigger picture</h2>
+    <p class="lede">Investing isn't step one. On the <a href="/finance/money-roadmap.html">Money Roadmap</a>, money goes to a few safer, higher-return uses first: a starter emergency fund, any employer 401(k) match (an instant 50%–100% return), and paying off high-interest debt, since a credit card charging 20%+ beats any honest investment return. After that, long-term money goes into the baseline portfolio described here.</p>
+    <p>On the <a href="/finance/money-river.html">Money River</a>, this is the Investing &amp; Retirement thread: thin in your twenties, widest in your fifties and early sixties, and slowly drawn down after that. The next two pieces in this tier fill in the parts this one skipped on purpose:</p>
+    <div class="next-links">
+      <a class="soon" href="/finance/index.html#piece-2"><div class="nl-k">Tier 1 · #2 · coming next</div><div class="nl-t">Which Account?</div><div class="nl-d">401(k), IRA, Roth, HSA, 529 or taxable — where each dollar should go first.</div></a>
+      <a class="soon" href="/finance/index.html#piece-3"><div class="nl-k">Tier 1 · #3 · coming next</div><div class="nl-t">Taxes 101</div><div class="nl-d">Marginal vs. effective rates, capital gains, and which funds to hold in which accounts.</div></a>
+      <a href="/finance/money-roadmap.html"><div class="nl-k">Foundations</div><div class="nl-t">The Money Roadmap</div><div class="nl-d">The priority order for where each dollar goes.</div></a>
+      <a href="/finance/index.html#map"><div class="nl-k">Library</div><div class="nl-t">The library map</div><div class="nl-d">Every topic, on the line it belongs to.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A getting-started checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Cover the basics first</h3><p>A starter emergency fund in cash, and no credit card balances. Investing money you may need next month forces you to sell at the wrong time.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Take the full employer match</h3><p>Contribute at least enough to your 401(k) to get every matching dollar. It's the best return available anywhere.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Choose your stock/bond mix by date</h3><p>Use the dial above: when will you need this money, and what drop could you sit through without selling?</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Pick one of the three baseline builds</h3><p>Target-date index fund, three-fund portfolio, or a balanced fund or robo-advisor. Look for broad index funds.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check every expense ratio</h3><p>Look up each fund's expense ratio. For broad index funds, anything much above 0.2% deserves a question. In a 401(k), the plan's index options are often the cheapest on the menu.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Automate it</h3><p>Payroll deduction or an automatic monthly transfer. Raise it whenever your pay goes up.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Put a yearly check-up on the calendar</h3><p>Rebalance to your target, confirm your beneficiaries, and skip the daily balance checks.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Hold every pitch up to the baseline</h3><p>Before buying any product sold as "better than the market," ask the five questions above.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>Is now a bad time to start? The market seems high.</h3><p>The market is at or near an all-time high a large share of the time, because over long periods it mostly goes up. Waiting for a drop means sitting in cash that has barely beaten inflation, and nobody reliably knows when the drop will come. Vanguard's research found that investing a lump sum right away beat spreading it out about three times in four. If you're nervous, automatic monthly investing is a fine compromise. The worst option is waiting indefinitely.</p></div>
+      <div class="faq-item"><h3>Can I just pick a few great companies I believe in?</h3><p>You can with a small "fun money" slice. But the research above shows that most individual stocks trail even T-bills over their lifetimes, and a few rare winners drive the market's gains. Owning a few stocks makes it very likely you'll miss those winners. Owning the index guarantees you'll hold them.</p></div>
+      <div class="faq-item"><h3>ETF or mutual fund?</h3><p>For a long-term investor it matters much less than cost and what the fund holds. Inside a 401(k) you'll usually get mutual funds, and that's fine. In a regular brokerage account, ETFs are often a bit more tax-efficient. Either way, a broad index fund with a very low expense ratio is what you're looking for.</p></div>
+      <div class="faq-item"><h3>Do I need international stocks?</h3><p>U.S. stocks have led the world for most of the past 15 years, but not in every era, and nobody knows which region will lead next. Owning both spreads your bet across the whole global economy. Target-date funds already include international stocks. In a three-fund portfolio, a common range is 20%–40% of the stock portion.</p></div>
+      <div class="faq-item"><h3>What about gold, crypto, or real estate?</h3><p>Gold jumped about 66% in 2025 and has also gone through long stretches with no real gain. Unlike stocks and bonds, it produces no profits or interest. Crypto is even more volatile and has a much shorter history. Neither is part of the baseline. If you want some, treat it as a small side bet you could lose. Your home is real estate exposure already, and broad stock index funds include real estate companies.</p></div>
+      <div class="faq-item"><h3>What if the market crashes right after I invest?</h3><p>At some point it will. Stocks fell in 26 of the last 98 years. The table in <a href="#time">"Why time matters"</a> is the answer: long holding periods have always recovered, and money you'll need within a few years shouldn't be in stocks in the first place. A crash only turns into a permanent loss if you sell.</p></div>
+      <div class="faq-item"><h3>Do I need a financial advisor?</h3><p>Not to run a baseline portfolio. It's designed to be simple. Advice is worth paying for when it covers more than picking funds: a full plan, taxes, insurance, estate questions, or keeping you from panic-selling. If you do hire help, look for a fee-only fiduciary, and consider paying a flat or hourly fee rather than 1% of your balance every year. <em>Spotting the Sales Pitch &amp; Working with Advisors</em> (Tier 1, #4) covers how.</p></div>
+      <div class="faq-item"><h3>Why does this page use 10-year Treasuries as "bonds"?</h3><p>They're the longest clean bond series available back to 1928. Most people own a total bond market fund instead, which mixes government and corporate bonds of different maturities. Its returns over any given stretch will differ somewhat, but the same principles apply.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Stock (equity)</dt><dd>A share of ownership in a company, with a claim on its future profits.</dd></div>
+      <div class="gterm"><dt>Bond</dt><dd>A loan to a government or company that pays interest and returns your money on a set date.</dd></div>
+      <div class="gterm"><dt>Treasury bill (T-bill)</dt><dd>A short-term U.S. government loan (one year or less), the standard measure of a "safe" return on cash.</dd></div>
+      <div class="gterm"><dt>Dividend</dt><dd>Part of a company's profit paid out to shareholders.</dd></div>
+      <div class="gterm"><dt>Index</dt><dd>A published list of investments, like the S&amp;P 500, used to measure a market.</dd></div>
+      <div class="gterm"><dt>Index fund</dt><dd>A fund that holds everything in an index, in proportion to its size, instead of picking investments.</dd></div>
+      <div class="gterm"><dt>Actively managed fund</dt><dd>A fund whose managers pick investments to try to beat an index.</dd></div>
+      <div class="gterm"><dt>ETF</dt><dd>Exchange-traded fund: a fund that trades all day on an exchange like a stock.</dd></div>
+      <div class="gterm"><dt>Mutual fund</dt><dd>A pooled fund bought and sold once a day at its closing value.</dd></div>
+      <div class="gterm"><dt>Expense ratio</dt><dd>A fund's yearly cost as a percentage of your investment, taken out of returns automatically.</dd></div>
+      <div class="gterm"><dt>Advisory (AUM) fee</dt><dd>A yearly fee charged as a percentage of the assets an advisor manages, on top of fund costs.</dd></div>
+      <div class="gterm"><dt>Asset allocation</dt><dd>How your money is split between stocks, bonds and cash.</dd></div>
+      <div class="gterm"><dt>Diversification</dt><dd>Spreading money across many investments so no single failure does much damage.</dd></div>
+      <div class="gterm"><dt>Rebalancing</dt><dd>Periodically moving money back to your target mix after markets have shifted it.</dd></div>
+      <div class="gterm"><dt>Target-date fund</dt><dd>A single fund that holds a mix of stocks and bonds and gradually shifts toward bonds as a chosen year approaches.</dd></div>
+      <div class="gterm"><dt>Three-fund portfolio</dt><dd>U.S. stock, international stock and bond index funds, combined in a chosen mix.</dd></div>
+      <div class="gterm"><dt>Annualized (compound) return</dt><dd>The steady yearly rate that would turn the starting amount into the ending amount.</dd></div>
+      <div class="gterm"><dt>Real return</dt><dd>Return after inflation, which measures growth in actual buying power.</dd></div>
+      <div class="gterm"><dt>Dollar-cost averaging</dt><dd>Investing a fixed amount on a regular schedule, regardless of price.</dd></div>
+      <div class="gterm"><dt>Fiduciary</dt><dd>An advisor legally required to put your interests ahead of their own.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>Annual returns 1928–2025 for the S&amp;P 500 (with dividends), 3-month T-bills and 10-year Treasury bonds: Aswath Damodaran, NYU Stern, "Historical Returns on Stocks, Bonds and Bills" (January 2026 update).</li>
+      <li>Inflation: U.S. CPI-U, December-to-December change, Bureau of Labor Statistics (via usinflationcalculator.com). All the multi-year figures on this page, including rolling windows and mixes, are calculated from these two series.</li>
+      <li>Active vs. index results: S&amp;P Dow Jones Indices, SPIVA U.S. Scorecard, Year-End 2025, Report 1a.</li>
+      <li>Expense ratios: Investment Company Institute, "Trends in the Expenses and Fees of Funds, 2025" (March 2026), asset-weighted averages.</li>
+      <li>Stock concentration: Bessembinder, "Do Stocks Outperform Treasury Bills?" (Journal of Financial Economics, 2018), plus Bessembinder et al.'s global follow-up covering 1991–2020.</li>
+      <li>Lump sum vs. cost averaging: Vanguard, "The truth about cost averaging" (Russell 3000, rolling one-year periods, 1979–2022).</li>
+      <li>U.S. share of world stocks: iShares MSCI ACWI ETF geographic exposure, September 22, 2026.</li>
+      <li>The FIA commission range and product mechanics come from this library's <a href="/finance/annuities-explained.html">Annuities Explained</a> and <a href="/finance/life-insurance-explained.html">Life Insurance Explained</a>.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not financial advice or a recommendation to buy or sell any security. Past returns don't guarantee future results, and historical figures ignore taxes, fees and trading costs unless stated. Figures were checked in September 2026.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  /* ---------- Data: annual returns (%) 1928–2025 ----------
+     SP/TB/BD: Damodaran, NYU Stern (Jan 2026 update). CPI: BLS CPI-U Dec–Dec. */
+  var Y0 = 1928;
+  var SP=[43.81,-8.30,-25.12,-43.84,-8.64,49.98,-1.19,46.74,31.94,-35.34,29.28,-1.10,-10.67,-12.77,19.17,25.06,19.03,35.82,-8.43,5.20,5.70,18.30,30.81,23.68,18.15,-1.21,52.56,32.60,7.44,-10.46,43.72,12.06,0.34,26.64,-8.81,22.61,16.42,12.40,-9.97,23.80,10.81,-8.24,3.56,14.22,18.76,-14.31,-25.90,37.00,23.83,-6.98,6.51,18.52,31.74,-4.70,20.42,22.34,6.15,31.24,18.49,5.81,16.54,31.48,-3.06,30.23,7.49,9.97,1.33,37.20,22.68,33.10,28.34,20.89,-9.03,-11.85,-21.97,28.36,10.74,4.83,15.61,5.48,-36.55,25.94,14.82,2.10,15.89,32.15,13.52,1.38,11.77,21.61,-4.23,31.21,18.02,28.47,-18.04,26.06,24.88,17.78];
+  var TB=[3.08,3.16,4.55,2.31,1.07,0.96,0.28,0.17,0.17,0.28,0.07,0.05,0.04,0.13,0.34,0.38,0.38,0.38,0.38,0.60,1.05,1.12,1.20,1.52,1.72,1.89,0.94,1.72,2.62,3.22,1.77,3.39,2.87,2.35,2.77,3.16,3.55,3.95,4.86,4.29,5.34,6.67,6.39,4.33,4.06,7.04,7.85,5.79,4.98,5.26,7.18,10.05,11.39,14.04,11.09,8.95,9.92,7.72,6.15,5.96,6.89,8.39,7.75,5.54,3.51,3.07,4.37,5.66,5.15,5.20,4.91,4.78,6.00,3.48,1.64,1.03,1.40,3.22,4.85,4.48,1.40,0.15,0.14,0.05,0.09,0.06,0.03,0.05,0.32,0.95,1.97,2.11,0.36,0.04,2.09,5.28,5.18,4.21];
+  var BD=[0.84,4.20,4.54,-2.56,8.79,1.86,7.96,4.47,5.02,1.38,4.21,4.41,5.40,-2.02,2.29,2.49,2.58,3.80,3.13,0.92,1.95,4.66,0.43,-0.30,2.27,4.14,3.29,-1.34,-2.26,6.80,-2.10,-2.65,11.64,2.06,5.69,1.68,3.73,0.72,2.91,-1.58,3.27,-5.01,16.75,9.79,2.82,3.66,1.99,3.61,15.98,1.29,-0.78,0.67,-2.99,8.20,32.81,3.20,13.73,25.71,24.28,-4.96,8.22,17.69,6.24,15.00,9.36,14.21,-8.04,23.48,1.43,9.94,14.92,-8.25,16.66,5.57,15.12,0.38,4.49,2.87,1.96,10.21,20.10,-11.12,8.46,16.04,2.97,-9.10,10.75,1.28,0.69,2.80,-0.02,9.64,11.33,-4.42,-17.83,3.88,-1.64,7.80];
+  var CPI=[-1.2,0.6,-6.4,-9.3,-10.3,0.8,1.5,3.0,1.4,2.9,-2.8,0.0,0.7,9.9,9.0,3.0,2.3,2.2,18.1,8.8,3.0,-2.1,5.9,6.0,0.8,0.7,-0.7,0.4,3.0,2.9,1.8,1.7,1.4,0.7,1.3,1.6,1.0,1.9,3.5,3.0,4.7,6.2,5.6,3.3,3.4,8.7,12.3,6.9,4.9,6.7,9.0,13.3,12.5,8.9,3.8,3.8,3.9,3.8,1.1,4.4,4.4,4.6,6.1,3.1,2.9,2.7,2.7,2.5,3.3,1.7,1.6,2.7,3.4,1.6,2.4,1.9,3.3,3.4,2.5,4.1,0.1,2.7,1.5,3.0,1.7,1.5,0.8,0.7,2.1,2.1,1.9,2.3,1.4,7.0,6.5,3.4,2.9,2.7];
+  var N = SP.length;
+
+  /* ---------- helpers ---------- */
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(parent, x, y, s, cls, anchor){
+    var t = el("text", {x:x, y:y, "class":cls||"axis-label", "text-anchor":anchor||"start"}, parent);
+    t.textContent = s; return t;
+  }
+  function clear(svg){ while (svg.firstChild) svg.removeChild(svg.firstChild); }
+  function cagr(arr){ var g=1; for (var i=0;i<arr.length;i++) g*=1+arr[i]/100; return (Math.pow(g,1/arr.length)-1)*100; }
+  function growth(arr){ var g=1; for (var i=0;i<arr.length;i++) g*=1+arr[i]/100; return g; }
+  function pct(v, d){ d = d==null?1:d; return (v>0?"+":v<0?"−":"") + Math.abs(v).toFixed(d) + "%"; }
+  function money(v){
+    if (v >= 1e6) return "$" + (v/1e6).toFixed(v>=1e8?0:1) + "M";
+    if (v >= 1e4) return "$" + Math.round(v/1000).toLocaleString("en-US") + "k";
+    if (v >= 100) return "$" + Math.round(v).toLocaleString("en-US");
+    return "$" + v.toFixed(2);
+  }
+  function moneyFull(v){ return "$" + Math.round(v).toLocaleString("en-US"); }
+  function svgPoint(svg, evt){
+    var pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  /* tooltip: lines = [{t, color?, bold?}] */
+  function tooltip(svg, x, y, lines, W, H){
+    var g = el("g", {"class":"tooltip-group"}, svg);
+    var lh = 16, pad = 8, w = 0;
+    var t = el("text", {"class":"tooltip-text"}, g);
+    lines.forEach(function(L, i){
+      var ts = el("tspan", {x:0, dy: i===0 ? 0 : lh}, t);
+      if (L.bold) ts.setAttribute("font-weight","600");
+      if (L.color){ ts.textContent = "■ "; ts.setAttribute("style","fill:"+L.color);
+        var ts2 = el("tspan", {}, t); ts2.textContent = L.t; }
+      else ts.textContent = L.t;
+    });
+    var bb = t.getBBox(); w = bb.width + pad*2; var h = lines.length*lh + pad*2 - 4;
+    var bx = x + 14; if (bx + w > W - 4) bx = x - 14 - w; if (bx < 4) bx = 4;
+    var by = y - h/2; if (by < 4) by = 4; if (by + h > H - 4) by = H - 4 - h;
+    var r = el("rect", {x:bx, y:by, width:w, height:h, rx:3, "class":"tooltip-bg"});
+    g.insertBefore(r, t);
+    t.setAttribute("transform", "translate("+(bx+pad)+","+(by+pad+11)+")");
+    return g;
+  }
+  function wireHover(svg, hit, onMove, onLeave){
+    function mv(e){ onMove(svgPoint(svg, e)); }
+    hit.addEventListener("pointermove", mv);
+    hit.addEventListener("pointerdown", mv);
+    hit.addEventListener("pointerleave", onLeave);
+  }
+
+  /* ======================================================
+     1. Growth of $1 (log scale)
+     ====================================================== */
+  (function(){
+    var svg = document.getElementById("chart-growth"); if (!svg) return;
+    var W=680, H=330, L=50, R=100, T=14, B=30, pw=W-L-R, ph=H-T-B;
+    var series = [
+      {name:"Stocks", data:SP, color:"var(--teal)"},
+      {name:"Bonds", data:BD, color:"var(--gold)"},
+      {name:"T-bills", data:TB, color:"var(--blue)"},
+      {name:"Prices", data:CPI, color:"var(--ink-faint)", dash:true}
+    ];
+    series.forEach(function(s){ var g=1, v=[1]; s.data.forEach(function(r){ g*=1+r/100; v.push(g); }); s.vals=v; });
+    var lmin=Math.log10(0.3), lmax=Math.log10(30000);
+    function x(i){ return L + pw*i/N; }
+    function y(v){ return T + ph - ph*(Math.log10(v)-lmin)/(lmax-lmin); }
+    [1,10,100,1000,10000].forEach(function(t){
+      el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":"gridline"},svg);
+      txt(svg, L-8, y(t)+4, "$"+t.toLocaleString("en-US"), "axis-label", "end");
+    });
+    [1930,1950,1970,1990,2010].forEach(function(yr){ txt(svg, x(yr-Y0+1), H-10, String(yr), "axis-label", "middle"); });
+    txt(svg, x(N), H-10, "2025", "axis-label", "middle");
+    series.forEach(function(s){
+      var d = s.vals.map(function(v,i){ return (i?"L":"M")+x(i).toFixed(1)+","+y(v).toFixed(1); }).join("");
+      el("path",{d:d, fill:"none", style:"stroke:"+s.color, "stroke-width":2, "stroke-linejoin":"round", "stroke-dasharray": s.dash?"4,4":"none"}, svg);
+    });
+    // direct labels with collision nudging
+    var labs = series.map(function(s){ var v=s.vals[N]; return {s:s, y:y(v), t:(s.name==="Prices"?"Prices ×"+v.toFixed(1):(v>=100?moneyFull(v):money(v)))}; })
+      .sort(function(a,b){ return a.y-b.y; });
+    for (var i=1;i<labs.length;i++) if (labs[i].y - labs[i-1].y < 13) labs[i].y = labs[i-1].y + 13;
+    labs.forEach(function(l){ txt(svg, W-R+8, l.y+4, l.t, "direct-label"); });
+
+    var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+    wireHover(svg, hit, function(p){
+      var i = Math.max(0, Math.min(N, Math.round((p.x-L)/pw*N)));
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      el("line",{x1:x(i),x2:x(i),y1:T,y2:T+ph,"class":"crosshair"},layer);
+      series.forEach(function(s){ el("circle",{cx:x(i),cy:y(s.vals[i]),r:4,style:"fill:"+s.color+";stroke:var(--paper-raised)","stroke-width":2},layer); });
+      var head = i===0 ? "Start of 1928" : "End of " + (Y0+i-1);
+      var lines = [{t:head, bold:true}].concat(series.map(function(s){
+        return {t: s.name + (s.name==="Prices" ? "  ×" + s.vals[i].toFixed(2) : "  " + (s.vals[i]>=100?moneyFull(s.vals[i]):money(s.vals[i]))), color:s.color};
+      }));
+      layer.appendChild(tooltip(svg, x(i), T+60, lines, W, H));
+    }, function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+  })();
+
+  /* ======================================================
+     2. Rolling-period ranges
+     ====================================================== */
+  (function(){
+    var svg = document.getElementById("chart-rolling"); if (!svg) return;
+    var HOR = [1,5,10,15,20,30];
+    var REAL = SP.map(function(r,i){ return ((1+r/100)/(1+CPI[i]/100)-1)*100; });
+    function stats(arr){
+      return HOR.map(function(w){
+        var best={v:-1e9}, worst={v:1e9}, neg=0, cnt=0;
+        for (var i=0;i+w<=N;i++){
+          var v = cagr(arr.slice(i,i+w)); cnt++; if (v<0) neg++;
+          if (v>best.v) best={v:v,i:i}; if (v<worst.v) worst={v:v,i:i};
+        }
+        return {w:w, best:best, worst:worst, neg:neg, cnt:cnt};
+      });
+    }
+    var S = {nominal: stats(SP), real: stats(REAL)};
+    function span(i,w){ return w===1 ? String(Y0+i) : (Y0+i)+"–"+(Y0+i+w-1); }
+    var W=680, H=320, L=48, R=14, T=16, B=52, pw=W-L-R, ph=H-T-B, ymin=-50, ymax=60;
+    function y(v){ return T + ph - ph*(v-ymin)/(ymax-ymin); }
+    function draw(basis){
+      clear(svg);
+      var st = S[basis];
+      [-40,-20,0,20,40,60].forEach(function(t){
+        el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t===0?"zero":"gridline"},svg);
+        txt(svg, L-8, y(t)+4, (t>0?"+":"")+t+"%", "axis-label", "end");
+      });
+      var band = pw/HOR.length, bw = 34;
+      var tipLayer;
+      st.forEach(function(s, k){
+        var cx = L + band*k + band/2;
+        var top = y(s.best.v), bot = y(s.worst.v), zero = y(0);
+        if (s.best.v > 0) el("rect",{x:cx-bw/2, y:top, width:bw, height:Math.max(1,Math.min(zero,bot)-top), rx:3, style:"fill:var(--teal)"},svg);
+        if (s.worst.v < 0) el("rect",{x:cx-bw/2, y:Math.max(zero,top), width:bw, height:Math.max(1,bot-Math.max(zero,top)), rx:3, style:"fill:var(--rust)"},svg);
+        txt(svg, cx, top-6, pct(s.best.v), "direct-label", "middle");
+        txt(svg, cx, bot+14, pct(s.worst.v), "direct-label", "middle");
+        txt(svg, cx, H-30, s.w===1?"1 year":s.w+" years", "axis-title", "middle");
+        txt(svg, cx, H-14, Math.round(100*s.neg/s.cnt)+"% lost", "axis-label", "middle");
+        var hit = el("rect",{x:cx-band/2+4, y:T, width:band-8, height:ph, "class":"hit", style:"cursor:pointer"},svg);
+        wireHover(svg, hit, function(){
+          if (tipLayer) tipLayer.remove();
+          tipLayer = tooltip(svg, cx, (top+bot)/2, [
+            {t:"Held "+(s.w===1?"1 year":s.w+" years")+(basis==="real"?", after inflation":""), bold:true},
+            {t:"Best  "+pct(s.best.v)+"/yr ("+span(s.best.i,s.w)+")"},
+            {t:"Worst "+pct(s.worst.v)+"/yr ("+span(s.worst.i,s.w)+")"},
+            {t:s.neg+" of "+s.cnt+" periods lost money"}
+          ], W, H);
+        }, function(){ if (tipLayer){ tipLayer.remove(); tipLayer=null; } });
+      });
+      var tb = document.querySelector("#rolling-table tbody");
+      tb.innerHTML = st.map(function(s){
+        return "<tr><td>"+(s.w===1?"1 year":s.w+" years")+"</td><td>"+pct(s.best.v)+" ("+span(s.best.i,s.w)+")</td><td>"+pct(s.worst.v)+" ("+span(s.worst.i,s.w)+")</td><td>"+s.neg+" of "+s.cnt+" ("+Math.round(100*s.neg/s.cnt)+"%)</td></tr>";
+      }).join("");
+    }
+    draw("nominal");
+    var btns = document.querySelectorAll("[data-basis]");
+    btns.forEach(function(b){ b.addEventListener("click", function(){
+      btns.forEach(function(x){ x.setAttribute("aria-pressed", x===b?"true":"false"); });
+      draw(b.dataset.basis);
+    }); });
+  })();
+
+  /* ======================================================
+     3. Waffle
+     ====================================================== */
+  (function(){
+    var w = document.getElementById("waffle"); if (!w) return;
+    var winners = {7:1, 31:1, 58:1, 86:1}, h="";
+    for (var i=0;i<100;i++) h += '<i'+(winners[i]?' class="win"':'')+'></i>';
+    w.innerHTML = h;
+  })();
+
+  /* ======================================================
+     4. SPIVA grouped bars
+     ====================================================== */
+  (function(){
+    var svg = document.getElementById("chart-spiva"); if (!svg) return;
+    var H_ = ["1 yr","3 yrs","5 yrs","10 yrs","15 yrs","20 yrs"];
+    var LC = [78.78,66.84,88.96,85.59,89.93,92.89], ALL = [79.83,80.40,91.47,90.43,93.15,95.01];
+    var W=680, H=300, L=44, R=14, T=18, B=30, pw=W-L-R, ph=H-T-B;
+    function y(v){ return T + ph - ph*v/100; }
+    [0,25,50,75,100].forEach(function(t){
+      el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t===0?"zero":"gridline"},svg);
+      txt(svg, L-8, y(t)+4, t+"%", "axis-label", "end");
+    });
+    el("line",{x1:L,x2:W-R,y1:y(50),y2:y(50),style:"stroke:var(--ink-faint)","stroke-dasharray":"4,4"},svg);
+    var band = pw/H_.length, bw = 26, tip;
+    function bar(x0, v, color){
+      var yt = y(v), yb = y(0), r = 4;
+      var d = "M"+x0+","+yb+"V"+(yt+r)+"Q"+x0+","+yt+" "+(x0+r)+","+yt+"H"+(x0+bw-r)+"Q"+(x0+bw)+","+yt+" "+(x0+bw)+","+(yt+r)+"V"+yb+"Z";
+      el("path",{d:d, style:"fill:"+color},svg);
+    }
+    H_.forEach(function(h,k){
+      var cx = L + band*k + band/2;
+      bar(cx-bw-1, LC[k], "var(--teal)");
+      bar(cx+1, ALL[k], "var(--gold)");
+      txt(svg, cx, H-10, h, "axis-label", "middle");
+      if (k===H_.length-1){
+        txt(svg, cx-bw/2-1, y(LC[k])-6, Math.round(LC[k])+"%", "direct-label", "middle");
+        txt(svg, cx+bw/2+1, y(ALL[k])-6, Math.round(ALL[k])+"%", "direct-label", "middle");
+      }
+      var hit = el("rect",{x:cx-band/2+4,y:T,width:band-8,height:ph,"class":"hit",style:"cursor:pointer"},svg);
+      wireHover(svg, hit, function(){
+        if (tip) tip.remove();
+        tip = tooltip(svg, cx, y(LC[k])+30, [
+          {t:"Over "+h+" to end-2025", bold:true},
+          {t:"Large-cap funds trailing  "+LC[k].toFixed(1)+"%", color:"var(--teal)"},
+          {t:"All U.S. stock funds  "+ALL[k].toFixed(1)+"%", color:"var(--gold)"}
+        ], W, H);
+      }, function(){ if (tip){ tip.remove(); tip=null; } });
+    });
+  })();
+
+  /* ======================================================
+     5. Fee calculator
+     ====================================================== */
+  (function(){
+    var svg = document.getElementById("chart-fees"); if (!svg) return;
+    var FEES = [
+      {name:"Index fund", fee:0.05, color:"var(--teal)"},
+      {name:"Average active fund", fee:0.64, color:"var(--gold)"},
+      {name:"Active + 1% advisor", fee:1.64, color:"var(--blue)"}
+    ];
+    var ids = ["monthly","start","years","return"], inputs = {};
+    ids.forEach(function(id){ inputs[id] = document.getElementById("f-"+id); inputs[id].addEventListener("input", draw); });
+    function simulate(monthly, start, years, gross, fee){
+      var r = Math.pow(1+gross/100, 1/12)-1, f = Math.pow(1+fee/100, 1/12)-1, b = start, out=[start];
+      for (var m=1; m<=years*12; m++){ b = b*(1+r)*(1-f) + monthly; if (m%12===0) out.push(b); }
+      return out;
+    }
+    function niceMax(v){ var p = Math.pow(10, Math.floor(Math.log10(v))), n = v/p; return (n<=1.5?1.5:n<=2?2:n<=3?3:n<=4?4:n<=5?5:n<=6?6:n<=8?8:10)*p; }
+    var W=680, H=300, L=58, R=70, T=14, B=30, pw=W-L-R, ph=H-T-B;
+    function draw(){
+      var mo=+inputs.monthly.value, st=+inputs.start.value, yrs=+inputs.years.value, gr=+inputs["return"].value;
+      document.getElementById("o-monthly").textContent = moneyFull(mo);
+      document.getElementById("o-start").textContent = moneyFull(st);
+      document.getElementById("o-years").textContent = yrs + " yrs";
+      document.getElementById("o-return").textContent = gr.toFixed(1) + "%/yr";
+      var runs = FEES.map(function(f){ return {f:f, v:simulate(mo, st, yrs, gr, f.fee)}; });
+      var contributed = st + mo*12*yrs, base = runs[0].v[yrs];
+      document.getElementById("fee-tiles").innerHTML = runs.map(function(r,k){
+        var end = r.v[yrs], diff = base - end;
+        var sub = k===0 ? "You put in " + money(contributed) : "−" + money(diff) + " (" + Math.round(100*diff/base) + "%) vs. index";
+        return '<div class="tile"><div class="k"><i class="swatch" style="background:'+r.f.color+'"></i>'+r.f.name+' · '+r.f.fee.toFixed(2)+'%</div><div class="v">'+money(end)+'</div><div class="s">'+sub+'</div></div>';
+      }).join("");
+      clear(svg);
+      var ymax = niceMax(Math.max(base, 1000));
+      function x(i){ return L + pw*i/yrs; }
+      function y(v){ return T + ph - ph*v/ymax; }
+      for (var t=0; t<=4; t++){
+        var v = ymax*t/4;
+        el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"class":t===0?"zero":"gridline"},svg);
+        txt(svg, L-8, y(v)+4, v===0?"$0":money(v).replace(".0M","M"), "axis-label", "end");
+      }
+      var step = yrs<=10?1:yrs<=20?5:yrs<=35?5:10;
+      for (var yy=0; yy<=yrs; yy+=step) txt(svg, x(yy), H-10, yy===0?"Year 0":String(yy), "axis-label", "middle");
+      runs.forEach(function(r){
+        var d = r.v.map(function(v,i){ return (i?"L":"M")+x(i).toFixed(1)+","+y(v).toFixed(1); }).join("");
+        el("path",{d:d, fill:"none", style:"stroke:"+r.f.color, "stroke-width":2, "stroke-linejoin":"round"}, svg);
+      });
+      var labs = runs.map(function(r){ return {y:y(r.v[yrs]), t:money(r.v[yrs])}; });
+      for (var i=1;i<labs.length;i++) if (labs[i].y - labs[i-1].y < 13) labs[i].y = labs[i-1].y + 13;
+      labs.forEach(function(l){ txt(svg, W-R+8, l.y+4, l.t, "direct-label"); });
+      var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+      wireHover(svg, hit, function(p){
+        var i = Math.max(0, Math.min(yrs, Math.round((p.x-L)/pw*yrs)));
+        while (layer.firstChild) layer.removeChild(layer.firstChild);
+        el("line",{x1:x(i),x2:x(i),y1:T,y2:T+ph,"class":"crosshair"},layer);
+        runs.forEach(function(r){ el("circle",{cx:x(i),cy:y(r.v[i]),r:4,style:"fill:"+r.f.color+";stroke:var(--paper-raised)","stroke-width":2},layer); });
+        layer.appendChild(tooltip(svg, x(i), T+50, [{t:"After "+i+" year"+(i===1?"":"s"), bold:true}].concat(runs.map(function(r){
+          return {t:r.f.name+"  "+moneyFull(r.v[i]), color:r.f.color};
+        })), W, H));
+      }, function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+    }
+    draw();
+  })();
+
+  /* ======================================================
+     6. Stock/bond dial
+     ====================================================== */
+  (function(){
+    var svg = document.getElementById("chart-alloc"); if (!svg) return;
+    var input = document.getElementById("a-mix");
+    var W=680, H=260, L=44, R=10, T=12, B=26, pw=W-L-R, ph=H-T-B, ymin=-50, ymax=60;
+    function y(v){ return T + ph - ph*(v-ymin)/(ymax-ymin); }
+    var band = pw/N, bw = Math.max(2, band-1.6);
+    function draw(){
+      var w = +input.value/100;
+      document.getElementById("o-mix").textContent = Math.round(w*100) + " / " + Math.round((1-w)*100);
+      var mix = SP.map(function(s,i){ return w*s + (1-w)*BD[i]; });
+      var real = mix.map(function(r,i){ return ((1+r/100)/(1+CPI[i]/100)-1)*100; });
+      var worstI = 0, down = 0; mix.forEach(function(r,i){ if (r < mix[worstI]) worstI = i; if (r<0) down++; });
+      var tiles = [
+        ["Per year", pct(cagr(mix)).replace("+",""), "compound, 1928–2025"],
+        ["After inflation", pct(cagr(real)).replace("+",""), "per year"],
+        ["Worst year", pct(mix[worstI]), String(Y0+worstI)],
+        ["Down years", down + " of " + N, Math.round(100*down/N) + "% of years"],
+        ["$10,000 became", money(10000*growth(mix)), "by end of 2025"]
+      ];
+      document.getElementById("alloc-tiles").innerHTML = tiles.map(function(t){
+        return '<div class="tile"><div class="k">'+t[0]+'</div><div class="v">'+t[1]+'</div><div class="s">'+t[2]+'</div></div>';
+      }).join("");
+      clear(svg);
+      [-40,-20,0,20,40,60].forEach(function(t){
+        el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t===0?"zero":"gridline"},svg);
+        txt(svg, L-8, y(t)+4, (t>0?"+":"")+t+"%", "axis-label", "end");
+      });
+      [1930,1950,1970,1990,2010].forEach(function(yr){ txt(svg, L+band*(yr-Y0)+band/2, H-8, String(yr), "axis-label", "middle"); });
+      mix.forEach(function(r,i){
+        var x0 = L + band*i + (band-bw)/2, y0 = y(0), y1 = y(r);
+        el("rect",{x:x0, y:Math.min(y0,y1), width:bw, height:Math.max(1,Math.abs(y1-y0)), rx:Math.min(2,bw/2), style:"fill:"+(r<0?"var(--rust)":"var(--teal)")},svg);
+      });
+      var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+      wireHover(svg, hit, function(p){
+        var i = Math.max(0, Math.min(N-1, Math.floor((p.x-L)/band)));
+        while (layer.firstChild) layer.removeChild(layer.firstChild);
+        var cx = L + band*i + band/2;
+        el("line",{x1:cx,x2:cx,y1:T,y2:T+ph,"class":"crosshair"},layer);
+        layer.appendChild(tooltip(svg, cx, y(mix[i]), [
+          {t:String(Y0+i), bold:true},
+          {t:"This mix  "+pct(mix[i])},
+          {t:"Stocks "+pct(SP[i])+" · Bonds "+pct(BD[i])}
+        ], W, H));
+      }, function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+    }
+    input.addEventListener("input", draw);
+    draw();
+  })();
+})();
+</script>
+</body>
+</html>
