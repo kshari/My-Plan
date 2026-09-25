@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rent vs. Buy & Mortgages</title>
+<meta name="description" content="Rent vs. Buy & Mortgages Explained: the true yearly cost of owning, a rent-vs-buy calculator, how mortgages work, and when points or a refinance pay off.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ---- Sales pitch additions ---- */
+.pitch{border-top:1px solid var(--rule); padding:24px 0;}
+.pitch:last-child{border-bottom:1px solid var(--rule);}
+.pitch-claim{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px; color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold); padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;}
+.reality-tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--rust); font-weight:600; display:block; margin-bottom:6px;}
+.pitch p{font-size:15.5px;}
+.pitch .ask{font-size:14.5px; color:var(--ink-soft); margin-top:8px;}
+.pitch .ask strong{color:var(--teal); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-right:6px;}
+.flags{display:flex; flex-direction:column; margin-top:8px;}
+.flag{display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:start; padding:11px 4px; border-top:1px solid var(--rule); cursor:pointer; font-size:14.5px; line-height:1.5;}
+.flag:last-child{border-bottom:1px solid var(--rule);}
+.flag input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--rust); cursor:pointer;}
+.flag:hover{background:var(--ink-wash);}
+.flag.on{background:var(--rust-wash);}
+.flag small{display:block; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+.meter{display:flex; gap:4px; margin:14px 0 8px;}
+.meter i{flex:1; height:10px; border-radius:3px; background:var(--ink-wash);}
+.meter i.on{background:var(--rust);}
+.verdict-box{padding:14px 16px; border-radius:3px; border-left:3px solid var(--teal); background:var(--teal-wash); font-size:15px; line-height:1.6;}
+.verdict-box.warn{border-left-color:var(--gold); background:var(--gold-wash);}
+.verdict-box.stop{border-left-color:var(--rust); background:var(--rust-wash);}
+.paymodel{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px;}
+@media (max-width:760px){ .paymodel{grid-template-columns:1fr 1fr} }
+@media (max-width:460px){ .paymodel{grid-template-columns:1fr} }
+.pm{background:var(--paper-raised); border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:16px; box-shadow:var(--shadow);}
+.pm .k{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.pm h3{font-style:normal; font-size:17px; margin:4px 0 6px;}
+.pm p{font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 8px;}
+.pm .nudge{font-size:12.5px; color:var(--ink); border-top:1px dotted var(--rule); padding-top:8px; margin:0;}
+.pm .nudge b{display:block; margin-bottom:2px; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-right:4px;}
+
+/* ---- Health & disability additions ---- */
+.plan-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:8px 0 16px;}
+@media (max-width:620px){ .plan-grid{grid-template-columns:1fr} }
+.plan-box{border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:12px 14px 14px; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; background:var(--paper);}
+.plan-box legend{font:600 11px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 6px;}
+@media (max-width:380px){ .plan-box{grid-template-columns:1fr} }
+.win-a{color:var(--gold); font-weight:600;}
+.win-b{color:var(--teal); font-weight:600;}
+.flow.four{grid-template-columns:repeat(4,1fr);}
+@media (max-width:680px){ .flow.four{grid-template-columns:1fr} }
+.plan-box{align-content:start;}
+.plan-box .field{display:flex; flex-direction:column; justify-content:flex-end;}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Major Assets · Part of Personal Finance Library</p>
+    <h1>Rent vs. Buy &amp; Mortgages Explained</h1>
+    <p class="subtitle">The honest math behind the biggest purchase most people make: what owning really costs each year, a full rent-versus-buy comparison you can run on your own numbers, how a mortgage works, the big choices (fixed or adjustable, 15 or 30 years, how much down, points), and when a refinance pays off.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Rent isn't "throwing money away," and a mortgage isn't automatically "building wealth." Both have <strong>unrecoverable costs</strong>. For renters it's rent. For owners it's mortgage interest, property tax, insurance, maintenance and what the down payment could have earned elsewhere, minus any appreciation. On top of that, buying and later selling costs roughly <strong>8%–10% of the home's price</strong>, which is why <strong>how long you'll stay</strong> matters most. With 30-year rates near <strong>7%</strong> (Freddie Mac, September 2026) and a median existing home of about <strong>$429,000</strong>, renting and investing the difference often comes out ahead over 5–10 years in many markets, while buying tends to win the longer you stay, the cheaper homes are relative to rents, and the lower your rate. Run the calculator with your own numbers. If you buy: keep the payment near 28% of gross income, keep an emergency fund after closing, compare lenders, treat points and refinances as break-even math, and know that PMI can be removed once you reach 20% equity.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#real-costs">What owning really costs each year</a>
+      <a href="#calculator">Rent vs. buy on your numbers (calculator)</a>
+      <a href="#beyond-math">What the math leaves out</a>
+      <a href="#mortgage">How a mortgage works (calculator)</a>
+      <a href="#choices">The big mortgage choices</a>
+      <a href="#breakeven">Points and refinancing: the break-even test (calculator)</a>
+      <a href="#how-much">How much house?</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A home-buying checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="real-costs">
+    <p class="eyebrow">Start here</p>
+    <h2>What owning really costs each year</h2>
+    <p class="lede">The fair comparison isn't rent versus mortgage payment. Part of a mortgage payment is principal, which is really moving your own money into the house, like a forced savings account. The comparison that matters is the <strong>unrecoverable</strong> costs on each side: money that's gone and doesn't come back when you move.</p>
+
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Owner's unrecoverable cost (first year)</th><th>Example: $430,000 home, 20% down, 7% rate</th><th>Why it counts</th></tr></thead>
+        <tbody>
+          <tr><td>Mortgage interest</td><td>≈ $24,000 (5.6% of price)</td><td>The price of borrowing. It shrinks slowly as the loan is paid down.</td></tr>
+          <tr><td>Property tax</td><td>≈ $4,300 (1.0%)</td><td>Varies widely by state, from under 0.5% to over 2% of value.</td></tr>
+          <tr><td>Maintenance and repairs</td><td>≈ $6,500 (1.5%)</td><td>Roofs, water heaters and appliances wear out. A common rule of thumb is 1%–2% a year.</td></tr>
+          <tr><td>Homeowners insurance</td><td>≈ $2,400 (0.6%)</td><td>Rising fast in many states. Renters insurance is much cheaper.</td></tr>
+          <tr><td>Opportunity cost of the down payment</td><td>≈ $5,200 (1.2%)</td><td>$86,000 invested at 6% a year instead.</td></tr>
+          <tr><td><strong>Minus</strong> home appreciation</td><td>≈ −$15,000 (−3.5%)</td><td>An assumption, not a promise. It can be negative for years.</td></tr>
+          <tr><td><strong>Net yearly cost of owning</strong></td><td><strong>≈ $27,400, about $2,280 a month</strong></td><td>Compare this with the rent for a similar home.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:18px;">On these assumptions, owning's yearly cost is close to renting a similar home for about $2,300–$2,400 a month. What tips the balance is the one-time <strong>transaction costs</strong>: closing costs of roughly 2%–5% of the loan when you buy, and agent commissions (often 2.5%–3% to each side) plus other fees when you sell. That round trip of 8%–10% of the price has to be earned back, and it takes years.</p>
+    <div class="callout"><strong>Home prices over the long run.</strong> Homes feel like a great investment because the numbers are large and borrowed money magnifies them. But Robert Shiller's century-long index found U.S. home prices, after inflation, ended the 20th century only about 23% above their 1890 level. A home is mostly a place to live that roughly keeps pace with inflation, not a growth investment. Your mileage varies a lot by city and by decade.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="calculator">
+    <p class="eyebrow">The core of this episode</p>
+    <h2>Rent vs. buy on your numbers</h2>
+    <p class="lede">This calculator follows the same money both ways. The buyer pays the down payment, closing costs and every monthly owning cost. The renter invests the down payment and closing costs instead, and each month whoever spends less invests the difference. At the end of each year, it compares what each would walk away with: the buyer's home equity after selling costs (plus any savings), against the renter's portfolio.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Net worth from the housing decision, year by year</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--blue)"></i>Buy</span><span><i class="swatch" style="background:var(--teal)"></i>Rent and invest</span></div>
+      </div>
+      <div class="presets" role="group" aria-label="Example markets">
+        <span>Try</span>
+        <button type="button" data-rb="median" aria-pressed="true">U.S. median home</button>
+        <button type="button" data-rb="cheap" aria-pressed="false">Lower-cost metro</button>
+        <button type="button" data-rb="coastal" aria-pressed="false">Expensive coastal metro</button>
+      </div>
+      <div class="planner">
+        <div class="field"><label for="rb-price">Home price</label><input id="rb-price" type="number" min="0" step="5000" inputmode="numeric"></div>
+        <div class="field"><label for="rb-rent">Rent for a similar home (monthly)</label><input id="rb-rent" type="number" min="0" step="50" inputmode="numeric"></div>
+        <div class="field"><label for="rb-years">Years you'll stay</label><input id="rb-years" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
+        <div class="field"><label for="rb-down">Down payment (%)</label><input id="rb-down" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+        <div class="field"><label for="rb-rate">Mortgage rate (%)</label><input id="rb-rate" type="number" min="0" max="15" step="0.05" inputmode="decimal"></div>
+        <div class="field"><label for="rb-tax">Property tax (% of value/yr)</label><input id="rb-tax" type="number" min="0" max="4" step="0.05" inputmode="decimal"></div>
+        <div class="field"><label for="rb-ins">Home insurance ($/yr)</label><input id="rb-ins" type="number" min="0" step="100" inputmode="numeric"></div>
+        <div class="field"><label for="rb-hoa">HOA dues ($/month)</label><input id="rb-hoa" type="number" min="0" step="25" inputmode="numeric"></div>
+        <div class="field"><label for="rb-maint">Maintenance (% of value/yr)</label><input id="rb-maint" type="number" min="0" max="5" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label for="rb-app">Home price growth (%/yr)</label><input id="rb-app" type="number" min="-5" max="10" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label for="rb-rg">Rent growth (%/yr)</label><input id="rb-rg" type="number" min="-5" max="10" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label for="rb-ret">Investment return (%/yr)</label><input id="rb-ret" type="number" min="0" max="12" step="0.1" inputmode="decimal"></div>
+      </div>
+      <div class="tiles" id="rb-tiles" aria-live="polite"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-rb" viewBox="0 0 680 300" role="img" aria-label="Line chart of net worth over time for buying versus renting and investing."></svg></div>
+      <div class="raise" id="rb-verdict"></div>
+      <div class="chart-foot">Monthly simulation. Buying: closing costs 3% of price, selling costs 6% of the sale price, PMI of 0.7% of the loan per year while the balance is above 78% of the price (only if under 20% down), insurance and HOA rising 3% a year. Renting: invests the down payment and closing costs. Both invest any monthly savings at the investment return. Ignores income taxes on both sides (most buyers take the standard deduction; up to $500,000 of home-sale gain is tax-free for couples), and renters insurance.</div>
+    </div>
+
+    <p style="margin-top:22px;">Three things to notice as you change the inputs. First, <strong>the buyer starts well behind</strong>: closing costs, plus the selling costs they'd pay to cash out, are a hole to climb out of. Second, <strong>small assumptions swing the answer</strong>. At the U.S. median defaults, buying doesn't catch up for decades, but at a 6% rate the break-even drops to about 10 years, and with 4% yearly price growth to about 15. Third, <strong>the comparison assumes the renter really invests the difference</strong>. A renter who spends it loses the race, which is the strongest argument for buying: a mortgage is a savings plan you can't skip.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="beyond-math">
+    <p class="eyebrow">The part no calculator captures</p>
+    <h2>What the math leaves out</h2>
+    <div class="verdicts">
+      <div class="verdict good">
+        <div class="book-label">Reasons to buy</div>
+        <h3>Stability, control, forced savings</h3>
+        <p>No landlord deciding to sell or raise the rent; freedom to renovate, garden, keep pets; a fixed-rate payment that stays the same while rents rise with inflation; and principal payments that build equity whether or not you're disciplined. Paid off by retirement, a home cuts your living costs sharply.</p>
+      </div>
+      <div class="verdict bad">
+        <div class="book-label">Reasons to rent</div>
+        <h3>Flexibility, simplicity, diversification</h3>
+        <p>Easy to move for a job or a relationship; no surprise $15,000 roof; money stays liquid and spread across the whole market instead of concentrated in one house on one street, bought with borrowed money. Borrowing works both ways: a 10% price drop on a home bought with 10% down wipes out the entire down payment.</p>
+      </div>
+    </div>
+    <p style="margin-top:18px;">A good rule: <strong>buy when you expect to stay at least five to seven years, the payment fits comfortably, and you'll still have an emergency fund after closing.</strong> Until then, renting and investing the difference is a perfectly respectable plan, not a failure.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="mortgage">
+    <p class="eyebrow">The loan itself</p>
+    <h2>How a mortgage works</h2>
+    <p class="lede">A standard mortgage has a fixed monthly payment for principal and interest. Early on, most of each payment is interest; over time the balance falls and more goes to principal. That schedule is called amortization. Your actual monthly bill usually also includes property tax and insurance (held in an escrow account) and, with less than 20% down, mortgage insurance.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Where each year's payments go</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--gold)"></i>Interest</span><span><i class="swatch" style="background:var(--teal)"></i>Principal</span></div>
+      </div>
+      <div class="controls">
+        <div class="control"><label for="m-loan">Loan amount <output id="o-loan"></output></label><input type="range" id="m-loan" min="50000" max="1500000" step="1000" value="344000"></div>
+        <div class="control"><label for="m-rate">Interest rate <output id="o-rate"></output></label><input type="range" id="m-rate" min="2" max="10" step="0.05" value="7"></div>
+        <div class="control"><label for="m-extra">Extra principal each month <output id="o-extra"></output></label><input type="range" id="m-extra" min="0" max="2000" step="25" value="0"></div>
+        <div class="control"><label>Term</label><div class="seg" role="group" aria-label="Loan term"><button type="button" data-term="30" aria-pressed="true">30 years</button><button type="button" data-term="15" aria-pressed="false">15 years</button></div></div>
+      </div>
+      <div class="tiles" id="m-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-amort" viewBox="0 0 680 280" role="img" aria-label="Stacked bars of interest and principal paid each year of the loan."></svg></div>
+      <div class="chart-foot">Principal and interest only; taxes, insurance and PMI are extra. Hover or tap a bar for that year.</div>
+    </div>
+    <p style="margin-top:22px;">On a $344,000 loan at 7%, the 30-year payment is about <strong>$2,289</strong> a month and total interest comes to about <strong>$480,000</strong>, more than the loan itself. Adding just $200 a month pays it off in about 23½ years and saves about $121,000 of interest. With property tax and insurance on the $430,000 home, the monthly bill is closer to <strong>$2,850</strong>.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="choices">
+    <p class="eyebrow">Decisions</p>
+    <h2>The big mortgage choices</h2>
+
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">FIXED</div><div><h3>Fixed rate or adjustable (ARM)?</h3><p>A fixed-rate loan keeps the same rate for the life of the loan, and you can refinance if rates fall. An ARM (for example a 5/6 or 7/6 ARM) is fixed for the first 5 or 7 years, then adjusts every six months with a benchmark rate, within caps on the first adjustment, each later one, and the lifetime total. An ARM can make sense if you're confident you'll sell before it adjusts; otherwise you're taking on rate risk the lender is happy to hand you.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">15/30</div><div><h3>15 years or 30?</h3><p>A 15-year loan has a lower rate (6.42% vs. 7.03% in Freddie Mac's September 24, 2026 survey) and costs far less interest, but a much higher payment. On $344,000 at about 6.4%, the 15-year payment is roughly $2,980, with total interest near $192,000 versus $480,000 on the 30-year at 7%. A middle path: take the 30-year for flexibility and prepay when you can, but only after the employer match, high-interest debt and an emergency fund are handled.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">DOWN</div><div><h3>How much down?</h3><p>20% down avoids private mortgage insurance (PMI) on a conventional loan. With less down, PMI typically costs somewhere around 0.3%–1.5% of the loan a year depending on credit and down payment. You can ask to cancel it once the balance reaches 80% of the original value, and it must end automatically at 78%. Putting less down to keep an emergency fund is often wiser than draining savings to reach 20%.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">LOAN</div><div><h3>Loan types</h3><p><strong>Conventional</strong> loans (up to $832,750 in most of the country for 2026; higher in expensive counties) need as little as 3%–5% down. <strong>FHA</strong> loans allow 3.5% down with lower credit scores but charge a 1.75% upfront premium plus about 0.55% a year, for the life of the loan if you put less than 10% down. <strong>VA</strong> loans (for eligible veterans and service members) and <strong>USDA</strong> loans (eligible rural areas) can require nothing down. Above the conforming limit, "jumbo" loans have stricter terms.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">SHOP</div><div><h3>Shop lenders, and compare the Loan Estimate</h3><p>Every lender must give you a standardized three-page Loan Estimate within three business days of applying. Get at least three, and compare the rate, the APR, and "origination charges" on page 2. Multiple mortgage credit checks within a short window count as a single inquiry for your score.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="breakeven">
+    <p class="eyebrow">Pay now to save later?</p>
+    <h2>Points and refinancing: the break-even test</h2>
+    <p class="lede">Buying "points" (paying upfront to lower your rate) and refinancing (replacing your loan with a cheaper one) are the same decision: <strong>an upfront cost in exchange for a lower monthly payment</strong>. Divide the cost by the monthly savings to get the months to break even. If you'll likely move or refinance again before then, don't do it.</p>
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Break-even on points or a refinance</div></div>
+      <div class="planner">
+        <div class="field"><label for="b-bal">Loan balance</label><input id="b-bal" type="number" min="0" step="1000" value="344000" inputmode="numeric"></div>
+        <div class="field"><label for="b-years">Years left on the loan</label><input id="b-years" type="number" min="1" max="30" step="1" value="30" inputmode="numeric"></div>
+        <div class="field"><label for="b-cost">Upfront cost (points or closing costs)</label><input id="b-cost" type="number" min="0" step="100" value="3440" inputmode="numeric"></div>
+        <div class="field"><label for="b-old">Rate without it (%)</label><input id="b-old" type="number" min="0" max="15" step="0.05" value="7" inputmode="decimal"></div>
+        <div class="field"><label for="b-new">Rate with it (%)</label><input id="b-new" type="number" min="0" max="15" step="0.05" value="6.75" inputmode="decimal"></div>
+      </div>
+      <div class="tiles" id="b-tiles"></div>
+      <div class="raise" id="b-note"></div>
+      <div class="chart-foot">Simple break-even: upfront cost ÷ monthly principal-and-interest savings. A refinance that restarts a 30-year term can lower the payment but add years of interest; compare total cost, not just the payment. One point = 1% of the loan; how much a point lowers the rate varies by lender and market.</div>
+    </div>
+    <p style="margin-top:18px;">At the defaults, one point ($3,440) lowers the rate from 7% to 6.75% and saves about $57 a month, which takes about <strong>five years</strong> to earn back. That's worth it only if you're confident you'll keep this exact loan longer, which is uncertain when rates may fall and a refinance could replace it.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="how-much">
+    <p class="eyebrow">Affordability</p>
+    <h2>How much house?</h2>
+    <p class="lede">Lenders will often approve more than is comfortable. A long-standing guideline keeps <strong>housing costs (principal, interest, taxes, insurance, HOA) at or below about 28% of gross income</strong>, and all debt payments at or below about 36%.</p>
+    <ul class="plain">
+      <li>The $430,000 example (about $2,850 a month with tax and insurance) implies a household income of roughly <strong>$122,000</strong> under the 28% guideline.</li>
+      <li>Keep an <strong>emergency fund after closing</strong>, plus a cushion for first-year repairs and furniture. New owners are often surprised by these costs.</li>
+      <li>Don't let the house crowd out retirement saving. The <a href="/finance/which-account.html#order">savings order</a> still applies: take the employer match before stretching for a bigger house.</li>
+      <li>Price the total cost of the neighborhood too: commute, property-tax trends, insurance availability, and HOA rules and special assessments.</li>
+    </ul>
+    <p>Right now the market is shifting in buyers' favor in many areas: in August 2026, inventory reached 1.62 million homes (4.9 months of supply, the most in over a decade) while the median price rose just 1.6% from a year earlier. Rents have also softened, falling for 37 straight months in the largest metros, with over 43% of listings offering concessions. Both sides have more room to negotiate than they did a few years ago.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">On the <a href="/finance/money-river.html">Money River</a>, the Major Assets thread starts when you buy a home and runs through the years you pay it down. On the <a href="/finance/money-roadmap.html#priority-waterfall">Money Roadmap</a>, a down payment is a step 07 "named goal," weighed against other goals by timeline. Money for a purchase within a few years belongs in cash, not stocks.</p>
+    <div class="next-links">
+      <a class="soon" href="/finance/index.html#piece-8"><div class="nl-k">Tier 2 · #8 · coming next</div><div class="nl-t">Credit &amp; Debt</div><div class="nl-d">Your credit score sets your mortgage rate; plus paying off debt vs. investing.</div></a>
+      <a class="soon" href="/finance/index.html#piece-9"><div class="nl-k">Tier 2 · #9</div><div class="nl-t">Where to Keep Your Cash</div><div class="nl-d">Where to hold a down payment while you save.</div></a>
+      <a href="/finance/taxes-101.html#faq"><div class="nl-k">Tier 1 · #3</div><div class="nl-t">Taxes 101</div><div class="nl-d">The home-sale exclusion and why most owners take the standard deduction.</div></a>
+      <a href="/finance/investing-basics.html"><div class="nl-k">Tier 1 · #1</div><div class="nl-t">Investing Basics</div><div class="nl-d">Where the renter's "invest the difference" money should go.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A home-buying checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Run rent vs. buy for your actual market</h3><p>Use real listings: the price of homes you'd buy and the rent for similar ones nearby.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check your credit six months ahead</h3><p>Pull your reports, fix errors, and pay down card balances. Your score sets your rate.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Keep the down payment in cash</h3><p>High-yield savings, money market funds or T-bills, not stocks, if you'll buy within a few years.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Get pre-approved by at least three lenders</h3><p>Compare Loan Estimates side by side: rate, APR, points and origination charges.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Set your own budget below the approval</h3><p>About 28% of gross income for all housing costs, with an emergency fund left after closing.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Get an inspection, and read the HOA documents</h3><p>A few hundred dollars now can prevent a five-figure surprise.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Negotiate commissions and credits</h3><p>Agent fees are negotiable, and in a market with more inventory, sellers may cover part of your closing costs.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>After you buy: track PMI and rates</h3><p>Request PMI removal at 80% loan-to-value, and run the break-even test whenever rates drop meaningfully.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>Isn't renting just throwing money away?</h3><p>No more than paying mortgage interest, property tax and maintenance is. Both renters and owners pay for housing; the question is which costs less for your situation and timeline, and whether the renter invests what they save.</p></div>
+      <div class="faq-item"><h3>Should I wait for mortgage rates to fall?</h3><p>Nobody can predict rates reliably. Buy when the home, the timing and the payment are right for you at today's rate. If rates fall meaningfully later, you can refinance (see the break-even test). If they rise, your fixed rate is locked.</p></div>
+      <div class="faq-item"><h3>Should I pay off my mortgage early or invest?</h3><p>Prepaying earns a guaranteed return equal to your rate, currently about 7% for new loans. That's competitive with expected stock returns, but it's locked in the house. Do it after the employer match, high-interest debt, the emergency fund and tax-advantaged accounts. For a low-rate mortgage from earlier years, investing usually wins.</p></div>
+      <div class="faq-item"><h3>Is the mortgage interest deduction a reason to buy?</h3><p>Rarely anymore. It only helps if your itemized deductions exceed the standard deduction ($32,200 for couples in 2026), which many owners don't reach. The calculator ignores it.</p></div>
+      <div class="faq-item"><h3>Can I use retirement money for a down payment?</h3><p>You can take up to $10,000 from an IRA penalty-free as a first-time buyer, withdraw Roth IRA contributions, or borrow from a 401(k). Each shrinks your retirement savings and the 401(k) loan can come due quickly if you leave your job. Treat these as a last resort.</p></div>
+      <div class="faq-item"><h3>Is a house a good investment?</h3><p>It's a good place to live that has roughly kept up with inflation over the long run, with borrowed money magnifying both gains and losses. Its biggest financial benefits are the forced savings and a fixed housing cost. Think of it first as housing, second as an asset.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Principal</dt><dd>The amount borrowed, or the part of a payment that reduces it.</dd></div>
+      <div class="gterm"><dt>Amortization</dt><dd>The schedule by which fixed payments shift from mostly interest to mostly principal.</dd></div>
+      <div class="gterm"><dt>PITI</dt><dd>Principal, interest, taxes and insurance: the full monthly housing payment.</dd></div>
+      <div class="gterm"><dt>Escrow</dt><dd>An account your lender uses to pay property tax and insurance from your monthly payment.</dd></div>
+      <div class="gterm"><dt>Down payment</dt><dd>The share of the price you pay upfront, not borrowed.</dd></div>
+      <div class="gterm"><dt>Loan-to-value (LTV)</dt><dd>The loan balance divided by the home's value.</dd></div>
+      <div class="gterm"><dt>PMI</dt><dd>Private mortgage insurance, protecting the lender on conventional loans with under 20% down.</dd></div>
+      <div class="gterm"><dt>MIP</dt><dd>Mortgage insurance premium on FHA loans, upfront and yearly.</dd></div>
+      <div class="gterm"><dt>ARM</dt><dd>Adjustable-rate mortgage: fixed for an initial period, then adjusting within caps.</dd></div>
+      <div class="gterm"><dt>Points</dt><dd>Upfront fees (1 point = 1% of the loan) paid to lower the interest rate.</dd></div>
+      <div class="gterm"><dt>APR</dt><dd>Annual percentage rate: the interest rate plus certain fees, as a yearly rate.</dd></div>
+      <div class="gterm"><dt>Loan Estimate</dt><dd>A standardized three-page disclosure of a mortgage's terms and costs.</dd></div>
+      <div class="gterm"><dt>Closing costs</dt><dd>Fees for the loan, title, appraisal and taxes paid when you buy.</dd></div>
+      <div class="gterm"><dt>Conforming loan limit</dt><dd>The largest loan Fannie Mae and Freddie Mac will buy: $832,750 in most areas in 2026.</dd></div>
+      <div class="gterm"><dt>Jumbo loan</dt><dd>A mortgage above the conforming limit.</dd></div>
+      <div class="gterm"><dt>Equity</dt><dd>The home's value minus what you owe on it.</dd></div>
+      <div class="gterm"><dt>Refinance</dt><dd>Replacing an existing mortgage with a new one, usually to lower the rate or change the term.</dd></div>
+      <div class="gterm"><dt>Break-even point</dt><dd>How long monthly savings take to repay an upfront cost.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>Mortgage rates (30-year 7.03%, 15-year 6.42%, week of September 24, 2026): Freddie Mac Primary Mortgage Market Survey.</li>
+      <li>Median existing-home price ($429,100), inventory and first-time buyer share, August 2026: National Association of Realtors.</li>
+      <li>Median asking rent ($1,699 across studio to two-bedroom units in the 50 largest metros), declines and concessions, August 2026: Realtor.com monthly rent report.</li>
+      <li>2026 conforming loan limit ($832,750): Federal Housing Finance Agency.</li>
+      <li>Closing costs (2%–5% of the loan) and typical agent commissions: Bankrate. PMI cancellation at 80% and automatic termination at 78%: Homeowners Protection Act, via the Texas Department of Insurance.</li>
+      <li>Long-run real home prices: Robert Shiller's historical index, as summarized on Wikipedia's Case–Shiller index page. Property tax variation: Tax Foundation, "Property Taxes by State and County, 2026."</li>
+      <li>Calculator defaults (appreciation, rent growth, investment return, maintenance, insurance) are illustrative assumptions, not forecasts.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not mortgage, tax or investment advice. Market figures were checked in September 2026 and change weekly. Your actual rate, costs and local market conditions will differ; compare Loan Estimates from several lenders before committing.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function full(v){ return (v<0?"−":"") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function short(v){ var a=Math.abs(v), s=v<0?"−":""; if (a>=1e6) return s+"$"+(a/1e6).toFixed(a>=1e7?1:2)+"M"; if (a>=1000) return s+"$"+Math.round(a/1000)+"k"; return s+"$"+Math.round(a); }
+  function val(id){ var v = parseFloat($(id).value); return isFinite(v) ? v : 0; }
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function txt(p, x, y, s, cls, anchor){ var t = el("text", {x:x, y:y, "class":cls||"axis-label", "text-anchor":anchor||"start"}, p); t.textContent = s; return t; }
+  function tooltip(svg, x, y, lines, W, H){
+    var g = el("g", {"class":"tooltip-group"}, svg), t = el("text", {"class":"tooltip-text"}, g);
+    lines.forEach(function(L, i){
+      var ts = el("tspan", {x:0, dy: i ? 16 : 0}, t);
+      if (L.bold) ts.setAttribute("font-weight","600");
+      if (L.color){ ts.textContent = "■ "; ts.setAttribute("style","fill:"+L.color); var t2 = el("tspan", {}, t); t2.textContent = L.t; }
+      else ts.textContent = L.t;
+    });
+    var bb = t.getBBox(), w = bb.width + 16, h = lines.length*16 + 12;
+    var bx = x + 14; if (bx + w > W - 4) bx = x - 14 - w; if (bx < 4) bx = 4;
+    var by = Math.max(4, Math.min(H - 4 - h, y - h/2));
+    g.insertBefore(el("rect", {x:bx, y:by, width:w, height:h, rx:3, "class":"tooltip-bg"}), t);
+    t.setAttribute("transform", "translate("+(bx+8)+","+(by+19)+")");
+    return g;
+  }
+  function pmtCalc(L, rate, n){ var r = rate/12; return r > 0 ? L*r/(1-Math.pow(1+r,-n)) : L/n; }
+  function niceStep(range){ var raw = range/5, p = Math.pow(10, Math.floor(Math.log10(raw))), n = raw/p; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p; }
+
+  /* ================= Rent vs buy ================= */
+  var PRE = {
+    median:  {price:430000, rent:2400, years:10, down:20, rate:7.0, tax:1.0, ins:2400, hoa:0, maint:1.5, app:3.5, rg:3.0, ret:6.0},
+    cheap:   {price:250000, rent:1900, years:10, down:20, rate:7.0, tax:1.4, ins:1800, hoa:0, maint:1.5, app:3.5, rg:3.0, ret:6.0},
+    coastal: {price:850000, rent:3800, years:10, down:20, rate:7.0, tax:0.8, ins:3000, hoa:0, maint:1.5, app:3.5, rg:3.0, ret:6.0}
+  };
+  var RB = ["price","rent","years","down","rate","tax","ins","hoa","maint","app","rg","ret"];
+  function setPre(name){
+    RB.forEach(function(k){ $("rb-"+k).value = PRE[name][k]; });
+    document.querySelectorAll("[data-rb]").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.rb===name ? "true":"false"); });
+    drawRB();
+  }
+  function simulate(o){
+    var price=o.price, dp=o.down/100, loan=price*(1-dp), r=o.rate/100/12, n=360;
+    var pmt = loan>0 ? pmtCalc(loan, o.rate/100, n) : 0, bal=loan, value=price;
+    var cc=.03, sell=.06, pmi=.007, infl=.03;
+    var mr = Math.pow(1+o.ret/100, 1/12)-1, mg = Math.pow(1+o.app/100, 1/12)-1;
+    var renter = price*dp + price*cc, side = 0, out = [{y:0, buy: price*(1-sell) - loan - price*cc - price*dp + price*dp, rent: renter}], first = null;
+    out[0].buy = price*(1-sell) - loan; // equity if sold immediately (already net of what was paid)
+    for (var m=1; m<=30*12; m++){
+      var yr = Math.floor((m-1)/12);
+      var interest = bal*r, princ = bal>0 ? Math.min(bal, pmt - interest) : 0, pay = bal>0 ? interest + princ : 0;
+      bal -= princ;
+      var pm = (dp < .2 && bal > .78*price) ? pmi*loan/12 : 0;
+      var own = pay + (o.tax/100)*value/12 + o.ins*Math.pow(1+infl, yr)/12 + o.hoa*Math.pow(1+infl, yr) + (o.maint/100)*value/12 + pm;
+      var rent = o.rent*Math.pow(1+o.rg/100, yr);
+      if (m===1) first = {own:own, rent:rent, pi:pay, pmi:pm};
+      renter *= 1+mr; side *= 1+mr;
+      if (own > rent) renter += own - rent; else side += rent - own;
+      value *= 1+mg;
+      if (m % 12 === 0) out.push({y:m/12, buy: value*(1-sell) - bal + side, rent: renter});
+    }
+    return {pmt:pmt, first:first, pts:out};
+  }
+  var svgRB = $("chart-rb");
+  function drawRB(){
+    var o = {}; RB.forEach(function(k){ o[k] = val("rb-"+k); });
+    var yrs = Math.max(1, Math.min(30, Math.round(o.years)));
+    var s = simulate(o), P = s.pts;
+    var be = null; for (var i=1;i<P.length;i++) if (P[i].buy >= P[i].rent){ be = P[i].y; break; }
+    var at = P[yrs], diff = at.buy - at.rent;
+    $("rb-tiles").innerHTML =
+      '<div class="tile"><div class="k">First-year monthly cost</div><div class="v">'+full(s.first.own)+'</div><div class="s">to own · vs. '+full(s.first.rent)+' rent</div></div>'+
+      '<div class="tile"><div class="k">After '+yrs+' year'+(yrs>1?'s':'')+'</div><div class="v" style="color:'+(diff>=0?'var(--blue)':'var(--teal)')+'">'+(diff>=0?'Buy':'Rent')+' +'+short(Math.abs(diff))+'</div><div class="s">buy '+short(at.buy)+' · rent '+short(at.rent)+'</div></div>'+
+      '<div class="tile"><div class="k">Break-even year</div><div class="v">'+(be ? "Year "+be : "30+ yrs")+'</div><div class="s">when buying pulls ahead</div></div>';
+    var v;
+    if (be !== null && be <= yrs) v = "<strong>Buying comes out ahead</strong> if you stay "+yrs+" years: by about "+full(diff)+". It overtakes renting in year "+be+"; sell sooner and renting wins.";
+    else if (be !== null) v = "<strong>Renting comes out ahead</strong> over "+yrs+" years, by about "+full(-diff)+". Buying doesn't catch up until year "+be+", so it only pays if you stay that long.";
+    else v = "<strong>Renting comes out ahead at every horizon up to 30 years</strong> on these assumptions. That usually means the home is expensive relative to rent. Try a lower price, a lower rate or higher price growth to see what would have to change.";
+    $("rb-verdict").innerHTML = v;
+
+    var svg = svgRB; while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W=680, H=300, L=62, R=100, T=14, BM=30, pw=W-L-R, ph=H-T-BM;
+    var maxY = 30, lo = Math.min.apply(null, P.map(function(p){return Math.min(p.buy, p.rent);})), hi = Math.max.apply(null, P.map(function(p){return Math.max(p.buy, p.rent);}));
+    var st = niceStep(hi - Math.min(0, lo)), y0 = Math.floor(Math.min(0, lo)/st)*st, y1 = Math.ceil(hi/st)*st;
+    function x(yv){ return L + pw*yv/maxY; }
+    function y(v){ return T + ph - ph*(v-y0)/(y1-y0); }
+    for (var t=y0; t<=y1+1; t+=st){ el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":Math.abs(t)<1?"zero":"gridline"},svg); txt(svg, L-8, y(t)+4, short(t), "axis-label", "end"); }
+    [0,5,10,15,20,25,30].forEach(function(yy){ txt(svg, x(yy), H-10, yy ? "Yr "+yy : "Start", "axis-label", "middle"); });
+    el("rect",{x:x(0), y:T, width:x(yrs)-x(0), height:ph, style:"fill:var(--ink-wash)"},svg);
+    el("line",{x1:x(yrs),x2:x(yrs),y1:T,y2:T+ph,style:"stroke:var(--ink-faint)","stroke-dasharray":"3,3"},svg);
+    txt(svg, x(yrs)+4, T+12, "you move", "axis-label");
+    [["buy","var(--blue)","Buy"],["rent","var(--teal)","Rent"]].forEach(function(sr){
+      el("path",{d:P.map(function(p,i){ return (i?"L":"M")+x(p.y).toFixed(1)+","+y(p[sr[0]]).toFixed(1); }).join(""), fill:"none", style:"stroke:"+sr[1], "stroke-width":2, "stroke-linejoin":"round"}, svg);
+    });
+    var la = [{y:y(P[30].buy), t:"Buy "+short(P[30].buy)},{y:y(P[30].rent), t:"Rent "+short(P[30].rent)}].sort(function(a,b){return a.y-b.y;});
+    if (la[1].y - la[0].y < 13) la[1].y = la[0].y + 13;
+    la.forEach(function(l){ txt(svg, W-R+6, l.y+4, l.t, "direct-label"); });
+    if (be !== null){ el("circle",{cx:x(be), cy:y(P[be].buy), r:5, style:"fill:none;stroke:var(--ink)", "stroke-width":1.5}, svg); }
+    var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+    function move(e){
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      var i = Math.max(0, Math.min(30, Math.round((p.x-L)/pw*maxY)));
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      el("line",{x1:x(i),x2:x(i),y1:T,y2:T+ph,"class":"crosshair"},layer);
+      el("circle",{cx:x(i),cy:y(P[i].buy),r:4,style:"fill:var(--blue);stroke:var(--paper-raised)","stroke-width":2},layer);
+      el("circle",{cx:x(i),cy:y(P[i].rent),r:4,style:"fill:var(--teal);stroke:var(--paper-raised)","stroke-width":2},layer);
+      layer.appendChild(tooltip(svg, x(i), T+50, [{t:i ? "After "+i+" year"+(i>1?"s":"") : "Day one", bold:true},{t:"Buy  "+full(P[i].buy), color:"var(--blue)"},{t:"Rent  "+full(P[i].rent), color:"var(--teal)"}], W, H));
+    }
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+  }
+  RB.forEach(function(k){ $("rb-"+k).addEventListener("input", function(){ document.querySelectorAll("[data-rb]").forEach(function(b){ b.setAttribute("aria-pressed","false"); }); drawRB(); }); });
+  document.querySelectorAll("[data-rb]").forEach(function(b){ b.addEventListener("click", function(){ setPre(b.dataset.rb); }); });
+  setPre("median");
+
+  /* ================= Mortgage amortization ================= */
+  var term = 30, svgA = $("chart-amort");
+  function schedule(L, rate, n, extra){
+    var r = rate/12, pmt = pmtCalc(L, rate, n), bal = L, years = [], ti = 0, m = 0;
+    while (bal > 0.005 && m < n){
+      var yi = Math.floor(m/12); if (!years[yi]) years[yi] = {i:0, p:0};
+      var interest = bal*r, princ = Math.min(bal, pmt - interest + extra);
+      years[yi].i += interest; years[yi].p += princ; ti += interest; bal -= princ; m++;
+    }
+    return {pmt:pmt, years:years, interest:ti, months:m};
+  }
+  function drawM(){
+    var L = +$("m-loan").value, rate = +$("m-rate").value/100, extra = +$("m-extra").value;
+    $("o-loan").textContent = full(L); $("o-rate").textContent = (rate*100).toFixed(2) + "%"; $("o-extra").textContent = full(extra);
+    var s = schedule(L, rate, term*12, extra), base = schedule(L, rate, term*12, 0);
+    var yrs = Math.floor(s.months/12), mos = s.months%12;
+    $("m-tiles").innerHTML =
+      '<div class="tile"><div class="k">Monthly principal + interest</div><div class="v">'+full(s.pmt)+'</div><div class="s">'+(extra ? "+ "+full(extra)+" extra" : term+"-year fixed")+'</div></div>'+
+      '<div class="tile"><div class="k">Total interest</div><div class="v">'+short(s.interest)+'</div><div class="s">'+(extra ? "saves "+short(base.interest - s.interest)+" vs. no extra" : Math.round(100*s.interest/L)+"% of the loan")+'</div></div>'+
+      '<div class="tile"><div class="k">Paid off in</div><div class="v">'+yrs+(mos? "y "+mos+"m" : " yrs")+'</div><div class="s">'+(extra ? (term*12 - s.months)+" months early" : "on schedule")+'</div></div>';
+    var svg = svgA; while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W=680, H=280, L0=58, R=10, T=12, BM=28, pw=W-L0-R, ph=H-T-BM, n = term;
+    var mx = Math.max.apply(null, s.years.map(function(yv){ return yv.i + yv.p; })) || 1;
+    var st = niceStep(mx), top = Math.ceil(mx/st)*st;
+    function y(v){ return T + ph - ph*v/top; }
+    for (var t=0; t<=top+1; t+=st){ el("line",{x1:L0,x2:W-R,y1:y(t),y2:y(t),"class":t?"gridline":"zero"},svg); txt(svg, L0-8, y(t)+4, short(t), "axis-label", "end"); }
+    var band = pw/n, bw = Math.max(3, band - 3);
+    s.years.forEach(function(yv, i){
+      var x0 = L0 + band*i + (band-bw)/2;
+      var hi = ph*yv.i/top, hp = ph*yv.p/top;
+      el("rect",{x:x0, y:y(yv.i), width:bw, height:Math.max(0,hi-1), style:"fill:var(--gold)"},svg);
+      el("rect",{x:x0, y:y(yv.i+yv.p), width:bw, height:Math.max(0,hp-1), rx:2, style:"fill:var(--teal)"},svg);
+    });
+    for (var yy=0; yy<n; yy+= (n>15?5:3)) txt(svg, L0 + band*yy + band/2, H-8, "Yr "+(yy+1), "axis-label", "middle");
+    var layer = el("g",{},svg), hit = el("rect",{x:L0,y:T,width:pw,height:ph,"class":"hit"},svg);
+    function move(e){
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      var i = Math.max(0, Math.min(n-1, Math.floor((p.x-L0)/band)));
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      var yv = s.years[i]; if (!yv) return;
+      layer.appendChild(tooltip(svg, L0 + band*i + band/2, T+40, [{t:"Year "+(i+1), bold:true},{t:"Interest  "+full(yv.i), color:"var(--gold)"},{t:"Principal  "+full(yv.p), color:"var(--teal)"}], W, H));
+    }
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+  }
+  ["m-loan","m-rate","m-extra"].forEach(function(id){ $(id).addEventListener("input", drawM); });
+  document.querySelectorAll("[data-term]").forEach(function(b){ b.addEventListener("click", function(){
+    term = +b.dataset.term;
+    document.querySelectorAll("[data-term]").forEach(function(x){ x.setAttribute("aria-pressed", x===b ? "true":"false"); });
+    drawM();
+  }); });
+  drawM();
+
+  /* ================= Break-even ================= */
+  function drawB(){
+    var bal = val("b-bal"), yrs = Math.max(1, val("b-years")), cost = Math.max(0, val("b-cost")), o = val("b-old")/100, nw = val("b-new")/100;
+    var p1 = pmtCalc(bal, o, yrs*12), p2 = pmtCalc(bal, nw, yrs*12), save = p1 - p2;
+    var months = save > 0 ? cost/save : Infinity;
+    var life = save*yrs*12 - cost;
+    $("b-tiles").innerHTML =
+      '<div class="tile"><div class="k">Monthly savings</div><div class="v">'+full(save)+'</div><div class="s">'+full(p1)+' → '+full(p2)+'</div></div>'+
+      '<div class="tile"><div class="k">Break-even</div><div class="v">'+(isFinite(months) ? Math.ceil(months)+" months" : "never")+'</div><div class="s">'+(isFinite(months) ? "≈ "+(months/12).toFixed(1)+" years" : "no monthly savings")+'</div></div>'+
+      '<div class="tile"><div class="k">Net gain if kept to payoff</div><div class="v">'+short(life)+'</div><div class="s">savings minus upfront cost</div></div>';
+    $("b-note").innerHTML = !isFinite(months) ? "<strong>No savings,</strong> so there's nothing to earn back."
+      : months <= 24 ? "<strong>Quick payback.</strong> Under two years; worth it if you're reasonably sure you'll keep the loan that long."
+      : months <= 60 ? "<strong>Moderate payback.</strong> Worth it only if you're confident you'll keep this loan (no move, no refinance) for more than "+Math.ceil(months/12)+" years."
+      : "<strong>Slow payback.</strong> Over five years; many people move or refinance before then. Usually not worth it.";
+  }
+  ["b-bal","b-years","b-cost","b-old","b-new"].forEach(function(id){ $(id).addEventListener("input", drawB); });
+  drawB();
+})();
+</script>
+</body>
+</html>
