@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Taxes 101</title>
+<meta name="description" content="Taxes 101: marginal vs. effective rates, payroll taxes, how investments are taxed, asset location, and taxes in retirement, with 2026 calculators.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Investing &amp; Retirement · Part of Personal Finance Library</p>
+    <h1>Taxes 101: What You Actually Pay, and Why</h1>
+    <p class="subtitle">How the federal income tax really works, why your bracket isn't your tax rate, how investments are taxed, which investments belong in which account, and why many retirees pay far less than they expect. Two calculators use 2026 rules so you can test it on your own numbers.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>The U.S. taxes income in <strong>layers</strong>: each bracket's rate applies only to the dollars inside that bracket. That's why a single person earning $85,000 in 2026 is "in the 22% bracket" but pays about <strong>10%</strong> of their income in federal income tax, and why a raise can never shrink your take-home pay. Your <strong>marginal rate</strong> (the rate on your next dollar) drives decisions like Roth vs. traditional; your <strong>effective rate</strong> is what you actually pay. On top of income tax, most workers pay <strong>7.65%</strong> in Social Security and Medicare tax. Investments held more than a year are taxed at <strong>0%, 15% or 20%</strong>, and a couple with up to $98,900 of taxable income pays <strong>0%</strong> on long-term gains. Hold bonds in pre-tax accounts, your fastest growers in Roth, and broad stock index funds in taxable accounts, but don't let this outrank saving more. In retirement, withdrawals fill the low brackets first and the standard deduction grows at 65, so many retirees pay single-digit effective rates, with one trap: Social Security taxation can make the <em>next</em> dollar cost much more than your bracket suggests.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#how-it-works">How income tax actually works, in five steps</a>
+      <a href="#brackets">Brackets: marginal vs. effective rate (calculator)</a>
+      <a href="#payroll">The other taxes on your paycheck</a>
+      <a href="#deductions-credits">Deductions vs. credits, and what's new</a>
+      <a href="#investments">How investments are taxed</a>
+      <a href="#location">Which investments go in which account</a>
+      <a href="#retirement">Taxes in retirement (calculator)</a>
+      <a href="#myths">Six tax myths</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A yearly tax checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="how-it-works">
+    <p class="eyebrow">Start here</p>
+    <h2>How income tax actually works, in five steps</h2>
+    <p class="lede">A tax return looks intimidating, but federal income tax follows the same five steps for almost everyone. Knowing them tells you where each decision in this library, like a 401(k) contribution or an HSA, actually reduces your bill.</p>
+    <div class="flow">
+      <div class="flow-step"><span class="n">STEP 1</span><h3>Total income</h3><p>Wages, interest, dividends, gains, side income, retirement withdrawals.</p></div>
+      <div class="flow-step"><span class="n">STEP 2</span><h3>Adjusted gross income</h3><p>Minus pre-tax 401(k) and HSA contributions and a few other adjustments.</p><span class="op">= AGI</span></div>
+      <div class="flow-step"><span class="n">STEP 3</span><h3>Taxable income</h3><p>Minus the standard deduction ($16,100 single, $32,200 joint in 2026) or itemized deductions, whichever is larger.</p></div>
+      <div class="flow-step"><span class="n">STEP 4</span><h3>Tax, by layer</h3><p>Ordinary income runs through the brackets; long-term gains sit on top at their own rates.</p></div>
+      <div class="flow-step"><span class="n">STEP 5</span><h3>Minus credits</h3><p>Credits (like the child tax credit) come straight off the tax itself.</p><span class="op">= what you owe</span></div>
+    </div>
+    <p style="margin-top:16px;">What you've already paid through paycheck withholding is then compared with that final number. The difference is your refund or balance due. A refund isn't a bonus; it's your own money, returned without interest.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="brackets">
+    <p class="eyebrow">The most misunderstood idea in personal finance</p>
+    <h2>Brackets: marginal vs. effective rate</h2>
+    <p class="lede">Being "in the 22% bracket" doesn't mean you pay 22% on everything. Taxable income fills the brackets like water filling a set of stairs: the first dollars are taxed at 10%, the next layer at 12%, and only the dollars that reach the 22% step are taxed at 22%.</p>
+
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Your 2026 federal income tax, layer by layer</div></div>
+      <div class="planner">
+        <div class="field"><label for="c-filing">Filing status</label><select id="c-filing"><option value="single">Single</option><option value="mfj">Married, filing jointly</option></select></div>
+        <div class="field"><label for="c-wages">Wages and salary</label><input id="c-wages" type="number" min="0" step="1000" value="85000" inputmode="numeric"></div>
+        <div class="field"><label for="c-pre">Pre-tax 401(k) + HSA contributions</label><input id="c-pre" type="number" min="0" step="500" value="6000" inputmode="numeric"></div>
+        <div class="field"><label for="c-other">Interest and short-term gains</label><input id="c-other" type="number" min="0" step="500" value="500" inputmode="numeric"></div>
+        <div class="field"><label for="c-lt">Long-term gains + qualified dividends</label><input id="c-lt" type="number" min="0" step="500" value="0" inputmode="numeric"></div>
+        <div class="field"><label for="c-kids">Children under 17</label><select id="c-kids"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+      </div>
+      <div class="tiles five" id="c-tiles" aria-live="polite"></div>
+      <div class="stair" id="c-stair" role="img" aria-label="Stacked bar of your income by tax layer"></div>
+      <div class="stair-axis" id="c-axis"></div>
+      <div class="stair-key" aria-hidden="true">
+        <span><i style="background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px)"></i>Pre-tax contributions</span>
+        <span><i style="background:var(--ink-faint)"></i>Standard deduction (0%)</span>
+        <span><i style="background:var(--teal)"></i>Ordinary brackets (stronger color = higher rate)</span>
+        <span><i style="background:var(--blue)"></i>Long-term gains (hatched = 0%)</span>
+      </div>
+      <div class="tbl-wrap brk"><table><thead><tr><th>Layer</th><th>Rate</th><th>Dollars in this layer</th><th>Tax</th></tr></thead><tbody id="c-table"></tbody></table></div>
+      <div class="raise" id="c-raise"></div>
+      <div class="chart-foot">2026 federal brackets and standard deduction; long-term gains at 0/15/20% with the 3.8% net investment income tax where it applies. Child tax credit $2,200 per child, reduced above $200,000 / $400,000 of income. Ignores state tax, itemizing and other credits. Effective rate = income tax ÷ total income.</div>
+    </div>
+
+    <p style="margin-top:22px;">At the defaults (single, $85,000 salary, $6,000 into a pre-tax 401(k)), the top dollars are taxed at <strong>22%</strong>, but the tax works out to about <strong>$8,660, roughly 10%</strong> of income. Both numbers matter, for different questions:</p>
+    <div class="verdicts">
+      <div class="verdict neutral">
+        <div class="book-label">Marginal rate</div>
+        <h3>For decisions about the next dollar</h3>
+        <p>How much a pre-tax contribution saves, what a raise or side gig nets you, whether Roth or traditional wins (see <a href="/finance/which-account.html#roth-vs-traditional">Which Account?</a>). A $1,000 traditional 401(k) contribution at 22% cuts your tax by $220.</p>
+      </div>
+      <div class="verdict good">
+        <div class="book-label">Effective rate</div>
+        <h3>For understanding what you really pay</h3>
+        <p>Total tax divided by total income. Useful for budgeting and for comparing years. It's always lower than your marginal rate, often by half or more.</p>
+      </div>
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:22px;">
+      <table>
+        <thead><tr><th>2026 rate</th><th>Single: taxable income</th><th>Married jointly: taxable income</th></tr></thead>
+        <tbody>
+          <tr><td>10%</td><td>$0 – $12,400</td><td>$0 – $24,800</td></tr>
+          <tr><td>12%</td><td>$12,401 – $50,400</td><td>$24,801 – $100,800</td></tr>
+          <tr><td>22%</td><td>$50,401 – $105,700</td><td>$100,801 – $211,400</td></tr>
+          <tr><td>24%</td><td>$105,701 – $201,775</td><td>$211,401 – $403,550</td></tr>
+          <tr><td>32%</td><td>$201,776 – $256,225</td><td>$403,551 – $512,450</td></tr>
+          <tr><td>35%</td><td>$256,226 – $640,600</td><td>$512,451 – $768,700</td></tr>
+          <tr><td>37%</td><td>Over $640,600</td><td>Over $768,700</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:12px;">These are the rates made permanent by the 2025 tax law. Remember they apply to <em>taxable</em> income, after the standard deduction: a single person with a $66,500 salary and no other deductions has $50,400 of taxable income, right at the top of the 12% bracket.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="payroll">
+    <p class="eyebrow">Before income tax</p>
+    <h2>The other taxes on your paycheck</h2>
+    <p class="lede">For many workers, the biggest federal tax isn't income tax at all. It's FICA, the payroll tax that funds Social Security and Medicare, and it starts with your first dollar of pay, with no standard deduction.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Tax</th><th>Your share (2026)</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Social Security</td><td>6.2% of wages up to $184,500</td><td>Your employer pays another 6.2%. Self-employed people pay both halves (12.4%).</td></tr>
+          <tr><td>Medicare</td><td>1.45% of all wages</td><td>Plus an extra 0.9% on wages over $200,000 (single) or $250,000 (joint).</td></tr>
+          <tr><td>State and local income tax</td><td>0% to over 10%</td><td>Nine states have no tax on wages: Alaska, Florida, Nevada, New Hampshire, South Dakota, Tennessee, Texas, Washington and Wyoming. Some cities add their own.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:18px;">In the default example above, FICA comes to about <strong>$6,500</strong>, close to the $8,660 of income tax. One practical consequence: a pre-tax 401(k) contribution lowers income tax but <em>not</em> FICA, while an HSA contribution made through payroll lowers both. That's one more reason the HSA ranks so high in <a href="/finance/which-account.html#order">Which Account?</a>.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="deductions-credits">
+    <p class="eyebrow">Two ways to lower the bill</p>
+    <h2>Deductions vs. credits, and what's new</h2>
+    <p class="lede">A <strong>deduction</strong> lowers the income you're taxed on, so it saves you your marginal rate: a $1,000 deduction at 22% saves $220. A <strong>credit</strong> comes straight off the tax: a $1,000 credit saves $1,000. A credit is worth several times more than a deduction of the same size.</p>
+
+    <h3 style="margin-top:24px; font-size:19px; font-style:normal;">Standard deduction or itemize?</h3>
+    <p style="margin-top:8px;">You take whichever is larger: the standard deduction, or the total of itemized deductions (mortgage interest, state and local taxes, charitable gifts, large medical bills). Since the standard deduction nearly doubled in 2018, roughly nine in ten filers take it. The 2025 law raised the cap on state and local tax (SALT) deductions to $40,000 (rising 1% a year through 2029, and reduced for incomes over $500,000), so more homeowners in high-tax states may itemize again.</p>
+
+    <h3 style="margin-top:24px; font-size:19px; font-style:normal;">Credits worth knowing</h3>
+    <ul class="plain" style="margin-top:8px;">
+      <li><strong>Child tax credit:</strong> $2,200 per child under 17 in 2026, up to $1,700 of it refundable even if you owe no tax. Reduced by $50 per $1,000 of income over $200,000 (single) or $400,000 (joint).</li>
+      <li><strong>Saver's credit:</strong> a credit of 10%–50% of up to $2,000 of retirement contributions ($4,000 joint) for lower incomes. In 2026 the 50% rate applies up to $24,250 of AGI (single) or $48,500 (joint), and any credit phases out above $40,250 / $80,500. Often missed by young workers and part-timers.</li>
+      <li><strong>Education, energy and dependent-care credits</strong> also exist, each with its own rules. Tax software will ask about them.</li>
+    </ul>
+
+    <h3 style="margin-top:24px; font-size:19px; font-style:normal;">New, temporary deductions (2025 through 2028)</h3>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Deduction</th><th>Up to</th><th>Phases out above</th></tr></thead>
+        <tbody>
+          <tr><td>Age 65+ "senior" deduction</td><td>$6,000 per person 65 or older</td><td>$75,000 (single) / $150,000 (joint)</td></tr>
+          <tr><td>Qualified tips</td><td>$25,000</td><td>$150,000 / $300,000</td></tr>
+          <tr><td>Qualified overtime pay</td><td>$12,500 (single) / $25,000 (joint)</td><td>$150,000 / $300,000</td></tr>
+          <tr><td>Car loan interest, new U.S.-assembled vehicle</td><td>$10,000</td><td>$100,000 / $200,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:12px;">These can be claimed whether or not you itemize. The senior deduction stacks on top of the regular extra standard deduction for age 65+ ($2,050 single, $1,650 per married person in 2026), which the retirement calculator below includes.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="investments">
+    <p class="eyebrow">Your portfolio</p>
+    <h2>How investments are taxed</h2>
+    <p class="lede">In a 401(k), IRA or HSA, none of this applies until you withdraw. In a regular brokerage account, what you own and how long you own it decide the rate.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Type of investment income</th><th>How it's taxed</th></tr></thead>
+        <tbody>
+          <tr><td>Interest (savings, CDs, bonds, bond funds)</td><td>As ordinary income, at your bracket rate. U.S. Treasury interest is exempt from state tax; most municipal bond interest is exempt from federal tax.</td></tr>
+          <tr><td>Qualified dividends (most U.S. and many foreign stocks)</td><td>At the lower long-term rates: 0%, 15% or 20%.</td></tr>
+          <tr><td>Long-term capital gains (held more than a year)</td><td>0% on taxable income up to $49,450 (single) / $98,900 (joint); 15% up to $545,500 / $613,700; 20% above.</td></tr>
+          <tr><td>Short-term capital gains (held a year or less)</td><td>As ordinary income, at your bracket rate.</td></tr>
+          <tr><td>Net investment income tax</td><td>An extra 3.8% on investment income when your income tops $200,000 (single) or $250,000 (joint). Those thresholds aren't adjusted for inflation.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="lever-row" style="margin-top:22px;"><div class="lever-tag">STACK</div><div><h3>Gains sit on top of your other income</h3><p>Long-term gains are taxed as if they came last, after wages and interest. A married couple with $80,000 of wages and $40,000 of long-term gains has $47,800 of taxable ordinary income, so the full $40,000 of gains fits under the $98,900 line and is taxed at <strong>0%</strong>. Try it in the calculator above.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">LOSS</div><div><h3>Losses aren't wasted</h3><p>Selling an investment for less than you paid creates a capital loss that cancels out gains, and up to $3,000 a year of losses beyond that can reduce ordinary income. Unused losses carry forward to future years. "Tax-loss harvesting" means selling a loser on purpose and buying something similar (but not substantially identical within 30 days before or after, or the wash-sale rule disallows the loss).</p></div></div>
+    <div class="lever-row"><div class="lever-tag">0%</div><div><h3>The 0% bracket is an opportunity</h3><p>In a low-income year (between jobs, early retirement, a sabbatical), you can sell winners and pay no federal tax on the gain, then buy right back. This resets your cost basis higher, and the wash-sale rule applies only to losses.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">BASIS</div><div><h3>Track what you paid</h3><p>Your gain is the sale price minus your cost basis, which includes reinvested dividends. Brokers track this for most stocks and funds bought since 2011–2012. For investments held until death, heirs generally get a "step-up" to the value on the date of death, so decades of gains are never taxed.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="location">
+    <p class="eyebrow">Asset location</p>
+    <h2>Which investments go in which account</h2>
+    <p class="lede"><a href="/finance/investing-basics.html#allocation">Asset allocation</a> is your overall stock/bond mix. <strong>Asset location</strong> is deciding which account holds which part of that mix. Keeping the same overall mix but placing each piece where its tax bill is smallest can add a little to your after-tax return for free.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Account</th><th>Good fits</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Traditional 401(k) / IRA</td><td>Bonds and bond funds, REITs, high-yield funds, actively traded funds</td><td>Their income would be taxed at ordinary rates anyway. Slower growth here also keeps future required withdrawals smaller.</td></tr>
+          <tr><td>Roth IRA / Roth 401(k) · HSA</td><td>Your highest-growth holdings: stock funds, especially small-company or more aggressive ones</td><td>Growth is never taxed, so it's worth the most on whatever grows the most.</td></tr>
+          <tr><td>Taxable brokerage</td><td>Broad U.S. and international stock index funds and ETFs; municipal bonds if you're in a high bracket</td><td>Low turnover and qualified dividends keep the yearly bill small; gains get 0/15/20% rates, loss harvesting and step-up at death. International funds here can claim the foreign tax credit.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><strong>Keep it in proportion.</strong> Location is fine-tuning. Saving more, keeping fees low and holding a sensible mix matter far more. A target-date fund in every account is a perfectly good answer, and if you only have a 401(k), there's nothing to locate.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="retirement">
+    <p class="eyebrow">Groundwork for later episodes</p>
+    <h2>Taxes in retirement: why the rate is often lower</h2>
+    <p class="lede">Three things work in retirees' favor: withdrawals fill the low brackets first, the standard deduction grows at 65 (plus the temporary $6,000 senior deduction), and payroll taxes stop when paychecks do. One thing works against them: Social Security benefits become taxable in layers, which can make the <em>next</em> dollar surprisingly expensive.</p>
+
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">A retiree's 2026 federal income tax</div></div>
+      <div class="planner">
+        <div class="field"><label for="r-filing">Filing status</label><select id="r-filing"><option value="mfj">Married, filing jointly</option><option value="single">Single</option></select></div>
+        <div class="field"><label for="r-n65">People aged 65+ on the return</label><select id="r-n65"><option value="0">0</option><option value="1">1</option><option value="2" selected>2</option></select></div>
+        <div class="field"><label for="r-ss">Social Security benefits (year)</label><input id="r-ss" type="number" min="0" step="1000" value="48000" inputmode="numeric"></div>
+        <div class="field"><label for="r-ira">Traditional IRA/401(k) withdrawals, pensions</label><input id="r-ira" type="number" min="0" step="1000" value="40000" inputmode="numeric"></div>
+        <div class="field"><label for="r-oth">Interest and other income</label><input id="r-oth" type="number" min="0" step="500" value="2000" inputmode="numeric"></div>
+      </div>
+      <div class="tiles five" id="r-tiles" aria-live="polite"></div>
+      <div class="raise" id="r-next"></div>
+      <div class="chart-foot">Uses the IRS provisional-income formula for Social Security (up to 50% or 85% taxable), the 2026 standard deduction with the 65+ add-on, and the 2025–2028 senior deduction ($6,000 per person 65+, phased out at 6% of income above $75,000 single / $150,000 joint). Ignores state tax and long-term gains. Roth withdrawals don't count as income, so they'd add nothing here.</div>
+    </div>
+
+    <p style="margin-top:22px;">At the defaults, a retired couple with <strong>$90,000</strong> of total income owes only about <strong>$1,920</strong> in federal income tax, a 2% effective rate. But the next $1,000 of IRA withdrawal adds about $185 in tax, an 18.5% effective marginal rate while they're in the 10% bracket, because each extra dollar also makes more of their Social Security taxable. Planners call this the "tax torpedo." It's one reason the order of withdrawals and the timing of <strong>Roth conversions</strong> matter.</p>
+    <div class="lever-row" style="margin-top:12px;"><div class="lever-tag">GAP</div><div><h3>The gap years are a tax window</h3><p>Between retiring and starting Social Security and required withdrawals, many people have unusually low income. Converting some traditional IRA money to Roth in those years, filling up the 10%–12% brackets on purpose, can shrink later required withdrawals and the torpedo effect.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">RMD</div><div><h3>Required withdrawals start at 73 or 75</h3><p>Pre-tax accounts must start paying out at 73 (75 if born in 1960 or later), whether you need the money or not. Large pre-tax balances can mean large forced withdrawals and higher brackets later in life.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">IRMAA</div><div><h3>Medicare premiums rise with income too</h3><p>Higher income in retirement can also raise Medicare Part B and D premiums, based on your tax return from two years earlier. <em>Social Security &amp; Medicare in Depth</em> (Tier 1, #6) covers it, and <em>Turning Savings into a Paycheck</em> (Tier 2, #11) puts all of this into a withdrawal plan.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="myths">
+    <p class="eyebrow">Clearing things up</p>
+    <h2>Six tax myths</h2>
+    <div class="pitch-list" style="margin-top:18px;">
+      <div class="lever-row"><div class="lever-tag">MYTH 1</div><div><h3>"A raise could bump me into a higher bracket and I'd take home less."</h3><p>Only the dollars above the bracket line are taxed at the higher rate. More gross pay always means more take-home pay from the income tax itself. (A few benefits with hard income cutoffs are the rare exception.)</p></div></div>
+      <div class="lever-row"><div class="lever-tag">MYTH 2</div><div><h3>"A big refund means I did my taxes well."</h3><p>It means you overpaid all year and lent the government money at 0%. Adjusting your W-4 puts that money in each paycheck instead.</p></div></div>
+      <div class="lever-row"><div class="lever-tag">MYTH 3</div><div><h3>"It's deductible, so it's basically free."</h3><p>A deduction saves your marginal rate, not the whole cost. Spending $1,000 to save $220 still costs $780.</p></div></div>
+      <div class="lever-row"><div class="lever-tag">MYTH 4</div><div><h3>"Selling at a loss is always a mistake."</h3><p>Harvested losses offset gains and up to $3,000 a year of ordinary income, and carry forward indefinitely. Buy a similar (not identical) fund to stay invested.</p></div></div>
+      <div class="lever-row"><div class="lever-tag">MYTH 5</div><div><h3>"Social Security isn't taxed."</h3><p>Up to 85% of benefits can be taxable, depending on your other income. Many retirees owe some tax on it.</p></div></div>
+      <div class="lever-row"><div class="lever-tag">MYTH 6</div><div><h3>"I can never sell my winners because of the tax."</h3><p>Long-term gains are often taxed at 0% or 15%, and waiting forever lets taxes run your portfolio. A big gain is a good problem; plan the sale, don't avoid it.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">Taxes run under every thread of the <a href="/finance/money-river.html">Money River</a>. This episode gives you the tools the rest of the library uses: marginal vs. effective rates, how gains are taxed, and why retirement income can be arranged to cost less.</p>
+    <div class="next-links">
+      <a href="/finance/which-account.html"><div class="nl-k">Tier 1 · #2</div><div class="nl-t">Which Account?</div><div class="nl-d">Put these rules to work: where each dollar goes, and Roth vs. traditional.</div></a>
+      <a href="/finance/investing-basics.html"><div class="nl-k">Tier 1 · #1</div><div class="nl-t">Investing Basics</div><div class="nl-d">The low-cost portfolio these accounts should hold.</div></a>
+      <a class="soon" href="/finance/index.html#piece-4"><div class="nl-k">Tier 1 · #4 · coming next</div><div class="nl-t">Spotting the Sales Pitch</div><div class="nl-d">Including "tax-free" pitches for insurance and annuities.</div></a>
+      <a class="soon" href="/finance/index.html#piece-11"><div class="nl-k">Tier 2 · #11</div><div class="nl-t">Turning Savings into a Paycheck</div><div class="nl-d">Withdrawal order, Roth conversions and RMDs in practice.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A yearly tax checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Know your two rates</h3><p>From last year's return: total tax ÷ total income is your effective rate; find your marginal rate in the bracket table. Write both down.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check your withholding</h3><p>A big refund or a big bill? Use the IRS Tax Withholding Estimator and update your W-4.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Use the pre-tax breaks you have</h3><p>401(k), HSA through payroll, FSAs. Each saves at your marginal rate, and the HSA saves FICA too.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Before December 31: review taxable accounts</h3><p>Harvest losses, or harvest gains at 0% in a low-income year. Watch the 30-day wash-sale window.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check for credits you may be missing</h3><p>Saver's credit, child tax credit, education credits, and the new 65+ deduction.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Keep the paperwork</h3><p>Cost-basis records, HSA receipts, charitable receipts and last year's return in one place.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>In a low-income year, think Roth conversion</h3><p>Retirement, a sabbatical or a job gap can be the cheapest time to move pre-tax money to Roth. Run the numbers or ask a tax pro first.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>Do I owe tax when I sell my home?</h3><p>Usually not. If you owned and lived in it for at least two of the last five years, up to $250,000 of gain ($500,000 for a married couple) is excluded. Gains above that are taxed as long-term capital gains.</p></div>
+      <div class="faq-item"><h3>Is it worth moving to a state with no income tax?</h3><p>It can be, but compare the whole bill. States without an income tax often lean harder on property and sales taxes, and cost of living matters more than any single tax. Nine states don't tax wages; Washington does tax large capital gains.</p></div>
+      <div class="faq-item"><h3>When do I need to pay estimated taxes?</h3><p>If you expect to owe $1,000 or more beyond what's withheld, typically from self-employment, a side business or large investment income. You generally avoid penalties by paying at least as much as last year's total tax (110% if your income was over $150,000) through withholding and quarterly payments.</p></div>
+      <div class="faq-item"><h3>Do rollovers between retirement accounts count as income?</h3><p>Not if done correctly. A direct rollover (trustee to trustee) from a 401(k) to an IRA is tax-free. A Roth <em>conversion</em> is different: the converted amount is taxable income that year.</p></div>
+      <div class="faq-item"><h3>Are "tax-free" insurance and annuity products a good way to cut taxes?</h3><p>Usually they're an expensive way to get a tax break you could get more cheaply from a 401(k), IRA, HSA or a plain index fund held long-term. Compare against the baseline in <a href="/finance/investing-basics.html#judge">Investing Basics</a>, and read <a href="/finance/life-insurance-explained.html">Life Insurance Explained</a> and <a href="/finance/annuities-explained.html">Annuities Explained</a> first.</p></div>
+      <div class="faq-item"><h3>Should I use tax software or a professional?</h3><p>With a W-2, a few accounts and the standard deduction, software (or IRS Free File if eligible) handles it well. A self-employed business, rental property, stock compensation, a large Roth conversion, an inheritance or a move between states are good reasons to pay a CPA or enrolled agent.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Gross income</dt><dd>All your income before any adjustments or deductions.</dd></div>
+      <div class="gterm"><dt>Adjusted gross income (AGI)</dt><dd>Gross income minus pre-tax contributions and certain adjustments. Many limits are based on it.</dd></div>
+      <div class="gterm"><dt>Taxable income</dt><dd>AGI minus the standard or itemized deduction. The number the brackets apply to.</dd></div>
+      <div class="gterm"><dt>Tax bracket</dt><dd>A range of taxable income taxed at one rate.</dd></div>
+      <div class="gterm"><dt>Marginal tax rate</dt><dd>The rate on your next dollar of income.</dd></div>
+      <div class="gterm"><dt>Effective tax rate</dt><dd>Total tax divided by total income: what you actually pay on average.</dd></div>
+      <div class="gterm"><dt>Standard deduction</dt><dd>A flat amount everyone can subtract instead of itemizing.</dd></div>
+      <div class="gterm"><dt>Itemized deductions</dt><dd>Specific deductible expenses (mortgage interest, SALT, charity) used instead of the standard deduction when larger.</dd></div>
+      <div class="gterm"><dt>Tax credit</dt><dd>A dollar-for-dollar reduction of tax owed. Refundable credits can be paid out even when no tax is owed.</dd></div>
+      <div class="gterm"><dt>FICA</dt><dd>Payroll taxes for Social Security (6.2%) and Medicare (1.45%).</dd></div>
+      <div class="gterm"><dt>Withholding</dt><dd>Tax taken from each paycheck toward your yearly bill, set by your W-4.</dd></div>
+      <div class="gterm"><dt>Capital gain</dt><dd>Profit from selling an asset for more than its cost basis.</dd></div>
+      <div class="gterm"><dt>Cost basis</dt><dd>What you paid for an investment, including reinvested dividends.</dd></div>
+      <div class="gterm"><dt>Qualified dividend</dt><dd>A dividend taxed at the lower long-term capital-gains rates.</dd></div>
+      <div class="gterm"><dt>Tax-loss harvesting</dt><dd>Selling at a loss to offset gains or income, then reinvesting in something similar.</dd></div>
+      <div class="gterm"><dt>Wash-sale rule</dt><dd>Disallows a loss if you buy a substantially identical investment within 30 days before or after the sale.</dd></div>
+      <div class="gterm"><dt>Step-up in basis</dt><dd>Heirs' cost basis resets to the value at death, erasing prior gains for tax purposes.</dd></div>
+      <div class="gterm"><dt>Asset location</dt><dd>Placing investments in the account type where they're taxed least.</dd></div>
+      <div class="gterm"><dt>Provisional income</dt><dd>Other income plus half of Social Security, used to decide how much of your benefits is taxable.</dd></div>
+      <div class="gterm"><dt>Roth conversion</dt><dd>Moving pre-tax retirement money to a Roth account and paying income tax on it now.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>2026 brackets, standard deduction and long-term capital-gains thresholds: Tax Foundation, "2026 Tax Brackets and Federal Income Tax Rates."</li>
+      <li>2026 additional standard deduction for 65+ and the senior deduction: Kiplinger, "IRS Updates 2026 Tax Deduction for People Age 65 and Older."</li>
+      <li>2025 tax law (One Big Beautiful Bill Act) provisions (permanent rates, SALT cap, tips, overtime, car loan interest, senior deduction phase-outs): Charles Schwab, "One Big Beautiful Bill Act Tax Cuts."</li>
+      <li>Child tax credit 2026 ($2,200; $1,700 refundable; phase-outs): Kiplinger, "Child Tax Credit 2026."</li>
+      <li>Saver's credit 2026 tiers: Fidelity, "Saver's Credit: How to claim it in 2025 and 2026," and IRS 2026 limits release.</li>
+      <li>Net investment income tax thresholds: IRS, "Net Investment Income Tax." Social Security taxation formula: IRS Publication 915.</li>
+      <li>2026 Social Security wage base ($184,500): Mayer Brown summary of 2026 IRS and SSA limits. States without wage income tax: SoFi, "9 States With No Income Tax in 2026."</li>
+      <li>Calculator examples are computed in-browser from these rules; they're simplified (no state tax, itemizing, AMT or phase-ins of every credit).</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not tax or legal advice. Federal figures are 2026 amounts checked in September 2026; the temporary deductions expire after 2028 unless extended. State and local taxes vary widely. For decisions with real money at stake, confirm with the IRS, your tax software, or a tax professional.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function money(v){ return (v<0?"−":"") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function pct(v, d){ return (v*100).toFixed(d==null?1:d) + "%"; }
+  function num(id){ var v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : 0; }
+
+  /* ---------- 2026 federal rules ---------- */
+  var BR = {
+    single:[[12400,.10],[50400,.12],[105700,.22],[201775,.24],[256225,.32],[640600,.35],[Infinity,.37]],
+    mfj:   [[24800,.10],[100800,.12],[211400,.22],[403550,.24],[512450,.32],[768700,.35],[Infinity,.37]]
+  };
+  var STD = {single:16100, mfj:32200}, ADD65 = {single:2050, mfj:1650};
+  var LTB = {single:[49450,545500], mfj:[98900,613700]};
+  var NIIT = {single:200000, mfj:250000}, CTC_T = {single:200000, mfj:400000}, ADDMED = {single:200000, mfj:250000};
+  var SS_BASE = 184500;
+
+  function layers(x, f){           // ordinary income split by bracket
+    var out = [], lo = 0;
+    BR[f].forEach(function(b){ var amt = Math.max(0, Math.min(x, b[0]) - lo); out.push({rate:b[1], amt:amt, lo:lo}); lo = b[0]; });
+    return out;
+  }
+  function ordTax(x, f){ return layers(x, f).reduce(function(s,l){ return s + l.amt*l.rate; }, 0); }
+  function margRate(x, f){ var b = BR[f]; for (var i=0;i<b.length;i++) if (x < b[i][0]) return b[i][1]; return .37; }
+
+  function work(f, wages, pre, other, lt, kids){
+    pre = Math.min(pre, wages);
+    var agi = wages - pre + other + lt;
+    var ded = Math.min(STD[f], agi);
+    var ti = Math.max(0, agi - STD[f]);
+    var ltTaxed = Math.min(lt, ti), oti = ti - ltTaxed;
+    var ord = layers(oti, f), ordT = ordTax(oti, f);
+    var a = LTB[f][0], b = LTB[f][1];
+    var lt0 = Math.max(0, Math.min(ti, a) - oti), lt15 = Math.max(0, Math.min(ti, b) - Math.max(oti, a)), lt20 = Math.max(0, ti - Math.max(oti, b));
+    var ltT = lt15*.15 + lt20*.20;
+    var niit = .038 * Math.max(0, Math.min(other + lt, agi - NIIT[f]));
+    var over = Math.max(0, agi - CTC_T[f]);
+    var ctc = Math.max(0, kids*2200 - 50*Math.ceil(over/1000));
+    var before = ordT + ltT + niit;
+    var ctcUsed = Math.min(before, ctc);
+    var tax = before - ctcUsed;
+    var fica = .062*Math.min(wages, SS_BASE) + .0145*wages + .009*Math.max(0, wages - ADDMED[f]);
+    var total = wages + other + lt;
+    return {agi:agi, ded:ded, ti:ti, oti:oti, ord:ord, ordT:ordT, lt0:lt0, lt15:lt15, lt20:lt20, ltT:ltT, niit:niit, ctc:ctcUsed, ctcAvail:ctc, tax:tax, fica:fica, total:total, pre:pre, ltTaxed:ltTaxed, lt:lt};
+  }
+
+  function tealMix(rate){ var p = {0.1:32,0.12:42,0.22:58,0.24:68,0.32:80,0.35:90,0.37:100}[rate]; return "color-mix(in srgb, var(--teal) "+p+"%, var(--paper-raised))"; }
+
+  function drawCalc(){
+    var f = $("c-filing").value, w = num("c-wages"), pre = num("c-pre"), oth = num("c-other"), lt = num("c-lt"), kids = +$("c-kids").value;
+    var r = work(f, w, pre, oth, lt, kids);
+    var mr = margRate(r.oti, f);
+    $("c-tiles").innerHTML = [
+      ["Taxable income", money(r.ti), "after the "+money(STD[f])+" deduction"],
+      ["Federal income tax", money(r.tax), r.ctc ? "after "+money(r.ctc)+" child credit" : "before withholding"],
+      ["Effective rate", pct(r.total ? r.tax/r.total : 0), "of "+money(r.total)+" income"],
+      ["Marginal rate", Math.round(mr*100)+"%", r.lt ? "gains: "+(r.lt20>0?"20%":r.lt15>0?"15%":"0%")+(r.niit>0?" + 3.8%":"") : "your top bracket"],
+      ["Social Security + Medicare", money(r.fica), "FICA, your share"]
+    ].map(function(t){ return '<div class="tile"><div class="k">'+t[0]+'</div><div class="v">'+t[1]+'</div><div class="s">'+t[2]+'</div></div>'; }).join("");
+
+    // staircase bar
+    var segs = [];
+    if (r.pre>0) segs.push({cls:"pre", amt:r.pre, lab:"pre-tax", tip:"Pre-tax contributions: "+money(r.pre)+" (not taxed now)"});
+    if (r.ded>0) segs.push({cls:"ded", amt:r.ded, lab:"0%", tip:"Standard deduction: "+money(r.ded)+" at 0%"});
+    r.ord.forEach(function(l){ if (l.amt>0) segs.push({cls:"ord", amt:l.amt, lab:Math.round(l.rate*100)+"%", bg:tealMix(l.rate), dark:l.rate>=.22, tip:money(l.amt)+" taxed at "+Math.round(l.rate*100)+"%"}); });
+    if (r.lt0>0) segs.push({cls:"lt0", amt:r.lt0, lab:"0%", tip:"Long-term gains at 0%: "+money(r.lt0)});
+    if (r.lt15>0) segs.push({cls:"lt", amt:r.lt15, lab:"15%", tip:"Long-term gains at 15%: "+money(r.lt15)});
+    if (r.lt20>0) segs.push({cls:"lt", amt:r.lt20, lab:"20%", tip:"Long-term gains at 20%: "+money(r.lt20)});
+    var tot = segs.reduce(function(s,x){return s+x.amt;},0) || 1;
+    $("c-stair").innerHTML = segs.map(function(s){
+      var w = 100*s.amt/tot;
+      var style = "width:"+w.toFixed(2)+"%;" + (s.bg ? "background:"+s.bg+";color:"+(s.dark?"var(--paper-raised)":"var(--ink)")+";" : "");
+      return '<div class="sg '+s.cls+'" style="'+style+'" title="'+s.tip+'">'+(w > (s.lab.length>4 ? 10 : 5) ? s.lab : "")+'</div>';
+    }).join("");
+    $("c-axis").innerHTML = "<span>$0</span><span>"+money(tot)+" total income</span>";
+
+    var rows = [];
+    if (r.pre>0) rows.push(["Pre-tax 401(k)/HSA","not taxed now",r.pre,0,false]);
+    rows.push(["Standard deduction","0%",r.ded,0,false]);
+    r.ord.forEach(function(l){ if (l.amt>0) rows.push(["Ordinary income",Math.round(l.rate*100)+"%",l.amt,l.amt*l.rate,false]); });
+    if (r.lt0>0) rows.push(["Long-term gains","0%",r.lt0,0,false]);
+    if (r.lt15>0) rows.push(["Long-term gains","15%",r.lt15,r.lt15*.15,false]);
+    if (r.lt20>0) rows.push(["Long-term gains","20%",r.lt20,r.lt20*.2,false]);
+    if (r.niit>0) rows.push(["Net investment income tax","3.8%","",r.niit,false]);
+    if (r.ctc>0) rows.push(["Child tax credit","credit","",-r.ctc,false]);
+    rows.push(["Federal income tax","",r.total,r.tax,true]);
+    $("c-table").innerHTML = rows.map(function(x){
+      return '<tr'+(x[3]===0&&!x[4]?' class="zero"':'')+'><td>'+x[0]+'</td><td class="r">'+x[1]+'</td><td>'+(x[2]===""?"":money(x[2]))+'</td><td>'+money(x[3])+'</td></tr>';
+    }).join("");
+
+    var r2 = work(f, w+1000, pre, oth, lt, kids);
+    var dTax = r2.tax - r.tax, dF = r2.fica - r.fica;
+    $("c-raise").innerHTML = "<strong>What a $1,000 raise is worth:</strong> it adds "+money(dTax)+" of income tax and "+money(dF)+" of FICA, so you keep <strong>"+money(1000-dTax-dF)+"</strong>. Only the new dollars are taxed at your "+Math.round(margRate(r2.oti,f)*100)+"% rate; everything you already earned is taxed exactly as before.";
+  }
+  ["c-filing","c-wages","c-pre","c-other","c-lt","c-kids"].forEach(function(id){ $(id).addEventListener("input", drawCalc); });
+  drawCalc();
+
+  /* ---------- Retirement ---------- */
+  function retire(f, n65, ss, ira, oth){
+    var base = f==="single" ? 25000 : 32000, adj = f==="single" ? 34000 : 44000;
+    var other = ira + oth, pi = other + ss/2;
+    var t1 = Math.min(.5*ss, .5*Math.max(0, pi-base)), tss;
+    if (pi <= adj) tss = t1; else tss = Math.min(.85*ss, .85*(pi-adj) + Math.min(t1, .5*(adj-base)));
+    var agi = other + tss;
+    var std = STD[f] + n65*ADD65[f];
+    var thr = f==="single" ? 75000 : 150000;
+    var senior = n65 * Math.max(0, 6000 - .06*Math.max(0, agi - thr));
+    var ti = Math.max(0, agi - std - senior);
+    var tax = ordTax(ti, f);
+    return {tss:tss, agi:agi, ded:std+senior, senior:senior, ti:ti, tax:tax, total:ss+ira+oth, mr:margRate(ti,f)};
+  }
+  function drawRet(){
+    var f = $("r-filing").value, n65 = +$("r-n65").value, ss = num("r-ss"), ira = num("r-ira"), oth = num("r-oth");
+    if (f==="single" && n65>1){ n65 = 1; $("r-n65").value = "1"; }
+    var r = retire(f, n65, ss, ira, oth);
+    $("r-tiles").innerHTML = [
+      ["Taxable Social Security", money(r.tss), ss ? Math.round(100*r.tss/ss)+"% of benefits" : "no benefits entered"],
+      ["Deductions", money(r.ded), r.senior ? "incl. "+money(r.senior)+" senior deduction" : "standard + age 65 add-on"],
+      ["Taxable income", money(r.ti), "bracket: "+Math.round(r.mr*100)+"%"],
+      ["Federal income tax", money(r.tax), "no FICA on these"],
+      ["Effective rate", pct(r.total ? r.tax/r.total : 0), "of "+money(r.total)+" income"]
+    ].map(function(t){ return '<div class="tile"><div class="k">'+t[0]+'</div><div class="v">'+t[1]+'</div><div class="s">'+t[2]+'</div></div>'; }).join("");
+    var r2 = retire(f, n65, ss, ira+1000, oth);
+    var d = r2.tax - r.tax, eff = d/1000, br = r.mr;
+    var msg = "<strong>The next $1,000 withdrawn</strong> adds "+money(d)+" of federal tax: an effective "+pct(eff)+" on that money";
+    if (r.ti === 0 && d === 0) msg += ". You're still inside your deductions, so this is a cheap window for Roth conversions or extra withdrawals.";
+    else if (eff > br + 0.005) msg += ", more than your "+Math.round(br*100)+"% bracket, because each extra dollar also makes more of your Social Security taxable (the “tax torpedo”)"+(r2.senior < r.senior ? " and trims the senior deduction" : "")+".";
+    else msg += ", matching your "+Math.round(br*100)+"% bracket.";
+    $("r-next").innerHTML = msg;
+  }
+  ["r-filing","r-n65","r-ss","r-ira","r-oth"].forEach(function(id){ $(id).addEventListener("input", drawRet); });
+  drawRet();
+})();
+</script>
+</body>
+</html>
