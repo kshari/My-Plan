@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credit & Debt</title>
+<meta name="description" content="Credit & Debt: how credit scores and reports work, avalanche vs. snowball payoff plans, balance transfers and counseling, 2026 student loan changes, and paying off debt vs. investing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ---- Sales pitch additions ---- */
+.pitch{border-top:1px solid var(--rule); padding:24px 0;}
+.pitch:last-child{border-bottom:1px solid var(--rule);}
+.pitch-claim{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px; color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold); padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;}
+.reality-tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--rust); font-weight:600; display:block; margin-bottom:6px;}
+.pitch p{font-size:15.5px;}
+.pitch .ask{font-size:14.5px; color:var(--ink-soft); margin-top:8px;}
+.pitch .ask strong{color:var(--teal); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-right:6px;}
+.flags{display:flex; flex-direction:column; margin-top:8px;}
+.flag{display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:start; padding:11px 4px; border-top:1px solid var(--rule); cursor:pointer; font-size:14.5px; line-height:1.5;}
+.flag:last-child{border-bottom:1px solid var(--rule);}
+.flag input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--rust); cursor:pointer;}
+.flag:hover{background:var(--ink-wash);}
+.flag.on{background:var(--rust-wash);}
+.flag small{display:block; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+.meter{display:flex; gap:4px; margin:14px 0 8px;}
+.meter i{flex:1; height:10px; border-radius:3px; background:var(--ink-wash);}
+.meter i.on{background:var(--rust);}
+.verdict-box{padding:14px 16px; border-radius:3px; border-left:3px solid var(--teal); background:var(--teal-wash); font-size:15px; line-height:1.6;}
+.verdict-box.warn{border-left-color:var(--gold); background:var(--gold-wash);}
+.verdict-box.stop{border-left-color:var(--rust); background:var(--rust-wash);}
+.paymodel{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px;}
+@media (max-width:760px){ .paymodel{grid-template-columns:1fr 1fr} }
+@media (max-width:460px){ .paymodel{grid-template-columns:1fr} }
+.pm{background:var(--paper-raised); border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:16px; box-shadow:var(--shadow);}
+.pm .k{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.pm h3{font-style:normal; font-size:17px; margin:4px 0 6px;}
+.pm p{font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 8px;}
+.pm .nudge{font-size:12.5px; color:var(--ink); border-top:1px dotted var(--rule); padding-top:8px; margin:0;}
+.pm .nudge b{display:block; margin-bottom:2px; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-right:4px;}
+
+/* ---- Health & disability additions ---- */
+.plan-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:8px 0 16px;}
+@media (max-width:620px){ .plan-grid{grid-template-columns:1fr} }
+.plan-box{border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:12px 14px 14px; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; background:var(--paper);}
+.plan-box legend{font:600 11px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 6px;}
+@media (max-width:380px){ .plan-box{grid-template-columns:1fr} }
+.win-a{color:var(--gold); font-weight:600;}
+.win-b{color:var(--teal); font-weight:600;}
+.flow.four{grid-template-columns:repeat(4,1fr);}
+@media (max-width:680px){ .flow.four{grid-template-columns:1fr} }
+.plan-box{align-content:start;}
+.plan-box .field{display:flex; flex-direction:column; justify-content:flex-end;}
+
+/* ---- Credit & debt additions ---- */
+.debt-table{min-width:560px;}
+.debt-table td{padding:6px 8px; text-align:left;}
+.debt-table th{text-align:left;}
+.debt-table input{width:100%; font:500 13.5px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:6px 8px;}
+.debt-table input:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.debt-table tbody tr:last-child td{font-weight:400; border-bottom:1px solid var(--rule);}
+.btn-small{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:7px 14px; cursor:pointer;}
+.btn-small:hover{color:var(--ink); border-color:var(--ink-faint);}
+.rm{font:600 14px "IBM Plex Mono",monospace; color:var(--ink-faint); background:none; border:0; cursor:pointer; padding:4px 8px;}
+.rm:hover{color:var(--rust);}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Debt · Part of Personal Finance Library</p>
+    <h1>Credit &amp; Debt: Scores, Payoff Plans and Student Loans</h1>
+    <p class="subtitle">How credit scores and reports actually work, how to get out of debt faster (avalanche or snowball, and when balance transfers or counseling help), what changed for student loans in 2026, and how to decide between paying off debt and investing. Two calculators use your own balances.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Debt isn't good or bad by label; it's expensive or cheap, and it either builds something or doesn't. Credit cards are the expensive kind: banks charged about <strong>22%</strong> on balances carrying interest in May 2026, and Americans owe <strong>$1.26 trillion</strong> on them. Paying only the minimums can turn a few thousand dollars into a decade of payments. Pick one payoff order and stick to it: <strong>avalanche</strong> (highest rate first) costs the least; <strong>snowball</strong> (smallest balance first) gives quicker wins and usually costs only a little more. Your <strong>credit score</strong> mostly comes down to paying on time and keeping card balances low relative to limits, and your reports are free every week at AnnualCreditReport.com. For <strong>student loans</strong>, July 2026 brought a new income-based plan (RAP), new borrowing caps and higher rates, and borrowers who sign up for autopay by September 30, 2026 get a 1-point rate cut through mid-2028. Whether to pay down debt or invest comes down to the rate: above about 8%, pay it off; below about 5%, invest (after the employer match); in between, splitting is reasonable.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#cost">What debt really costs</a>
+      <a href="#score">Your credit score: what moves it</a>
+      <a href="#report">Your credit report: check, freeze, fix</a>
+      <a href="#payoff">A payoff plan: avalanche vs. snowball (calculator)</a>
+      <a href="#tools">Tools that help, and ones that hurt</a>
+      <a href="#student-loans">Student loans after the 2026 changes</a>
+      <a href="#pay-or-invest">Pay off debt or invest? (calculator)</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A debt-free checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="cost">
+    <p class="eyebrow">Start here</p>
+    <h2>What debt really costs</h2>
+    <p class="lede">The useful way to sort debt isn't "good" versus "bad." It's the <strong>interest rate</strong>, and whether the debt bought something that lasts or grows (a home, an education, a reliable car to get to work) or something that's already gone. A 22% credit card balance for last year's vacation is the most expensive money most people ever borrow.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Type of debt</th><th>Typical cost</th><th>U.S. total, mid-2026</th></tr></thead>
+        <tbody>
+          <tr><td>Credit cards</td><td>About 22% on balances carrying interest (May 2026); 21% averaged across all accounts</td><td>$1.26 trillion</td></tr>
+          <tr><td>Payday loans</td><td>A typical $15 fee per $100 for two weeks works out to nearly 400% a year</td><td>—</td></tr>
+          <tr><td>Auto loans</td><td>Varies widely with credit score and new vs. used</td><td>$1.71 trillion</td></tr>
+          <tr><td>Federal student loans (new, 2026–27)</td><td>6.52% undergraduate, 8.07% graduate, 9.07% PLUS</td><td>$1.65 trillion (all student loans)</td></tr>
+          <tr><td>Mortgages</td><td>About 7% for a new 30-year fixed (September 2026); many older loans far lower</td><td>$13.12 trillion</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><strong>The minimum-payment trap.</strong> Card minimums are set low so balances linger. In the payoff calculator below, a household paying only minimums on four debts takes <strong>10 years</strong> and pays about <strong>$16,000</strong> in interest; adding $300 a month and a clear order cuts that to under 4 years and about $7,300.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="score">
+    <p class="eyebrow">The number lenders see</p>
+    <h2>Your credit score: what moves it</h2>
+    <p class="lede">A credit score is a three-digit guess at how likely you are to pay late, calculated from your credit reports. It sets the rate on your mortgage, car loan and cards, and can affect insurance premiums and apartment applications. Most scores run from 300 to 850.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Factor (FICO's weights)</th><th>Share</th><th>What helps</th></tr></thead>
+        <tbody>
+          <tr><td>Payment history</td><td>35%</td><td>Pay every bill on time. One payment 30+ days late can drop a good score sharply and stays on your report for seven years. Set up autopay for at least the minimum.</td></tr>
+          <tr><td>Amounts owed (utilization)</td><td>30%</td><td>Keep card balances low relative to limits: under 30% of each card's limit and overall, lower is better. Paying before the statement date lowers the balance that's reported.</td></tr>
+          <tr><td>Length of history</td><td>15%</td><td>Keep your oldest cards open (use them occasionally so they aren't closed).</td></tr>
+          <tr><td>New credit</td><td>10%</td><td>Apply only when you need to. Several mortgage or auto inquiries within a short shopping window count as one.</td></tr>
+          <tr><td>Credit mix</td><td>10%</td><td>Having both cards and installment loans helps a little. Never borrow just to improve your mix.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:16px;">Two scoring families exist: FICO and VantageScore. As of September 2026, lenders selling mortgages to Fannie Mae and Freddie Mac can use either classic FICO or VantageScore 4.0. Some newer models also count rent payments and "buy now, pay later" loans. Your score doesn't include your income, savings or net worth, so a millionaire with no credit history can have a thin file, and a high earner who pays late will have a poor score.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="report">
+    <p class="eyebrow">The raw data behind the score</p>
+    <h2>Your credit report: check, freeze, fix</h2>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">CHECK</div><div><h3>Free reports every week</h3><p>Equifax, Experian and TransUnion each keep a report on you. You can get all three free, every week, at <strong>AnnualCreditReport.com</strong>, the only official free source. Check for accounts you don't recognize, wrong balances, and late payments you didn't make.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">FIX</div><div><h3>Dispute errors in writing</h3><p>Contact both the credit bureau and the company that reported the item. They must investigate, usually within 30 days. Most negative items (late payments, collections) fall off after seven years; a Chapter 7 bankruptcy after ten. Paid medical collections and medical debts under $500 aren't reported by the three bureaus (see <a href="/finance/health-disability.html#protections">Health &amp; Disability</a>).</p></div></div>
+    <div class="lever-row"><div class="lever-tag">FREEZE</div><div><h3>Freeze your credit; it's free</h3><p>A freeze stops anyone, including you, from opening new credit in your name until you lift it, online, in minutes. It's free at all three bureaus by federal law and is the single best protection against identity theft. Lift it temporarily when you apply for a loan.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="payoff">
+    <p class="eyebrow">Getting out</p>
+    <h2>A payoff plan: avalanche vs. snowball</h2>
+    <p class="lede">Both methods work the same way: pay the minimum on every debt, put every extra dollar on one target, and when it's gone, roll its payment into the next. They differ only in which debt goes first. <strong>Avalanche</strong> targets the highest interest rate, which saves the most money. <strong>Snowball</strong> targets the smallest balance, which clears whole accounts sooner and keeps some people motivated. The best method is the one you'll stick with.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Your debts, three ways</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--teal)"></i>Avalanche</span><span><i class="swatch" style="background:var(--blue)"></i>Snowball</span><span><i class="swatch" style="background:var(--gold)"></i>Minimums only</span></div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:6px;"><table class="debt-table"><thead><tr><th>Debt</th><th>Balance</th><th>APR %</th><th>Minimum / mo</th><th></th></tr></thead><tbody id="debt-rows"></tbody></table></div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:12px 0 4px;">
+        <button type="button" class="btn-small" id="add-debt">+ Add a debt</button>
+        <div class="field" style="flex:1 1 220px; max-width:320px;"><label for="extra">Extra you can add each month</label><input id="extra" type="number" min="0" step="25" value="300" inputmode="numeric"></div>
+      </div>
+      <div class="tiles" id="debt-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-debt" viewBox="0 0 680 280" role="img" aria-label="Line chart of total debt balance over time under avalanche, snowball and minimum-payments-only plans."></svg></div>
+      <div class="raise" id="debt-order"></div>
+      <div class="chart-foot">Monthly interest at each debt's APR; minimums held at the amounts entered. Real card minimums shrink as balances fall, which makes the "minimums only" path even slower. Payments freed up by a paid-off debt roll into the next target. If a minimum doesn't cover the interest, that debt never shrinks on its own; the calculator stops at 50 years.</div>
+    </div>
+    <p style="margin-top:22px;">With the default debts, avalanche and snowball both finish in about <strong>46 months</strong>; avalanche saves about $130 in interest. The gap grows when high-rate balances are large, but for many households it's small enough that motivation matters more. The bigger win by far is having a plan and an extra amount at all: <strong>about $8,700 less interest and six years sooner</strong> than minimums only.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="tools">
+    <p class="eyebrow">Shortcuts</p>
+    <h2>Tools that help, and ones that hurt</h2>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Tool</th><th>How it works</th><th>Watch out for</th></tr></thead>
+        <tbody>
+          <tr><td>0% balance transfer card</td><td>Move a card balance to a new card with 0% interest for an intro period, often 15–21 months</td><td>A transfer fee of usually 3%–5%; the regular rate on anything left when the promo ends; new purchases may not get 0%. Only works if you stop adding to the balance.</td></tr>
+          <tr><td>Debt consolidation loan</td><td>A fixed-rate personal loan pays off several cards; one payment, a set end date</td><td>Worth it only if the rate is clearly lower than the cards. Freed-up cards can fill right back up.</td></tr>
+          <tr><td>Nonprofit credit counseling (debt management plan)</td><td>A counselor negotiates lower card rates and sets up one monthly payment, usually over 3–5 years</td><td>Use a nonprofit agency (for example, members of the National Foundation for Credit Counseling). Cards are usually closed.</td></tr>
+          <tr><td>Debt settlement companies</td><td>You stop paying creditors and save into an account until the company negotiates a lump-sum payoff for less than owed</td><td>Fees, late fees and interest pile up meanwhile; credit damage; possible lawsuits; forgiven debt can be taxable income. Many people end up worse off.</td></tr>
+          <tr><td>Borrowing from your 401(k)</td><td>You borrow your own retirement money and repay yourself</td><td>Money out of the market; the balance can come due quickly if you leave your job. A last resort.</td></tr>
+          <tr><td>Bankruptcy</td><td>A legal process to discharge or restructure debts</td><td>Serious and long-lasting (up to 10 years on your report), but sometimes the right answer. Talk to a bankruptcy attorney or nonprofit counselor before anything else.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="student-loans">
+    <p class="eyebrow">A lot changed in 2026</p>
+    <h2>Student loans after the 2026 changes</h2>
+    <p class="lede">The 2025 tax and spending law rewrote federal student lending, with most changes starting July 1, 2026. Federal loans still come with protections private loans don't, so the order of options matters.</p>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">RAP</div><div><h3>A new income-based plan: the Repayment Assistance Plan</h3><p>For new borrowers, RAP is the only income-driven option: payments of 1%–10% of adjusted gross income, a $10 minimum, $50 less per dependent child, unpaid interest waived, and forgiveness after 30 years. The SAVE plan is ending; existing borrowers in it must choose a new plan, and the older PAYE and ICR plans close by mid-2028. Check your servicer's notices so you aren't moved into a plan by default.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">CAPS</div><div><h3>New limits and higher rates</h3><p>Grad PLUS loans are gone for new borrowers. Graduate students can borrow up to $20,500 a year ($100,000 total), professional students $50,000 a year ($200,000 total), and Parent PLUS is capped at $20,000 a year and $65,000 per child. Rates for 2026–27 are 6.52% for undergraduates, 8.07% for graduate loans and 9.07% for PLUS loans.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">AUTOPAY</div><div><h3>A limited-time 1-point rate cut</h3><p>Borrowers with Direct Loans made after July 1, 2012 who are enrolled in autopay by <strong>September 30, 2026</strong> get a 1 percentage-point rate reduction (up from the usual 0.25) through June 30, 2028. Enroll with your servicer if you haven't.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">PSLF</div><div><h3>Public Service Loan Forgiveness still exists</h3><p>Teachers, nurses, government and nonprofit workers can have remaining federal balances forgiven after 120 qualifying payments. Certify your employment regularly. Note that new Parent PLUS loans no longer lead to PSLF.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">PRIVATE</div><div><h3>Refinancing federal loans into private ones is a one-way door</h3><p>A lower private rate can make sense for high earners with secure jobs, but you permanently give up income-based plans, forgiveness programs and federal hardship options. Refinance private loans freely; think hard before refinancing federal ones.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="pay-or-invest">
+    <p class="eyebrow">The eternal question</p>
+    <h2>Pay off debt or invest?</h2>
+    <p class="lede">Paying down a debt earns a <strong>guaranteed</strong> return equal to its interest rate. Investing earns an <strong>expected</strong> return that could be higher or lower. So the answer depends mostly on the rate, and the <a href="/finance/money-roadmap.html#priority-waterfall">Roadmap's order</a> still applies: starter emergency fund and the full employer match come first.</p>
+    <div class="verdicts three">
+      <div class="verdict bad"><div class="book-label">Above ~8%</div><h3>Pay it off first</h3><p>Credit cards, most personal loans, many private student loans. No investment reliably beats a guaranteed 20%.</p></div>
+      <div class="verdict neutral"><div class="book-label">~5% to 8%</div><h3>A judgment call; splitting is fine</h3><p>Newer federal student loans, many car loans, today's new mortgages. Roughly a coin flip against expected stock returns, and paying down debt is risk-free.</p></div>
+      <div class="verdict good"><div class="book-label">Below ~5%</div><h3>Usually invest</h3><p>Older low-rate mortgages and loans. Pay the minimum, fill tax-advantaged accounts, and let time do the work.</p></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Extra money each month: to the debt first, or invested from day one?</div></div>
+      <div class="planner">
+        <div class="field"><label for="v-bal">Debt balance</label><input id="v-bal" type="number" min="0" step="500" value="20000" inputmode="numeric"></div>
+        <div class="field"><label for="v-apr">Debt interest rate (%)</label><input id="v-apr" type="number" min="0" max="40" step="0.1" value="6.5" inputmode="decimal"></div>
+        <div class="field"><label for="v-min">Minimum payment / month</label><input id="v-min" type="number" min="0" step="1" value="228" inputmode="numeric"></div>
+        <div class="field"><label for="v-extra">Extra per month</label><input id="v-extra" type="number" min="0" step="25" value="300" inputmode="numeric"></div>
+        <div class="field"><label for="v-ret">Expected investment return (%)</label><input id="v-ret" type="number" min="0" max="15" step="0.1" value="7" inputmode="decimal"></div>
+        <div class="field"><label for="v-years">Years</label><input id="v-years" type="number" min="1" max="40" step="1" value="10" inputmode="numeric"></div>
+      </div>
+      <div class="tiles" id="v-tiles"></div>
+      <div class="raise" id="v-note"></div>
+      <div class="chart-foot">Net worth from these dollars at the end: investments minus any debt still owed. "Debt first" sends minimum + extra to the debt, then invests the whole amount once it's paid off. "Invest first" pays only the minimum and invests the extra from the start. Investment returns are assumed steady; real returns vary, and debt payoff is guaranteed. Ignores taxes (student loan interest can be partly deductible; investing inside a 401(k) or IRA adds tax benefits).</div>
+    </div>
+    <p style="margin-top:18px;">At the defaults, a 6.5% student loan against a 7% expected return is nearly a tie after ten years, which is exactly why this middle zone is a judgment call. Change the rate to a 23% credit card and debt-first wins clearly; drop the expected return to 5% and it wins too.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">On the <a href="/finance/money-roadmap.html#priority-waterfall">Money Roadmap</a>, high-interest debt is step 03, right after the starter emergency fund and the employer match, and lower-rate debt is a step 07 goal. On the <a href="/finance/money-river.html">Money River</a>, the Debt thread swells in the 20s and 30s with student loans, cars and a mortgage, and should thin to nothing by retirement.</p>
+    <div class="next-links">
+      <a href="/finance/rent-vs-buy.html#mortgage"><div class="nl-k">Tier 2 · #7</div><div class="nl-t">Rent vs. Buy &amp; Mortgages</div><div class="nl-d">The biggest debt most people take on, and how your score sets its rate.</div></a>
+      <a href="/finance/which-account.html#order"><div class="nl-k">Tier 1 · #2</div><div class="nl-t">Which Account?</div><div class="nl-d">Where money goes once the expensive debt is gone.</div></a>
+      <a class="soon" href="/finance/index.html#piece-9"><div class="nl-k">Tier 2 · #9 · coming next</div><div class="nl-t">Where to Keep Your Cash</div><div class="nl-d">The emergency fund that keeps new debt from starting.</div></a>
+      <a class="soon" href="/finance/index.html#piece-15"><div class="nl-k">Tier 3 · #15</div><div class="nl-t">Scams &amp; Fraud Protection</div><div class="nl-d">Identity theft, fake debt collectors and "debt relief" scams.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A debt-free checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>List every debt</h3><p>Balance, rate, minimum and due date, in one place. Most people are surprised by at least one number.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Set autopay for every minimum</h3><p>A missed payment costs more in credit-score damage and fees than almost anything else.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Build a small cash buffer first</h3><p>$1,000–$2,000, so a surprise bill doesn't go straight back on a card.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Choose avalanche or snowball, and an extra amount</h3><p>Run the calculator, pick one, and automate the extra payment to your target.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Call your card issuer and ask for a lower rate</h3><p>It works more often than people expect, especially with a good payment history.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Pull your three credit reports and freeze them</h3><p>Free every week at AnnualCreditReport.com; dispute errors; freeze at each bureau.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Student loans: check your plan and autopay</h3><p>Confirm your repayment plan after the 2026 changes, and enroll in autopay by September 30, 2026 for the 1-point rate cut.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>When a debt is gone, redirect the payment</h3><p>Roll it to the next debt, then to savings and investing, before it disappears into spending.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>Should I close a credit card after paying it off?</h3><p>Usually not, especially an old one with no annual fee: closing it shortens your history and raises your utilization. Put a small recurring charge on it with autopay. Close it if the annual fee isn't worth it or if having it tempts you to spend.</p></div>
+      <div class="faq-item"><h3>Does checking my own score hurt it?</h3><p>No. Checking your own score or reports is a "soft" inquiry with no effect. Only applications for new credit ("hard" inquiries) count, and only a little.</p></div>
+      <div class="faq-item"><h3>Is it OK to carry a small balance to build credit?</h3><p>No. That's a myth. Paying the full statement balance every month builds credit just as well and costs nothing in interest.</p></div>
+      <div class="faq-item"><h3>A debt collector called me. What are my rights?</h3><p>Ask for written validation of the debt, don't pay anything until you've confirmed it's yours and the amount is right, and check whether it's past your state's statute of limitations. Collectors can't harass or threaten you. Scammers pose as collectors, so never pay by gift card or wire.</p></div>
+      <div class="faq-item"><h3>Is "buy now, pay later" a problem?</h3><p>Used occasionally for planned purchases, it's fine. The risk is stacking several plans at once and losing track; late fees apply, and some newer credit scores now count these loans.</p></div>
+      <div class="faq-item"><h3>Should I use savings to pay off my credit card?</h3><p>Yes, if you'd still keep a small emergency cushion. Money in savings earns maybe 4%; the card costs about 22%. Just don't run the card back up.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>APR</dt><dd>Annual percentage rate: the yearly cost of borrowing, including some fees.</dd></div>
+      <div class="gterm"><dt>Minimum payment</dt><dd>The smallest amount due each month to keep an account current.</dd></div>
+      <div class="gterm"><dt>Credit utilization</dt><dd>Card balances as a share of credit limits.</dd></div>
+      <div class="gterm"><dt>Credit report</dt><dd>A record of your borrowing and payment history kept by each credit bureau.</dd></div>
+      <div class="gterm"><dt>Credit score</dt><dd>A number (usually 300–850) predicting how likely you are to pay late.</dd></div>
+      <div class="gterm"><dt>Hard inquiry</dt><dd>A lender's check when you apply for credit; lowers your score slightly for a while.</dd></div>
+      <div class="gterm"><dt>Credit freeze</dt><dd>A free block on new credit being opened in your name.</dd></div>
+      <div class="gterm"><dt>Debt avalanche</dt><dd>Paying extra on the highest-rate debt first.</dd></div>
+      <div class="gterm"><dt>Debt snowball</dt><dd>Paying extra on the smallest balance first.</dd></div>
+      <div class="gterm"><dt>Balance transfer</dt><dd>Moving a balance to a different card, often at 0% for a promotional period.</dd></div>
+      <div class="gterm"><dt>Debt management plan</dt><dd>A nonprofit counselor-arranged repayment plan with reduced card rates.</dd></div>
+      <div class="gterm"><dt>Debt settlement</dt><dd>Negotiating to pay less than owed, usually after stopping payments. Risky.</dd></div>
+      <div class="gterm"><dt>RAP</dt><dd>Repayment Assistance Plan: the new federal income-based student loan plan from July 2026.</dd></div>
+      <div class="gterm"><dt>PSLF</dt><dd>Public Service Loan Forgiveness: forgiveness after 120 qualifying payments while working in public service.</dd></div>
+      <div class="gterm"><dt>Collections</dt><dd>A debt passed to a collection agency after serious delinquency.</dd></div>
+      <div class="gterm"><dt>Statute of limitations</dt><dd>The period after which a creditor can no longer sue to collect a debt; varies by state.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>Credit card interest rates (22.15% on accounts assessed interest, 20.94% all accounts, May 2026): Federal Reserve G.19 via FRED.</li>
+      <li>Household debt balances, Q2 2026: Federal Reserve Bank of New York, Household Debt and Credit Report (August 11, 2026).</li>
+      <li>Student loan changes, caps and 2026–27 rates: The College Investor, "What Changes for Student Loan Borrowers on July 1, 2026." Autopay rate reduction: U.S. Department of Education press release (June 18, 2026).</li>
+      <li>Credit score models for mortgages: FHFA credit score policy page (September 2026).</li>
+      <li>Free weekly credit reports: Federal Trade Commission. Balance transfer fees and promo periods: Bankrate.</li>
+      <li>FICO factor weights, reporting periods (7 years; 10 for Chapter 7 bankruptcy), free credit freezes and payday loan costs are long-standing, widely published rules. Calculator results are computed on this page.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not legal or credit advice. Rates and rules were checked in September 2026. If you're behind on payments or facing collections, a nonprofit credit counselor or a consumer attorney can review your options for free or at low cost.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function full(v){ return (v<0?"−":"") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function short(v){ var a=Math.abs(v); if (a>=1e6) return "$"+(a/1e6).toFixed(2)+"M"; if (a>=1000) return "$"+Math.round(a/1000)+"k"; return "$"+Math.round(a); }
+  function num(v){ v = parseFloat(v); return isFinite(v) && v > 0 ? v : 0; }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+  function dur(m){ if (m >= 600) return "50+ yrs"; var y = Math.floor(m/12), r = m%12; return (y ? y+"y " : "") + (r ? r+"m" : (y ? "" : "0m")); }
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function txt(p, x, y, s, cls, anchor){ var t = el("text", {x:x, y:y, "class":cls||"axis-label", "text-anchor":anchor||"start"}, p); t.textContent = s; return t; }
+  function tooltip(svg, x, y, lines, W, H){
+    var g = el("g", {"class":"tooltip-group"}, svg), t = el("text", {"class":"tooltip-text"}, g);
+    lines.forEach(function(L, i){
+      var ts = el("tspan", {x:0, dy: i ? 16 : 0}, t);
+      if (L.bold) ts.setAttribute("font-weight","600");
+      if (L.color){ ts.textContent = "■ "; ts.setAttribute("style","fill:"+L.color); var t2 = el("tspan", {}, t); t2.textContent = L.t; }
+      else ts.textContent = L.t;
+    });
+    var bb = t.getBBox(), w = bb.width + 16, h = lines.length*16 + 12;
+    var bx = x + 14; if (bx + w > W - 4) bx = x - 14 - w; if (bx < 4) bx = 4;
+    var by = Math.max(4, Math.min(H - 4 - h, y - h/2));
+    g.insertBefore(el("rect", {x:bx, y:by, width:w, height:h, rx:3, "class":"tooltip-bg"}), t);
+    t.setAttribute("transform", "translate("+(bx+8)+","+(by+19)+")");
+    return g;
+  }
+
+  /* ================= Payoff planner ================= */
+  var debts = [
+    {name:"Credit card A", bal:6500, apr:24.99, min:190},
+    {name:"Credit card B", bal:1800, apr:19.9, min:55},
+    {name:"Car loan", bal:14000, apr:7.5, min:340},
+    {name:"Student loan", bal:22000, apr:6.5, min:250}
+  ];
+  var tbody = $("debt-rows");
+  function renderRows(){
+    tbody.innerHTML = debts.map(function(d, i){
+      return '<tr><td><input aria-label="Debt name" data-i="'+i+'" data-k="name" value="'+esc(d.name)+'"></td>'+
+        '<td><input aria-label="Balance" type="number" min="0" step="100" inputmode="numeric" data-i="'+i+'" data-k="bal" value="'+d.bal+'"></td>'+
+        '<td><input aria-label="APR" type="number" min="0" max="99" step="0.1" inputmode="decimal" data-i="'+i+'" data-k="apr" value="'+d.apr+'"></td>'+
+        '<td><input aria-label="Minimum payment" type="number" min="0" step="5" inputmode="numeric" data-i="'+i+'" data-k="min" value="'+d.min+'"></td>'+
+        '<td>'+(debts.length>1 ? '<button type="button" class="rm" data-rm="'+i+'" aria-label="Remove '+esc(d.name)+'">×</button>' : '')+'</td></tr>';
+    }).join("");
+    $("add-debt").style.display = debts.length >= 6 ? "none" : "";
+  }
+  tbody.addEventListener("input", function(e){
+    var t = e.target; if (!t.dataset.k) return;
+    debts[+t.dataset.i][t.dataset.k] = t.dataset.k === "name" ? t.value : num(t.value);
+    drawDebt();
+  });
+  tbody.addEventListener("click", function(e){
+    var b = e.target.closest("[data-rm]"); if (!b) return;
+    debts.splice(+b.dataset.rm, 1); renderRows(); drawDebt();
+  });
+  $("add-debt").addEventListener("click", function(){ debts.push({name:"New debt", bal:2000, apr:15, min:60}); renderRows(); drawDebt(); });
+  $("extra").addEventListener("input", drawDebt);
+
+  function run(strat, extra){
+    var ds = debts.filter(function(d){ return d.bal > 0; }).map(function(d){ return {name:d.name, bal:d.bal, r:d.apr/100/12, min:d.min, apr:d.apr}; });
+    var budget = ds.reduce(function(s,d){ return s + d.min; }, 0) + extra;
+    var m = 0, interest = 0, order = [], series = [ds.reduce(function(s,d){return s+d.bal;},0)];
+    while (ds.some(function(d){ return d.bal > 0.005; }) && m < 600){
+      m++;
+      ds.forEach(function(d){ if (d.bal > 0){ var i = d.bal*d.r; d.bal += i; interest += i; } });
+      if (strat === "min"){
+        ds.forEach(function(d){ if (d.bal > 0){ d.bal -= Math.min(d.bal, d.min); } });
+      } else {
+        var avail = budget;
+        ds.forEach(function(d){ if (d.bal > 0){ var p = Math.min(d.bal, d.min); d.bal -= p; avail -= p; } });
+        var act = ds.filter(function(d){ return d.bal > 0.005; });
+        act.sort(strat === "av" ? function(a,b){ return b.r - a.r || a.bal - b.bal; } : function(a,b){ return a.bal - b.bal || b.r - a.r; });
+        act.forEach(function(d){ if (avail > 0){ var p = Math.min(d.bal, avail); d.bal -= p; avail -= p; } });
+      }
+      ds.forEach(function(d){ if (d.bal <= 0.005 && order.indexOf(d.name) < 0){ d.bal = 0; order.push(d.name); } });
+      series.push(ds.reduce(function(s,d){ return s + Math.max(0,d.bal); }, 0));
+    }
+    return {months:m, interest:interest, order:order, series:series, done: !ds.some(function(d){ return d.bal > 0.005; })};
+  }
+  var svg = $("chart-debt");
+  function drawDebt(){
+    var extra = num($("extra").value);
+    var S = [
+      {key:"av", name:"Avalanche", color:"var(--teal)"},
+      {key:"sn", name:"Snowball", color:"var(--blue)"},
+      {key:"min", name:"Minimums only", color:"var(--gold)"}
+    ];
+    S.forEach(function(s){ s.r = run(s.key, extra); });
+    $("debt-tiles").innerHTML = S.map(function(s){
+      return '<div class="tile"><div class="k"><i class="swatch" style="background:'+s.color+'"></i>'+s.name+'</div><div class="v">'+(s.r.done ? dur(s.r.months) : "never")+'</div><div class="s">'+(s.r.done ? full(s.r.interest)+" interest" : "a minimum doesn't cover its interest")+'</div></div>';
+    }).join("");
+    var av = S[0].r, sn = S[1].r, mn = S[2].r;
+    var note = "<strong>Avalanche order:</strong> " + av.order.map(esc).join(" → ") + ". <strong>Snowball order:</strong> " + sn.order.map(esc).join(" → ") + ".";
+    if (av.done && mn.done) note += " Your plan saves <strong>"+full(mn.interest - av.interest)+"</strong> of interest and finishes <strong>"+dur(mn.months - av.months)+"</strong> sooner than minimums only.";
+    if (av.done && sn.done && Math.abs(sn.interest - av.interest) >= 1) note += " Snowball costs "+full(sn.interest - av.interest)+" more than avalanche.";
+    $("debt-order").innerHTML = note;
+
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W=680, H=280, L=58, R=20, T=14, BM=30, pw=W-L-R, ph=H-T-BM;
+    var maxM = Math.max(12, Math.min(600, Math.max.apply(null, S.map(function(s){ return s.r.series.length-1; }))));
+    var maxB = Math.max.apply(null, S.map(function(s){ return Math.max.apply(null, s.r.series); })) || 1;
+    var st = maxB > 200000 ? 50000 : maxB > 80000 ? 20000 : maxB > 30000 ? 10000 : maxB > 12000 ? 5000 : 2000, top = Math.ceil(maxB/st)*st;
+    function x(m){ return L + pw*m/maxM; }
+    function y(v){ return T + ph - ph*v/top; }
+    for (var t=0; t<=top; t+=st){ el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t?"gridline":"zero"},svg); txt(svg, L-8, y(t)+4, short(t), "axis-label", "end"); }
+    var ys = maxM > 240 ? 5 : maxM > 96 ? 2 : 1;
+    for (var yr=0; yr*12<=maxM; yr+=ys) txt(svg, x(yr*12), H-10, yr ? "Yr "+yr : "Now", "axis-label", "middle");
+    S.slice().reverse().forEach(function(s){
+      var pts = s.r.series, d = "";
+      for (var i=0;i<pts.length && i<=maxM;i++) d += (i?"L":"M") + x(i).toFixed(1) + "," + y(pts[i]).toFixed(1);
+      el("path",{d:d, fill:"none", style:"stroke:"+s.color, "stroke-width":2, "stroke-linejoin":"round", "stroke-dasharray": s.key==="sn" ? "5,4" : "none"}, svg);
+    });
+    var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+    function move(e){
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      var m = Math.max(0, Math.min(maxM, Math.round((p.x-L)/pw*maxM)));
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      el("line",{x1:x(m),x2:x(m),y1:T,y2:T+ph,"class":"crosshair"},layer);
+      layer.appendChild(tooltip(svg, x(m), T+50, [{t:"Month "+m, bold:true}].concat(S.map(function(s){ var v = s.r.series[Math.min(m, s.r.series.length-1)]; return {t:s.name+"  "+full(v), color:s.color}; })), W, H));
+    }
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+  }
+  renderRows(); drawDebt();
+
+  /* ================= Pay down vs invest ================= */
+  function pvi(){
+    var B = num($("v-bal").value), apr = num($("v-apr").value)/100, mn = num($("v-min").value), ex = num($("v-extra").value), ret = num($("v-ret").value)/100, yrs = Math.max(1, Math.round(num($("v-years").value)));
+    var r = apr/12, g = Math.pow(1+ret, 1/12)-1;
+    function sim(debtFirst){
+      var b = B, inv = 0, paidOff = null;
+      for (var m=1; m<=yrs*12; m++){
+        inv *= 1+g;
+        if (b > 0){
+          b *= 1+r;
+          var pay = debtFirst ? mn+ex : mn, p = Math.min(b, pay);
+          b -= p; inv += (debtFirst ? mn+ex : mn+ex) - p;
+          if (b <= 0.005){ b = 0; if (paidOff === null) paidOff = m; }
+        } else inv += mn+ex;
+      }
+      return {net: inv - b, owed: b, inv: inv, paidOff: paidOff};
+    }
+    var A = sim(true), Bv = sim(false), diff = A.net - Bv.net;
+    $("v-tiles").innerHTML =
+      '<div class="tile"><div class="k">Debt first</div><div class="v">'+full(A.net)+'</div><div class="s">'+(A.paidOff ? "debt gone in "+dur(A.paidOff) : "still owe "+full(A.owed))+'</div></div>'+
+      '<div class="tile"><div class="k">Invest first</div><div class="v">'+full(Bv.net)+'</div><div class="s">'+(Bv.owed > 0 ? "still owe "+full(Bv.owed) : "debt gone in "+dur(Bv.paidOff||0))+'</div></div>'+
+      '<div class="tile"><div class="k">Difference after '+yrs+' yrs</div><div class="v" style="color:'+(diff>=0?'var(--teal)':'var(--blue)')+'">'+(Math.abs(diff) < Math.max(500, 0.02*Math.abs(A.net)) ? "≈ tie" : (diff>0 ? "Debt first" : "Invest first")+" +"+short(Math.abs(diff)))+'</div><div class="s">'+full(Math.abs(diff))+'</div></div>';
+    var note;
+    if (mn*12 < B*apr && !A.paidOff) note = "<strong>The minimum doesn't cover the interest</strong>, so the balance grows under \"invest first.\" Pay this debt down.";
+    else if (apr*100 >= 8) note = "<strong>At "+(apr*100).toFixed(1)+"%, paying the debt is a guaranteed return few investments beat.</strong> Pay it off first (after the employer match).";
+    else if (apr*100 <= 5) note = "<strong>At "+(apr*100).toFixed(1)+"%, investing usually wins over time</strong>, especially inside a 401(k) or IRA. Keep paying the minimum.";
+    else note = "<strong>In the 5%–8% zone, it's close.</strong> Investing wins only if returns beat the rate, which isn't guaranteed; paying down debt is. Splitting the extra between the two is a sensible answer.";
+    $("v-note").innerHTML = note;
+  }
+  ["v-bal","v-apr","v-min","v-extra","v-ret","v-years"].forEach(function(id){ $(id).addEventListener("input", pvi); });
+  pvi();
+})();
+</script>
+</body>
+</html>
