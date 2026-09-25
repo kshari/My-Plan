@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Social Security & Medicare</title>
+<meta name="description" content="Social Security & Medicare in Depth: how benefits are figured, when to claim, spousal and survivor benefits, trust fund outlook, Medicare parts, deadlines and IRMAA, with 2026 calculators.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ---- Sales pitch additions ---- */
+.pitch{border-top:1px solid var(--rule); padding:24px 0;}
+.pitch:last-child{border-bottom:1px solid var(--rule);}
+.pitch-claim{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px; color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold); padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;}
+.reality-tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--rust); font-weight:600; display:block; margin-bottom:6px;}
+.pitch p{font-size:15.5px;}
+.pitch .ask{font-size:14.5px; color:var(--ink-soft); margin-top:8px;}
+.pitch .ask strong{color:var(--teal); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-right:6px;}
+.flags{display:flex; flex-direction:column; margin-top:8px;}
+.flag{display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:start; padding:11px 4px; border-top:1px solid var(--rule); cursor:pointer; font-size:14.5px; line-height:1.5;}
+.flag:last-child{border-bottom:1px solid var(--rule);}
+.flag input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--rust); cursor:pointer;}
+.flag:hover{background:var(--ink-wash);}
+.flag.on{background:var(--rust-wash);}
+.flag small{display:block; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+.meter{display:flex; gap:4px; margin:14px 0 8px;}
+.meter i{flex:1; height:10px; border-radius:3px; background:var(--ink-wash);}
+.meter i.on{background:var(--rust);}
+.verdict-box{padding:14px 16px; border-radius:3px; border-left:3px solid var(--teal); background:var(--teal-wash); font-size:15px; line-height:1.6;}
+.verdict-box.warn{border-left-color:var(--gold); background:var(--gold-wash);}
+.verdict-box.stop{border-left-color:var(--rust); background:var(--rust-wash);}
+.paymodel{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px;}
+@media (max-width:760px){ .paymodel{grid-template-columns:1fr 1fr} }
+@media (max-width:460px){ .paymodel{grid-template-columns:1fr} }
+.pm{background:var(--paper-raised); border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:16px; box-shadow:var(--shadow);}
+.pm .k{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.pm h3{font-style:normal; font-size:17px; margin:4px 0 6px;}
+.pm p{font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 8px;}
+.pm .nudge{font-size:12.5px; color:var(--ink); border-top:1px dotted var(--rule); padding-top:8px; margin:0;}
+.pm .nudge b{display:block; margin-bottom:2px; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-right:4px;}
+
+/* ---- Health & disability additions ---- */
+.plan-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:8px 0 16px;}
+@media (max-width:620px){ .plan-grid{grid-template-columns:1fr} }
+.plan-box{border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:12px 14px 14px; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; background:var(--paper);}
+.plan-box legend{font:600 11px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 6px;}
+@media (max-width:380px){ .plan-box{grid-template-columns:1fr} }
+.win-a{color:var(--gold); font-weight:600;}
+.win-b{color:var(--teal); font-weight:600;}
+.flow.four{grid-template-columns:repeat(4,1fr);}
+@media (max-width:680px){ .flow.four{grid-template-columns:1fr} }
+.plan-box{align-content:start;}
+.plan-box .field{display:flex; flex-direction:column; justify-content:flex-end;}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Investing &amp; Retirement · Part of Personal Finance Library</p>
+    <h1>Social Security &amp; Medicare in Depth</h1>
+    <p class="subtitle">How your Social Security benefit is figured, when to claim it, how spousal and survivor benefits work, whether the program will be there, and how Medicare's parts, deadlines and income surcharges fit together. Three calculators use 2026 rules.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Social Security is an <strong>inflation-adjusted pension for life</strong>, and the age you claim sets its size for good. For anyone born in 1960 or later, claiming at 62 pays <strong>70%</strong> of your full benefit, waiting to 67 pays 100%, and waiting to 70 pays <strong>124%</strong>. Claiming at 70 instead of 62 breaks even around age 80, so waiting is a bet on living longer, and it's the cheapest longevity insurance you can buy. For couples, the higher earner's claiming age matters most, because their benefit becomes the <strong>survivor benefit</strong>. The 2026 Trustees Report projects the combined trust funds run short in <strong>2034</strong>, after which incoming taxes would still pay about <strong>83%</strong> of scheduled benefits unless Congress acts. Medicare starts at <strong>65</strong> regardless of when you claim Social Security, with a seven-month enrollment window and lifelong penalties for missing it. In 2026, Part B costs <strong>$202.90 a month</strong>, rising in steps (IRMAA) if your income from two years earlier was above <strong>$109,000</strong> single or <strong>$218,000</strong> joint.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#how-it-works">How your Social Security benefit is figured</a>
+      <a href="#claiming">When to claim (calculator)</a>
+      <a href="#couples">Spouses, survivors and ex-spouses (calculator)</a>
+      <a href="#working">Working while collecting</a>
+      <a href="#trust-fund">Will Social Security be there?</a>
+      <a href="#medicare-parts">Medicare's parts and what they cost</a>
+      <a href="#enrollment">Medicare deadlines and penalties</a>
+      <a href="#irmaa">IRMAA: when income raises your premiums (calculator)</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A checklist from 60 to 70</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="how-it-works">
+    <p class="eyebrow">Start here</p>
+    <h2>How your Social Security benefit is figured</h2>
+    <p class="lede">Social Security isn't a savings account with your name on it. It's social insurance: today's workers' payroll taxes pay today's retirees, and your benefit is set by a formula based on your own earnings record. Three steps turn a working life into a monthly check.</p>
+    <div class="flow four">
+      <div class="flow-step"><span class="n">STEP 1</span><h3>Qualify</h3><p>40 credits, about 10 years of work. In 2026 you earn one credit per $1,890 of earnings, up to four a year.</p></div>
+      <div class="flow-step"><span class="n">STEP 2</span><h3>Average your best 35 years</h3><p>Each year's earnings are adjusted for wage growth, and the top 35 are averaged. Fewer than 35 years? Zeros fill the gap.</p></div>
+      <div class="flow-step"><span class="n">STEP 3</span><h3>Apply the formula</h3><p>A progressive formula replaces a bigger share of lower earnings. The result is your full benefit at full retirement age (your "PIA").</p></div>
+      <div class="flow-step"><span class="n">STEP 4</span><h3>Adjust for claiming age</h3><p>Claim early and it's permanently reduced; wait past full retirement age and it grows, up to 70.</p><span class="op">= your check, raised yearly for inflation</span></div>
+    </div>
+    <p style="margin-top:16px;">In 2026 the average retired worker receives about <strong>$2,071 a month</strong> after a 2.8% cost-of-living increase, and the maximum at full retirement age is <strong>$4,152</strong>. Your own estimate, based on your actual record, is on your statement at <strong>ssa.gov/myaccount</strong>. Check the earnings history there for missing years while you can still fix them.</p>
+    <p>Two more things worth knowing. Up to 85% of benefits can be taxable, depending on your other income (<a href="/finance/taxes-101.html#retirement">Taxes 101</a> has a calculator). And the Social Security Fairness Act, signed in January 2025, repealed the Windfall Elimination Provision and Government Pension Offset, which had reduced benefits for many teachers, police, firefighters and other public workers with pensions from jobs outside Social Security.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="claiming">
+    <p class="eyebrow">The biggest decision</p>
+    <h2>When to claim</h2>
+    <p class="lede">You can claim any month from 62 to 70. Every month you wait raises your check permanently. Before full retirement age, each month early cuts it by about 0.56% (then 0.42% beyond three years early). After it, each month adds 0.67%, or 8% a year, until 70.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Claim at</th><th>62</th><th>63</th><th>64</th><th>65</th><th>66</th><th>67</th><th>68</th><th>69</th><th>70</th></tr></thead>
+        <tbody><tr><td>% of full benefit (born 1960+)</td><td>70%</td><td>75%</td><td>80%</td><td>86.7%</td><td>93.3%</td><td>100%</td><td>108%</td><td>116%</td><td>124%</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Total benefits collected, by the age you live to</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--gold)"></i>Claim at 62</span><span><i class="swatch" style="background:var(--blue)"></i>Claim at full retirement age</span><span><i class="swatch" style="background:var(--teal)"></i>Claim at 70</span></div>
+      </div>
+      <div class="planner">
+        <div class="field"><label for="c-pia">Your benefit at full retirement age (monthly)</label><input id="c-pia" type="number" min="0" step="50" value="2000" inputmode="numeric"></div>
+        <div class="field"><label for="c-born">Year you were born</label><input id="c-born" type="number" min="1950" max="1990" step="1" value="1962" inputmode="numeric"></div>
+        <div class="field"><label for="c-age">Or pick a claiming age</label><select id="c-age"><option value="62">62</option><option value="63">63</option><option value="64">64</option><option value="65">65</option><option value="66">66</option><option value="67" selected>67</option><option value="68">68</option><option value="69">69</option><option value="70">70</option></select></div>
+      </div>
+      <div class="tiles" id="c-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-claim" viewBox="0 0 680 300" role="img" aria-label="Line chart of cumulative Social Security benefits for claiming at 62, full retirement age and 70, by age at death."></svg></div>
+      <div class="chart-foot">In today's dollars: yearly cost-of-living increases apply equally to every option, so they don't change the comparison. Ignores taxes and any return from investing early checks. Your full-retirement-age benefit is on your Social Security statement.</div>
+    </div>
+
+    <p style="margin-top:22px;">The lines cross at the <strong>break-even ages</strong>: about <strong>79</strong> for 62 versus 67, about <strong>80</strong> for 62 versus 70, and about <strong>82</strong> for 67 versus 70. A 65-year-old today has a good chance of living past those ages, especially a married couple, where one spouse will often reach their 90s. The real value of waiting isn't winning the bet on average; it's the <strong>insurance</strong>. Running out of savings at 90 is the expensive outcome, and a larger inflation-adjusted check for life is the cheapest protection against it. No annuity sold today offers inflation protection at that price (see <a href="/finance/annuities-explained.html#where-it-fits">Annuities Explained</a>).</p>
+
+    <div class="verdicts">
+      <div class="verdict good">
+        <div class="book-label">Waiting usually makes sense if —</div>
+        <h3>you're healthy, or married and the higher earner</h3>
+        <p>You have savings or work income to live on in the meantime, your family tends to live long, or your benefit will become your spouse's survivor benefit. Spending from savings in your 60s to delay Social Security is often a good trade, and it can open a low-tax window for Roth conversions.</p>
+      </div>
+      <div class="verdict neutral">
+        <div class="book-label">Claiming earlier can make sense if —</div>
+        <h3>health, cash or the couple math says so</h3>
+        <p>Serious health problems or a short family life expectancy; no other way to pay the bills without high-interest debt; or you're the lower earner in a couple and the higher earner is delaying. Claiming early isn't a mistake when it's a choice made with these facts.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="couples">
+    <p class="eyebrow">Two records, one household</p>
+    <h2>Spouses, survivors and ex-spouses</h2>
+    <p class="lede">Marriage adds two benefits that often matter more than the claiming age of the lower earner: a <strong>spousal benefit</strong> while both are alive, and a <strong>survivor benefit</strong> after one dies.</p>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">SPOUSE</div><div><h3>Spousal benefit: up to 50% of your spouse's full benefit</h3><p>If half of your spouse's full-retirement-age benefit is more than your own, you get a top-up to that level once your spouse has filed. It's reduced if you claim before your own full retirement age (to 32.5% at 62) and doesn't grow past full retirement age, so a lower earner gains nothing by waiting past 67 for it. When you file, Social Security automatically counts you as applying for both your own and spousal benefits.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">SURVIVOR</div><div><h3>Survivor benefit: the bigger check continues</h3><p>When one spouse dies, the survivor keeps the larger of the two benefits and the smaller one stops. If the higher earner waited until 70, the survivor inherits that larger, inflation-adjusted check. A survivor can claim as early as 60 at a reduced rate (71.5%), or full at their own full retirement age.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">EX</div><div><h3>Divorced? You may still qualify</h3><p>If the marriage lasted at least 10 years and you're unmarried, you can claim spousal and survivor benefits on an ex-spouse's record, without reducing theirs or their new spouse's. They don't need to know.</p></div></div>
+
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Couple planner: your household's checks, now and after one of you dies</div></div>
+      <div class="planner">
+        <div class="field"><label for="p-a">Higher earner's full benefit</label><input id="p-a" type="number" min="0" step="50" value="2800" inputmode="numeric"></div>
+        <div class="field"><label for="p-b">Lower earner's own full benefit</label><input id="p-b" type="number" min="0" step="50" value="1000" inputmode="numeric"></div>
+        <div class="field"><label for="p-aa">Higher earner claims at</label><select id="p-aa"><option>62</option><option>63</option><option>64</option><option>65</option><option>66</option><option selected>67</option><option>68</option><option>69</option><option>70</option></select></div>
+        <div class="field"><label for="p-ba">Lower earner claims at</label><select id="p-ba"><option>62</option><option>63</option><option>64</option><option>65</option><option>66</option><option selected>67</option><option>68</option><option>69</option><option>70</option></select></div>
+      </div>
+      <div class="tiles" id="p-tiles"></div>
+      <div class="tbl-wrap"><table><thead><tr><th>If the higher earner claims at</th><th>Their check</th><th>Household while both alive</th><th>Survivor's check</th></tr></thead><tbody id="p-table"></tbody></table></div>
+      <div class="chart-foot">Assumes both were born in 1960 or later (full retirement age 67), the higher earner has filed, and the survivor is at full retirement age when widowed. If the higher earner claimed early, the survivor still gets at least 82.5% of their full benefit. Today's dollars.</div>
+    </div>
+    <p style="margin-top:18px;">At the defaults, the lower earner's own $1,000 is topped up by $400 to $1,400. The bigger lever is the higher earner: claiming at 70 instead of 62 raises the check the survivor will live on from about $2,310 to about <strong>$3,470 a month</strong> for the rest of their life.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="working">
+    <p class="eyebrow">Paychecks and benefits together</p>
+    <h2>Working while collecting</h2>
+    <p class="lede">If you claim before full retirement age and keep working, the <strong>earnings test</strong> temporarily withholds benefits. It isn't a tax. Withheld months are credited back once you reach full retirement age, raising your check afterward.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Your age in 2026</th><th>Earnings limit</th><th>What's withheld</th></tr></thead>
+        <tbody>
+          <tr><td>Under full retirement age all year</td><td>$24,480 ($2,040 a month)</td><td>$1 of benefits for every $2 earned above the limit</td></tr>
+          <tr><td>The year you reach full retirement age</td><td>$65,160 ($5,430 a month), counting only months before your birthday month</td><td>$1 for every $3 above the limit</td></tr>
+          <tr><td>From full retirement age on</td><td>No limit</td><td>Nothing</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:16px;">Only wages and self-employment income count, not investment income, pensions or IRA withdrawals. If you plan to keep working full time, claiming early rarely makes sense. And any year you earn more than one of your top-35 years raises your benefit automatically.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="trust-fund">
+    <p class="eyebrow">The question everyone asks</p>
+    <h2>Will Social Security be there?</h2>
+    <p class="lede">Yes, but possibly not in full without changes. Social Security is mostly paid by current payroll taxes, with trust fund reserves covering the gap between taxes and benefits. Those reserves are shrinking.</p>
+    <div class="tiles">
+      <div class="tile"><div class="k">Combined trust funds run out</div><div class="v">2034</div><div class="s">then ≈ 83% of benefits payable</div></div>
+      <div class="tile"><div class="k">Retirement &amp; survivors fund alone</div><div class="v">Late 2032</div><div class="s">then ≈ 78% payable</div></div>
+      <div class="tile"><div class="k">Disability fund</div><div class="v">Solvent</div><div class="s">through the 75-year projection</div></div>
+    </div>
+    <p>"Running out" doesn't mean zero: payroll taxes would still come in. Congress faced a similar shortfall in 1983 and closed it with a mix of higher taxes and a later retirement age, phased in slowly. Some combination of higher taxes, benefit changes for future retirees, or general revenue is likely again, but nobody knows the mix. For planning: people near retirement can reasonably count on most of their scheduled benefit; younger workers may want a cushion, for example planning on 75%–80% of their statement estimate. Either way, the claiming-age math above still holds.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="medicare-parts">
+    <p class="eyebrow">Health coverage from 65</p>
+    <h2>Medicare's parts and what they cost</h2>
+    <p class="lede">Medicare is federal health insurance from 65 (or earlier for some people with disabilities). It comes in parts, and the main choice is between Original Medicare with add-ons and a private Medicare Advantage plan.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Part</th><th>Covers</th><th>2026 cost</th></tr></thead>
+        <tbody>
+          <tr><td>Part A</td><td>Hospital stays, skilled nursing after a hospital stay, hospice</td><td>No premium with 40 work credits. $1,736 deductible per hospital benefit period.</td></tr>
+          <tr><td>Part B</td><td>Doctors, outpatient care, tests, preventive care</td><td>$202.90 a month standard premium (more with high income); $283 yearly deductible; then usually 20% coinsurance, with no out-of-pocket cap on Original Medicare.</td></tr>
+          <tr><td>Part D</td><td>Prescription drugs, through private plans</td><td>Premium varies by plan. Deductible up to $615, and out-of-pocket drug costs capped at $2,100 for the year.</td></tr>
+          <tr><td>Medigap</td><td>Private supplement that fills Original Medicare's gaps (the 20%, deductibles)</td><td>Premium varies by plan, age and state.</td></tr>
+          <tr><td>Part C (Medicare Advantage)</td><td>Private all-in-one alternative to A + B (usually with D)</td><td>Often low or $0 extra premium, but networks, prior authorization and an out-of-pocket maximum that varies by plan.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="verdicts" style="margin-top:22px;">
+      <div class="verdict good">
+        <div class="book-label">Original Medicare + Medigap + Part D</div>
+        <h3>Higher premiums, fewer surprises</h3>
+        <p>See any doctor who takes Medicare nationwide, with little or no cost when you use care. Best for people who want predictability or travel. Get Medigap during your six-month window (below), or you may be turned down or charged more later.</p>
+      </div>
+      <div class="verdict neutral">
+        <div class="book-label">Medicare Advantage</div>
+        <h3>Lower premiums, more rules</h3>
+        <p>Often extras like dental and vision, but networks, referrals and prior authorization, and copays that add up in a bad year. Check that your doctors and hospitals are in network, and look up the plan's out-of-pocket maximum. Heavily marketed; see <a href="/finance/sales-pitch.html">Spotting the Sales Pitch</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="enrollment">
+    <p class="eyebrow">Missing these costs money for life</p>
+    <h2>Medicare deadlines and penalties</h2>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">65</div><div><h3>Your initial window: seven months around your 65th birthday</h3><p>Three months before your birthday month, the month itself, and three months after. If you're already collecting Social Security you're enrolled automatically; if not, you must sign up. <strong>Delaying Social Security does not delay Medicare.</strong> This is the most common and costly trap.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">WORK</div><div><h3>Still working at 65?</h3><p>If you (or your spouse) have health coverage from <em>current</em> employment, you can usually delay Part B without penalty and sign up within eight months after that job or coverage ends. COBRA and retiree coverage don't count as current employment. Small employers (under 20 workers) may require Medicare to go first.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">LATE</div><div><h3>Late penalties last for life</h3><p>Part B: 10% added to your premium for each full 12 months you could have had it but didn't. Part D: 1% of the national base premium for each month without drug coverage at least as good as Medicare's. Miss your window and you may also wait for the general enrollment period (January to March).</p></div></div>
+    <div class="lever-row"><div class="lever-tag">GAP</div><div><h3>The Medigap window</h3><p>For six months starting when you're 65 and enrolled in Part B, insurers must sell you any Medigap policy at standard rates, regardless of health. After that, in most states they can decline you or charge more.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">HSA</div><div><h3>Stop HSA contributions in time</h3><p>You can't contribute to an HSA once you're on Medicare. Part A enrollment can be backdated up to six months when you sign up after 65, so stop contributions six months before you enroll or claim Social Security. The money already in your HSA is still yours to spend.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="irmaa">
+    <p class="eyebrow">The income surcharge</p>
+    <h2>IRMAA: when income raises your premiums</h2>
+    <p class="lede">Higher-income retirees pay more for Parts B and D. The surcharge, called IRMAA, is based on your tax return from <strong>two years earlier</strong>: 2026 premiums use 2024 income. The brackets are cliffs, so one dollar over a line triggers the whole surcharge.</p>
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Your 2026 Medicare premiums by income</div></div>
+      <div class="planner">
+        <div class="field"><label for="i-filing">Filing status</label><select id="i-filing"><option value="single">Single</option><option value="mfj">Married, filing jointly</option></select></div>
+        <div class="field"><label for="i-magi">Modified AGI in 2024</label><input id="i-magi" type="number" min="0" step="1000" value="150000" inputmode="numeric"></div>
+        <div class="field"><label for="i-people">People on Medicare</label><select id="i-people"><option value="1" selected>1</option><option value="2">2</option></select></div>
+      </div>
+      <div class="tiles" id="i-tiles"></div>
+      <div class="tbl-wrap"><table><thead><tr><th>2024 income: single</th><th>2024 income: joint</th><th>Part B per month</th><th>Part D add-on per month</th></tr></thead><tbody id="i-table"></tbody></table></div>
+      <div class="raise" id="i-note"></div>
+      <div class="chart-foot">2026 amounts from CMS. Part D surcharge is added to whatever your drug plan charges. Modified AGI here is adjusted gross income plus tax-exempt interest. Married couples filing separately use different brackets.</div>
+    </div>
+    <p style="margin-top:18px;">Things that often push retirees over a line: a large Roth conversion, a home or business sale, required withdrawals, or a year of capital gains. Planning conversions and sales around the brackets is part of <em>Turning Savings into a Paycheck</em> (Tier 2). If your income dropped because of a life-changing event (retirement, a spouse's death, divorce, loss of a pension), ask Social Security to use your newer income with <strong>Form SSA-44</strong>.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">On the <a href="/finance/money-roadmap.html#social-security-medicare">Money Roadmap</a>, this is Level 3, nearing retirement. On the <a href="/finance/money-river.html">Money River</a>, Social Security is the steady income that runs from your first claim to the end, and Medicare replaces the health coverage from work.</p>
+    <div class="next-links">
+      <a href="/finance/taxes-101.html#retirement"><div class="nl-k">Tier 1 · #3</div><div class="nl-t">Taxes 101</div><div class="nl-d">How much of your Social Security is taxed, and the "tax torpedo."</div></a>
+      <a href="/finance/health-disability.html#buying"><div class="nl-k">Tier 1 · #5</div><div class="nl-t">Health &amp; Disability</div><div class="nl-d">Bridging health coverage if you retire before 65.</div></a>
+      <a class="soon" href="/finance/index.html#piece-11"><div class="nl-k">Tier 2 · #11</div><div class="nl-t">Turning Savings into a Paycheck</div><div class="nl-d">Coordinating savings withdrawals, Roth conversions and your claiming date.</div></a>
+      <a href="/finance/annuities-explained.html#where-it-fits"><div class="nl-k">Topic 01</div><div class="nl-t">Annuities Explained</div><div class="nl-d">Why delaying Social Security is usually the cheapest annuity available.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A checklist from 60 to 70</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Open your my Social Security account</h3><p>Download your statement, check every year of earnings, and note your full-retirement-age benefit.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Run the claiming and couple calculators</h3><p>With your real numbers, health and family history, and your spouse's record.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Plan how you'll pay the bills while waiting</h3><p>Savings, part-time work, or a bond or cash "bridge" sized to the years between retiring and claiming.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Put your Medicare window on the calendar</h3><p>Three months before your 65th birthday month. Decide Original + Medigap + Part D or Medicare Advantage before then.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Still working at 65? Confirm with HR</h3><p>Is your coverage from current employment, and does the employer have 20+ workers? Get it in writing before skipping Part B.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Stop HSA contributions six months ahead</h3><p>Before enrolling in Medicare Part A or claiming Social Security after 65.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Watch income two years ahead of Medicare</h3><p>Your income at 63 sets your premiums at 65. Time Roth conversions and big sales with the IRMAA brackets in mind.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Review Part D or Advantage coverage every fall</h3><p>Open enrollment runs October 15 to December 7. Plans change their prices and drug lists every year.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>Shouldn't I claim early in case Social Security runs out?</h3><p>Probably not. If benefits are cut, the cut would most likely apply to everyone's check, early claimers included, and early claimers would still have the permanently smaller one. Claiming early to "get yours" locks in a lower lifetime benefit to hedge a risk it doesn't really hedge.</p></div>
+      <div class="faq-item"><h3>Can I change my mind after claiming?</h3><p>Within 12 months you can withdraw your application once, by repaying everything you and your family received. After full retirement age you can also voluntarily suspend benefits to earn delayed credits until 70.</p></div>
+      <div class="faq-item"><h3>What if I didn't work 10 years?</h3><p>You may still qualify through a spouse or ex-spouse. Otherwise, a few more years of work to reach 40 credits can be very valuable, and so can any year that replaces a zero in your top 35.</p></div>
+      <div class="faq-item"><h3>Do I have to take Medicare Part B if I have retiree coverage?</h3><p>Usually yes. Most retiree plans assume Medicare pays first and cover little without it. Retiree and COBRA coverage don't protect you from the late penalty.</p></div>
+      <div class="faq-item"><h3>Medicare Advantage ads say I'll get benefits for $0. What's the catch?</h3><p>The plan is paid by Medicare, so the extra premium can be low. The trade-offs are networks, prior authorization and copays, and switching back to Original Medicare with Medigap later may require health questions. Compare total costs in a bad year, not just the premium.</p></div>
+      <div class="faq-item"><h3>How do I sign up?</h3><p>Online at ssa.gov (for both Social Security and Medicare), by phone, or at a local office. Apply for Social Security up to four months before you want benefits to start.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Full retirement age (FRA)</dt><dd>The age you get 100% of your benefit: 67 if born in 1960 or later.</dd></div>
+      <div class="gterm"><dt>Primary insurance amount (PIA)</dt><dd>Your monthly benefit if you claim exactly at full retirement age.</dd></div>
+      <div class="gterm"><dt>Delayed retirement credits</dt><dd>8% a year added for waiting past full retirement age, up to 70.</dd></div>
+      <div class="gterm"><dt>COLA</dt><dd>Cost-of-living adjustment: the yearly inflation raise (2.8% for 2026).</dd></div>
+      <div class="gterm"><dt>Work credits</dt><dd>Earned from wages; 40 are needed to qualify for retirement benefits.</dd></div>
+      <div class="gterm"><dt>Spousal benefit</dt><dd>Up to 50% of a spouse's full benefit, for a lower-earning spouse.</dd></div>
+      <div class="gterm"><dt>Survivor benefit</dt><dd>The deceased spouse's benefit, paid to the surviving spouse if it's larger than their own.</dd></div>
+      <div class="gterm"><dt>Earnings test</dt><dd>Temporary withholding of benefits for people under full retirement age with wages above a limit.</dd></div>
+      <div class="gterm"><dt>Trust funds</dt><dd>Social Security's reserves, which cover the gap between payroll taxes and benefits.</dd></div>
+      <div class="gterm"><dt>Original Medicare</dt><dd>Parts A and B, run by the federal government.</dd></div>
+      <div class="gterm"><dt>Medigap</dt><dd>Private supplemental insurance that covers Original Medicare's deductibles and coinsurance.</dd></div>
+      <div class="gterm"><dt>Medicare Advantage (Part C)</dt><dd>A private plan that replaces Original Medicare, usually with drug coverage and networks.</dd></div>
+      <div class="gterm"><dt>Part D</dt><dd>Prescription drug coverage through private plans.</dd></div>
+      <div class="gterm"><dt>Initial enrollment period</dt><dd>The seven-month window around your 65th birthday to sign up for Medicare.</dd></div>
+      <div class="gterm"><dt>IRMAA</dt><dd>Income-related monthly adjustment amount: higher Part B and D premiums for higher incomes.</dd></div>
+      <div class="gterm"><dt>Form SSA-44</dt><dd>The form to ask for lower IRMAA after a life-changing event reduces your income.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>2026 COLA, average and maximum benefits, earnings-test limits, credit amount, taxable maximum: Social Security Administration, 2026 COLA fact sheet.</li>
+      <li>Early-claiming reductions and spousal percentages: Social Security Administration, "Benefit Reduction for Early Retirement." Delayed retirement credits (8% a year): SSA.</li>
+      <li>Trust fund projections (combined 2034, 83% payable; retirement fund late 2032, 78%): Social Security Board of Trustees, 2026 report (press release, June 9, 2026).</li>
+      <li>Medicare 2026 premiums, deductibles and Part B IRMAA brackets: CMS fact sheet. Part D IRMAA amounts: Kiplinger. Part D deductible ($615) and out-of-pocket cap ($2,100): CMS 2026 Part D redesign instructions.</li>
+      <li>Repeal of the Windfall Elimination Provision and Government Pension Offset: Social Security Fairness Act (January 2025).</li>
+      <li>Break-even ages are computed on this page from SSA's reduction and credit formulas, in today's dollars.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not legal, tax or benefits advice. Figures were checked in September 2026. Social Security and Medicare rules have many special cases (disability, government pensions, children, non-citizens); confirm your situation with the Social Security Administration, Medicare.gov, or your State Health Insurance Assistance Program (SHIP), which offers free, unbiased Medicare counseling.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function full(v){ return (v<0?"−":"") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function short(v){ var a=Math.abs(v); if (a>=1e6) return "$"+(a/1e6).toFixed(2)+"M"; if (a>=1000) return "$"+Math.round(a/1000)+"k"; return "$"+Math.round(a); }
+  function num(id){ var v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : 0; }
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function txt(p, x, y, s, cls, anchor){ var t = el("text", {x:x, y:y, "class":cls||"axis-label", "text-anchor":anchor||"start"}, p); t.textContent = s; return t; }
+  function tooltip(svg, x, y, lines, W, H){
+    var g = el("g", {"class":"tooltip-group"}, svg), t = el("text", {"class":"tooltip-text"}, g);
+    lines.forEach(function(L, i){
+      var ts = el("tspan", {x:0, dy: i ? 16 : 0}, t);
+      if (L.bold) ts.setAttribute("font-weight","600");
+      if (L.color){ ts.textContent = "■ "; ts.setAttribute("style","fill:"+L.color); var t2 = el("tspan", {}, t); t2.textContent = L.t; }
+      else ts.textContent = L.t;
+    });
+    var bb = t.getBBox(), w = bb.width + 16, h = lines.length*16 + 12;
+    var bx = x + 14; if (bx + w > W - 4) bx = x - 14 - w; if (bx < 4) bx = 4;
+    var by = Math.max(4, Math.min(H - 4 - h, y - h/2));
+    g.insertBefore(el("rect", {x:bx, y:by, width:w, height:h, rx:3, "class":"tooltip-bg"}), t);
+    t.setAttribute("transform", "translate("+(bx+8)+","+(by+19)+")");
+    return g;
+  }
+
+  /* ---------- SSA rules ---------- */
+  function fraMonths(born){ if (born <= 1954) return 66*12; if (born >= 1960) return 67*12; return 66*12 + 2*(born-1954); }
+  function factor(claimM, fraM){
+    var d = claimM - fraM;
+    if (d < 0){ var e = -d; return 1 - (Math.min(e,36)*5/9 + Math.max(0,e-36)*5/12)/100; }
+    return 1 + Math.min(d, 70*12 - fraM)*(2/3)/100;
+  }
+  function spouseFactor(claimM, fraM){
+    var d = claimM - fraM; if (d >= 0) return 1;
+    var e = -d; return 1 - (Math.min(e,36)*25/36 + Math.max(0,e-36)*5/12)/100;
+  }
+  function fraLabel(m){ var y = Math.floor(m/12), mo = m%12; return y + (mo ? " and " + mo + " months" : ""); }
+
+  /* ---------- Claiming chart ---------- */
+  var svg = $("chart-claim");
+  function drawClaim(){
+    var pia = num("c-pia"), born = Math.round(num("c-born")) || 1962, fra = fraMonths(born), pick = +$("c-age").value;
+    var opts = [{m:62*12, name:"62", color:"var(--gold)"},{m:fra, name:"FRA ("+fraLabel(fra)+")", color:"var(--blue)"},{m:70*12, name:"70", color:"var(--teal)"}];
+    function cum(claimM, deathM){ return Math.max(0, deathM - claimM) * pia * factor(claimM, fra); }
+    function breakEven(a, b){ var ca=0, cb=0; for (var m=a; m<100*12; m++){ ca += pia*factor(a, fra); if (m >= b){ cb += pia*factor(b, fra); if (cb >= ca) return m/12; } } return null; }
+    var pickM = pick*12, pickBen = pia*factor(pickM, fra);
+    var be1 = breakEven(62*12, fra), be2 = breakEven(62*12, 70*12);
+    $("c-tiles").innerHTML =
+      '<div class="tile"><div class="k">Claim at '+pick+'</div><div class="v">'+full(pickBen)+'/mo</div><div class="s">'+(factor(pickM,fra)*100).toFixed(1)+'% of your full benefit</div></div>'+
+      '<div class="tile"><div class="k">62 vs. 70, per month</div><div class="v">'+full(pia*factor(62*12,fra))+' → '+full(pia*factor(70*12,fra))+'</div><div class="s">full retirement age: '+fraLabel(fra)+'</div></div>'+
+      '<div class="tile"><div class="k">Break-even age, 62 vs. 70</div><div class="v">'+(be2 ? be2.toFixed(1) : "—")+'</div><div class="s">62 vs. full retirement age: '+(be1 ? be1.toFixed(1) : "—")+'</div></div>';
+
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W=680, H=300, L=58, R=70, T=14, BM=30, pw=W-L-R, ph=H-T-BM, a0=62, a1=100;
+    var maxV = cum(70*12, 100*12) * 1.05 || 1;
+    var st = maxV > 1.2e6 ? 250000 : maxV > 600000 ? 200000 : maxV > 250000 ? 100000 : 50000, top = Math.ceil(maxV/st)*st;
+    function x(a){ return L + pw*(a-a0)/(a1-a0); }
+    function y(v){ return T + ph - ph*v/top; }
+    for (var t=0; t<=top; t+=st){ el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t?"gridline":"zero"},svg); txt(svg, L-8, y(t)+4, short(t), "axis-label", "end"); }
+    for (var a=65; a<=100; a+=5) txt(svg, x(a), H-10, "age "+a, "axis-label", "middle");
+    txt(svg, x(62), H-10, "62", "axis-label", "middle");
+    var labs = [];
+    opts.forEach(function(o){
+      var d = ""; for (var a=62; a<=100; a+=1/12){ var mm = Math.round(a*12); d += (d?"L":"M") + x(mm/12).toFixed(1) + "," + y(cum(o.m, mm)).toFixed(1); }
+      el("path",{d:d, fill:"none", style:"stroke:"+o.color, "stroke-width":2, "stroke-linejoin":"round"}, svg);
+      labs.push({y:y(cum(o.m, 1200)), t:"at "+o.name.split(" ")[0]});
+    });
+    labs.sort(function(p,q){return p.y-q.y;}); for (var i=1;i<labs.length;i++) if (labs[i].y-labs[i-1].y<13) labs[i].y = labs[i-1].y+13;
+    labs.forEach(function(l){ txt(svg, W-R+6, l.y+4, l.t, "direct-label"); });
+    [be1, be2].forEach(function(b){ if (b){ el("line",{x1:x(b),x2:x(b),y1:T,y2:T+ph,style:"stroke:var(--ink-faint)","stroke-dasharray":"3,3"},svg); } });
+    var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+    function move(e){
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      var age = Math.max(62, Math.min(100, Math.round(a0 + (p.x-L)/pw*(a1-a0))));
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      el("line",{x1:x(age),x2:x(age),y1:T,y2:T+ph,"class":"crosshair"},layer);
+      layer.appendChild(tooltip(svg, x(age), T+50, [{t:"If you live to "+age, bold:true}].concat(opts.map(function(o){ return {t:"Claim at "+o.name.split(" ")[0]+"  "+full(cum(o.m, age*12)), color:o.color}; })), W, H));
+    }
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+  }
+  ["c-pia","c-born","c-age"].forEach(function(id){ $(id).addEventListener("input", drawClaim); });
+  drawClaim();
+
+  /* ---------- Couple planner (both FRA 67) ---------- */
+  function drawCouple(){
+    var A = num("p-a"), B = num("p-b"), aa = +$("p-aa").value, ba = +$("p-ba").value, fra = 67*12;
+    function calc(aAge){
+      var aBen = A*factor(aAge*12, fra);
+      var bOwn = B*factor(ba*12, fra);
+      var excess = Math.max(0, 0.5*A - B);
+      var bSpouse = excess * spouseFactor(ba*12, fra);
+      var bTotal = bOwn + bSpouse;
+      var surv = aAge*12 < fra ? Math.max(aBen, 0.825*A) : aBen;
+      surv = Math.max(surv, B*factor(ba*12, fra));
+      return {aBen:aBen, bOwn:bOwn, bSpouse:bSpouse, bTotal:bTotal, house:aBen+bTotal, surv:surv};
+    }
+    var r = calc(aa);
+    $("p-tiles").innerHTML =
+      '<div class="tile"><div class="k">Lower earner gets</div><div class="v">'+full(r.bTotal)+'</div><div class="s">'+full(r.bOwn)+' own'+(r.bSpouse>0 ? ' + '+full(r.bSpouse)+' spousal' : ', no spousal top-up')+'</div></div>'+
+      '<div class="tile"><div class="k">Household, both alive</div><div class="v">'+full(r.house)+'/mo</div><div class="s">'+full(r.house*12)+' a year</div></div>'+
+      '<div class="tile"><div class="k">Survivor’s check</div><div class="v">'+full(r.surv)+'/mo</div><div class="s">for the rest of their life</div></div>';
+    $("p-table").innerHTML = [62,67,70].map(function(age){
+      var c = calc(age);
+      return '<tr'+(age===aa?' style="font-weight:600"':'')+'><td>'+age+(age===aa?' (your choice)':'')+'</td><td>'+full(c.aBen)+'</td><td>'+full(c.house)+'</td><td>'+full(c.surv)+'</td></tr>';
+    }).join("");
+  }
+  ["p-a","p-b","p-aa","p-ba"].forEach(function(id){ $(id).addEventListener("input", drawCouple); });
+  drawCouple();
+
+  /* ---------- IRMAA ---------- */
+  var IR = [
+    {s:0, j:0, b:202.90, d:0},
+    {s:109000, j:218000, b:284.10, d:14.50},
+    {s:137000, j:274000, b:405.80, d:37.50},
+    {s:171000, j:342000, b:527.50, d:60.40},
+    {s:205000, j:410000, b:649.20, d:83.30},
+    {s:500000, j:750000, b:689.90, d:91.00}
+  ];
+  function tierFor(f, magi){ var k = 0; for (var i=1;i<IR.length;i++){ var th = f==="mfj" ? IR[i].j : IR[i].s; if (i === IR.length-1 ? magi >= th : magi > th) k = i; } return k; }
+  function drawIR(){
+    var f = $("i-filing").value, magi = num("i-magi"), n = +$("i-people").value, k = tierFor(f, magi), t = IR[k];
+    var extraB = t.b - IR[0].b, yearly = (extraB + t.d)*12*n;
+    $("i-tiles").innerHTML =
+      '<div class="tile"><div class="k">Part B premium</div><div class="v">$'+t.b.toFixed(2)+'</div><div class="s">per person, per month</div></div>'+
+      '<div class="tile"><div class="k">Part D surcharge</div><div class="v">$'+t.d.toFixed(2)+'</div><div class="s">added to your plan’s premium</div></div>'+
+      '<div class="tile"><div class="k">Extra cost per year</div><div class="v">'+full(yearly)+'</div><div class="s">vs. the standard premium'+(n>1?", both of you":"")+'</div></div>';
+    function rng(i, key){ var lo = IR[i][key], hi = i < IR.length-1 ? IR[i+1][key] : null; if (i===0) return "Up to "+full(IR[1][key]); if (hi===null) return full(lo)+" and up"; return full(lo+1)+" – "+full(i===IR.length-2 ? hi-1 : hi); }
+    $("i-table").innerHTML = IR.map(function(r, i){
+      return '<tr'+(i===k?' style="font-weight:600;background:var(--gold-wash)"':'')+'><td>'+rng(i,"s")+'</td><td>'+rng(i,"j")+'</td><td>$'+r.b.toFixed(2)+'</td><td>$'+r.d.toFixed(2)+'</td></tr>';
+    }).join("");
+    var next = k < IR.length-1 ? (f==="mfj" ? IR[k+1].j : IR[k+1].s) : null;
+    var note;
+    if (next !== null){
+      var room = next - magi;
+      note = "<strong>"+full(room)+" of room</strong> before the next bracket. Crossing it by even $1 would add "+full(((IR[k+1].b - t.b) + (IR[k+1].d - t.d))*12*n)+" a year"+(n>1?" for the two of you":"")+", so check this before a large Roth conversion or sale.";
+    } else note = "You're in the top bracket; additional income doesn't raise premiums further.";
+    $("i-note").innerHTML = note;
+  }
+  ["i-filing","i-magi","i-people"].forEach(function(id){ $(id).addEventListener("input", drawIR); });
+  drawIR();
+})();
+</script>
+</body>
+</html>
