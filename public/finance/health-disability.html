@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Health & Disability Insurance</title>
+<meta name="description" content="Health & Disability Insurance: how health plans charge you, choosing between a traditional plan and an HDHP with an HSA, and protecting your paycheck with disability insurance.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ---- Sales pitch additions ---- */
+.pitch{border-top:1px solid var(--rule); padding:24px 0;}
+.pitch:last-child{border-bottom:1px solid var(--rule);}
+.pitch-claim{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px; color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold); padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;}
+.reality-tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--rust); font-weight:600; display:block; margin-bottom:6px;}
+.pitch p{font-size:15.5px;}
+.pitch .ask{font-size:14.5px; color:var(--ink-soft); margin-top:8px;}
+.pitch .ask strong{color:var(--teal); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-right:6px;}
+.flags{display:flex; flex-direction:column; margin-top:8px;}
+.flag{display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:start; padding:11px 4px; border-top:1px solid var(--rule); cursor:pointer; font-size:14.5px; line-height:1.5;}
+.flag:last-child{border-bottom:1px solid var(--rule);}
+.flag input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--rust); cursor:pointer;}
+.flag:hover{background:var(--ink-wash);}
+.flag.on{background:var(--rust-wash);}
+.flag small{display:block; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+.meter{display:flex; gap:4px; margin:14px 0 8px;}
+.meter i{flex:1; height:10px; border-radius:3px; background:var(--ink-wash);}
+.meter i.on{background:var(--rust);}
+.verdict-box{padding:14px 16px; border-radius:3px; border-left:3px solid var(--teal); background:var(--teal-wash); font-size:15px; line-height:1.6;}
+.verdict-box.warn{border-left-color:var(--gold); background:var(--gold-wash);}
+.verdict-box.stop{border-left-color:var(--rust); background:var(--rust-wash);}
+.paymodel{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px;}
+@media (max-width:760px){ .paymodel{grid-template-columns:1fr 1fr} }
+@media (max-width:460px){ .paymodel{grid-template-columns:1fr} }
+.pm{background:var(--paper-raised); border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:16px; box-shadow:var(--shadow);}
+.pm .k{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.pm h3{font-style:normal; font-size:17px; margin:4px 0 6px;}
+.pm p{font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 8px;}
+.pm .nudge{font-size:12.5px; color:var(--ink); border-top:1px dotted var(--rule); padding-top:8px; margin:0;}
+.pm .nudge b{display:block; margin-bottom:2px; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-right:4px;}
+
+/* ---- Health & disability additions ---- */
+.plan-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:8px 0 16px;}
+@media (max-width:620px){ .plan-grid{grid-template-columns:1fr} }
+.plan-box{border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:12px 14px 14px; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; background:var(--paper);}
+.plan-box legend{font:600 11px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 6px;}
+@media (max-width:380px){ .plan-box{grid-template-columns:1fr} }
+.win-a{color:var(--gold); font-weight:600;}
+.win-b{color:var(--teal); font-weight:600;}
+.flow.four{grid-template-columns:repeat(4,1fr);}
+@media (max-width:680px){ .flow.four{grid-template-columns:1fr} }
+.plan-box{align-content:start;}
+.plan-box .field{display:flex; flex-direction:column; justify-content:flex-end;}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Insurance &amp; Protection · Part of Personal Finance Library</p>
+    <h1>Health &amp; Disability Insurance: Protecting the Paycheck</h1>
+    <p class="subtitle">How health insurance actually charges you, how to pick between a traditional plan and a high-deductible plan with an HSA, the protections you have when bills go wrong, and the coverage working people most often skip: insurance on the paycheck itself. Two calculators use your own numbers.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Insurance is for the bills you <strong>can't</strong> absorb, and for most working people the two biggest are a major medical event and losing the ability to earn. In health insurance, the number that matters most is the <strong>out-of-pocket maximum</strong>: the most you'll pay in a year for covered in-network care (no more than $10,600 for one person in 2026). Compare plans by <strong>total yearly cost</strong> (premiums plus what you'd pay for care, minus any HSA money) across a good year and a bad year, not by premium alone. A high-deductible plan with an HSA often wins, especially when the employer adds to the HSA, but not always. Your future paychecks are likely your largest asset, and just over <strong>1 in 4</strong> of today's 20-year-olds will become disabled before retirement age. Social Security disability averages about <strong>$1,630 a month</strong> and is hard to get, so long-term disability insurance that replaces about 60% of pay is the protection most worth checking. Skip narrow add-ons like cancer-only or accident-only policies, and use the savings to fund the emergency fund and HSA instead.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#why">Insure what you can't absorb</a>
+      <a href="#how-health-works">How health insurance actually charges you</a>
+      <a href="#compare">Choosing a plan: the real math (calculator)</a>
+      <a href="#buying">Where coverage comes from: work, marketplace, COBRA</a>
+      <a href="#protections">Protections when the bill goes wrong</a>
+      <a href="#disability">Disability insurance: protecting the paycheck (calculator)</a>
+      <a href="#skip">Coverage worth having, and coverage to skip</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">An open-enrollment checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="why">
+    <p class="eyebrow">Start here</p>
+    <h2>Insure what you can't absorb</h2>
+    <p class="lede">Good insurance follows one rule: <strong>pay someone else to carry the risks that would wreck your finances, and carry the small ones yourself.</strong> A $300 urgent-care visit is annoying. A $150,000 hospital stay, or five years without a paycheck, can undo decades of saving. Those are what this episode protects.</p>
+    <div class="verdicts">
+      <div class="verdict bad">
+        <div class="book-label">Risk one</div>
+        <h3>A big medical bill</h3>
+        <p>Serious illness or injury can produce bills in the six figures. Health insurance turns that open-ended risk into a known worst case: your premiums plus your out-of-pocket maximum.</p>
+      </div>
+      <div class="verdict bad">
+        <div class="book-label">Risk two</div>
+        <h3>Losing the paycheck itself</h3>
+        <p>A 30-year-old earning $70,000 has roughly <strong>$2.6 million</strong> of paychecks ahead of them before 67, before a single raise. That future income is usually the largest asset a working person has, and disability insurance is what insures it.</p>
+      </div>
+    </div>
+    <p style="margin-top:20px;">Both sit on the <a href="/finance/money-river.html">Money River's</a> Insurance &amp; Protection thread, and both belong to the <a href="/finance/money-roadmap.html#priority-waterfall">Roadmap's</a> "protect" move. <a href="/finance/life-insurance-explained.html">Life insurance</a> covers the third big risk: dying while others depend on your income.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="how-health-works">
+    <p class="eyebrow">The vocabulary, in order</p>
+    <h2>How health insurance actually charges you</h2>
+    <p class="lede">Every plan charges you in two ways: a <strong>premium</strong> you pay every month whether or not you see a doctor, and <strong>cost sharing</strong> you pay when you get care. Cost sharing works in three stages as your bills for the year add up.</p>
+    <div class="flow four">
+      <div class="flow-step"><span class="n">ALWAYS</span><h3>Premium</h3><p>The monthly price of having the plan. At work it's usually taken from your paycheck before tax.</p></div>
+      <div class="flow-step"><span class="n">STAGE 1</span><h3>Deductible</h3><p>You pay the full negotiated price for most care until you've spent this much in the year. Preventive care is usually covered in full, even before it.</p></div>
+      <div class="flow-step"><span class="n">STAGE 2</span><h3>Coinsurance / copays</h3><p>After the deductible, you share costs: a percentage (often 20%) or a flat copay per visit or prescription.</p></div>
+      <div class="flow-step"><span class="n">STAGE 3</span><h3>Out-of-pocket maximum</h3><p>Once your cost sharing hits this cap, the plan pays 100% of covered in-network care for the rest of the year.</p><span class="op">= your worst case</span></div>
+    </div>
+    <p style="margin-top:16px;">For 2026, the out-of-pocket maximum on almost any plan can't exceed <strong>$10,600</strong> for one person or <strong>$21,200</strong> for a family. Employer plans are usually lower: in KFF's 2025 survey, the average single deductible at work was $1,886, and 72% of covered workers had an out-of-pocket maximum above $3,000. Premiums are large but mostly hidden: the average family plan cost $26,993 in 2025, of which workers paid $6,850 and employers the rest.</p>
+
+    <h3 style="margin-top:26px; font-size:19px; font-style:normal;">Network types</h3>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Type</th><th>How it works</th><th>Trade-off</th></tr></thead>
+        <tbody>
+          <tr><td>HMO</td><td>In-network care only (except emergencies); usually need a primary doctor's referral for specialists</td><td>Lower premiums, least flexibility</td></tr>
+          <tr><td>EPO</td><td>In-network only, but usually no referrals</td><td>Middle ground</td></tr>
+          <tr><td>PPO</td><td>Any doctor; in-network costs less, out-of-network is partly covered</td><td>Most flexible, highest premiums</td></tr>
+          <tr><td>POS</td><td>HMO-style referrals, with some out-of-network coverage</td><td>Less common hybrid</td></tr>
+          <tr><td>High-deductible (HDHP)</td><td>Any of the above networks with a deductible of at least $1,700 / $3,400 in 2026</td><td>Lower premiums, and makes you eligible for an HSA</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small-note" style="margin-top:12px;">The out-of-pocket maximum applies only to covered, in-network care. Out-of-network bills on a PPO often have a separate, higher cap, and on an HMO or EPO usually aren't covered at all outside emergencies.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="compare">
+    <p class="eyebrow">The decision most people make once a year</p>
+    <h2>Choosing a plan: the real math</h2>
+    <p class="lede">Picking the plan with the lowest premium, or the lowest deductible, is how most people choose. The better comparison is <strong>total yearly cost</strong>: premiums, plus what you'd pay for care, minus any money your employer puts in your HSA and the taxes you save putting your own money in. Enter two plans from your benefits guide.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Your total yearly cost, at every level of medical spending</div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--gold)"></i>Plan A (traditional)</span>
+          <span><i class="swatch" style="background:var(--teal)"></i>Plan B (HDHP + HSA)</span>
+        </div>
+      </div>
+      <div class="plan-grid">
+        <fieldset class="plan-box" style="--c:var(--gold)"><legend>Plan A · traditional</legend>
+          <div class="field"><label for="pa-prem">Your premiums per year</label><input id="pa-prem" type="number" min="0" step="100" value="1800" inputmode="numeric"></div>
+          <div class="field"><label for="pa-ded">Deductible</label><input id="pa-ded" type="number" min="0" step="100" value="1000" inputmode="numeric"></div>
+          <div class="field"><label for="pa-co">Coinsurance after deductible (%)</label><input id="pa-co" type="number" min="0" max="100" step="5" value="20" inputmode="numeric"></div>
+          <div class="field"><label for="pa-oop">Out-of-pocket maximum</label><input id="pa-oop" type="number" min="0" step="250" value="4000" inputmode="numeric"></div>
+        </fieldset>
+        <fieldset class="plan-box" style="--c:var(--teal)"><legend>Plan B · HDHP with HSA</legend>
+          <div class="field"><label for="pb-prem">Your premiums per year</label><input id="pb-prem" type="number" min="0" step="100" value="900" inputmode="numeric"></div>
+          <div class="field"><label for="pb-ded">Deductible</label><input id="pb-ded" type="number" min="0" step="100" value="3300" inputmode="numeric"></div>
+          <div class="field"><label for="pb-co">Coinsurance after deductible (%)</label><input id="pb-co" type="number" min="0" max="100" step="5" value="20" inputmode="numeric"></div>
+          <div class="field"><label for="pb-oop">Out-of-pocket maximum</label><input id="pb-oop" type="number" min="0" step="250" value="7000" inputmode="numeric"></div>
+          <div class="field"><label for="pb-emp">Employer HSA contribution</label><input id="pb-emp" type="number" min="0" step="100" value="500" inputmode="numeric"></div>
+          <div class="field"><label for="pb-tax">Tax saved on your own HSA deposits</label><input id="pb-tax" type="number" min="0" step="50" value="450" inputmode="numeric"></div>
+        </fieldset>
+      </div>
+      <div class="tiles" id="hc-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-plans" viewBox="0 0 680 300" role="img" aria-label="Line chart of total yearly cost for two health plans as medical spending rises."></svg></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Your year</th><th>Medical bills</th><th>Plan A total</th><th>Plan B total</th><th>Cheaper</th></tr></thead><tbody id="hc-table"></tbody></table></div>
+      <div class="chart-foot">Simplified: every dollar of care counts toward the deductible, then coinsurance applies until the out-of-pocket maximum; copays and out-of-network care are ignored. "Medical bills" means the plan's negotiated price of your in-network care for the year. Tax saved on HSA deposits ≈ your deposit × (your tax bracket + 7.65% payroll tax when made through payroll), e.g. $1,500 × 30% = $450.</div>
+    </div>
+
+    <p style="margin-top:22px;">At the defaults, the high-deductible plan is cheaper by about <strong>$1,850</strong> in a healthy year and stays slightly cheaper up to about $16,000 of care. In a very bad year it costs about <strong>$1,150 more</strong>, because its out-of-pocket maximum is higher. Three things usually decide it:</p>
+    <ul class="plain">
+      <li><strong>Employer HSA money</strong> is a straight discount on Plan B. Some employers contribute $1,000 or more.</li>
+      <li><strong>Can you cover the deductible from savings?</strong> If a $3,300 bill would go on a credit card, the lower-deductible plan may be safer until your emergency fund is built.</li>
+      <li><strong>Known big expenses</strong> (a planned surgery, a pregnancy, an ongoing condition with expensive prescriptions) favor the plan with the lower out-of-pocket maximum. Check that your doctors and drugs are covered either way.</li>
+    </ul>
+    <div class="callout"><strong>The HSA side of the choice.</strong> An HDHP is the only way to open an HSA, the account that's tax-free going in, growing and coming out for medical costs. Unspent money rolls over forever and can be invested. <a href="/finance/which-account.html#accounts">Which Account?</a> covers the 2026 limits ($4,400 / $8,750) and the new rules that make bronze and catastrophic marketplace plans HSA-eligible.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="buying">
+    <p class="eyebrow">Getting covered</p>
+    <h2>Where coverage comes from: work, marketplace, COBRA</h2>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">WORK</div><div><h3>Employer plans</h3><p>Most working-age Americans are covered at work. You choose during open enrollment (usually in the fall) or within 30 days of a life event like marriage, a birth or a new job. Premiums come out of your paycheck before tax.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">ACA</div><div><h3>The marketplace (HealthCare.gov or your state's site)</h3><p>For the self-employed, early retirees and anyone without a work plan. Plans come in metal tiers (bronze, silver, gold, platinum) that trade premiums against cost sharing, and no one can be turned down or charged more for a pre-existing condition. For 2027 coverage, open enrollment runs <strong>November 1, 2026 to January 15, 2027</strong> in most states (sign up by December 15 for a January 1 start). A job loss, move, marriage or birth opens a 60-day special enrollment window.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">2026</div><div><h3>Subsidies shrank this year</h3><p>The extra premium tax credits from 2021–2025 expired at the end of 2025. For 2026, people earning above 400% of the poverty line lost subsidies entirely, and KFF estimates average marketplace payments rose 58% and average deductibles 37%. If you're planning an early retirement, price marketplace coverage carefully. Income from IRA withdrawals and Roth conversions counts toward subsidy eligibility.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">COBRA</div><div><h3>Keeping a work plan after leaving</h3><p>COBRA lets you stay on your former employer's plan, usually for up to 18 months, but you pay the full premium plus up to 2%. Compare it with a marketplace plan, especially if your income will be low that year.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">65</div><div><h3>Medicare</h3><p>At 65, most people move to Medicare, with its own enrollment clock and penalties. <em>Social Security &amp; Medicare in Depth</em> (Tier 1, #6) covers it.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="protections">
+    <p class="eyebrow">When bills go wrong</p>
+    <h2>Protections when the bill goes wrong</h2>
+    <div class="tbl-wrap compare" style="margin-top:18px;">
+      <table>
+        <thead><tr><th>Protection</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td>No Surprises Act</td><td>Bans most surprise out-of-network bills for emergency care, for out-of-network doctors at in-network hospitals, and for air ambulances. You pay only your in-network cost sharing. Ground ambulances aren't covered. If you're uninsured or paying cash, you're entitled to a good-faith estimate and can dispute a bill that's $400 or more above it.</td></tr>
+          <tr><td>Preventive care</td><td>Most plans must cover recommended screenings, vaccines and checkups with no cost sharing, even before the deductible.</td></tr>
+          <tr><td>Appeals</td><td>You can appeal a denied claim with the plan, then ask for an independent external review. Many denials are reversed on appeal.</td></tr>
+          <tr><td>Itemized bills and errors</td><td>Ask for an itemized bill and the plan's explanation of benefits. Compare them, and question duplicate or unfamiliar charges before paying.</td></tr>
+          <tr><td>Medical debt and credit</td><td>The three big credit bureaus don't report paid medical collections or unpaid ones under $500, and they wait a year before reporting the rest. A federal rule to remove all medical debt was struck down in 2025, but 15 states ban medical debt on credit reports.</td></tr>
+          <tr><td>Financial assistance</td><td>Nonprofit hospitals must have charity-care policies. Ask for the application, and ask for a payment plan (often interest-free) before using a credit card.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="disability">
+    <p class="eyebrow">The protection people most often skip</p>
+    <h2>Disability insurance: protecting the paycheck</h2>
+    <p class="lede">Social Security estimates that <strong>just over 1 in 4</strong> of today's 20-year-olds will become disabled before reaching retirement age. Most long disabilities come from illness (cancer, heart disease, back and joint problems, mental health), not workplace accidents, so workers' comp usually doesn't apply.</p>
+
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">SSDI</div><div><h3>Social Security disability is a thin, slow floor</h3><p>You must be unable to do substantial work of any kind (in 2026, earning under about $1,690 a month), for at least a year. Benefits start after a five-month wait, applications are often denied at first, and the average payment is about <strong>$1,630 a month</strong> in 2026.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">GROUP</div><div><h3>Long-term disability through work</h3><p>Many employers offer it, often cheaply or free. A typical policy replaces about <strong>60% of base salary</strong> (bonuses and commissions often excluded), up to a monthly cap, after a 90-day waiting period, and pays to 65 or 67. If your employer pays the premium, the benefits are taxable. If you pay with after-tax dollars, they're tax-free. Benefits are usually reduced by any SSDI you receive.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">OWN</div><div><h3>Individual policies</h3><p>Worth considering if you have no group coverage, earn well above the group cap, or have specialized skills. Look for an <strong>own-occupation</strong> definition (pays if you can't do <em>your</em> job, even if you could do another), a benefit to age 65 or 67, and a cost-of-living rider. A strong policy often costs about 1%–3% of income.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">SHORT</div><div><h3>Short-term disability</h3><p>Covers the first weeks or months, including recovery after childbirth. A handful of states run their own programs, and your emergency fund does the same job for shorter gaps.</p></div></div>
+
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">If you couldn't work for a year: your monthly income gap</div></div>
+      <div class="planner">
+        <div class="field"><label for="d-salary">Base salary per year</label><input id="d-salary" type="number" min="0" step="1000" value="80000" inputmode="numeric"></div>
+        <div class="field"><label for="d-age">Your age</label><input id="d-age" type="number" min="18" max="66" step="1" value="35" inputmode="numeric"></div>
+        <div class="field"><label for="d-exp">Essential monthly expenses</label><input id="d-exp" type="number" min="0" step="100" value="4200" inputmode="numeric"></div>
+        <div class="field"><label for="d-pct">Disability coverage (% of salary)</label><select id="d-pct"><option value="0">None</option><option value="50">50%</option><option value="60" selected>60%</option><option value="66.67">66⅔%</option><option value="70">70%</option></select></div>
+        <div class="field"><label for="d-cap">Monthly benefit cap</label><input id="d-cap" type="number" min="0" step="500" value="10000" inputmode="numeric"></div>
+        <div class="field"><label for="d-paid">Who pays the premium?</label><select id="d-paid"><option value="employer">Employer (benefit taxable)</option><option value="me">Me, after tax (benefit tax-free)</option></select></div>
+      </div>
+      <div class="tiles" id="d-tiles"></div>
+      <div class="rt-bars" id="d-bars"></div>
+      <div class="raise" id="d-note"></div>
+      <div class="chart-foot">Take-home now assumes about 25% of pay goes to income and payroll taxes; taxable disability benefits assume about 15% (no payroll tax). SSDI shown only if you have no coverage, at the 2026 average of $1,630 after a five-month wait, if approved. "Paychecks at stake" is salary × years to 67 with no raises.</div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="skip">
+    <p class="eyebrow">Keep it simple</p>
+    <h2>Coverage worth having, and coverage to skip</h2>
+    <div class="verdicts">
+      <div class="verdict good">
+        <div class="book-label">Usually worth having</div>
+        <h3>Broad coverage for big losses</h3>
+        <p>Comprehensive health insurance; long-term disability while you work; <a href="/finance/life-insurance-explained.html">term life</a> if anyone depends on your income; auto and home or renters insurance with solid liability limits; an umbrella policy once you have real assets to protect.</p>
+      </div>
+      <div class="verdict bad">
+        <div class="book-label">Usually skip</div>
+        <h3>Narrow policies for specific events</h3>
+        <p>Cancer-only, accident-only and hospital-indemnity add-ons, credit-card and loan "protection," extended warranties, and flight insurance. They pay only in narrow cases, often return a small share of premiums as benefits, and duplicate what broad coverage and an emergency fund already do.</p>
+      </div>
+    </div>
+    <p style="margin-top:18px;">A useful test: <strong>if you could cover the loss from your emergency fund, don't insure it; if you couldn't, insure it broadly.</strong> Raising deductibles on car and home insurance and banking the premium savings is often one of the easiest wins in a budget.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">On the <a href="/finance/money-roadmap.html#priority-waterfall">Money Roadmap</a>, protection is step 09, "protect what's been built," but health coverage and disability insurance matter from your first job. The HSA also appears earlier, at step 05, because it's both insurance-adjacent and one of the best savings accounts available.</p>
+    <div class="next-links">
+      <a href="/finance/which-account.html#accounts"><div class="nl-k">Tier 1 · #2</div><div class="nl-t">Which Account?</div><div class="nl-d">HSA limits and where the HSA fits in your savings order.</div></a>
+      <a href="/finance/life-insurance-explained.html"><div class="nl-k">Topic 02</div><div class="nl-t">Life Insurance Explained</div><div class="nl-d">The third income risk: dying while others depend on you.</div></a>
+      <a class="soon" href="/finance/index.html#piece-6"><div class="nl-k">Tier 1 · #6 · coming next</div><div class="nl-t">Social Security &amp; Medicare</div><div class="nl-d">Health coverage and income from 65 on.</div></a>
+      <a class="soon" href="/finance/index.html#piece-13"><div class="nl-k">Tier 3 · #13</div><div class="nl-t">Long-Term Care</div><div class="nl-d">The late-life cost that neither health insurance nor Medicare really covers.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>An open-enrollment checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Run both plans through the calculator</h3><p>Use this year's actual premiums, deductibles, out-of-pocket maximums and employer HSA contribution from your benefits guide.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check your doctors and prescriptions</h3><p>Confirm they're in network and on the drug list (formulary) for the plan you pick.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Make sure the deductible fits your cash</h3><p>Your emergency fund should cover at least the deductible, ideally the out-of-pocket maximum.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Choosing an HDHP? Set up HSA payroll deposits</h3><p>Payroll deposits skip payroll tax as well as income tax. Invest what you won't need this year.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Look for long-term disability</h3><p>Enroll if it's offered. Note the percentage, the monthly cap, the waiting period and who pays the premium. Paying it yourself makes future benefits tax-free.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Skip the narrow add-ons</h3><p>Accident, cancer and hospital-indemnity riders rarely beat putting the same money in an HSA or emergency fund.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Consider FSAs</h3><p>A health FSA (up to $3,400 in 2026) if you're not in an HSA plan, and a dependent-care FSA (up to $7,500 per household) if you pay for child care.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>Is a high-deductible plan a bad idea if I have kids?</h3><p>Not necessarily. Run the numbers with the family deductible and out-of-pocket maximum, plus the family HSA limit ($8,750 in 2026). Families with predictable, modest costs often come out ahead; families expecting big bills may not. Most preventive care for kids is covered either way.</p></div>
+      <div class="faq-item"><h3>My spouse and I both have work plans. Should we each take our own?</h3><p>Compare three options: each on your own plan, everyone on plan A, everyone on plan B. Watch for "spousal surcharges" some employers add when a spouse could get coverage elsewhere.</p></div>
+      <div class="faq-item"><h3>How much disability coverage do I actually need?</h3><p>Enough that your essential expenses are covered, with no paycheck, for as long as a disability could last. Group coverage at 60% often leaves a gap for higher earners because of the monthly cap and because bonuses aren't covered. That's what individual policies fill.</p></div>
+      <div class="faq-item"><h3>I'm self-employed. Where do I start?</h3><p>A marketplace plan (or an HDHP with an HSA), an individual disability policy, and an emergency fund large enough for a gap in income. Self-employed health premiums are generally deductible on your return.</p></div>
+      <div class="faq-item"><h3>I'm retiring before 65. What bridges the gap?</h3><p>COBRA for up to 18 months, a spouse's plan, or a marketplace plan. With subsidies based on income, the taxable income you draw from savings in those years matters. See <a href="/finance/taxes-101.html#retirement">Taxes 101</a>, and <em>Turning Savings into a Paycheck</em> (Tier 2) for planning around it.</p></div>
+      <div class="faq-item"><h3>Is dental and vision insurance worth it?</h3><p>Often roughly break-even: premiums close to what routine care costs, with low annual limits. Useful if an employer subsidizes it or you expect major dental work. Otherwise, paying cash from an HSA is fine.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Premium</dt><dd>What you pay to have the plan, whether or not you use it.</dd></div>
+      <div class="gterm"><dt>Deductible</dt><dd>What you pay for covered care each year before the plan starts sharing costs.</dd></div>
+      <div class="gterm"><dt>Coinsurance</dt><dd>Your percentage share of costs after the deductible.</dd></div>
+      <div class="gterm"><dt>Copay</dt><dd>A flat fee for a visit or prescription.</dd></div>
+      <div class="gterm"><dt>Out-of-pocket maximum</dt><dd>The most you'll pay in a year for covered in-network care; the plan pays 100% after that.</dd></div>
+      <div class="gterm"><dt>Network</dt><dd>The doctors and hospitals that have agreed prices with your plan.</dd></div>
+      <div class="gterm"><dt>HDHP</dt><dd>High-deductible health plan; required to contribute to an HSA.</dd></div>
+      <div class="gterm"><dt>HSA</dt><dd>Health savings account: tax-free in, growing and out for medical costs.</dd></div>
+      <div class="gterm"><dt>FSA</dt><dd>Flexible spending account: pre-tax money for health or dependent care, mostly use-it-or-lose-it.</dd></div>
+      <div class="gterm"><dt>Formulary</dt><dd>A plan's list of covered prescription drugs.</dd></div>
+      <div class="gterm"><dt>Explanation of benefits (EOB)</dt><dd>The plan's statement of what a provider billed, what it paid and what you owe. Not a bill.</dd></div>
+      <div class="gterm"><dt>COBRA</dt><dd>The right to keep a former employer's plan temporarily, at full cost.</dd></div>
+      <div class="gterm"><dt>Special enrollment period</dt><dd>A window after a life event to change or buy coverage outside open enrollment.</dd></div>
+      <div class="gterm"><dt>Elimination period</dt><dd>The waiting time after a disability starts before benefits begin.</dd></div>
+      <div class="gterm"><dt>Own-occupation</dt><dd>A disability definition that pays if you can't do your own job.</dd></div>
+      <div class="gterm"><dt>Any-occupation</dt><dd>A stricter definition that pays only if you can't do any job suited to your training.</dd></div>
+      <div class="gterm"><dt>SSDI</dt><dd>Social Security Disability Insurance, for workers unable to do substantial work for at least a year.</dd></div>
+      <div class="gterm"><dt>Benefit cap</dt><dd>The maximum monthly amount a disability policy will pay, regardless of salary.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>2026 out-of-pocket maximums ($10,600 / $21,200): HHS revised 2026 limits, as summarized by WTW. HDHP and HSA figures: IRS Rev. Proc. 2025-19 (see <a href="/finance/which-account.html">Which Account?</a>).</li>
+      <li>Employer premiums, deductibles and out-of-pocket maximums: KFF, 2025 Employer Health Benefits Survey.</li>
+      <li>Expiration of enhanced premium tax credits and 2026 marketplace changes: KFF, "What We Know So Far About 2026 ACA Marketplace Enrollment, Premiums, and Deductibles."</li>
+      <li>2027 open enrollment dates: healthinsurance.org (dates may vary by state and pending litigation).</li>
+      <li>SSDI average benefit ($1,630) and substantial gainful activity ($1,690/month): Social Security Administration 2026 COLA fact sheet. "Just over 1 in 4" disability odds: Social Security Administration.</li>
+      <li>Typical long-term disability terms (50%–70% replacement, 90-day to 6-month waiting periods, 1%–3% of salary): Guardian Life. Tax treatment of disability benefits depends on who paid the premium.</li>
+      <li>Medical debt reporting in 2026: CoveredUSA summary of credit bureau policies, the July 2025 court decision vacating the CFPB rule, and state laws.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not insurance, medical or legal advice, and not a recommendation of any insurer or plan. Figures were checked in September 2026. Plan terms vary widely; read your plan's Summary of Benefits and Coverage and your disability policy's definitions before deciding.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function full(v){ return (v<0?"−":"") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function short(v){ var a=Math.abs(v), s=v<0?"−":""; if (a>=1e6) return s+"$"+(a/1e6).toFixed(2)+"M"; return a>=1000 ? s+"$"+(a/1000).toFixed(a%1000===0?0:1).replace(/\.0$/,"")+"k" : s+"$"+Math.round(a); }
+  function num(id){ var v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : 0; }
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function txt(p, x, y, s, cls, anchor){ var t = el("text", {x:x, y:y, "class":cls||"axis-label", "text-anchor":anchor||"start"}, p); t.textContent = s; return t; }
+  function tooltip(svg, x, y, lines, W, H){
+    var g = el("g", {"class":"tooltip-group"}, svg), t = el("text", {"class":"tooltip-text"}, g);
+    lines.forEach(function(L, i){
+      var ts = el("tspan", {x:0, dy: i ? 16 : 0}, t);
+      if (L.bold) ts.setAttribute("font-weight","600");
+      if (L.color){ ts.textContent = "■ "; ts.setAttribute("style","fill:"+L.color); var t2 = el("tspan", {}, t); t2.textContent = L.t; }
+      else ts.textContent = L.t;
+    });
+    var bb = t.getBBox(), w = bb.width + 16, h = lines.length*16 + 12;
+    var bx = x + 14; if (bx + w > W - 4) bx = x - 14 - w; if (bx < 4) bx = 4;
+    var by = Math.max(4, Math.min(H - 4 - h, y - h/2));
+    g.insertBefore(el("rect", {x:bx, y:by, width:w, height:h, rx:3, "class":"tooltip-bg"}), t);
+    t.setAttribute("transform", "translate("+(bx+8)+","+(by+19)+")");
+    return g;
+  }
+
+  /* ---------------- Plan comparison ---------------- */
+  var svg = $("chart-plans");
+  function plan(p){ return {prem:num(p+"-prem"), ded:num(p+"-ded"), co:num(p+"-co")/100, oop:num(p+"-oop"), credit:(p==="pb" ? num("pb-emp")+num("pb-tax") : 0)}; }
+  function share(pl, s){ var c = s <= pl.ded ? s : pl.ded + pl.co*(s - pl.ded); return Math.min(pl.oop || Infinity, c); }
+  function total(pl, s){ return pl.prem + share(pl, s) - pl.credit; }
+  function drawPlans(){
+    var A = plan("pa"), B = plan("pb");
+    // x range: until both plans hit their OOP max, plus margin
+    function capAt(pl){ return pl.co > 0 ? pl.ded + Math.max(0, (pl.oop - pl.ded))/pl.co : pl.ded; }
+    var xmax = Math.max(20000, Math.min(200000, Math.ceil(Math.max(capAt(A), capAt(B))*1.15/5000)*5000));
+    var N = 200, xs = []; for (var i=0;i<=N;i++) xs.push(xmax*i/N);
+    var ya = xs.map(function(s){ return total(A, s); }), yb = xs.map(function(s){ return total(B, s); });
+    var ymin = Math.min(0, Math.min.apply(null, yb), Math.min.apply(null, ya));
+    var ymaxRaw = Math.max(Math.max.apply(null, ya), Math.max.apply(null, yb));
+    var step = ymaxRaw > 12000 ? 4000 : ymaxRaw > 6000 ? 2000 : 1000;
+    var ymax = Math.ceil(ymaxRaw/step)*step + step, y0 = Math.floor(ymin/step)*step;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W=680, H=300, L=58, R=18, T=14, BM=34, pw=W-L-R, ph=H-T-BM;
+    function x(v){ return L + pw*v/xmax; }
+    function y(v){ return T + ph - ph*(v-y0)/(ymax-y0); }
+    for (var t=y0; t<=ymax; t+=step){ el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t===0?"zero":"gridline"},svg); txt(svg, L-8, y(t)+4, short(t), "axis-label", "end"); }
+    var xstep = xmax > 100000 ? 25000 : xmax > 40000 ? 10000 : 5000;
+    for (var xv=0; xv<=xmax; xv+=xstep) txt(svg, x(xv), H-16, short(xv), "axis-label", "middle");
+    txt(svg, L + pw/2, H-2, "your medical bills for the year →", "axis-title", "middle");
+    [[ya,"var(--gold)","A"],[yb,"var(--teal)","B"]].forEach(function(s){
+      el("path",{d:s[0].map(function(v,i){ return (i?"L":"M")+x(xs[i]).toFixed(1)+","+y(v).toFixed(1); }).join(""), fill:"none", style:"stroke:"+s[1], "stroke-width":2, "stroke-linejoin":"round"}, svg);
+      var last = s[0][N]; txt(svg, W-R-4, y(last) + (s[2]==="A" ? (ya[N] > yb[N] ? -8 : 14) : (yb[N] >= ya[N] ? -8 : 14)), "Plan "+s[2], "direct-label", "end");
+    });
+    var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+    function move(e){
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      var s = Math.max(0, Math.min(xmax, (p.x-L)/pw*xmax)); s = Math.round(s/100)*100;
+      var a = total(A, s), b = total(B, s);
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      el("line",{x1:x(s),x2:x(s),y1:T,y2:T+ph,"class":"crosshair"},layer);
+      el("circle",{cx:x(s),cy:y(a),r:4,style:"fill:var(--gold);stroke:var(--paper-raised)","stroke-width":2},layer);
+      el("circle",{cx:x(s),cy:y(b),r:4,style:"fill:var(--teal);stroke:var(--paper-raised)","stroke-width":2},layer);
+      layer.appendChild(tooltip(svg, x(s), T+46, [{t:full(s)+" of care", bold:true},{t:"Plan A total  "+full(a), color:"var(--gold)"},{t:"Plan B total  "+full(b), color:"var(--teal)"}], W, H));
+    }
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+
+    var worstA = A.prem + A.oop, worstB = B.prem + B.oop - B.credit;
+    var bestA = A.prem, bestB = B.prem - B.credit;
+    // crossover
+    var cross = null; for (var k=1;k<=N;k++){ var d0 = ya[k-1]-yb[k-1], d1 = ya[k]-yb[k]; if ((d0>0 && d1<=0) || (d0<0 && d1>=0)){ cross = xs[k]; break; } }
+    $("hc-tiles").innerHTML =
+      '<div class="tile"><div class="k">Healthy year ($0 of care)</div><div class="v">'+(bestA<=bestB?'A':'B')+' by '+full(Math.abs(bestA-bestB))+'</div><div class="s">A '+full(bestA)+' · B '+full(bestB)+'</div></div>'+
+      '<div class="tile"><div class="k">Worst case (out-of-pocket max)</div><div class="v">'+(worstA<=worstB?'A':'B')+' by '+full(Math.abs(worstA-worstB))+'</div><div class="s">A '+full(worstA)+' · B '+full(worstB)+'</div></div>'+
+      '<div class="tile"><div class="k">Where they cross</div><div class="v">'+(cross===null ? "never" : "~"+full(cross))+'</div><div class="s">'+(cross===null ? "one plan is cheaper at every level" : "of medical bills in a year")+'</div></div>';
+    var rows = [["Healthy year",500],["A few visits and prescriptions",3000],["Outpatient surgery",15000],["Hospital stay",60000]];
+    $("hc-table").innerHTML = rows.map(function(r){
+      var a = total(A, r[1]), b = total(B, r[1]), w = Math.abs(a-b) < 1 ? "tie" : (a<b ? '<span class="win-a">A by '+full(b-a)+'</span>' : '<span class="win-b">B by '+full(a-b)+'</span>');
+      return "<tr><td>"+r[0]+"</td><td>"+full(r[1])+"</td><td>"+full(a)+"</td><td>"+full(b)+"</td><td>"+w+"</td></tr>";
+    }).join("");
+  }
+  ["pa-prem","pa-ded","pa-co","pa-oop","pb-prem","pb-ded","pb-co","pb-oop","pb-emp","pb-tax"].forEach(function(id){ $(id).addEventListener("input", drawPlans); });
+  drawPlans();
+
+  /* ---------------- Disability gap ---------------- */
+  function drawDis(){
+    var sal = num("d-salary"), age = num("d-age"), exp = num("d-exp"), pct = +$("d-pct").value/100, cap = num("d-cap"), paid = $("d-paid").value;
+    var takeNow = sal/12*0.75;
+    var gross = Math.min(sal/12*pct, cap || Infinity);
+    var benefit = pct > 0 ? (paid === "employer" ? gross*0.85 : gross) : 0;
+    var ssdi = pct === 0 ? 1630 : 0;
+    var income = benefit + ssdi;
+    var gap = exp - income;
+    var years = Math.max(0, 67 - age), stake = sal * years;
+    $("d-tiles").innerHTML =
+      '<div class="tile"><div class="k">Paychecks at stake</div><div class="v">'+short(stake)+'</div><div class="s">'+years+' years to 67</div></div>'+
+      '<div class="tile"><div class="k">Monthly income if disabled</div><div class="v">'+full(income)+'</div><div class="s">'+(pct>0 ? (paid==="employer" ? "after tax on the benefit" : "tax-free benefit") : "SSDI only, if approved")+'</div></div>'+
+      '<div class="tile"><div class="k">Monthly '+(gap>0?'shortfall':'cushion')+'</div><div class="v" style="color:'+(gap>0?'var(--rust)':'var(--teal)')+'">'+full(Math.abs(gap))+'</div><div class="s">vs. '+full(exp)+' of essentials</div></div>';
+    var mx = Math.max(takeNow, income, exp, 1);
+    function row(label, sub, v, color){ return '<div class="rt-row"><div class="lab">'+label+'<small>'+sub+'</small></div><div class="track"><div class="fill" style="width:'+(100*v/mx).toFixed(1)+'%; background:'+color+'"></div></div><div class="val">'+full(v)+'</div></div>'; }
+    $("d-bars").innerHTML =
+      row("Working", "take-home now", takeNow, "var(--teal)") +
+      row("Disabled", pct>0 ? Math.round(pct*100)+"% coverage" : "no coverage", income, pct>0 ? "var(--gold)" : "var(--rust)") +
+      row("Essentials", "monthly bills", exp, "var(--ink-faint)");
+    var capped = pct > 0 && cap && sal/12*pct > cap;
+    var note;
+    if (pct === 0) note = "<strong>With no disability coverage</strong>, the backstop is Social Security disability: a five-month wait, a strict definition, frequent initial denials, and about $1,630 a month on average. The emergency fund would have to carry everything else.";
+    else if (gap > 0) note = "<strong>A "+full(gap)+" monthly gap.</strong> "+(capped ? "The monthly cap is limiting your benefit; an individual policy can top it up. " : "")+(paid==="employer" ? "Because your employer pays the premium, benefits are taxed; paying it yourself (if your plan allows) would make them tax-free. " : "")+"Cutting expenses, a larger emergency fund, or supplemental coverage can close it.";
+    else note = "<strong>Your coverage would cover your essentials.</strong> Check the policy's definition of disability, the waiting period (your emergency fund covers those months), and whether bonuses and commissions count.";
+    $("d-note").innerHTML = note;
+  }
+  ["d-salary","d-age","d-exp","d-pct","d-cap","d-paid"].forEach(function(id){ $(id).addEventListener("input", drawDis); });
+  drawDis();
+})();
+</script>
+</body>
+</html>
