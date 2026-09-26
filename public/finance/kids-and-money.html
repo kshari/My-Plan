@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kids & Money</title>
+<meta name="description" content="Kids & Money: money lessons by age, 529 plans vs. Trump accounts vs. custodial Roth IRAs, a college savings calculator, and naming a guardian, with 2026 rules.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ---- Sales pitch additions ---- */
+.pitch{border-top:1px solid var(--rule); padding:24px 0;}
+.pitch:last-child{border-bottom:1px solid var(--rule);}
+.pitch-claim{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px; color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold); padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;}
+.reality-tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--rust); font-weight:600; display:block; margin-bottom:6px;}
+.pitch p{font-size:15.5px;}
+.pitch .ask{font-size:14.5px; color:var(--ink-soft); margin-top:8px;}
+.pitch .ask strong{color:var(--teal); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-right:6px;}
+.flags{display:flex; flex-direction:column; margin-top:8px;}
+.flag{display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:start; padding:11px 4px; border-top:1px solid var(--rule); cursor:pointer; font-size:14.5px; line-height:1.5;}
+.flag:last-child{border-bottom:1px solid var(--rule);}
+.flag input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--rust); cursor:pointer;}
+.flag:hover{background:var(--ink-wash);}
+.flag.on{background:var(--rust-wash);}
+.flag small{display:block; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+.meter{display:flex; gap:4px; margin:14px 0 8px;}
+.meter i{flex:1; height:10px; border-radius:3px; background:var(--ink-wash);}
+.meter i.on{background:var(--rust);}
+.verdict-box{padding:14px 16px; border-radius:3px; border-left:3px solid var(--teal); background:var(--teal-wash); font-size:15px; line-height:1.6;}
+.verdict-box.warn{border-left-color:var(--gold); background:var(--gold-wash);}
+.verdict-box.stop{border-left-color:var(--rust); background:var(--rust-wash);}
+.paymodel{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px;}
+@media (max-width:760px){ .paymodel{grid-template-columns:1fr 1fr} }
+@media (max-width:460px){ .paymodel{grid-template-columns:1fr} }
+.pm{background:var(--paper-raised); border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:16px; box-shadow:var(--shadow);}
+.pm .k{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.pm h3{font-style:normal; font-size:17px; margin:4px 0 6px;}
+.pm p{font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 8px;}
+.pm .nudge{font-size:12.5px; color:var(--ink); border-top:1px dotted var(--rule); padding-top:8px; margin:0;}
+.pm .nudge b{display:block; margin-bottom:2px; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-right:4px;}
+
+/* ---- Health & disability additions ---- */
+.plan-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:8px 0 16px;}
+@media (max-width:620px){ .plan-grid{grid-template-columns:1fr} }
+.plan-box{border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:12px 14px 14px; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; background:var(--paper);}
+.plan-box legend{font:600 11px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 6px;}
+@media (max-width:380px){ .plan-box{grid-template-columns:1fr} }
+.win-a{color:var(--gold); font-weight:600;}
+.win-b{color:var(--teal); font-weight:600;}
+.flow.four{grid-template-columns:repeat(4,1fr);}
+@media (max-width:680px){ .flow.four{grid-template-columns:1fr} }
+.plan-box{align-content:start;}
+.plan-box .field{display:flex; flex-direction:column; justify-content:flex-end;}
+
+/* ---- Credit & debt additions ---- */
+.debt-table{min-width:560px;}
+.debt-table td{padding:6px 8px; text-align:left;}
+.debt-table th{text-align:left;}
+.debt-table input{width:100%; font:500 13.5px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:6px 8px;}
+.debt-table input:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.debt-table tbody tr:last-child td{font-weight:400; border-bottom:1px solid var(--rule);}
+.btn-small{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:7px 14px; cursor:pointer;}
+.btn-small:hover{color:var(--ink); border-color:var(--ink-faint);}
+.rm{font:600 14px "IBM Plex Mono",monospace; color:var(--ink-faint); background:none; border:0; cursor:pointer; padding:4px 8px;}
+.rm:hover{color:var(--rust);}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Family &amp; Dependents · Part of Personal Finance Library</p>
+    <h1>Kids &amp; Money: Teaching, Saving and Protecting Them</h1>
+    <p class="subtitle">How to teach money at each age, which account fits which goal (529 plans, the new Trump accounts, custodial Roth IRAs and custodial accounts), how much to save for college, and the paperwork that protects your kids if something happens to you. Two calculators use your own numbers.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>The most valuable thing you can give a child is <strong>habits</strong>: an allowance or pay to manage, a bank account by the preteen years, a first paycheck in high school. For money you set aside, match the account to the goal. A <strong>529 plan</strong> is best for education (tax-free growth; up to $20,000 a year for K–12 tuition from 2026). A <strong>custodial Roth IRA</strong> is the best long-term account once a teen has earned income. The new <strong>Trump account</strong> is worth opening if your child was born 2025–2028 and qualifies for the free <strong>$1,000</strong> deposit, or if your employer contributes; beyond that it's usually a second choice, because earnings are taxed on the way out and the money is locked until 18. A <strong>custodial (UTMA/UGMA) account</strong> is flexible but becomes the child's outright at 18–21. College averages <strong>$31,000 a year</strong> all-in at an in-state public school (2025–26), so most families aim to cover part from savings, not all. And if anyone depends on your income: write a will that <strong>names a guardian</strong>, buy term life insurance, and don't leave money directly to a minor.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#costs">What kids cost, and the tax help</a>
+      <a href="#lessons">Money lessons by age</a>
+      <a href="#accounts">Which account for which goal</a>
+      <a href="#trump-accounts">Trump accounts, in plain language</a>
+      <a href="#head-start">The head start: why early dollars matter (calculator)</a>
+      <a href="#college">Saving for college with a 529 (calculator)</a>
+      <a href="#first-job">A teen's first paycheck and a Roth IRA</a>
+      <a href="#protect">Protecting them: guardians, insurance, beneficiaries</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A family money checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="costs">
+    <p class="eyebrow">Start here</p>
+    <h2>What kids cost, and the tax help</h2>
+    <p class="lede">Raising a child to 18 costs about <strong>$303,000</strong> on average in the U.S., according to LendingTree's 2026 estimate, and child care is usually the largest single line in the early years. Your own finances come first: the <a href="/finance/money-roadmap.html#priority-waterfall">Roadmap's order</a> (emergency fund, employer match, high-interest debt, your own retirement) doesn't change when kids arrive. Your child can borrow for college; you can't borrow for retirement. The tax code offers some help:</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Break</th><th>2026 amount</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Child tax credit</td><td>$2,200 per child under 17; up to $1,700 refundable</td><td>Phases out above $200,000 of income ($400,000 joint). Parent and child need Social Security numbers.</td></tr>
+          <tr><td>Dependent care FSA</td><td>Up to $7,500 per household (up from $5,000)</td><td>Pre-tax pay for daycare, preschool, before- and after-school care and day camps for kids under 13. Use it or lose it.</td></tr>
+          <tr><td>Child and dependent care credit</td><td>A percentage of up to $3,000 of care costs for one child, $6,000 for two or more</td><td>The percentage rose for 2026, most for lower and middle incomes. You can't use the same dollars for the FSA and the credit.</td></tr>
+          <tr><td>Trump account deposit</td><td>$1,000, once</td><td>For U.S. citizen children born 2025 through 2028 who have a Social Security number. You have to sign up (see below).</td></tr>
+          <tr><td>529 state tax deduction</td><td>Varies by state</td><td>More than 30 states give a deduction or credit for contributions to their own plan.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="lessons">
+    <p class="eyebrow">Habits beat balances</p>
+    <h2>Money lessons by age</h2>
+    <p class="lede">Kids learn money the way they learn anything else: by handling it, making small mistakes while the stakes are low, and watching what you do. Thirty states now require a standalone personal finance course to graduate from high school, but home is still where the habits form.</p>
+    <div class="tbl-wrap compare wide-compare">
+      <table>
+        <thead><tr><th>Age</th><th>What they can learn</th><th>Tools that help</th></tr></thead>
+        <tbody>
+          <tr><td>3–5</td><td>Money buys things; it runs out; waiting can get you something better</td><td>Clear jars for <em>save</em>, <em>spend</em> and <em>give</em>; let them pay at the store</td></tr>
+          <tr><td>6–10</td><td>Choosing between wants; saving up for a goal; comparing prices</td><td>A small weekly allowance they manage; a savings goal chart; "matching" their savings (your own 401(k) match)</td></tr>
+          <tr><td>11–13</td><td>Budgeting; interest; ads and in-app purchases; needs vs. wants</td><td>A savings account in their name (joint with you); a parent-controlled debit card or app; a bigger allowance that covers some of their own spending</td></tr>
+          <tr><td>14–18</td><td>Paychecks and taxes; credit; investing; the cost of college</td><td>A first job and a custodial Roth IRA; checking account; adding them as an authorized user on your card; walking through the FAFSA together</td></tr>
+          <tr><td>18–22</td><td>Living on a budget; credit scores; student loans; their first retirement plan</td><td>Their own card with a low limit, paid in full; <a href="/finance/credit-debt.html#score">how credit scores work</a>; <a href="/finance/which-account.html#order">where each dollar goes</a> at their first job</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="verdicts three">
+      <div class="verdict neutral"><div class="book-label">Allowance, no strings</div><h3>A budget to practice on</h3><p>A set amount each week, separate from chores. The point is practice making choices; don't rescue them when it's gone.</p></div>
+      <div class="verdict neutral"><div class="book-label">Paid for extra work</div><h3>Earning it</h3><p>Everyday chores are part of family life; extra jobs (washing the car, yard work) earn money. Connects effort and income.</p></div>
+      <div class="verdict neutral"><div class="book-label">A mix</div><h3>What many families settle on</h3><p>A small base allowance plus paid extra jobs. Whatever you choose, be consistent, and let the money be theirs to spend or save.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="accounts">
+    <p class="eyebrow">Match the account to the goal</p>
+    <h2>Which account for which goal</h2>
+    <p class="lede">Each account is a <a href="/finance/which-account.html#wrappers">tax wrapper</a> with its own rules about who controls the money, what it can be used for, and how it affects financial aid. The best choice depends on what the money is <em>for</em>.</p>
+    <div class="tbl-wrap compare wide-compare">
+      <table>
+        <thead><tr><th>Account</th><th>Best for</th><th>Who controls it</th><th>Limit (2026)</th><th>Taxes</th><th>Financial aid (FAFSA)</th><th>The catch</th></tr></thead>
+        <tbody>
+          <tr><td><strong>529 plan</strong></td><td>College, K–12 tuition, trade credentials</td><td>You (the owner), for as long as you like</td><td>No yearly cap; $19,000 per giver per child before gift-tax paperwork, or $95,000 at once using 5-year averaging</td><td>Tax-free growth and withdrawals for education; state deduction in many states</td><td>Parent-owned: counted lightly (up to 5.64% of value). Grandparent-owned: not counted</td><td>Non-education withdrawals pay tax + 10% on earnings. Leftovers can switch to a sibling or roll to the child's Roth IRA (up to $35,000)</td></tr>
+          <tr><td><strong>Trump account</strong></td><td>A long-term stock account from birth; capturing the $1,000 and employer money</td><td>A parent or guardian until 18, then the child</td><td>$5,000 a year (employer up to $2,500 of that); $1,000 government deposit doesn't count</td><td>Parent money goes in after tax; earnings taxed as income when withdrawn</td><td>Rules still settling; retirement-style accounts generally aren't reported</td><td>Locked until 18; U.S. stock index funds only; after 18, traditional-IRA rules (10% penalty before 59½ unless an exception applies)</td></tr>
+          <tr><td><strong>Custodial Roth IRA</strong></td><td>A teen with a job: the best long-term account there is</td><td>You as custodian until 18–21 (by state), then the child</td><td>The child's earned income, up to $7,500</td><td>Tax-free growth; contributions can come out anytime, earnings tax-free after 59½</td><td>Retirement accounts not reported</td><td>Needs real earned income (a job or legitimate self-employment)</td></tr>
+          <tr><td><strong>Custodial account (UTMA/UGMA)</strong></td><td>Flexible savings for the child, any purpose</td><td>You as custodian, then the child outright at 18–21 (by state)</td><td>None (gift rules apply)</td><td>Taxable; first $1,350 of investment income tax-free, next $1,350 at the child's rate, above $2,700 at your rate ("kiddie tax")</td><td>Counted as the student's asset (20%), the heaviest hit</td><td>Gifts are irrevocable; at 18–21 the money is theirs to spend however they want</td></tr>
+          <tr><td><strong>Savings in your own name</strong></td><td>Keeping options open</td><td>You</td><td>None</td><td>Taxed as your own savings or investments</td><td>Parent asset (up to 5.64%)</td><td>No tax break, but no strings either</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><strong>A simple order for most families:</strong> take the free Trump account $1,000 if your child qualifies (and any employer contribution); save for college in a 529, ideally your own state's plan if it gives a deduction; open a custodial Roth IRA as soon as your teen earns a paycheck. Use a custodial account only for money you're truly happy to hand over at 18 or 21.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="trump-accounts">
+    <p class="eyebrow">New in 2026</p>
+    <h2>Trump accounts, in plain language</h2>
+    <p class="lede">Created by the 2025 tax law, Trump accounts are a kind of IRA for children under 18. Families could start adding money on <strong>July 4, 2026</strong>, and more than 4 million children had been signed up by September. The details:</p>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">$1,000</div><div><h3>The free deposit</h3><p>The Treasury deposits a one-time <strong>$1,000</strong> for U.S. citizen children born January 1, 2025 through December 31, 2028 who have a Social Security number. It isn't automatic: a parent or guardian elects it on IRS <strong>Form 4547</strong> (it can go in with your tax return), online at trumpaccounts.gov, or through Social Security's birth registration at the hospital. Separately, the Michael &amp; Susan Dell Foundation pledged up to $250 each for about 25 million children age 10 and under in lower-income ZIP codes.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">ADDING</div><div><h3>Contributions</h3><p>Parents, relatives and others can add up to <strong>$5,000 a year</strong> per child. Employers can contribute up to $2,500 a year per employee, tax-free to you, counted inside the $5,000. Contributions from governments and charities don't count toward the limit. Parent contributions aren't tax-deductible.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">INVESTED</div><div><h3>Only low-cost U.S. stock index funds</h3><p>Until the year the child turns 18, the money must be in mutual funds or ETFs that track a U.S. stock index such as the S&amp;P 500, with fees of 0.10% a year or less. That's close to the <a href="/finance/investing-basics.html#baseline">honest baseline</a>: cheap and diversified, but 100% stocks, with no option to shift to bonds or cash as a goal gets close.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">AT 18</div><div><h3>Getting the money out</h3><p>Generally no withdrawals before 18. After that, the account follows traditional-IRA rules: the parent's after-tax contributions come back tax-free, but the $1,000 deposit, employer money and all the growth are taxed as ordinary income, with a 10% penalty before 59½ unless an exception applies (such as college costs or up to $10,000 toward a first home). Left alone, it's a retirement account with a 40-year head start.</p></div></div>
+    <div class="verdicts three">
+      <div class="verdict good"><div class="book-label">Clearly worth it</div><h3>Claiming the $1,000 and employer money</h3><p>Free money in a low-cost index fund. File Form 4547 or sign up online if your child was born 2025–2028.</p></div>
+      <div class="verdict neutral"><div class="book-label">It depends</div><h3>Adding your own money</h3><p>Better than a custodial account for long-term money: it grows tax-deferred with no kiddie tax, and at 18 it doesn't simply become spending money, since withdrawals are taxed and usually penalized. For college, a 529 is better; for a teen with a job, a Roth IRA is better.</p></div>
+      <div class="verdict bad"><div class="book-label">Not a fit</div><h3>Money you'll need before 18</h3><p>It's locked until then, and it's all in stocks. Use a 529 or savings for anything with an earlier date.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="head-start">
+    <p class="eyebrow">Time is the gift</p>
+    <h2>The head start: why early dollars matter</h2>
+    <p class="lede">A dollar invested at birth has 65 years to compound before a traditional retirement age. That's the real power of a Trump account or a custodial Roth: not the tax rules, but the time. Try your own numbers; results are in today's dollars, after inflation.</p>
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">What a small start at birth grows to</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--teal)"></i>Account value</span><span><i class="swatch" style="background:var(--gold)"></i>Money put in</span></div>
+      </div>
+      <div class="planner">
+        <div class="field"><label for="h-seed">Deposit at birth</label><input id="h-seed" type="number" min="0" step="100" value="1000" inputmode="numeric"></div>
+        <div class="field"><label for="h-mo">Added each month until 18</label><input id="h-mo" type="number" min="0" step="10" value="50" inputmode="numeric"></div>
+        <div class="field"><label for="h-ret">Return after inflation (%)</label><input id="h-ret" type="number" min="0" max="10" step="0.5" value="5" inputmode="decimal"></div>
+      </div>
+      <div class="tiles" id="h-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-head" viewBox="0 0 680 280" role="img" aria-label="Line chart of an account started at birth growing to age 65, compared with total money contributed."></svg></div>
+      <div class="raise" id="h-note"></div>
+      <div class="chart-foot">Contributions stop at 18 and nothing is added or withdrawn after that. A 5% return after inflation is roughly in line with long-run U.S. stock history after costs, but returns vary a lot from year to year and aren't guaranteed. Before taxes: in a Trump account, growth is taxed as income when withdrawn; in a Roth IRA it's tax-free.</div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="college">
+    <p class="eyebrow">The big one</p>
+    <h2>Saving for college with a 529</h2>
+    <p class="lede">College prices vary more than almost anything else families buy. In 2025–26, an average year at a public four-year school cost <strong>$25,850</strong> for in-state tuition, housing and food (about $31,000 with books, transportation and other costs), against about $65,500 all-in at a private nonprofit college. But most students don't pay the sticker price: after grants, average net tuition for in-state public students was about $2,300.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>2025–26, per year</th><th>Tuition and fees</th><th>+ housing and food</th><th>Full budget</th></tr></thead>
+        <tbody>
+          <tr><td>Public two-year (in-district)</td><td>$4,150</td><td>—</td><td>—</td></tr>
+          <tr><td>Public four-year, in-state</td><td>$11,950</td><td>$25,850</td><td>$30,990</td></tr>
+          <tr><td>Public four-year, out-of-state</td><td>$31,880</td><td>$45,780</td><td>$50,920</td></tr>
+          <tr><td>Private nonprofit four-year</td><td>$45,000</td><td>$60,920</td><td>$65,470</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Your college savings plan</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--teal)"></i>Projected savings</span><span><i class="swatch" style="background:var(--gold)"></i>Your goal</span></div>
+      </div>
+      <div class="presets" id="c-presets"><span>School</span><button type="button" data-cost="30990" aria-pressed="true">Public in-state</button><button type="button" data-cost="50920" aria-pressed="false">Public out-of-state</button><button type="button" data-cost="65470" aria-pressed="false">Private</button><button type="button" data-cost="4150" aria-pressed="false">Community college</button></div>
+      <div class="planner">
+        <div class="field"><label for="c-cost">Cost per year today</label><input id="c-cost" type="number" min="0" step="500" value="30990" inputmode="numeric"></div>
+        <div class="field"><label for="c-share">Share you want savings to cover (%)</label><input id="c-share" type="number" min="0" max="100" step="5" value="50" inputmode="numeric"></div>
+        <div class="field"><label for="c-age">Child's age now</label><input id="c-age" type="number" min="0" max="17" step="1" value="3" inputmode="numeric"></div>
+        <div class="field"><label for="c-have">Saved so far</label><input id="c-have" type="number" min="0" step="500" value="5000" inputmode="numeric"></div>
+        <div class="field"><label for="c-mo">Monthly contribution</label><input id="c-mo" type="number" min="0" step="25" value="250" inputmode="numeric"></div>
+        <div class="field"><label for="c-ret">Expected return (%)</label><input id="c-ret" type="number" min="0" max="12" step="0.5" value="6" inputmode="decimal"></div>
+        <div class="field"><label for="c-inf">College cost increase per year (%)</label><input id="c-inf" type="number" min="0" max="10" step="0.5" value="3" inputmode="decimal"></div>
+      </div>
+      <div class="tiles" id="c-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-college" viewBox="0 0 680 280" role="img" aria-label="Line chart of projected 529 savings by the child's age, compared with the savings goal at age 18."></svg></div>
+      <div class="raise" id="c-note"></div>
+      <div class="chart-foot">Four years of college starting at 18. Costs grow by the rate entered from today; the goal is your chosen share of all four years, in future dollars. Savings grow at the expected return with monthly contributions until 18; the calculator ignores growth during college and any state tax deduction, so it's slightly conservative. Most 529 plans offer age-based portfolios that shift toward bonds and cash as college approaches, which usually means lower returns in the last few years.</div>
+    </div>
+
+    <p style="margin-top:22px;">A common rule of thumb is to plan on covering college about <strong>one-third</strong> each from savings, from income during the college years, and from aid and modest loans. At the defaults (age 3, half of an in-state public budget), $250 a month plus $5,000 already saved covers about 83% of the goal, and about $310 a month would cover all of it. Time does much of the work: covering the same half of an in-state budget from zero takes about $290 a month starting at birth, but about $670 a month starting at age 10.</p>
+
+    <div class="lever-row" style="margin-top:18px;"><div class="lever-tag">STATE</div><div><h3>Start with your own state's plan</h3><p>Over 30 states give a tax deduction or credit, usually only for their own plan, and some give it for any plan. If yours doesn't, you can pick any state's plan; compare fees. Direct-sold plans (bought from the plan, not through an advisor) are usually cheapest.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">NEW USES</div><div><h3>More than college now</h3><p>From 2026, up to $20,000 a year for K–12 tuition, plus K–12 books, tutoring and test fees; since July 2025, trade and professional credentials (welding, plumbing, CPA exams). Some states haven't adopted these uses for state tax purposes, so check before withdrawing.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">LEFTOVERS</div><div><h3>If your child doesn't need it all</h3><p>Change the beneficiary to a sibling, cousin or yourself; withdraw up to the amount of any scholarship without the 10% penalty (tax on earnings still applies); or roll up to $35,000 over the child's lifetime into their Roth IRA, if the 529 has been open 15 years, within the yearly IRA limit.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">GRANDPARENTS</div><div><h3>Grandparents can help, invisibly</h3><p>Since the FAFSA simplification, a grandparent-owned 529 isn't reported and its withdrawals no longer count as student income. Grandparents can give $19,000 a year per grandchild ($38,000 for a couple) without gift-tax paperwork, or front-load five years at once. The 2027–28 FAFSA opened September 23, 2026.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="first-job">
+    <p class="eyebrow">Teens</p>
+    <h2>A teen's first paycheck and a Roth IRA</h2>
+    <p class="lede">A teenager with a summer job is in the best tax position they'll ever have: in 2026 they can earn up to the standard deduction of <strong>$16,100</strong> and owe no federal income tax. Money they put in a Roth IRA now is taxed at 0% going in and 0% coming out in retirement.</p>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">RULES</div><div><h3>How a custodial Roth IRA works</h3><p>The contribution can't exceed the teen's <strong>earned income</strong> for the year (wages, or real self-employment like babysitting or lawn mowing with records), up to $7,500. A parent or grandparent can fund it as a gift, so the teen can keep and spend the paycheck while you "match" it into the Roth. Most major brokerages offer custodial Roths with no minimums; the teen takes control at 18–21 depending on the state.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">EXAMPLE</div><div><h3>One summer's worth</h3><p>A 16-year-old earns $4,000 lifeguarding. You put $4,000 in their Roth IRA. At a 5% return after inflation, that single deposit grows to about $62,000 in today's dollars by age 72, tax-free. Do it for three summers and it's about $175,000.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">FLEXIBLE</div><div><h3>Not as locked up as it sounds</h3><p>Roth contributions (not the growth) can be withdrawn at any time without tax or penalty, which makes a Roth a reasonable backstop for a first car or a college semester. Better to leave it alone, though.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="protect">
+    <p class="eyebrow">If something happens to you</p>
+    <h2>Protecting them: guardians, insurance, beneficiaries</h2>
+    <p class="lede">The most important financial documents for parents aren't investment accounts. They're the ones that decide who raises your children and who manages their money if you can't.</p>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">WILL</div><div><h3>Name a guardian in a will</h3><p>Without one, a court decides who raises your children. Name a guardian and a backup, talk to them first, and consider naming a different person to manage the money if that suits your family. Update it after each birth or big change. Both parents need their own will.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">INSURANCE</div><div><h3>Term life and disability insurance</h3><p>If anyone depends on your income, <a href="/finance/life-insurance-explained.html">term life insurance</a> is usually the cheapest way to replace it until the kids are grown: often 10–12 times income, for a term that lasts until the youngest is independent. A stay-at-home parent needs coverage too, since replacing child care is expensive. <a href="/finance/health-disability.html#disability">Disability insurance</a> protects the paycheck while you're alive.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">BENEFICIARIES</div><div><h3>Don't name a minor directly</h3><p>Life insurance companies and retirement plans can't pay a child under 18 directly; a court would appoint someone to manage the money, and the child would get it all at 18. Instead, name a trust for the children, or a custodian under your state's UTMA law. Beneficiary forms override your will, so check them after every life change.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">SOCIAL SECURITY</div><div><h3>A benefit people forget</h3><p>If a working parent dies, children under 18 (19 if still in high school) can receive Social Security survivor benefits, often a sizable monthly amount. It doesn't replace life insurance, but it's part of the picture (see <a href="/finance/social-security-medicare.html#couples">Social Security &amp; Medicare</a>).</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">On the <a href="/finance/money-river.html">Money River</a>, the Family thread widens in the 30s and 40s, when child care, college saving and protection all compete with your own retirement. On the <a href="/finance/money-roadmap.html#priority-waterfall">Money Roadmap</a>, a 529 is a step 07 "other goal," after your emergency fund, employer match, high-interest debt and your own tax-advantaged retirement savings; life insurance and a will belong in the <a href="/finance/money-roadmap.html#stage-building">Building</a> stage checklist.</p>
+    <div class="next-links">
+      <a href="/finance/which-account.html#accounts"><div class="nl-k">Tier 1 · #2</div><div class="nl-t">Which Account?</div><div class="nl-d">Where the 529 and Trump account sit among your own accounts.</div></a>
+      <a href="/finance/where-to-keep-cash.html#size"><div class="nl-k">Tier 2 · #9</div><div class="nl-t">Where to Keep Your Cash</div><div class="nl-d">A family emergency fund, and where to hold money for near-term goals.</div></a>
+      <a href="/finance/life-insurance-explained.html"><div class="nl-k">Topic 02</div><div class="nl-t">Life Insurance Explained</div><div class="nl-d">How much coverage a parent needs, and why term usually wins.</div></a>
+      <a class="soon" href="/finance/index.html#piece-11"><div class="nl-k">Tier 2 · #11 · coming next</div><div class="nl-t">Turning Savings into a Paycheck</div><div class="nl-d">Your own retirement: the goal that comes before college.</div></a>
+      <a class="soon" href="/finance/index.html#piece-12"><div class="nl-k">Tier 2 · #12</div><div class="nl-t">Estate Planning Essentials</div><div class="nl-d">Wills, trusts and guardianship in more depth.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A family money checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Get your child a Social Security number</h3><p>Usually requested at the hospital. It's needed for the child tax credit, a Trump account, a 529 and any bank account.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Claim the Trump account $1,000 if eligible</h3><p>Children born 2025–2028: file Form 4547 or sign up online. Ask HR whether your employer contributes.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Write wills that name a guardian</h3><p>Both parents, with a backup guardian. Update after each new child.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Buy term life insurance and fix beneficiaries</h3><p>Enough to cover the years until the youngest is independent. Name a trust or UTMA custodian, not a minor.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Use the dependent care FSA at open enrollment</h3><p>Up to $7,500 of child care with pre-tax pay in 2026.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Open a 529 and automate a monthly amount</h3><p>Check your state's deduction first. Share the gifting link with grandparents for birthdays.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Give them money to manage</h3><p>An allowance or paid jobs, save/spend/give jars, then a bank account and debit card as they grow.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Match a teen's first paycheck into a Roth IRA</h3><p>Up to what they earned, and up to $7,500 in 2026.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>Should I save for my kids' college or my own retirement first?</h3><p>Your retirement, at least up to the employer match and ideally your full plan. Students can borrow, work and get grants for college; nobody lends you money to retire. A secure retirement is also a gift to your kids, who won't have to support you.</p></div>
+      <div class="faq-item"><h3>What if my child doesn't go to college?</h3><p>A 529 still has options: trade school and credentials qualify, you can switch it to a sibling or yourself, or roll up to $35,000 into the child's Roth IRA. As a last resort, withdrawing pays income tax plus 10% on the <em>earnings</em> only, not on what you put in.</p></div>
+      <div class="faq-item"><h3>Is a Trump account better than a 529?</h3><p>For education, no: 529 withdrawals for school are tax-free, while Trump account earnings are taxed as income. A Trump account's strength is the free $1,000, employer contributions, and a long-term stock account that can't be spent before 18. Many families will use both.</p></div>
+      <div class="faq-item"><h3>Can grandparents put money in a Trump account or 529?</h3><p>Yes, both. For a 529, grandparent-owned accounts are now invisible to the FAFSA. For a Trump account, anyone can contribute within the $5,000 yearly limit.</p></div>
+      <div class="faq-item"><h3>When should a child get a debit or credit card?</h3><p>A parent-controlled debit card or app works from about age 10 to 12. Adding a responsible teen as an authorized user on your credit card starts their credit history; make sure the card company reports authorized users and that you pay in full.</p></div>
+      <div class="faq-item"><h3>Should I tell my kids how much we earn or have?</h3><p>Share in a way that fits their age. Young kids need to know that money is limited and that choices matter. Teens benefit from seeing a real budget, what college will actually cost the family, and what you expect them to contribute.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>529 plan</dt><dd>A state-sponsored education savings account with tax-free growth for qualified education costs.</dd></div>
+      <div class="gterm"><dt>Trump account</dt><dd>A type of IRA for children under 18, created in 2025, invested in U.S. stock index funds.</dd></div>
+      <div class="gterm"><dt>Pilot contribution</dt><dd>The one-time $1,000 Treasury deposit for eligible children born 2025–2028.</dd></div>
+      <div class="gterm"><dt>Custodial Roth IRA</dt><dd>A Roth IRA for a minor with earned income, managed by an adult until 18–21.</dd></div>
+      <div class="gterm"><dt>UTMA / UGMA</dt><dd>State laws for custodial accounts that hold an irrevocable gift for a child until 18–21.</dd></div>
+      <div class="gterm"><dt>Custodian</dt><dd>The adult who manages a custodial account for the child's benefit.</dd></div>
+      <div class="gterm"><dt>Kiddie tax</dt><dd>Taxing a child's investment income above $2,700 (2026) at the parents' rate.</dd></div>
+      <div class="gterm"><dt>Earned income</dt><dd>Pay from work, as opposed to interest, dividends or gifts.</dd></div>
+      <div class="gterm"><dt>FAFSA</dt><dd>The Free Application for Federal Student Aid.</dd></div>
+      <div class="gterm"><dt>Student Aid Index (SAI)</dt><dd>The FAFSA's measure of what a family can pay, used to award aid.</dd></div>
+      <div class="gterm"><dt>Net price</dt><dd>What college costs after grants and scholarships, as opposed to the sticker price.</dd></div>
+      <div class="gterm"><dt>Superfunding</dt><dd>Putting five years of gift-tax exclusions into a 529 at once.</dd></div>
+      <div class="gterm"><dt>Gift-tax exclusion</dt><dd>What one person can give another each year without filing a gift-tax return: $19,000 in 2026.</dd></div>
+      <div class="gterm"><dt>Guardian</dt><dd>The person named to raise your minor children if you can't.</dd></div>
+      <div class="gterm"><dt>Dependent care FSA</dt><dd>An employer account for paying child care with pre-tax pay.</dd></div>
+      <div class="gterm"><dt>Child tax credit</dt><dd>A tax credit of up to $2,200 per child under 17 in 2026.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>Trump accounts: IRS news release IR-2026-31 (March 6, 2026) on the pilot program and Form 4547; Fidelity, "What are Trump Accounts" (contribution, employer, investment and withdrawal rules); trumpaccounts.gov; enrollment figures and the Dell Foundation pledge from LearningGov (September 2026).</li>
+      <li>529 rule changes (K–12 $20,000 from 2026, credentials, Roth rollover): Savingforcollege.com. 2026 gift-tax exclusion ($19,000) and five-year election: Savingforcollege.com.</li>
+      <li>College prices, 2025–26: College Board, <em>Trends in College Pricing and Student Aid 2025</em>. 2027–28 FAFSA opening (September 23, 2026): The College Investor.</li>
+      <li>Kiddie tax thresholds for 2026 ($1,350 / $2,700): SmartAsset. Child tax credit ($2,200; $1,700 refundable): Jackson Hewitt. IRA limit ($7,500) and 2026 standard deduction ($16,100): IRS 2026 inflation adjustments.</li>
+      <li>Cost of raising a child ($303,418 over 18 years): LendingTree, reported by Fortune (April 2026).</li>
+      <li>Personal finance graduation requirements (30 states, standalone course): Next Gen Personal Finance (April 2026).</li>
+      <li>FAFSA asset treatment of 529s and custodial accounts, Social Security child survivor benefits, and beneficiary rules for minors are long-standing rules. Calculator results are computed on this page.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not legal, tax or investment advice. Trump account rules are new and still being finalized; confirm details at trumpaccounts.gov or with a tax professional. Rules and limits were checked in September 2026.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function full(v){ return (v<0?"−":"") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function short(v){ var a=Math.abs(v); if (a>=1e6) return "$"+(a/1e6).toFixed(a>=1e7?0:1)+"M"; if (a>=1000) return "$"+Math.round(a/1000)+"k"; return "$"+Math.round(a); }
+  function num(v){ v = parseFloat(v); return isFinite(v) && v > 0 ? v : 0; }
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function txt(p, x, y, s, cls, anchor){ var t = el("text", {x:x, y:y, "class":cls||"axis-label", "text-anchor":anchor||"start"}, p); t.textContent = s; return t; }
+  function tooltip(svg, x, y, lines, W, H){
+    var g = el("g", {"class":"tooltip-group"}, svg), t = el("text", {"class":"tooltip-text"}, g);
+    lines.forEach(function(L, i){
+      var ts = el("tspan", {x:0, dy: i ? 16 : 0}, t);
+      if (L.bold) ts.setAttribute("font-weight","600");
+      if (L.color){ ts.textContent = "■ "; ts.setAttribute("style","fill:"+L.color); var t2 = el("tspan", {}, t); t2.textContent = L.t; }
+      else ts.textContent = L.t;
+    });
+    var bb = t.getBBox(), w = bb.width + 16, h = lines.length*16 + 12;
+    var bx = x + 14; if (bx + w > W - 4) bx = x - 14 - w; if (bx < 4) bx = 4;
+    var by = Math.max(4, Math.min(H - 4 - h, y - h/2));
+    g.insertBefore(el("rect", {x:bx, y:by, width:w, height:h, rx:3, "class":"tooltip-bg"}), t);
+    t.setAttribute("transform", "translate("+(bx+8)+","+(by+19)+")");
+    return g;
+  }
+  function niceStep(max){ var raw = max/5, p = Math.pow(10, Math.floor(Math.log10(raw||1))), m = raw/p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10)*p; }
+  function clear(svg){ while (svg.firstChild) svg.removeChild(svg.firstChild); }
+  function hover(svg, L, pw, T, ph, W, H, n, xOf, linesAt, yAnchor){
+    var layer = el("g",{},svg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},svg);
+    function move(e){
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      var i = Math.max(0, Math.min(n, Math.round((p.x-L)/pw*n)));
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      el("line",{x1:xOf(i),x2:xOf(i),y1:T,y2:T+ph,"class":"crosshair"},layer);
+      layer.appendChild(tooltip(svg, xOf(i), yAnchor, linesAt(i), W, H));
+    }
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+  }
+
+  /* ================= Head start ================= */
+  var hsvg = $("chart-head");
+  function headStart(){
+    var seed = num($("h-seed").value), mo = num($("h-mo").value), r = num($("h-ret").value)/100;
+    var g = Math.pow(1+r, 1/12) - 1, bal = seed, put = seed, V = [seed], P = [seed];
+    for (var m=1; m<=65*12; m++){
+      bal *= 1+g;
+      if (m <= 18*12){ bal += mo; put += mo; }
+      if (m % 12 === 0){ V.push(bal); P.push(put); }
+    }
+    var at18 = V[18], at65 = V[65], n25 = 40*12;
+    var af = g > 0 ? (Math.pow(1+g, n25)-1)/g : n25, need25 = at65/af;
+    $("h-tiles").innerHTML =
+      '<div class="tile"><div class="k">At 18</div><div class="v">'+full(at18)+'</div><div class="s">from '+full(P[18])+' put in</div></div>'+
+      '<div class="tile"><div class="k">At 65, untouched</div><div class="v">'+full(at65)+'</div><div class="s">in today\'s dollars</div></div>'+
+      '<div class="tile"><div class="k">Same result starting at 25</div><div class="v">'+full(need25)+'/mo</div><div class="s">every month for 40 years</div></div>';
+    var total25 = need25*n25;
+    $("h-note").innerHTML = P[18] > 0 ? "<strong>"+full(P[18])+" put in during childhood does the work of "+full(total25)+" saved from 25 to 65.</strong> The early dollars simply have decades longer to compound. Showing a teenager this chart is a money lesson in itself." : "Enter a deposit or monthly amount.";
+
+    clear(hsvg);
+    var W=680, H=280, L=58, R=20, T=14, BM=30, pw=W-L-R, ph=H-T-BM;
+    var maxV = Math.max(1, at65, P[65]), st = niceStep(maxV), top = Math.ceil(maxV/st)*st;
+    function x(a){ return L + pw*a/65; }
+    function y(v){ return T + ph - ph*v/top; }
+    for (var t=0; t<=top+1e-9; t+=st){ el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t?"gridline":"zero"},hsvg); txt(hsvg, L-8, y(t)+4, short(t), "axis-label", "end"); }
+    [0,10,18,30,40,50,65].forEach(function(a){ txt(hsvg, x(a), H-10, a ? "Age "+a : "Birth", "axis-label", "middle"); });
+    el("line",{x1:x(18),x2:x(18),y1:T,y2:T+ph,"class":"gridline","stroke-dasharray":"3,3"},hsvg);
+    function path(arr){ return arr.map(function(v,i){ return (i?"L":"M")+x(i).toFixed(1)+","+y(v).toFixed(1); }).join(""); }
+    el("path",{d:path(P), fill:"none", style:"stroke:var(--gold)", "stroke-width":2},hsvg);
+    el("path",{d:path(V), fill:"none", style:"stroke:var(--teal)", "stroke-width":2.5},hsvg);
+    hover(hsvg, L, pw, T, ph, W, H, 65, x, function(a){
+      return [{t:a ? "Age "+a : "Birth", bold:true}, {t:"Account  "+full(V[a]), color:"var(--teal)"}, {t:"Put in  "+full(P[a]), color:"var(--gold)"}];
+    }, T+40);
+  }
+  ["h-seed","h-mo","h-ret"].forEach(function(id){ $(id).addEventListener("input", headStart); });
+  headStart();
+
+  /* ================= College planner ================= */
+  var csvg = $("chart-college");
+  var presets = $("c-presets");
+  presets.addEventListener("click", function(e){
+    var b = e.target.closest("button[data-cost]"); if (!b) return;
+    $("c-cost").value = b.dataset.cost; setPressed(); college();
+  });
+  function setPressed(){
+    var v = String(Math.round(num($("c-cost").value)));
+    presets.querySelectorAll("button").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.cost === v ? "true" : "false"); });
+  }
+  function college(){
+    var cost = num($("c-cost").value), share = Math.min(100, num($("c-share").value))/100, age = Math.max(0, Math.min(17, Math.round(num($("c-age").value))));
+    var have = num($("c-have").value), mo = num($("c-mo").value), r = num($("c-ret").value)/100, inf = num($("c-inf").value)/100;
+    var g = Math.pow(1+r, 1/12) - 1, yrs = 18 - age, n = yrs*12;
+    var goal = 0; for (var k=yrs; k<yrs+4; k++) goal += cost*Math.pow(1+inf, k); goal *= share;
+    var bal = have, S = [have];
+    for (var m=1; m<=n; m++){ bal = bal*(1+g) + mo; if (m % 12 === 0) S.push(bal); }
+    var af = g > 0 ? (Math.pow(1+g, n)-1)/g : n, grownHave = have*Math.pow(1+g, n);
+    var need = Math.max(0, (goal - grownHave)/af), cover = goal > 0 ? bal/goal : 0;
+    $("c-tiles").innerHTML =
+      '<div class="tile"><div class="k">Goal at 18</div><div class="v">'+full(goal)+'</div><div class="s">'+Math.round(share*100)+'% of 4 years, future dollars</div></div>'+
+      '<div class="tile"><div class="k">Projected at 18</div><div class="v" style="color:'+(cover >= 1 ? 'var(--teal)' : 'var(--ink)')+'">'+full(bal)+'</div><div class="s">'+(goal > 0 ? Math.round(cover*100)+'% of your goal' : '—')+'</div></div>'+
+      '<div class="tile"><div class="k">Monthly to reach the goal</div><div class="v">'+full(need)+'</div><div class="s">'+(need <= 0 ? 'already on track' : (need > mo ? full(need-mo)+' more than now' : 'less than you\'re saving'))+'</div></div>';
+    var note;
+    if (goal <= 0) note = "Enter a yearly cost and the share you want savings to cover.";
+    else if (cover >= 1) note = "<strong>You're on track.</strong> Projected savings cover your goal. Money beyond it could go to your own retirement, or stay in the 529 for graduate school, a sibling, or a later Roth IRA rollover.";
+    else note = "<strong>You're on track for about "+Math.round(cover*100)+"% of your goal.</strong> The gap of "+full(goal-bal)+" could come from a higher monthly amount, family gifts to the 529, income during the college years, a less expensive school, or aid. Don't let this goal crowd out your own retirement savings.";
+    $("c-note").innerHTML = note;
+
+    clear(csvg);
+    var W=680, H=280, L=58, R=86, T=14, BM=30, pw=W-L-R, ph=H-T-BM;
+    var maxV = Math.max(1, goal, bal), st = niceStep(maxV), top = Math.ceil(maxV*1.05/st)*st;
+    function x(i){ return L + pw*i/Math.max(1, yrs); }
+    function y(v){ return T + ph - ph*v/top; }
+    for (var t=0; t<=top+1e-9; t+=st){ el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t?"gridline":"zero"},csvg); txt(csvg, L-8, y(t)+4, short(t), "axis-label", "end"); }
+    var every = yrs > 12 ? 3 : yrs > 6 ? 2 : 1;
+    for (var i=0; i<=yrs; i++) if (i % every === 0 || i === yrs) txt(csvg, x(i), H-10, (i===0 ? "Now ("+age+")" : "Age "+(age+i)), "axis-label", "middle");
+    if (goal > 0){
+      el("line",{x1:L,x2:W-R,y1:y(goal),y2:y(goal),style:"stroke:var(--gold)","stroke-width":2,"stroke-dasharray":"6,4"},csvg);
+      txt(csvg, W-R+6, y(goal)+4, "Goal", "direct-label").setAttribute("style","fill:var(--gold)");
+    }
+    el("path",{d:S.map(function(v,i){ return (i?"L":"M")+x(i).toFixed(1)+","+y(v).toFixed(1); }).join(""), fill:"none", style:"stroke:var(--teal)", "stroke-width":2.5},csvg);
+    el("circle",{cx:x(yrs), cy:y(bal), r:4, style:"fill:var(--teal)"},csvg);
+    txt(csvg, W-R+6, y(bal)+(Math.abs(y(bal)-y(goal)) < 14 ? (y(bal) > y(goal) ? 12 : -6) : 4), short(bal), "direct-label").setAttribute("style","fill:var(--teal)");
+    hover(csvg, L, pw, T, ph, W, H, yrs, x, function(i){
+      return [{t:(i===0 ? "Now, age " : "Age ")+(age+i), bold:true}, {t:"Projected  "+full(S[i]), color:"var(--teal)"}, {t:"Goal at 18  "+full(goal), color:"var(--gold)"}];
+    }, T+40);
+  }
+  ["c-cost","c-share","c-age","c-have","c-mo","c-ret","c-inf"].forEach(function(id){ $(id).addEventListener("input", function(){ if (id === "c-cost") setPressed(); college(); }); });
+  college();
+})();
+</script>
+</body>
+</html>
