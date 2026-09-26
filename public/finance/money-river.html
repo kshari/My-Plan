@@ -67,7 +67,7 @@ section{margin:64px 0;}
 .river-title{font-family:"Newsreader",serif; font-weight:600; font-size:17px;}
 .river-hint{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-faint);}
 .river-svg-wrap{overflow-x:auto; border-radius:3px;}
-svg.river{display:block; width:100%; height:auto; min-width:980px;}
+svg.river{display:block; width:100%; height:auto; min-width:1040px;}
 .axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
 .lane-label{font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; fill:var(--ink);}
 .gridline{stroke:var(--rule); stroke-width:1;}
@@ -77,6 +77,9 @@ svg.river{display:block; width:100%; height:auto; min-width:980px;}
 .heir-label{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:12.5px; fill:var(--ink);}
 .marker-dot{cursor:pointer; stroke:var(--paper-raised); stroke-width:1.5; pointer-events:none;}
 .marker-hit{fill:transparent; cursor:pointer;}
+.marker-label{font-family:"Public Sans",sans-serif; font-size:14px; font-weight:600; fill:var(--ink); cursor:pointer; stroke:var(--paper-raised); stroke-width:4px; stroke-linejoin:round; paint-order:stroke fill;}
+.marker-label .ml-age{font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500; fill:var(--ink-faint);}
+.marker-leader{stroke:var(--ink-faint); stroke-width:1; fill:none;}
 .tooltip-group{pointer-events:none;}
 .tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
 .tooltip-title{font-family:"Newsreader",serif; font-weight:600; font-size:13px; fill:var(--ink);}
@@ -114,7 +117,7 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   <header class="masthead">
     <p class="eyebrow">Financial Education — One Chart · Part of Personal Finance Library</p>
     <h1>The Money River</h1>
-    <p class="subtitle">One life, one chart: pocket money at five to an estate settled at the end, with everything in between — income, savings, debt, insurance, investing, a home, a family, and finally what's left to pass on. Eight threads run the whole way; each one thickens, thins, and disappears exactly when the underlying thing does. Hover or tap any dot for the story behind it.</p>
+    <p class="subtitle">One life, one chart: pocket money at five to an estate settled at the end, with everything in between — income, savings, debt, insurance, investing, a home, a family, and finally what's left to pass on. Eight threads run the whole way; each one thickens, thins, and disappears exactly when the underlying thing does. Every dot is labeled; hover or tap one (or its label) for the story behind it.</p>
 
     <div class="tldr">
       <p class="eyebrow" style="margin:0 0 8px;">How to read it</p>
@@ -126,9 +129,9 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
     <div class="river-card">
       <div class="river-head">
         <div class="river-title">One lifetime, eight threads — age 5 to estate transfer</div>
-        <div class="river-hint">hover or tap a dot for detail</div>
+        <div class="river-hint">hover or tap any label for detail</div>
       </div>
-      <div class="river-svg-wrap"><svg class="river" id="money-river-svg" viewBox="0 0 1550 560" preserveAspectRatio="xMinYMin meet" role="img" aria-label="A braided timeline from age 5 to death showing eight overlapping financial threads — income, cash savings, debt, insurance, investing, major assets, family, and estate — each widening and narrowing as it becomes more or less active over a lifetime, ending with the estate forking into two heirs."></svg></div>
+      <div class="river-svg-wrap"><svg class="river" id="money-river-svg" viewBox="0 0 1550 616" preserveAspectRatio="xMinYMin meet" role="img" aria-label="A braided timeline from age 5 to death showing eight overlapping financial threads — income, cash savings, debt, insurance, investing, major assets, family, and estate — each widening and narrowing as it becomes more or less active over a lifetime, ending with the estate forking into two heirs."></svg></div>
       <div class="river-foot">Illustrative widths, not to a dollar scale. One representative life path — see the FAQ below for what varies for other paths.</div>
     </div>
   </section>
@@ -196,12 +199,12 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   }
 
   // ---------------- geometry ----------------
-  var W = 1550, H = 560;
+  var W = 1550, H = 616;
   var PAD_L = 150, AGE_MIN = 0, AGE_MAX = 93;
   var PX_PER_YEAR = (W - PAD_L - 60) / (AGE_MAX - AGE_MIN);
   function x(age){ return PAD_L + (age - AGE_MIN) * PX_PER_YEAR; }
 
-  var TOP = 54, TRACK_H = 58;
+  var TOP = 54, TRACK_H = 66;
   var LANES = [
     {id:"income",    label:"Income & Career",          color:"var(--lane-income)",    track:0},
     {id:"cash",      label:"Cash & Emergency Fund",    color:"var(--lane-cash)",      track:1},
@@ -338,34 +341,34 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
 
   // ---------------- milestones ----------------
   var MILESTONES = [
-    [5,"income","First allowance","Pocket money — the first exposure to deciding what to do with money of your own."],
-    [16,"income","First job","A part-time job brings a real paycheck, and the first payroll taxes."],
-    [18,"debt","First credit card","Used carefully and paid in full each month, it starts the credit-history clock."],
-    [22,"income","Full-time career begins","Income steps up meaningfully; most of the other threads below start around here too."],
-    [22,"insurance","Employer health insurance","Often the first real insurance decision, bundled with a first full-time job."],
-    [22,"investing","401(k) enrollment","Contributing enough to capture the full employer match — the earliest high-priority step."],
-    [24,"cash","Starter emergency fund","A first $1,000–$2,000 cushion, built before tackling anything else."],
-    [26,"debt","Student loans paid off","Aggressive early payoff of higher-rate education debt."],
-    [28,"family","Marriage","Two incomes and two sets of debts and benefits — usually the first real combined-finances conversation."],
-    [30,"assets","Buys first home","A 20% down payment avoids private mortgage insurance."],
-    [30,"debt","Mortgage begins","The largest debt most people ever carry, amortizing over 15–30 years."],
-    [30,"estate","First will & beneficiary forms","Naming a guardian for future children and who inherits what — done proactively."],
-    [32,"family","First child","Dependents change almost every other thread: insurance, taxes, savings goals."],
-    [32,"insurance","Term life insurance","Sized to replace lost income for as long as a dependent would need it."],
-    [32,"investing","529 education savings","Started small and early rather than funded all at once later."],
-    [35,"cash","Full emergency fund","Three to six months of essential expenses, fully liquid."],
-    [40,"income","Peak earning years begin","Typically the highest-income, highest-savings-rate stretch of a career."],
-    [45,"insurance","Umbrella policy added","Extra liability coverage once net worth is meaningful."],
-    [50,"investing","Catch-up contributions","Extra 401(k)/IRA room opens at 50, and a larger “super” catch-up from 60–63."],
-    [50,"estate","Will, POA & healthcare proxy updated","Revisited as kids grow, income changes, or the family moves."],
-    [55,"debt","Mortgage paid off","The largest recurring expense of the last 25 years disappears."],
-    [58,"family","Kids financially independent","The household shrinks; insurance and savings targets shift with it."],
-    [62,"income","Earliest Social Security claiming age","Only 70% of the full benefit if claimed now instead of at Full Retirement Age — a permanent reduction."],
-    [65,"insurance","Medicare begins","A separate seven-month enrollment window around 65 — missing it means a lifelong late penalty."],
-    [67,"income","Retires; claims Social Security","At Full Retirement Age (67 for anyone born 1960+), paying 100% of the calculated benefit."],
-    [67,"investing","Accumulation flips to decumulation","The portfolio's job changes from growing to generating income built to last an unknown number of years."],
-    [75,"investing","Required Minimum Distributions begin","Mandatory annual withdrawals from traditional accounts, starting at 73 or 75 depending on birth year."],
-    [80,"insurance","Long-term care costs","Medicare covers only limited stays — a cost many end up self-funding or insuring separately."]
+    [5,"income","First allowance","Pocket money — the first exposure to deciding what to do with money of your own.","Allowance"],
+    [16,"income","First job","A part-time job brings a real paycheck, and the first payroll taxes.","First job"],
+    [18,"debt","First credit card","Used carefully and paid in full each month, it starts the credit-history clock.","First credit card"],
+    [22,"income","Full-time career begins","Income steps up meaningfully; most of the other threads below start around here too.","Full-time career"],
+    [22,"insurance","Employer health insurance","Often the first real insurance decision, bundled with a first full-time job.","Health insurance"],
+    [22,"investing","401(k) enrollment","Contributing enough to capture the full employer match — the earliest high-priority step.","401(k) + match"],
+    [24,"cash","Starter emergency fund","A first $1,000–$2,000 cushion, built before tackling anything else.","Starter emergency fund"],
+    [26,"debt","Student loans paid off","Aggressive early payoff of higher-rate education debt.","Student loans paid off"],
+    [28,"family","Marriage","Two incomes and two sets of debts and benefits — usually the first real combined-finances conversation.","Marriage"],
+    [30,"assets","Buys first home","A 20% down payment avoids private mortgage insurance.","First home"],
+    [30,"debt","Mortgage begins","The largest debt most people ever carry, amortizing over 15–30 years.","Mortgage"],
+    [30,"estate","First will & beneficiary forms","Naming a guardian for future children and who inherits what — done proactively.","First will"],
+    [32,"family","First child","Dependents change almost every other thread: insurance, taxes, savings goals.","First child"],
+    [32,"insurance","Term life insurance","Sized to replace lost income for as long as a dependent would need it.","Term life"],
+    [32,"investing","529 education savings","Started small and early rather than funded all at once later.","529 college plan"],
+    [35,"cash","Full emergency fund","Three to six months of essential expenses, fully liquid.","Full emergency fund"],
+    [40,"income","Peak earning years begin","Typically the highest-income, highest-savings-rate stretch of a career.","Peak earning years"],
+    [45,"insurance","Umbrella policy added","Extra liability coverage once net worth is meaningful.","Umbrella policy"],
+    [50,"investing","Catch-up contributions","Extra 401(k)/IRA room opens at 50, and a larger “super” catch-up from 60–63.","Catch-up contributions"],
+    [50,"estate","Will, POA & healthcare proxy updated","Revisited as kids grow, income changes, or the family moves.","Estate docs updated"],
+    [55,"debt","Mortgage paid off","The largest recurring expense of the last 25 years disappears.","Mortgage paid off"],
+    [58,"family","Kids financially independent","The household shrinks; insurance and savings targets shift with it.","Kids independent"],
+    [62,"income","Earliest Social Security claiming age","Only 70% of the full benefit if claimed now instead of at Full Retirement Age — a permanent reduction.","Earliest Social Security"],
+    [65,"insurance","Medicare begins","A separate seven-month enrollment window around 65 — missing it means a lifelong late penalty.","Medicare"],
+    [67,"income","Retires; claims Social Security","At Full Retirement Age (67 for anyone born 1960+), paying 100% of the calculated benefit.","Retire + Social Security"],
+    [67,"investing","Accumulation flips to decumulation","The portfolio's job changes from growing to generating income built to last an unknown number of years.","Start withdrawals"],
+    [75,"investing","Required Minimum Distributions begin","Mandatory annual withdrawals from traditional accounts, starting at 73 or 75 depending on birth year.","RMDs begin"],
+    [80,"insurance","Long-term care costs","Medicare covers only limited stays — a cost many end up self-funding or insuring separately.","Long-term care"]
   ];
 
   // ---------------- shared tooltip ----------------
@@ -407,8 +410,10 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   function hideTooltip(){ tip.setAttribute("opacity", 0); }
   bgRect.addEventListener("click", hideTooltip);
 
+  var labelLayer = el("g", {});
+  var markers = [];
   MILESTONES.forEach(function(m){
-    var age = m[0], laneId = m[1], title = m[2], detail = m[3];
+    var age = m[0], laneId = m[1], title = m[2], detail = m[3], shortLabel = m[4];
     var lane = laneById[laneId];
     var px = x(age), py = lane.centerY;
     var hit = el("circle", {cx:px, cy:py, r:9, class:"marker-hit"});
@@ -417,13 +422,74 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
     titleEl.textContent = "Age " + age + " — " + title;
     hit.appendChild(titleEl);
     function show(){ showTooltip(px, py, "AGE " + age, title, detail); }
-    hit.addEventListener("mouseenter", show);
-    hit.addEventListener("mouseleave", hideTooltip);
-    hit.addEventListener("click", function(e){ e.stopPropagation(); show(); });
-    hit.addEventListener("touchstart", function(e){ e.preventDefault(); e.stopPropagation(); show(); }, {passive:false});
+    [hit].forEach(function(t){
+      t.addEventListener("mouseenter", show);
+      t.addEventListener("mouseleave", hideTooltip);
+      t.addEventListener("click", function(e){ e.stopPropagation(); show(); });
+      t.addEventListener("touchstart", function(e){ e.preventDefault(); e.stopPropagation(); show(); }, {passive:false});
+    });
     svg.appendChild(hit);
     svg.appendChild(dot);
+    markers.push({age:age, px:px, py:py, text:shortLabel, show:show});
   });
+  svg.appendChild(labelLayer);
+
+  // ---------------- always-visible labels ----------------
+  // Each dot gets a short label. Placement is greedy, left to right: try beside
+  // the dot (right, then left), level with it, then nudged up or down, and keep
+  // the first spot that doesn't collide with another label, a dot, the lane
+  // names on the left, or the chart edges. A thin leader joins nudged labels.
+  function overlaps(a, b){ return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y; }
+  function placeLabels(){
+    while (labelLayer.firstChild) labelLayer.removeChild(labelLayer.firstChild);
+    var taken = [];
+    markers.forEach(function(mk){ taken.push({x:mk.px-6, y:mk.py-6, w:12, h:12}); });
+    taken.push({x:0, y:0, w:PAD_L-4, h:H});                       // lane names
+    taken.push({x:x(85)-70, y:0, w:140, h:TOP-12});               // death label
+    taken.push({x:xEnd, y:estateLane.centerY-30, w:W-xEnd, h:60}); // heir labels
+    var order = markers.slice().sort(function(a,b){ return a.age-b.age || a.py-b.py; });
+    order.forEach(function(mk){
+      var t = el("text", {class:"marker-label", "dominant-baseline":"central"});
+      t.textContent = mk.text;
+      labelLayer.appendChild(t);
+      t.setAttribute("x", 0); t.setAttribute("y", 0);
+      var bb = t.getBBox(), w = bb.width, h = Math.max(15, bb.height);
+      var cands = [];
+      [0, -17, 17, -28, 28].forEach(function(dy){
+        cands.push({side:"R", dy:dy}); cands.push({side:"L", dy:dy});
+      });
+      var pick = null;
+      for (var i=0;i<cands.length;i++){
+        var c = cands[i];
+        var gap = c.dy === 0 ? 8 : 5;
+        var lx = c.side === "R" ? mk.px + gap : mk.px - gap - w;
+        var box = {x:lx-2, y:mk.py + c.dy - h/2, w:w+4, h:h};
+        if (box.x < PAD_L || box.x + box.w > W - 4 || box.y < TOP - 8 || box.y + box.h > H - 2) continue;
+        var clash = taken.some(function(o){ return overlaps(box, o); });
+        if (!clash){ pick = {c:c, lx:lx, box:box}; break; }
+      }
+      if (!pick){ // fall back to right/level; should not happen with the current data
+        var lx0 = mk.px + 8;
+        pick = {c:{side:"R", dy:0}, lx:lx0, box:{x:lx0-2, y:mk.py-h/2, w:w+4, h:h}};
+      }
+      t.setAttribute("x", pick.lx.toFixed(1));
+      t.setAttribute("y", (mk.py + pick.c.dy).toFixed(1));
+      if (pick.c.side === "L") { t.setAttribute("text-anchor","start"); }
+      if (pick.c.dy !== 0){
+        var ex = pick.c.side === "R" ? pick.lx - 1 : pick.lx + w + 1;
+        var leader = el("path", {class:"marker-leader",
+          d:"M "+mk.px.toFixed(1)+" "+(mk.py + (pick.c.dy<0?-4:4)).toFixed(1)+" L "+ex.toFixed(1)+" "+(mk.py+pick.c.dy).toFixed(1)});
+        labelLayer.insertBefore(leader, t);
+      }
+      t.addEventListener("mouseenter", mk.show);
+      t.addEventListener("mouseleave", hideTooltip);
+      t.addEventListener("click", function(e){ e.stopPropagation(); mk.show(); });
+      taken.push(pick.box);
+      t.dataset.box = JSON.stringify(pick.box);
+    });
+  }
+  placeLabels();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeLabels);
 
   svg.appendChild(tip); // tooltip drawn last, on top
 
