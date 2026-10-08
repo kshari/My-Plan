@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Money Behavior</title>
+<meta name="description" content="Money Behavior: the investor behavior gap, mental shortcuts that cost money, a money-instincts quiz, staying calm in market drops, and systems that make good habits automatic.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ---- Sales pitch additions ---- */
+.pitch{border-top:1px solid var(--rule); padding:24px 0;}
+.pitch:last-child{border-bottom:1px solid var(--rule);}
+.pitch-claim{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px; color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold); padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;}
+.reality-tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--rust); font-weight:600; display:block; margin-bottom:6px;}
+.pitch p{font-size:15.5px;}
+.pitch .ask{font-size:14.5px; color:var(--ink-soft); margin-top:8px;}
+.pitch .ask strong{color:var(--teal); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-right:6px;}
+.flags{display:flex; flex-direction:column; margin-top:8px;}
+.flag{display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:start; padding:11px 4px; border-top:1px solid var(--rule); cursor:pointer; font-size:14.5px; line-height:1.5;}
+.flag:last-child{border-bottom:1px solid var(--rule);}
+.flag input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--rust); cursor:pointer;}
+.flag:hover{background:var(--ink-wash);}
+.flag.on{background:var(--rust-wash);}
+.flag small{display:block; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+.meter{display:flex; gap:4px; margin:14px 0 8px;}
+.meter i{flex:1; height:10px; border-radius:3px; background:var(--ink-wash);}
+.meter i.on{background:var(--rust);}
+.verdict-box{padding:14px 16px; border-radius:3px; border-left:3px solid var(--teal); background:var(--teal-wash); font-size:15px; line-height:1.6;}
+.verdict-box.warn{border-left-color:var(--gold); background:var(--gold-wash);}
+.verdict-box.stop{border-left-color:var(--rust); background:var(--rust-wash);}
+.paymodel{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px;}
+@media (max-width:760px){ .paymodel{grid-template-columns:1fr 1fr} }
+@media (max-width:460px){ .paymodel{grid-template-columns:1fr} }
+.pm{background:var(--paper-raised); border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:16px; box-shadow:var(--shadow);}
+.pm .k{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.pm h3{font-style:normal; font-size:17px; margin:4px 0 6px;}
+.pm p{font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 8px;}
+.pm .nudge{font-size:12.5px; color:var(--ink); border-top:1px dotted var(--rule); padding-top:8px; margin:0;}
+.pm .nudge b{display:block; margin-bottom:2px; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-right:4px;}
+
+/* ---- Health & disability additions ---- */
+.plan-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:8px 0 16px;}
+@media (max-width:620px){ .plan-grid{grid-template-columns:1fr} }
+.plan-box{border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:12px 14px 14px; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; background:var(--paper);}
+.plan-box legend{font:600 11px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 6px;}
+@media (max-width:380px){ .plan-box{grid-template-columns:1fr} }
+.win-a{color:var(--gold); font-weight:600;}
+.win-b{color:var(--teal); font-weight:600;}
+.flow.four{grid-template-columns:repeat(4,1fr);}
+@media (max-width:680px){ .flow.four{grid-template-columns:1fr} }
+.plan-box{align-content:start;}
+.plan-box .field{display:flex; flex-direction:column; justify-content:flex-end;}
+
+/* ---- Credit & debt additions ---- */
+.debt-table{min-width:560px;}
+.debt-table td{padding:6px 8px; text-align:left;}
+.debt-table th{text-align:left;}
+.debt-table input{width:100%; font:500 13.5px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:6px 8px;}
+.debt-table input:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.debt-table tbody tr:last-child td{font-weight:400; border-bottom:1px solid var(--rule);}
+.btn-small{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:7px 14px; cursor:pointer;}
+.btn-small:hover{color:var(--ink); border-color:var(--ink-faint);}
+.rm{font:600 14px "IBM Plex Mono",monospace; color:var(--ink-faint); background:none; border:0; cursor:pointer; padding:4px 8px;}
+.rm:hover{color:var(--rust);}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Across every thread · Part of Personal Finance Library</p>
+    <h1>Money Behavior: Biases, Habits and Staying Calm When Markets Drop</h1>
+    <p class="subtitle">Why knowing what to do isn't the hard part, the mental shortcuts that quietly cost money, what happens when investors flinch in a downturn, and how to build systems that make good decisions automatic. A short quiz and a calculator use your own answers.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Most money mistakes aren't knowledge problems; they're behavior problems. Over the 10 years to 2024, the average dollar in U.S. funds earned about <strong>1.2 percentage points a year less</strong> than the funds themselves, roughly 15% of the return, mostly from buying and selling at the wrong times (Morningstar). Stocks drop by an average of about <strong>14%</strong> at some point in a typical year, yet finished positive in <strong>35 of the last 46</strong> years, and the best days tend to come right after the worst ones. The fix isn't more willpower; it's <strong>systems</strong>: automatic saving and raises, a simple diversified portfolio, a cash cushion, written rules made in calm moments, and a pause before any big or urgent decision.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#gap">The behavior gap</a>
+      <a href="#biases">Mental shortcuts that cost money</a>
+      <a href="#quiz">Which ones trip you up? (quiz)</a>
+      <a href="#downturns">Staying calm when markets drop</a>
+      <a href="#gap-calc">What the gap costs over time (calculator)</a>
+      <a href="#systems">Systems beat willpower</a>
+      <a href="#rules">Write your rules while you're calm</a>
+      <a href="#together">Money and the people you share it with</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A money habits checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="gap">
+    <p class="eyebrow">Start here</p>
+    <h2>The behavior gap</h2>
+    <p class="lede">A fund's published return assumes you bought at the start and held to the end. Real investors add money after good stretches and pull it out after bad ones, so the return they actually earn is lower. Morningstar measures this every year.</p>
+    <div class="tiles">
+      <div class="tile"><div class="k">Funds returned</div><div class="v">8.2% a year</div><div class="s">10 years to Dec 2024</div></div>
+      <div class="tile"><div class="k">Investors earned</div><div class="v">7.0% a year</div><div class="s">the average dollar invested</div></div>
+      <div class="tile"><div class="k">Left on the table</div><div class="v" style="color:var(--rust)">~15%</div><div class="s">of the total return</div></div>
+    </div>
+    <p style="margin-top:14px;">The gap was smallest where investors held steady by design: people in allocation funds, such as balanced and target-date funds, captured about 97% of their funds' returns. It was largest in volatile, narrow funds that tempt people to trade. In Morningstar's words, mistimed trading costs about as much as fund fees, so trade as little as possible. (Some researchers argue the study overstates the cost; the direction of the lesson isn't in dispute.)</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="biases">
+    <p class="eyebrow">Your brain on money</p>
+    <h2>Mental shortcuts that cost money</h2>
+    <p class="lede">These shortcuts helped our ancestors survive; in modern finance they usually backfire. Everyone has them, including professionals. Naming them is the first step to working around them.</p>
+    <div class="tbl-wrap compare wide-compare">
+      <table>
+        <thead><tr><th>Bias</th><th>What it sounds like</th><th>What it costs</th><th>The work-around</th></tr></thead>
+        <tbody>
+          <tr><td>Loss aversion</td><td>"I can't sell at a loss." "I'll wait until it gets back to what I paid."</td><td>Losses feel about twice as painful as equal gains feel good, so we hold losers too long and hide in cash too long</td><td>Judge each holding by what you'd buy today, not what you paid</td></tr>
+          <tr><td>Present bias</td><td>"I'll start saving next year."</td><td>Years of lost compounding</td><td>Automate saving now; let raises fund the increases</td></tr>
+          <tr><td>Recency and herding</td><td>"Everyone's buying this." "It's different this time."</td><td>Buying high after a run-up, selling low in a panic</td><td>Rebalance on a calendar; ignore the hot list</td></tr>
+          <tr><td>Overconfidence</td><td>"I can pick the winners." "I'll get out before it drops."</td><td>Excess trading, taxes, concentration</td><td>Keep a small "fun money" slice for picks; index the rest</td></tr>
+          <tr><td>Anchoring</td><td>"The house was worth $500,000 two years ago."</td><td>Overpriced sales that don't sell; bad negotiating</td><td>Use current, independent data</td></tr>
+          <tr><td>Mental accounting</td><td>"This is just bonus money." Keeping savings at 0.5% while carrying a 22% card</td><td>Paying more interest than you earn</td><td>Look at your whole balance sheet together</td></tr>
+          <tr><td>Sunk cost</td><td>"I've already paid so much into this policy."</td><td>Throwing good money after bad</td><td>Only future costs and benefits matter</td></tr>
+          <tr><td>Lifestyle creep</td><td>Every raise becomes a nicer car, a bigger place</td><td>Higher income, same savings rate, no freedom</td><td>Save at least half of each raise automatically</td></tr>
+          <tr><td>Urgency and scarcity</td><td>"Only today." "Spots are limited."</td><td>Rushed decisions, sales pitches, scams</td><td>Any deadline you didn't set is a reason to wait. See <a href="/finance/scams-fraud.html#playbook">Scams</a>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="quiz">
+    <p class="eyebrow">Know yourself</p>
+    <h2>Which ones trip you up?</h2>
+    <p class="lede">Six quick scenarios. Pick the answer closest to what you'd really do, not what you think you should do.</p>
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Money instincts quiz</div><div class="legend" id="q-progress"></div></div>
+      <div id="q-list"></div>
+      <div class="raise" id="q-result"></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="downturns">
+    <p class="eyebrow">The real test</p>
+    <h2>Staying calm when markets drop</h2>
+    <p class="lede">Downturns aren't a sign that something is broken; they're the price of stocks' higher long-run returns. Since 1980, the S&amp;P 500 has fallen an average of <strong>14.2%</strong> from its high at some point during the year, yet ended the year higher in <strong>35 of 46</strong> years.</p>
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">$10,000 in the S&amp;P 500, July 2004 to July 2024</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--teal)"></i>Stayed invested</span><span><i class="swatch" style="background:var(--rust)"></i>Missed the best days</span></div>
+      </div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-days" viewBox="0 0 680 230" role="img" aria-label="Bar chart of the ending value of $10,000 invested for 20 years, fully invested versus missing the 10, 20 or 30 best days."></svg></div>
+      <div class="chart-foot">J.P. Morgan Asset Management analysis of S&amp;P 500 total returns: 10.5% a year fully invested, 6.2% missing the 10 best days, 3.6% missing the 20 best and 1.4% missing the 30 best. Ending values are calculated from those annualized returns.</div>
+    </div>
+    <p style="margin-top:18px;">Over those 20 years, <strong>seven of the 10 best days came within 15 days of the 10 worst days</strong>. Selling to "wait it out" usually means missing the rebound. What helps in the moment:</p>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">CASH</div><div><h3>Keep near-term money out of stocks</h3><p>An emergency fund and any money you need within about five years belong in cash and bonds, so a crash never forces a sale. See <a href="/finance/where-to-keep-cash.html#jobs">Where to Keep Your Cash</a> and, in retirement, the <a href="/finance/retirement-paycheck.html#buckets">bucket approach</a>.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">LOOK LESS</div><div><h3>Check less often</h3><p>Daily, stocks fall almost half the time; over a decade, rarely. Looking monthly or quarterly means seeing fewer losses and making fewer bad trades. Delete trading apps from your phone's home screen.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">REBALANCE</div><div><h3>Rebalance instead of reacting</h3><p>Once a year, or when your stock share drifts more than about 5 percentage points, sell some of what rose and buy what fell. It turns a downturn into a disciplined "buy low."</p></div></div>
+    <div class="lever-row"><div class="lever-tag">KEEP GOING</div><div><h3>Keep contributing</h3><p>Regular 401(k) contributions buy more shares when prices are low. For someone still working, a downturn is a sale.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="gap-calc">
+    <p class="eyebrow">Small leaks, long time</p>
+    <h2>What the gap costs over time</h2>
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Same fund, same savings, different behavior</div>
+        <div class="legend"><span><i class="swatch" style="background:var(--teal)"></i>Steady investor</span><span><i class="swatch" style="background:var(--rust)"></i>With the behavior gap</span></div>
+      </div>
+      <div class="planner">
+        <div class="field"><label for="b-mo">Invested each month</label><input id="b-mo" type="number" min="0" step="50" value="500" inputmode="numeric"></div>
+        <div class="field"><label for="b-yrs">Years</label><input id="b-yrs" type="number" min="1" max="50" step="1" value="30" inputmode="numeric"></div>
+        <div class="field"><label for="b-ret">Fund's return (%)</label><input id="b-ret" type="number" min="0" max="15" step="0.1" value="8.2" inputmode="decimal"></div>
+        <div class="field"><label for="b-gap">Behavior gap (percentage points)</label><input id="b-gap" type="number" min="0" max="5" step="0.1" value="1.2" inputmode="decimal"></div>
+      </div>
+      <div class="tiles" id="b-tiles"></div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-gap" viewBox="0 0 680 260" role="img" aria-label="Line chart of savings growth for a steady investor versus one with the behavior gap."></svg></div>
+      <div class="raise" id="b-note"></div>
+      <div class="chart-foot">Defaults use Morningstar's 10-year figures (8.2% fund returns, a 1.2-point gap). Returns are steady and before taxes; real markets are bumpy, and a gap of this size isn't guaranteed in either direction.</div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="systems">
+    <p class="eyebrow">Design, not discipline</p>
+    <h2>Systems beat willpower</h2>
+    <p class="lede">The most powerful evidence in personal finance is about defaults. At Vanguard-run plans in 2025, <strong>94%</strong> of workers who were enrolled automatically took part, against <strong>64%</strong> in plans where they had to sign up. Same people, different default. Use that on yourself.</p>
+    <div class="flow four">
+      <div class="flow-step"><span class="n">1</span><h3>Pay yourself first</h3><p>Savings come out of the paycheck before you see it: the 401(k), the HSA, an automatic transfer to savings on payday.</p></div>
+      <div class="flow-step"><span class="n">2</span><h3>Automate increases</h3><p>Auto-escalate your 401(k) by 1% a year, and save half of every raise before it hits checking.</p></div>
+      <div class="flow-step"><span class="n">3</span><h3>Simplify choices</h3><p>One target-date or balanced fund, or a three-fund portfolio; fewer accounts; autopay for every bill.</p></div>
+      <div class="flow-step"><span class="n">4</span><h3>Add friction to mistakes</h3><p>A 48-hour wait for big purchases, no saved cards on shopping sites, and selling investments only after talking it over.</p></div>
+    </div>
+    <div class="lever-row" style="margin-top:20px;"><div class="lever-tag">BUCKETS</div><div><h3>Give every dollar a job</h3><p>Separate, named accounts ("Emergency fund," "Car in 2028," "Vacation") make it obvious what money is for and harder to raid. Mental accounting, used on purpose.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">SPENDING</div><div><h3>Spend on what you value, cut the rest</h3><p>Track one month of spending, then keep what genuinely makes you happier and cut what doesn't. Research on happiness points toward experiences, time with people, and buying back time, rather than more stuff.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="rules">
+    <p class="eyebrow">Ulysses and the mast</p>
+    <h2>Write your rules while you're calm</h2>
+    <p class="lede">Decisions made in a panic or a frenzy are rarely good ones. Write a one-page "investment policy" for yourself now, sign it, and read it before making any change in a volatile market.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>Your rule</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td>What I'm saving for, and when</td><td>Retirement at 65; house down payment in 2029</td></tr>
+          <tr><td>My target mix</td><td>80% stocks / 20% bonds now, moving toward 60/40 by retirement</td></tr>
+          <tr><td>When I rebalance</td><td>Every January, or if stocks drift more than 5 points</td></tr>
+          <tr><td>What I won't do</td><td>Sell because of headlines; buy anything I can't explain in two sentences; act on a deadline someone else set</td></tr>
+          <tr><td>Before any big change</td><td>Wait 48 hours and talk to my partner or a fee-only advisor</td></tr>
+          <tr><td>How often I check</td><td>Once a month, on the first Sunday</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="together">
+    <p class="eyebrow">It's rarely just your money</p>
+    <h2>Money and the people you share it with</h2>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">COUPLES</div><div><h3>Talk about money before it becomes a fight</h3><p>Couples often bring different money scripts from how they grew up: one saves for safety, the other spends for joy. A monthly "money date" to look at accounts, goals and upcoming expenses keeps small differences small. Many couples use yours, mine and ours accounts.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">FAMILY</div><div><h3>Set limits on lending and giving</h3><p>Decide in advance how much you can give or lend to family without expecting it back. It protects both the relationship and your plan.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">STRESS</div><div><h3>When money is stressful</h3><p>Avoidance (not opening statements, not checking balances) makes problems bigger. Start with one small step: list your accounts, or call one creditor. A nonprofit credit counselor can help with debt, and if money worries are affecting your sleep, health or relationships, talking to a counselor or doctor helps too.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">Every thread of the <a href="/finance/money-river.html">Money River</a> runs through the same human being. The <a href="/finance/money-roadmap.html">Money Roadmap</a> tells you what to do; this episode is about actually doing it, and not undoing it when emotions run high.</p>
+    <div class="next-links">
+      <a href="/finance/investing-basics.html#baseline"><div class="nl-k">Related</div><div class="nl-t">Investing Basics</div><div class="nl-d">The simple portfolio that's easiest to stick with.</div></a>
+      <a href="/finance/paycheck-benefits.html#retirement"><div class="nl-k">Related</div><div class="nl-t">Paycheck &amp; Benefits</div><div class="nl-d">Automating saving through your paycheck.</div></a>
+      <a href="/finance/retirement-paycheck.html#how-much"><div class="nl-k">Related</div><div class="nl-t">Turning Savings into a Paycheck</div><div class="nl-d">Why a bad market early in retirement matters most.</div></a>
+      <a href="/finance/sales-pitch.html"><div class="nl-k">Related</div><div class="nl-t">Spotting the Sales Pitch</div><div class="nl-d">How sales tactics use the same biases.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A money habits checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Automate saving on payday</h3><p>401(k), HSA and a transfer to savings, before you see the money.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Turn on auto-increase</h3><p>1% a year, timed with raises.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Simplify your portfolio</h3><p>A target-date or balanced fund, or a few broad index funds.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Keep near-term money in cash</h3><p>So a downturn never forces a sale.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Write your one-page rules</h3><p>Target mix, rebalancing date, and what you won't do.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Check accounts monthly, not daily</h3><p>And remove trading apps from your phone's home screen.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Use a 48-hour rule</h3><p>For big purchases and any decision with a deadline someone else set.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Schedule a monthly money date</h3><p>With your partner, or with yourself.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>The market just dropped 20%. Should I sell?</h3><p>If your plan was built for this (money you need soon is in cash and bonds), almost certainly not. Selling locks in the loss, and history says the recovery often starts when it feels worst. If the drop has shown you that you can't stomach your current mix, adjust it gradually after things calm down.</p></div>
+      <div class="faq-item"><h3>Is it ever right to change course?</h3><p>Yes, when your goals, timeline or ability to take risk change: a new job, a home purchase, approaching retirement. The test is whether you'd make the change in a calm market too.</p></div>
+      <div class="faq-item"><h3>Should I wait for a dip before investing a lump sum?</h3><p>Historically, investing all at once has beaten spreading it out about two-thirds of the time, because markets rise more often than they fall. If investing it all at once would keep you up at night, spreading it over 6–12 months is a reasonable compromise.</p></div>
+      <div class="faq-item"><h3>How do I stop impulse spending?</h3><p>Add friction: unsubscribe from store emails, remove saved cards, wait 48 hours, and give yourself a guilt-free "fun money" amount each month so the rest stays protected.</p></div>
+      <div class="faq-item"><h3>Do financial advisors help with behavior?</h3><p>A good one can: much of an advisor's value is talking clients out of panic selling and into consistent saving. Choose a fee-only fiduciary, so the advice isn't tied to selling products. See <a href="/finance/sales-pitch.html">Spotting the Sales Pitch</a>.</p></div>
+      <div class="faq-item"><h3>I'm behind. Is it too late?</h3><p>No. Regret about the past is another bias (it can freeze you); the only decision that matters is the next one. Start with an automatic amount you won't notice, and raise it with every raise.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Behavior gap</dt><dd>The difference between a fund's return and what its investors actually earn because of their timing.</dd></div>
+      <div class="gterm"><dt>Dollar-weighted return</dt><dd>A return that accounts for when money was added or withdrawn; what investors actually earned.</dd></div>
+      <div class="gterm"><dt>Loss aversion</dt><dd>Feeling losses more strongly than equal gains.</dd></div>
+      <div class="gterm"><dt>Present bias</dt><dd>Overvaluing today compared with the future.</dd></div>
+      <div class="gterm"><dt>Recency bias</dt><dd>Expecting recent trends to continue.</dd></div>
+      <div class="gterm"><dt>Herding</dt><dd>Following what others are doing.</dd></div>
+      <div class="gterm"><dt>Anchoring</dt><dd>Relying too much on a first or familiar number.</dd></div>
+      <div class="gterm"><dt>Mental accounting</dt><dd>Treating money differently depending on its source or label.</dd></div>
+      <div class="gterm"><dt>Sunk cost fallacy</dt><dd>Continuing because of what you've already spent.</dd></div>
+      <div class="gterm"><dt>Lifestyle creep</dt><dd>Spending rising as income rises.</dd></div>
+      <div class="gterm"><dt>Rebalancing</dt><dd>Restoring your target mix by selling what rose and buying what fell.</dd></div>
+      <div class="gterm"><dt>Intra-year decline</dt><dd>The biggest drop from a high to a low within a calendar year.</dd></div>
+      <div class="gterm"><dt>Investment policy statement</dt><dd>Your written rules for how you'll invest and when you'll change course.</dd></div>
+      <div class="gterm"><dt>Default</dt><dd>What happens if you do nothing; the most powerful lever in behavior.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>Investor return gap (7.0% vs. 8.2% a year, about 15% of returns; allocation funds captured about 97%): Morningstar, <em>Mind the Gap 2025</em>, via WealthManagement.com. A 2026 <em>Financial Analysts Journal</em> paper disputes the size of the gap.</li>
+      <li>Intra-year declines (average 14.2% since 1980; positive years 35 of 46): J.P. Morgan Asset Management, <em>Guide to the Markets</em>, as of September 30, 2026.</li>
+      <li>Missing the best days (S&amp;P 500, July 2004–July 2024: 10.5%, 6.2%, 3.6% and 1.4% a year; seven of the 10 best days within 15 days of the worst): J.P. Morgan Private Bank.</li>
+      <li>Automatic enrollment (94% vs. 64% participation; 61% of plans): Vanguard <em>How America Saves 2026</em>, via PSCA.</li>
+      <li>Loss aversion (losses felt about twice as strongly): Kahneman and Tversky's prospect theory research. Lump-sum vs. spreading investments: long-standing industry studies (e.g., Vanguard). Calculator results are computed on this page.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not financial, investment or mental health advice. Past market returns don't guarantee future ones. Figures were checked in October 2026.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function full(v){ return (v<0?"−":"") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function short(v){ var a=Math.abs(v); if (a>=1e6) return "$"+(a/1e6).toFixed(1).replace(/\.0$/,"")+"M"; if (a>=1000) return "$"+Math.round(a/1000)+"k"; return "$"+Math.round(a); }
+  function num(v){ v = parseFloat(v); return isFinite(v) && v > 0 ? v : 0; }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function txt(p, x, y, s, cls, anchor){ var t = el("text", {x:x, y:y, "class":cls||"axis-label", "text-anchor":anchor||"start"}, p); t.textContent = s; return t; }
+  function niceStep(max){ var raw = max/5, p = Math.pow(10, Math.floor(Math.log10(raw||1))), m = raw/p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10)*p; }
+  function tooltip(svg, x, y, lines, W, H){
+    var g = el("g", {"class":"tooltip-group"}, svg), t = el("text", {"class":"tooltip-text"}, g);
+    lines.forEach(function(L, i){
+      var ts = el("tspan", {x:0, dy: i ? 16 : 0}, t);
+      if (L.bold) ts.setAttribute("font-weight","600");
+      if (L.color){ ts.textContent = "■ "; ts.setAttribute("style","fill:"+L.color); var t2 = el("tspan", {}, t); t2.textContent = L.t; }
+      else ts.textContent = L.t;
+    });
+    var bb = t.getBBox(), w = bb.width + 16, h = lines.length*16 + 12;
+    var bx = x + 14; if (bx + w > W - 4) bx = x - 14 - w; if (bx < 4) bx = 4;
+    var by = Math.max(4, Math.min(H - 4 - h, y - h/2));
+    g.insertBefore(el("rect", {x:bx, y:by, width:w, height:h, rx:3, "class":"tooltip-bg"}), t);
+    t.setAttribute("transform", "translate("+(bx+8)+","+(by+19)+")");
+    return g;
+  }
+
+  /* ================= Quiz ================= */
+  var BIAS = {
+    loss:"<strong>Loss aversion.</strong> The pain of a loss pushes you to sell low or hold on hoping to break even. Judge every holding by what you'd buy today.",
+    recency:"<strong>Recency.</strong> Recent moves feel like they'll continue. Keep contributing on autopilot; downturns are when steady savers buy cheaply.",
+    anchor:"<strong>Anchoring.</strong> The price you paid doesn't matter to the market. Decide on the outlook from here.",
+    mental:"<strong>Mental accounting.</strong> A dollar is a dollar, whatever its label. Paying off a 22% card is a guaranteed 22% return.",
+    herd:"<strong>Herding.</strong> By the time something is everywhere, much of the gain has usually happened. Keep speculation to a small \"fun money\" slice.",
+    creep:"<strong>Lifestyle creep.</strong> Raises disappear into a bigger lifestyle. Send half of every raise to savings before you see it.",
+    present:"<strong>Present bias.</strong> \"Later\" rarely comes. Start now with an automatic amount, however small."
+  };
+  var Q = [
+    ["Stocks fall 25% in two months, and your 401(k) is down $40,000. You…", [["Sell some or all to stop the bleeding","loss"],["Pause contributions until things recover","recency"],["Keep contributing and stick to the plan",null],["Rebalance by buying more stocks with bond money",null]]],
+    ["A stock you bought at $100 is now $60, and the company's outlook has worsened. You…", [["Hold until it gets back to $100","anchor"],["Buy more: it's 40% off","anchor"],["Sell if you wouldn't buy it today at $60",null]]],
+    ["You get a $5,000 bonus and owe $4,000 on a card at 22%. You…", [["Treat yourself; it's bonus money","mental"],["Put it in savings at 4% and keep paying the card","mental"],["Pay off the card and save the rest",null]]],
+    ["Friends are making a lot on a hot stock or coin. You…", [["Get in before it's too late","herd"],["Put in a small amount you could lose",null],["Stick with your plan",null]]],
+    ["You get a 5% raise. You…", [["Upgrade the car or apartment","creep"],["Raise your 401(k) by at least half the raise",null],["Decide what to do with it later","present"]]],
+    ["You haven't started saving for retirement. You…", [["Start next year, when you'll earn more","present"],["Start now, even with a small automatic amount",null]]]
+  ];
+  var answers = Q.map(function(){ return -1; });
+  $("q-list").innerHTML = Q.map(function(q, i){
+    return '<div role="radiogroup" aria-labelledby="ql-'+i+'" style="padding:12px 0; border-top:1px solid var(--rule);"><p id="ql-'+i+'" style="font-weight:600; font-size:15px; margin:0 0 8px;">'+(i+1)+'. '+esc(q[0])+'</p>'+
+      q[1].map(function(o, j){ return '<label class="check-row" style="margin:6px 0; font-size:14px; cursor:pointer;"><input type="radio" name="q'+i+'" value="'+j+'" style="accent-color:var(--teal)"> '+esc(o[0])+'</label>'; }).join("")+'</div>';
+  }).join("");
+  $("q-list").addEventListener("change", function(e){
+    var m = /^q(\d+)$/.exec(e.target.name || ""); if (!m) return;
+    answers[+m[1]] = +e.target.value; quiz();
+  });
+  function quiz(){
+    var done = answers.filter(function(a){ return a >= 0; }).length, found = {}, steady = 0;
+    answers.forEach(function(a, i){ if (a < 0) return; var b = Q[i][1][a][1]; if (b) found[b] = true; else steady++; });
+    $("q-progress").innerHTML = '<span><b>'+done+'</b> of '+Q.length+' answered</span>';
+    var keys = Object.keys(found), out;
+    if (!done) out = "Answer the questions above to see which money instincts to watch.";
+    else if (!keys.length) out = "<strong>"+(done === Q.length ? "Steady answers on all "+done+"." : "Steady answers so far ("+steady+" of "+done+").")+"</strong> Your instincts line up with long-term habits. The real test is doing the same thing in a scary market, so write your rules down now.";
+    else out = "<strong>"+(done < Q.length ? "So far, " : "")+"watch for "+(keys.length === 1 ? "this bias" : "these "+keys.length+" biases")+":</strong><br>" + keys.map(function(k){ return "• " + BIAS[k]; }).join("<br>") + (steady ? "<br>You gave steady answers on "+steady+" of "+done+"." : "");
+    $("q-result").innerHTML = out;
+  }
+  quiz();
+
+  /* ================= Missing best days ================= */
+  var dsvg = $("chart-days");
+  function days(){
+    while (dsvg.firstChild) dsvg.removeChild(dsvg.firstChild);
+    var narrow = dsvg.parentNode.clientWidth < 520;
+    var rows = [[narrow ? "All days" : "Stayed fully invested", 0.105, "var(--teal)"], [narrow ? "Missed 10" : "Missed the 10 best days", 0.062, "var(--rust)"], [narrow ? "Missed 20" : "Missed the 20 best days", 0.036, "var(--rust)"], [narrow ? "Missed 30" : "Missed the 30 best days", 0.014, "var(--rust)"]];
+    var W = narrow ? 420 : 680, H=230, L = narrow ? 80 : 190, R = narrow ? 112 : 130, T=14, row=50, pw=W-L-R;
+    dsvg.setAttribute("viewBox", "0 0 "+W+" "+H); dsvg.style.minWidth = narrow ? "0" : "";
+    var vals = rows.map(function(r){ return 10000*Math.pow(1+r[1], 20); }), maxV = Math.max.apply(null, vals);
+    function x(v){ return L + pw*v/maxV; }
+    el("line",{x1:x(10000),x2:x(10000),y1:T-4,y2:T+row*rows.length-8,style:"stroke:var(--ink-faint)","stroke-dasharray":"3,4"},dsvg);
+    txt(dsvg, x(10000), H-6, "$10,000 invested", "axis-label", "middle");
+    rows.forEach(function(r, i){
+      var cy = T + row*i + row/2 - 8;
+      txt(dsvg, L-10, cy+4, r[0], "axis-label", "end");
+      el("rect",{x:L, y:cy-14, width:x(vals[i])-L, height:28, rx:2, style:"fill:"+r[2]}, dsvg);
+      txt(dsvg, x(vals[i])+8, cy+4, short(vals[i])+" · "+(r[1]*100).toFixed(1)+"%/yr", "direct-label", "start");
+    });
+  }
+  days();
+  var rz; window.addEventListener("resize", function(){ clearTimeout(rz); rz = setTimeout(days, 150); });
+
+  /* ================= Behavior gap calculator ================= */
+  var gsvg = $("chart-gap");
+  function gap(){
+    var mo = num($("b-mo").value), yrs = Math.max(1, Math.min(50, Math.round(num($("b-yrs").value)) || 30)), r = num($("b-ret").value)/100, gp = Math.min(num($("b-gap").value)/100, r);
+    function series(rate){ var g = Math.pow(1+rate, 1/12) - 1, b = 0, s = [0]; for (var m=1; m<=yrs*12; m++){ b = b*(1+g) + mo; if (m % 12 === 0) s.push(b); } return s; }
+    var A = series(r), B = series(r - gp), a = A[yrs], b = B[yrs], put = mo*12*yrs;
+    $("b-tiles").innerHTML =
+      '<div class="tile"><div class="k"><i class="swatch" style="background:var(--teal)"></i>Steady investor</div><div class="v">'+full(a)+'</div><div class="s">from '+full(put)+' saved</div></div>'+
+      '<div class="tile"><div class="k"><i class="swatch" style="background:var(--rust)"></i>With the gap</div><div class="v">'+full(b)+'</div><div class="s">same savings, '+((r-gp)*100).toFixed(1)+'% a year</div></div>'+
+      '<div class="tile"><div class="k">Cost of the behavior</div><div class="v" style="color:var(--rust)">'+full(a-b)+'</div><div class="s">'+(a > 0 ? Math.round(100*(a-b)/a) : 0)+'% of the steady ending balance</div></div>';
+    $("b-note").innerHTML = mo <= 0 ? "Enter a monthly amount." : "<strong>Same fund, same savings: "+full(a-b)+" less</strong>, just from buying and selling at the wrong times. Unlike market returns, it's a cost entirely under your control.";
+
+    while (gsvg.firstChild) gsvg.removeChild(gsvg.firstChild);
+    var W=680, H=260, L=64, R=20, T=14, BM=30, pw=W-L-R, ph=H-T-BM;
+    var st = niceStep(Math.max(1, a)), top = Math.ceil(Math.max(1, a)/st)*st;
+    function x(i){ return L + pw*i/yrs; }
+    function y(v){ return T + ph - ph*v/top; }
+    for (var t=0; t<=top+1e-9; t+=st){ el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),"class":t?"gridline":"zero"},gsvg); txt(gsvg, L-8, y(t)+4, short(t), "axis-label", "end"); }
+    var every = yrs > 30 ? 10 : yrs > 12 ? 5 : yrs > 6 ? 2 : 1;
+    for (var k=0; k<=yrs; k+=every) txt(gsvg, x(k), H-10, k ? "Year "+k : "Start", "axis-label", "middle");
+    function path(s){ return s.map(function(v,i){ return (i?"L":"M")+x(i).toFixed(1)+","+y(v).toFixed(1); }).join(""); }
+    el("path",{d:path(B), fill:"none", style:"stroke:var(--rust)", "stroke-width":2.4},gsvg);
+    el("path",{d:path(A), fill:"none", style:"stroke:var(--teal)", "stroke-width":2.4},gsvg);
+    var layer = el("g",{},gsvg), hit = el("rect",{x:L,y:T,width:pw,height:ph,"class":"hit"},gsvg);
+    function move(e){
+      var pt = gsvg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var p = pt.matrixTransform(gsvg.getScreenCTM().inverse());
+      var i = Math.max(0, Math.min(yrs, Math.round((p.x-L)/pw*yrs)));
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      el("line",{x1:x(i),x2:x(i),y1:T,y2:T+ph,"class":"crosshair"},layer);
+      layer.appendChild(tooltip(gsvg, x(i), T+40, [{t:i ? "Year "+i : "Start", bold:true},{t:"Steady  "+full(A[i]), color:"var(--teal)"},{t:"With gap  "+full(B[i]), color:"var(--rust)"}], W, H));
+    }
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", function(){ while (layer.firstChild) layer.removeChild(layer.firstChild); });
+  }
+  ["b-mo","b-yrs","b-ret","b-gap"].forEach(function(id){ $(id).addEventListener("input", gap); });
+  gap();
+})();
+</script>
+</body>
+</html>

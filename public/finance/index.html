@@ -65,20 +65,14 @@ section[id], [id^="piece-"]{scroll-margin-top:24px;}
 .map-intro p{color:var(--ink-soft); font-size:15.5px; max-width:640px;}
 .map-stats{display:flex; gap:28px; flex-wrap:wrap; margin:18px 0 0;}
 .stat .n{font-family:"Newsreader",serif; font-weight:600; font-size:30px; line-height:1; color:var(--ink);}
+.stat-note{font-size:13px; color:var(--ink-faint); margin:12px 0 0; max-width:560px;}
 .stat .l{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-top:6px;}
-.progress{height:6px; background:var(--rule); border-radius:3px; margin-top:10px; overflow:hidden; width:140px;}
-.progress i{display:block; height:100%; background:var(--teal); border-radius:3px;}
 
 .map-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:4px; box-shadow:var(--shadow); padding:22px 24px 18px; margin-top:24px;}
 .map-toolbar{display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:18px;}
-.filters{display:flex; gap:6px; flex-wrap:wrap;}
-.filters button{font:500 12px "IBM Plex Mono",monospace; letter-spacing:0.03em; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
-.filters button:hover{color:var(--ink); border-color:var(--ink-faint)}
-.filters button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
 .legend{display:flex; gap:16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); align-items:center;}
 .legend span{display:inline-flex; align-items:center; gap:7px;}
 .lg-dot{width:14px; height:14px; border-radius:50%; display:inline-block; background:var(--ink-soft);}
-.lg-dot.planned{background:var(--paper-raised); border:2.5px solid var(--ink-soft);}
 .lg-dot.case{width:9px; height:9px;}
 
 /* Foundations terminal */
@@ -112,10 +106,8 @@ section[id], [id^="piece-"]{scroll-margin-top:24px;}
 
 .stn{position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; text-decoration:none; color:var(--ink); padding:0 2px 4px; border-radius:6px; min-width:0; flex:1 1 0; max-width:132px; transition:opacity .2s ease;}
 .stn .dot{width:24px; height:24px; border-radius:50%; background:var(--c); box-shadow:0 0 0 3px var(--paper-raised); margin:0 0 7px; flex:none; transition:transform .15s ease;}
-.stn.planned .dot{background:var(--paper-raised); border:3px solid var(--c); width:20px; height:20px; margin:2px 0 9px;}
 .stn.case .dot{width:10px; height:10px; box-shadow:none;}
 .stn-label{font-family:"Newsreader",serif; font-weight:600; font-size:14px; line-height:1.22; overflow-wrap:anywhere;}
-.stn.planned .stn-label{color:var(--ink-soft); font-weight:500; font-style:italic;}
 .stn.case .stn-label{font-family:"Public Sans",sans-serif; font-weight:500; font-size:11.5px; color:var(--ink-soft);}
 .stn-meta{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-top:3px;}
 .stn-text{display:flex; flex-direction:column; align-items:center;}
@@ -153,14 +145,6 @@ a.card:hover{border-color:var(--rule-strong)}
 .card-arrow{float:right; color:var(--ink-faint); font-family:"IBM Plex Mono",monospace; font-size:18px;}
 .card.primary{border-left:3px solid var(--teal)}
 .card.secondary{border-left:3px solid var(--gold)}
-.tier-block{margin-top:30px;}
-.tier-block h3{font-size:19px; margin-bottom:4px;}
-.tier-block .tier-sub{font-size:14px; color:var(--ink-soft); margin:0 0 14px;}
-.coming-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
-.coming-chip{border:1px dashed var(--rule-strong); border-radius:4px; padding:14px 16px 14px 18px; color:var(--ink-faint); font-size:13.5px; line-height:1.5; position:relative; transition:background-color .6s ease, border-color .6s ease;}
-.coming-chip::before{content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:3px; border-radius:2px; background:var(--c);}
-.coming-chip strong{display:block; color:var(--ink-soft); font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:15.5px; margin-bottom:3px;}
-.coming-chip .chip-meta{display:block; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:5px;}
 .flash{background:var(--flash) !important; border-color:var(--gold) !important;}
 footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
 
@@ -183,7 +167,6 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   .cell:empty{display:none}
   .stn, .stn.case{flex-direction:row; align-items:center; text-align:left; max-width:none; gap:12px; padding:6px 4px;}
   .stn .dot{margin:0}
-  .stn.planned .dot{margin:0 2px}
   .stn-text{align-items:flex-start}
   .stn-wrap{display:block; max-width:none}
   .spur{margin:0 0 4px 40px; align-self:auto}
@@ -192,7 +175,6 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   .stn.case .stn-label{font-size:13px}
   .stn-stage{display:inline; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint);}
   .map-detail{grid-template-columns:1fr}
-  .coming-grid{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} .stn .dot{transition:none} }
 </style>
@@ -202,14 +184,13 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
 <div class="wrap" style="padding-bottom:0">
   <a class="back-link" href="/">← Back to My Plan</a>
   <header class="masthead">
-    <p class="eyebrow">A running personal-finance library</p>
+    <p class="eyebrow">A personal-finance library</p>
     <h1>Personal Finance Library</h1>
-    <p class="subtitle">Plain-language, numbers-first explainers on how money actually works — mechanics, trade-offs, and where each piece fits in a real financial life. Built to share with friends and family, one topic at a time.</p>
+    <p class="subtitle">Plain-language, numbers-first explainers on how money actually works — mechanics, trade-offs, and where each piece fits in a real financial life. Built to share with friends and family.</p>
     <nav class="jump" aria-label="On this page">
       <a href="#map">The library map</a>
       <a href="#foundations">Start here</a>
-      <a href="#published">Read now</a>
-      <a href="#coming">Coming next</a>
+      <a href="#published">All episodes</a>
     </nav>
   </header>
 </div>
@@ -218,22 +199,15 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   <div class="map-intro">
     <p class="eyebrow">The library map</p>
     <h2 id="map-title">Every topic, on the line it belongs to</h2>
-    <p style="margin-top:12px;">Each colored line is one thread of the <a href="/finance/money-river.html" style="color:inherit">Money River</a>. Stations sit roughly where in life you'll first need them. Solid stations are ready to read; hollow ones are planned, tagged with the tier they're scheduled in. Tap any station to open it.</p>
+    <p style="margin-top:12px;">Each colored line is one thread of the <a href="/finance/money-river.html" style="color:inherit">Money River</a>. Stations sit roughly where in life you'll first need them. The small stations on a spur are case studies of the piece they hang from. Tap any station to open it.</p>
     <div class="map-stats" id="map-stats"></div>
+    <p class="stat-note" id="stat-note"></p>
   </div>
   <div class="wide">
     <div class="map-card">
       <div class="map-toolbar">
-        <div class="filters" role="group" aria-label="Highlight stations">
-          <button type="button" data-filter="all" aria-pressed="true">All</button>
-          <button type="button" data-filter="ready" aria-pressed="false">Ready to read</button>
-          <button type="button" data-filter="1" aria-pressed="false">Tier 1</button>
-          <button type="button" data-filter="2" aria-pressed="false">Tier 2</button>
-          <button type="button" data-filter="3" aria-pressed="false">Tier 3</button>
-        </div>
         <div class="legend" aria-hidden="true">
-          <span><i class="lg-dot"></i>Ready</span>
-          <span><i class="lg-dot planned"></i>Planned</span>
+          <span><i class="lg-dot"></i>Episode</span>
           <span><i class="lg-dot case"></i>Case study</span>
         </div>
       </div>
@@ -253,13 +227,6 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
 
   <div id="published"></div>
 
-  <hr class="rule">
-
-  <section id="coming">
-    <p class="topic-label" style="color:var(--ink-faint)">Coming next</p>
-    <p style="max-width:580px;">More topics will land here the same way these did: mechanics first, then the trade-offs, then where it fits in a real plan. They're scheduled in three tiers, biggest gaps first.</p>
-    <div id="coming-root"></div>
-  </section>
 
   <footer>
     Educational material, not financial advice. Each piece names its own sources and assumptions inline — nothing here is a recommendation to buy, sell, or avoid any specific product.
@@ -270,8 +237,9 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
 (function(){
   /* ============================================================
      SINGLE SOURCE OF TRUTH for the map AND the running layout.
-     To publish a piece: set status:"ready", add href, topic (next
-     number), kicker and desc. Nothing else on the page needs editing.
+     To add a piece: add an entry with href, topic (next number),
+     topicName, title, mapLabel, short, desc and mins (read time at
+     ~230 words a minute). Nothing else on the page needs editing.
      ============================================================ */
   var THREADS = [
     {id:"income",    name:"Income & Career"},
@@ -288,14 +256,13 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
     ["Starting out","20s"],["Building","30s–40s"],["Peak years","50s–early 60s"],["Retirement","60s and on"],["Legacy","what you leave"]
   ];
   var FOUNDATIONS = [
-    {id:"river", title:"The Money River", short:"The whole life on one chart", href:"/finance/money-river.html", kicker:"Start here", cls:"primary",
+    {id:"river", title:"The Money River", short:"The whole life on one chart", href:"/finance/money-river.html", kicker:"Start here", mins:3, cls:"primary",
      desc:"One life, one chart: pocket money at five to an estate settled at the end. Income, saving, debt, insurance, investing, a home, a family, and what's left to pass on — eight threads running the whole way, each one thickening, thinning, and disappearing exactly when the underlying thing does. The fastest way to see how it all fits together before going deep on any one piece."},
-    {id:"roadmap", title:"The Money Roadmap", short:"Priorities, stage by stage", href:"/finance/money-roadmap.html", kicker:"Then, the details", cls:"secondary",
+    {id:"roadmap", title:"The Money Roadmap", short:"Priorities, stage by stage", href:"/finance/money-roadmap.html", kicker:"Then, the details", mins:20, cls:"secondary",
      desc:"The core moves (earn, spend, save, protect), the priority order for where money should go first, and a stage-by-stage guide from starting out through nearing retirement — three levels, roughly matched to where you are in life. Read this once the river has shown you the shape of the whole thing."}
   ];
   var PIECES = [
-    /* ---- published ---- */
-    {id:"annuities", thread:"investing", stage:3, status:"ready", topic:1, topicName:"Annuities", role:"Deep dive", cls:"primary",
+    {id:"annuities", mins:33, thread:"investing", stage:3, status:"ready", topic:1, topicName:"Annuities", role:"Deep dive", cls:"primary",
      title:"Annuities Explained", mapLabel:"Annuities", href:"/finance/annuities-explained.html",
      short:"How annuities and FIAs really work, and what they're worth.",
      desc:"The major components of annuity products, from a personal-finance perspective — what they are, how the main types compare, how indexed crediting actually works, what the sales pitch highlights (and what it costs), what it's really worth to the policyholder, who's paying whom, and where annuities fit in the bigger financial picture. A buyer's checklist, FAQ, and glossary included."},
@@ -307,114 +274,113 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
      title:"The Agility Ledger", mapLabel:"Agility 10 case", href:"https://claude.ai/code/artifact/4ce20f0f-e042-4994-bdb5-c9cccf43a295",
      short:"A real contract's income rider, from the carrier's own guide.",
      desc:"How Athene's Agility 10 income and death-benefit rider actually works, derived from the carrier's own disclosed product guide — a real contract's rules, not a hypothetical."},
-    {id:"life", thread:"insurance", stage:2, status:"ready", topic:2, topicName:"Life Insurance", role:"Start here", cls:"primary",
+    {id:"life", mins:31, thread:"insurance", stage:2, status:"ready", topic:2, topicName:"Life Insurance", role:"Start here", cls:"primary",
      title:"Life Insurance Explained", mapLabel:"Life insurance", href:"/finance/life-insurance-explained.html",
      short:"Term vs. whole life vs. IUL, and buy-term-invest-the-difference.",
      desc:"What life insurance actually is, how the main policy types compare, and a deep dive into the two permanent types getting the most sales dollars — whole life and indexed universal life (IUL): how each credits cash value, cost of insurance and the fees that grow with age, what the sales pitch highlights (and what it costs), a 20-year worked example against buying term and investing the difference, who's paying whom, and where permanent insurance actually fits. A buyer's checklist, FAQ, and glossary included."},
-    {n:1, id:"investing-basics", thread:"investing", stage:1, tier:1, status:"ready", topic:3, topicName:"Investing Basics", role:"Start here · Tier 1", cls:"primary",
+    {id:"investing-basics", mins:26, thread:"investing", stage:1, status:"ready", topic:3, topicName:"Investing Basics", role:"Start here", cls:"primary",
      title:"Investing Basics: The Honest Baseline", mapLabel:"Investing Basics", href:"/finance/investing-basics.html",
      short:"Index funds, individual stocks done sensibly, the stock/bond dial, and what fees really cost.",
      desc:"What you actually own when you invest, why time matters more than timing, why owning the whole market is the safer default (and how to own individual stocks sensibly if you want to), what a fee of “only 1%” costs over a working life, and how to set the stock/bond dial — with 98 years of real returns to play with. It ends by defining the simple, low-cost portfolio every other product in this library gets compared against. A getting-started checklist, FAQ, and glossary included."},
 
-    /* ---- planned: Tier 1 ---- */
-    {n:2, id:"accounts", thread:"investing", stage:1, tier:1, status:"ready", topic:4, topicName:"Which Account?", role:"Tier 1 · #2", cls:"primary",
+    {id:"accounts", mins:19, thread:"investing", stage:1, status:"ready", topic:4, topicName:"Which Account?", cls:"primary",
      href:"/finance/which-account.html",
      desc:"401(k), IRA, Roth, HSA, 529 and a plain brokerage account: what each one is, what it does with your taxes, and the order to fill them in, following the Money Roadmap. A planner pours your yearly savings down the list using 2026 limits, and a side-by-side shows when Roth beats traditional (and when it\u2019s a tie). Early-withdrawal rules, common mistakes, a setup checklist, FAQ and glossary included.",
      title:"Which Account? Where Each Dollar Goes", mapLabel:"Which account?",
      short:"401(k), IRA, Roth, HSA, 529, taxable — where each dollar goes first, tied to the Roadmap's priority order."},
-    {n:3, id:"taxes", thread:"investing", stage:2, tier:1, status:"ready", topic:5, topicName:"Taxes 101", role:"Tier 1 · #3", cls:"primary",
+    {id:"taxes", mins:17, thread:"investing", stage:2, status:"ready", topic:5, topicName:"Taxes 101", cls:"primary",
      href:"/finance/taxes-101.html",
      desc:"How federal income tax really works, in five steps: why your bracket isn\u2019t your tax rate, the payroll taxes most people forget, deductions vs. credits (including the new 2025\u20132028 deductions), how interest, dividends and gains are taxed, which investments belong in which account, and why many retirees pay single-digit rates \u2014 plus the \u201ctax torpedo\u201d that can catch them. Two 2026 calculators, six myths, a yearly checklist, FAQ and glossary included.",
      title:"Taxes 101: What You Actually Pay, and Why", mapLabel:"Taxes 101",
      short:"Marginal vs. effective rates, capital gains, and which investments belong in which accounts."},
-    {n:4, id:"sales-pitch", thread:"cross", stage:2, tier:1, status:"ready", topic:6, topicName:"Spotting the Sales Pitch", role:"Tier 1 · #4", cls:"primary",
+    {id:"sales-pitch", mins:15, thread:"cross", stage:2, status:"ready", topic:6, topicName:"Spotting the Sales Pitch", cls:"primary",
      href:"/finance/sales-pitch.html",
      desc:"The lens for the whole library. The four ways advice gets paid (commission, % of assets, flat fee, hourly), what \u201cfiduciary,\u201d \u201cbest interest\u201d and \u201csuitability\u201d actually promise after the 2026 court ruling, a calculator that prices advice over a lifetime, seven common pitches decoded, the products pitched hardest, an interactive red-flag checklist, and how to find and verify an advisor. FAQ and glossary included.",
      title:"Spotting the Sales Pitch & Working with Advisors", mapLabel:"Spotting the pitch",
      short:"Fee-only vs. commission, what “fiduciary” really means, and a pitch checklist you can use on anything."},
-    {n:5, id:"health-disability", thread:"insurance", stage:1, tier:1, status:"ready", topic:7, topicName:"Health & Disability Insurance", role:"Tier 1 · #5", cls:"primary",
+    {id:"health-disability", mins:14, thread:"insurance", stage:1, status:"ready", topic:7, topicName:"Health & Disability Insurance", cls:"primary",
      href:"/finance/health-disability.html",
      desc:"How health insurance actually charges you (premium, deductible, coinsurance, out-of-pocket maximum), a calculator that compares a traditional plan with a high-deductible plan plus HSA across good and bad years, where coverage comes from after the 2026 subsidy changes, your protections when bills go wrong, and disability insurance \u2014 the paycheck protection most people skip \u2014 with an income-gap calculator. What to skip, an open-enrollment checklist, FAQ and glossary included.",
      title:"Health & Disability Insurance: Protecting the Paycheck", mapLabel:"Health & disability",
      short:"High-deductible plans with an HSA, deductibles vs. out-of-pocket maximums, and the disability coverage most people skip."},
-    {n:6, id:"ss-medicare", thread:"investing", stage:4, tier:1, status:"ready", topic:9, topicName:"Social Security & Medicare", role:"Tier 1 · #6", cls:"primary",
+    {id:"ss-medicare", mins:15, thread:"investing", stage:4, status:"ready", topic:9, topicName:"Social Security & Medicare", cls:"primary",
      href:"/finance/social-security-medicare.html",
      desc:"How your Social Security benefit is figured, a claiming-age calculator with break-even ages, a couple planner for spousal and survivor benefits, the earnings test, what the 2026 Trustees Report means for your check, Medicare\u2019s parts and 2026 costs, the enrollment deadlines and lifelong penalties, and an IRMAA calculator for income-based premiums. A 60-to-70 checklist, FAQ and glossary included.",
      title:"Social Security & Medicare in Depth", mapLabel:"Social Security & Medicare",
      short:"Claiming strategy, spousal and survivor benefits, Medicare parts and timing, and IRMAA."},
-    /* ---- planned: Tier 2 ---- */
-    {n:7, id:"rent-buy", thread:"assets", stage:2, tier:2, status:"ready", topic:8, topicName:"Rent vs. Buy & Mortgages", role:"Tier 2 · #7", cls:"primary",
+    {id:"rent-buy", mins:14, thread:"assets", stage:2, status:"ready", topic:8, topicName:"Rent vs. Buy & Mortgages", cls:"primary",
      href:"/finance/rent-vs-buy.html",
      desc:"The honest math behind the biggest purchase most people make: the true yearly cost of owning versus renting, a full rent-vs-buy calculator with three example markets, how a mortgage amortizes (with extra-payment and 15-vs-30 comparisons), fixed vs. adjustable, down payments, PMI, FHA/VA loans, and a break-even test for points and refinancing, all at September 2026 rates. A checklist, FAQ and glossary included.",
      title:"Rent vs. Buy & Mortgages Explained", mapLabel:"Rent vs. buy & mortgages",
      short:"Fixed vs. ARM, 15 vs. 30 years, PMI, points, and when a refinance pays."},
-    {n:8, id:"credit-debt", thread:"debt", stage:1, tier:2, status:"ready", topic:10, topicName:"Credit & Debt", role:"Tier 2 · #8", cls:"primary",
+    {id:"credit-debt", mins:14, thread:"debt", stage:1, status:"ready", topic:10, topicName:"Credit & Debt", cls:"primary",
      href:"/finance/credit-debt.html",
      desc:"What debt really costs, how a credit score is built and how to read your credit report, a payoff planner that compares avalanche, snowball and minimum payments on your own debts, consolidation, balance transfers and when to get help, student loans after the July 2026 changes, and a pay-off-or-invest calculator. A checklist, FAQ and glossary included.",
      title:"Credit & Debt: Scores, Payoff Plans and Student Loans", mapLabel:"Credit & debt",
      short:"Reading your credit report, payoff methods, student loans, and paying off debt vs. investing."},
-    {n:9, id:"cash", thread:"cash", stage:1, tier:2, status:"ready", topic:11, topicName:"Where to Keep Your Cash", role:"Tier 2 · #9", cls:"primary",
+    {id:"cash", mins:18, thread:"cash", stage:1, status:"ready", topic:11, topicName:"Where to Keep Your Cash", cls:"primary",
      href:"/finance/where-to-keep-cash.html",
      desc:"Cash has one job: to be there at full value when you need it. An emergency fund calculator that sets your target and shows where each layer belongs, how high-yield savings, money market funds, Treasury bills, CDs and I bonds compare at September 2026 rates, an after-tax yield calculator that weighs state taxes and inflation, CD and T-bill ladders, and what FDIC and SIPC actually protect. A checklist, FAQ and glossary included.",
      title:"Where to Keep Your Cash: Emergency Funds, Savings, T-Bills and CDs", mapLabel:"Where to keep cash",
      short:"High-yield savings, money market funds, T-bills, CDs, I bonds — and sizing your emergency fund."},
-    {n:10, id:"kids", thread:"family", stage:2, tier:2, status:"ready", topic:12, topicName:"Kids & Money", role:"Tier 2 · #10", cls:"primary",
+    {id:"kids", mins:18, thread:"family", stage:2, status:"ready", topic:12, topicName:"Kids & Money", cls:"primary",
      href:"/finance/kids-and-money.html",
      desc:"Money lessons from the save-spend-give jar to a first paycheck, which account fits which goal (529 plans, the new Trump accounts with their $1,000 deposit, custodial Roth IRAs and UTMA accounts), a head-start calculator that shows what early dollars grow to, a college savings planner at 2025–26 prices, and the paperwork that protects your kids: guardians, term life insurance and beneficiaries. A checklist, FAQ and glossary included.",
      title:"Kids & Money: Teaching, Saving and Protecting Them", mapLabel:"Kids & money",
      short:"Teaching kids from the pocket-money stage, 529 plans, custodial Roth IRAs, and naming a guardian."},
-    {n:11, id:"drawdown", thread:"investing", stage:4, tier:2, status:"ready", topic:13, topicName:"Turning Savings into a Paycheck", role:"Tier 2 · #11", cls:"primary",
+    {id:"drawdown", mins:17, thread:"investing", stage:4, status:"ready", topic:13, topicName:"Turning Savings into a Paycheck", cls:"primary",
      href:"/finance/retirement-paycheck.html",
      desc:"How much you can safely spend (Morningstar\u2019s 3.9% for 2026, and why flexible spending lets you start higher), a calculator that shows how the order of good and bad years can make or break a withdrawal plan, building a floor of guaranteed income, bucket strategies, which accounts to draw from first, a Roth conversion calculator that finds the room left in your tax bracket and shows what it does to future RMDs, RMD and QCD rules, and retiring before 59\u00bd or 65. A checklist, FAQ and glossary included.",
      title:"Turning Savings into a Paycheck: Withdrawals, Roth Conversions and RMDs", mapLabel:"Savings into a paycheck",
      short:"Which accounts to draw from first, Roth conversions in the gap years, and how RMDs work."},
-    {n:12, id:"estate", thread:"estate", stage:5, tier:2, status:"ready", topic:14, topicName:"Estate Planning Essentials", role:"Tier 2 · #12", cls:"primary",
+    {id:"estate", mins:16, thread:"estate", stage:5, status:"ready", topic:14, topicName:"Estate Planning Essentials", cls:"primary",
      href:"/finance/estate-planning.html",
      desc:"The four documents almost everyone needs, how your money actually passes (beneficiary forms, joint and transfer-on-death accounts, trusts, and only then the will), a calculator that maps your own accounts to probate or not and checks federal and state estate tax, when a living trust is worth it, beneficiary mistakes to avoid, planning for incapacity, 2026 estate and gift tax rules, and a printable \u201cin case of emergency\u201d binder. A checklist, FAQ and glossary included.",
      title:"Estate Planning Essentials: Wills, Trusts, Beneficiaries and the Binder", mapLabel:"Estate essentials",
      short:"Wills vs. trusts, beneficiary designations, powers of attorney, and an “in case of emergency” binder."},
-    /* ---- planned: Tier 3 ---- */
-    {n:13, id:"ltc", thread:"insurance", stage:3, tier:3, status:"ready", topic:15, topicName:"Long-Term Care", role:"Tier 3 · #13", cls:"primary",
+    {id:"ltc", mins:15, thread:"insurance", stage:3, status:"ready", topic:15, topicName:"Long-Term Care", cls:"primary",
      href:"/finance/long-term-care.html",
      desc:"The odds you\u2019ll need help with daily living and for how long, what home care, assisted living and nursing homes cost, a calculator for the cost of a care episode, why Medicare mostly doesn\u2019t pay and how Medicaid does (2026 limits, the look-back, spouse protections), traditional vs. hybrid insurance vs. self-funding with a calculator comparing a policy to investing the premiums, what to look for in a policy, and the pitches to be careful with. A checklist, FAQ and glossary included.",
      title:"Long-Term Care: What It Costs, Who Pays, and Whether to Insure It", mapLabel:"Long-term care",
      short:"Traditional vs. hybrid life/LTC policies vs. self-funding — a pitch-heavy corner of insurance."},
-    {n:14, id:"aging-parents", thread:"family", stage:3, tier:3, status:"ready", topic:16, topicName:"Caring for Aging Parents", role:"Tier 3 · #14", cls:"primary",
+    {id:"aging-parents", mins:15, thread:"family", stage:3, status:"ready", topic:16, topicName:"Caring for Aging Parents", cls:"primary",
      href:"/finance/aging-parents.html",
      desc:"Signs a parent needs help, how to start the conversation, the documents and permissions that let you act (power of attorney, health proxy, Medicare authorization, representative payee, trusted contacts), a step-by-step way to oversee money without taking over, where to find care and who pays, a calculator for what caregiving costs you, a checker for the tax breaks of supporting a parent, scam protection, and sharing the load with siblings. A checklist, FAQ and glossary included.",
      title:"Caring for Aging Parents: The Talk, the Paperwork and the Money", mapLabel:"Aging parents",
      short:"The paperwork, Medicaid look-back basics, and the financial side of caregiving."},
-    {n:15, id:"scams", thread:"cross", stage:4, tier:3, status:"ready", isNew:true, topic:17, topicName:"Scams & Fraud Protection", role:"Tier 3 · #15", cls:"primary",
+    {id:"scams", mins:13, thread:"cross", stage:4, status:"ready", topic:17, topicName:"Scams & Fraud Protection", cls:"primary",
      href:"/finance/scams-fraud.html",
      desc:"How big fraud has become (a record $15.9 billion reported to the FTC in 2025), the four-step playbook almost every scam follows, the scams going around now, a red-flag checker for the call or message in front of you, a security checklist that saves your progress, what protection you have for each way money can leave your account, a first-24-hours recovery plan, identity theft, and protecting your family. A checklist, FAQ and glossary included.",
      title:"Scams & Fraud Protection: Spot It, Lock It Down, Recover", mapLabel:"Scams & fraud",
      short:"Elder fraud, impostor scams, and locking down your accounts."},
-    {n:16, id:"paycheck", thread:"income", stage:1, tier:3, status:"planned", title:"Paycheck & Benefits Enrollment", mapLabel:"Paycheck & benefits",
+    {id:"paycheck", mins:14, thread:"income", stage:1, status:"ready", isNew:true, topic:18, topicName:"Paycheck & Benefits", cls:"primary",
+     href:"/finance/paycheck-benefits.html",
+     desc:"Reading your pay stub line by line, a paycheck calculator that shows where every dollar of gross pay goes (and what saving 1% more really costs), the 2026 W-4, open-enrollment choices for health plans, HSAs, FSAs and insurance, getting the full 401(k) match and the 2026 limits, stock pay (ESPP, RSUs and options) with an ESPP calculator, bonuses and other extra pay, and what to do when you change jobs. A checklist, FAQ and glossary included.",
+     title:"Paycheck & Benefits: Your Pay Stub, the W-4 and Open Enrollment", mapLabel:"Paycheck & benefits",
      short:"Reading a pay stub, the W-4, open-enrollment choices, and stock pay like ESPP and RSUs."},
-    {n:17, id:"behavior", thread:"cross", stage:1, tier:3, status:"planned", title:"Money Behavior", mapLabel:"Money behavior",
+    {id:"behavior", mins:11, thread:"cross", stage:1, status:"ready", isNew:true, topic:19, topicName:"Money Behavior", cls:"primary",
+     href:"/finance/money-behavior.html",
+     desc:"Why investors earn less than their own funds (the \u201cbehavior gap\u201d), the biases behind it, a six-question quiz on your own habits, what market drops actually look like and why selling locks in the loss, a calculator for what the gap costs over a lifetime, and the systems that make good behavior automatic: rules you set in advance, automation, and talking about money as a couple. A checklist, FAQ and glossary included.",
+     title:"Money Behavior: Biases, Market Drops and Sticking with a Plan", mapLabel:"Money behavior",
      short:"Common biases, sticking with a plan, and staying calm when markets drop."}
   ];
-  var TIERS = {
-    1:{name:"Tier 1 — Fill the biggest gaps", sub:"The pieces every other page leans on."},
-    2:{name:"Tier 2 — Big life decisions", sub:"Homes, debt, kids, and turning savings into income."},
-    3:{name:"Tier 3 — Specialized topics", sub:"Important, but narrower — or later in life."}
-  };
 
   var threadById = {}; THREADS.forEach(function(t){ threadById[t.id]=t; });
   function cvar(threadId){ return "var(--t-"+threadId+")"; }
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   function isExternal(h){ return /^https?:/.test(h||""); }
-  function hrefFor(p){ return p.status==="ready" ? p.href : "#piece-"+p.n; }
+  function readTime(m){ return m+" min read"; }
+  function hm(m){ return m<60 ? m+" min" : Math.floor(m/60)+" hr"+(m%60 ? " "+(m%60)+" min" : ""); }
 
   /* ---------- stats ---------- */
-  var ready = PIECES.filter(function(p){return p.status==="ready";}).length + FOUNDATIONS.length;
-  var planned = PIECES.filter(function(p){return p.status!=="ready";}).length;
-  var t1 = PIECES.filter(function(p){return p.tier===1;});
-  var t1done = t1.filter(function(p){return p.status==="ready";}).length;
+  var counted = FOUNDATIONS.concat(PIECES.filter(function(p){return p.kind!=="case";}));
+  var totalMins = counted.reduce(function(a,p){return a+p.mins;},0);
+  var avgMins = Math.round(totalMins/counted.length);
   document.getElementById("map-stats").innerHTML =
-    '<div class="stat"><div class="n">'+ready+'</div><div class="l">Ready to read</div></div>'+
-    '<div class="stat"><div class="n">'+planned+'</div><div class="l">Planned</div></div>'+
-    '<div class="stat"><div class="n">'+t1done+' of '+t1.length+'</div><div class="l">Tier 1 done</div><div class="progress" aria-hidden="true"><i style="width:'+(100*t1done/t1.length)+'%"></i></div></div>';
+    '<div class="stat"><div class="n">'+counted.length+'</div><div class="l">Episodes</div></div>'+
+    '<div class="stat"><div class="n">'+avgMins+' min</div><div class="l">Average read</div></div>'+
+    '<div class="stat"><div class="n">'+hm(totalMins)+'</div><div class="l">Total read</div></div>';
+  document.getElementById("stat-note").textContent = "Read times assume about 230 words a minute and include each page\u2019s checklist, FAQ and glossary. The two annuity case studies on claude.ai aren\u2019t counted.";
 
   /* ---------- map ---------- */
   var html = '';
@@ -429,9 +395,9 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   html += '</div>';
   THREADS.forEach(function(t){
     var mine = PIECES.filter(function(p){return p.thread===t.id;});
-    var nReady = mine.filter(function(p){return p.status==="ready" && p.kind!=="case";}).length;
-    var nAll = mine.filter(function(p){return p.kind!=="case";}).length;
-    html += '<div class="lane" style="--c:'+cvar(t.id)+'"><div class="lane-name"><b><i aria-hidden="true"></i>'+esc(t.name)+'</b><small>'+nReady+' of '+nAll+' ready</small></div><div class="track">';
+    var eps = mine.filter(function(p){return p.kind!=="case";});
+    var laneMins = eps.reduce(function(a,p){return a+p.mins;},0);
+    html += '<div class="lane" style="--c:'+cvar(t.id)+'"><div class="lane-name"><b><i aria-hidden="true"></i>'+esc(t.name)+'</b><small>'+eps.length+(eps.length===1?' episode':' episodes')+' · '+hm(laneMins)+'</small></div><div class="track">';
     for (var s=1; s<=5; s++){
       html += '<div class="cell">';
       mine.filter(function(p){return p.stage===s && p.kind!=="case";}).forEach(function(p){
@@ -446,11 +412,11 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   });
   function stationHTML(p, s){
         var out = '';
-        var cls = 'stn ' + (p.status==="ready" ? 'ready' : 'planned') + (p.kind==="case" ? ' case' : '');
-        var meta = p.status==="ready" ? (p.kind==="case" ? '' : 'Ready') : ('Tier '+p.tier);
+        var cls = 'stn ready' + (p.kind==="case" ? ' case' : '');
+        var meta = p.kind==="case" ? '' : p.mins+' min';
         var ext = isExternal(p.href) ? ' target="_blank" rel="noopener"' : '';
-        var aria = p.title + ' — ' + (p.status==="ready" ? (p.kind==="case"?'case study, ready':'ready to read') : 'planned, tier '+p.tier);
-        out += '<a class="'+cls+'" href="'+hrefFor(p)+'"'+ext+' data-id="'+p.id+'" aria-label="'+esc(aria)+'">'+
+        var aria = p.title + ' — ' + (p.kind==="case" ? 'case study' : readTime(p.mins));
+        out += '<a class="'+cls+'" href="'+p.href+'"'+ext+' data-id="'+p.id+'" aria-label="'+esc(aria)+'">'+
                   '<span class="dot" aria-hidden="true"></span>'+
                   '<span class="stn-text"><span class="stn-label">'+esc(p.mapLabel)+(p.isNew?'<span class="badge-new">NEW</span>':'')+'</span>'+
                   (meta ? '<span class="stn-meta">'+meta+' <span class="stn-stage">· '+STAGES[s-1][0]+'</span></span>' : '<span class="stn-meta"><span class="stn-stage">'+STAGES[s-1][0]+'</span></span>')+
@@ -462,11 +428,11 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   /* ---------- detail panel ---------- */
   var detail = document.getElementById("map-detail");
   function defaultDetail(){
-    detail.innerHTML = '<div class="md-k">How to read it</div><div><div class="md-t">Hover or tap a station</div><div class="md-d">Solid stations open the piece. Hollow stations jump to their spot in the “Coming next” list below. New readers: start at The Money River, top left.</div></div>';
+    detail.innerHTML = '<div class="md-k">How to read it</div><div><div class="md-t">Hover or tap a station</div><div class="md-d">Each station opens its episode; the number under it is the read time. New readers: start at The Money River, top left.</div></div>';
   }
   function showDetail(p, thread){
-    var status = p.status==="ready" ? (p.kind==="case" ? "Case study · ready" : "Ready to read") : ("Planned · Tier "+p.tier+" · #"+p.n);
-    var go = p.status==="ready" ? (isExternal(p.href) ? "Opens on claude.ai ↗" : "Open the piece →") : "See it in Coming next ↓";
+    var status = p.kind==="case" ? "Case study" : (p.mins ? readTime(p.mins) : "Foundation");
+    var go = isExternal(p.href) ? "Opens on claude.ai ↗" : "Open the piece →";
     detail.innerHTML = '<div class="md-k" style="color:'+(thread?cvar(thread):'var(--ink-faint)')+'">'+esc(thread?threadById[thread].name:"Foundations")+'</div>'+
       '<div><div class="md-t">'+esc(p.title)+'</div><div class="md-d">'+esc(p.short)+'</div><div class="md-go">'+status+' — '+go+'</div></div>';
   }
@@ -485,47 +451,17 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   root.addEventListener("mouseover", onEnter);
   root.addEventListener("focusin", onEnter);
 
-  /* planned stations: smooth-scroll + flash the chip */
-  root.addEventListener("click", function(e){
-    var a = e.target.closest("a.stn.planned");
-    if (!a) return;
-    var target = document.querySelector(a.getAttribute("href"));
-    if (!target) return;
-    e.preventDefault();
-    target.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"});
-    history.replaceState(null, "", a.getAttribute("href"));
-    target.classList.add("flash");
-    setTimeout(function(){ target.classList.remove("flash"); }, 1600);
-  });
-
-  /* filters */
-  var buttons = document.querySelectorAll(".filters button");
-  buttons.forEach(function(b){
-    b.addEventListener("click", function(){
-      buttons.forEach(function(x){ x.setAttribute("aria-pressed", x===b ? "true" : "false"); });
-      var f = b.dataset.filter;
-      root.querySelectorAll("a.stn").forEach(function(a){
-        var p = byId[a.dataset.id], show;
-        if (f==="all") show = true;
-        else if (f==="ready") show = p.status==="ready";
-        else show = p.tier === +f;
-        a.classList.toggle("dim", !show);
-      });
-      root.querySelectorAll("a.term-stn").forEach(function(a){ a.classList.toggle("dim", !(f==="all" || f==="ready")); });
-    });
-  });
-
   /* ---------- running layout ---------- */
   function card(p, thread){
     var ext = isExternal(p.href) ? ' target="_blank" rel="noopener"' : '';
     return '<a class="card '+(p.cls||"secondary")+'" href="'+p.href+'"'+ext+' id="card-'+p.id+'"><span class="card-arrow">↗</span>'+
-      '<div class="card-kicker">'+esc(p.role||p.kicker)+(p.isNew?' <span class="badge-new">NEW</span>':'')+'</div>'+
+      '<div class="card-kicker">'+esc([p.role||p.kicker, p.mins?readTime(p.mins):''].filter(Boolean).join(' · '))+(p.isNew?' <span class="badge-new">NEW</span>':'')+'</div>'+
       '<div class="card-title">'+esc(p.title)+'</div><div class="card-desc">'+esc(p.desc)+'</div></a>';
   }
   document.getElementById("foundation-cards").innerHTML = FOUNDATIONS.map(function(f){ return card(f); }).join("");
 
   var topics = {};
-  PIECES.filter(function(p){return p.status==="ready";}).forEach(function(p){
+  PIECES.forEach(function(p){
     (topics[p.topic] = topics[p.topic] || []).push(p);
   });
   var pub = '';
@@ -538,18 +474,6 @@ footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font
   });
   document.getElementById("published").innerHTML = pub;
 
-  var coming = '';
-  [1,2,3].forEach(function(t){
-    var list = PIECES.filter(function(p){return p.tier===t && p.status!=="ready";});
-    if (!list.length) return;
-    var done = PIECES.filter(function(p){return p.tier===t && p.status==="ready";}).length;
-    coming += '<div class="tier-block"><h3>'+esc(TIERS[t].name)+'</h3><p class="tier-sub">'+esc(TIERS[t].sub)+(done?' '+done+' of '+(done+list.length)+' done.':'')+'</p><div class="coming-grid">';
-    list.forEach(function(p){
-      coming += '<div class="coming-chip" id="piece-'+p.n+'" style="--c:'+cvar(p.thread)+'"><span class="chip-meta">#'+p.n+' · '+esc(threadById[p.thread].name)+'</span><strong>'+esc(p.title)+'</strong>'+esc(p.short)+'</div>';
-    });
-    coming += '</div></div>';
-  });
-  document.getElementById("coming-root").innerHTML = coming;
 })();
 </script>
 </body>
