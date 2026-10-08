@@ -1,0 +1,959 @@
+<meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>The Money Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA;
+  --paper-raised:#FAFAF6;
+  --ink:#1C2431;
+  --ink-soft:#57606F;
+  --ink-faint:#8B93A0;
+  --rule:#D8D7C9;
+  --rule-strong:#B9B8A8;
+  --gold:#B8842A;
+  --gold-wash:#B8842A1a;
+  --teal:#0A8A73;
+  --teal-wash:#0A8A731a;
+  --rust:#A8462F;
+  --rust-wash:#A8462F1a;
+  --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C;
+    --paper-raised:#1B212A;
+    --ink:#E7E5DC;
+    --ink-soft:#9AA3AF;
+    --ink-faint:#6B7480;
+    --rule:#2B323D;
+    --rule-strong:#3A4250;
+    --gold:#BB8A3A;
+    --gold-wash:#BB8A3A22;
+    --teal:#29A88F;
+    --teal-wash:#29A88F22;
+    --rust:#C96A4A;
+    --rust-wash:#C96A4A22;
+    --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C;
+  --paper-raised:#1B212A;
+  --ink:#E7E5DC;
+  --ink-soft:#9AA3AF;
+  --ink-faint:#6B7480;
+  --rule:#2B323D;
+  --rule-strong:#3A4250;
+  --gold:#BB8A3A;
+  --gold-wash:#BB8A3A22;
+  --teal:#29A88F;
+  --teal-wash:#29A88F22;
+  --rust:#C96A4A;
+  --rust-wash:#C96A4A22;
+  --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:760px; margin:0 auto; padding:64px 28px 96px;}
+.prose{max-width:660px}
+
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
+  color:var(--ink-faint); margin:0 0 10px;
+}
+h1{font-size:44px; line-height:1.08; color:var(--ink);}
+.subtitle{
+  font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500;
+  font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:600px; line-height:1.45;
+}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; color:var(--ink); margin-bottom:6px;}
+
+p{font-size:16px; line-height:1.68; color:var(--ink); margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7;}
+.ink-soft{color:var(--ink-soft)}
+
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+
+header.masthead{
+  padding-bottom:36px; margin-bottom:44px;
+  border-bottom:1px solid var(--rule-strong);
+}
+
+section{margin:64px 0;}
+section.tight{margin:40px 0}
+
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.chart-card{
+  background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px;
+  padding:24px 24px 16px; box-shadow:var(--shadow); margin-top:20px;
+}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:6px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:16px; font-size:12.5px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.chart-svg-wrap{overflow-x:auto;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit-area{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:12px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:480px;}
+th,td{padding:10px 14px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong);
+}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+tbody tr:last-child td{border-bottom:1px solid var(--rule-strong); font-weight:600;}
+
+/* Comparison table (prose cells, not numeric) */
+.compare table{min-width:700px;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:14px 18px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-variant-numeric:normal; font-size:14px; line-height:1.55; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink);}
+.compare .type-name{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:15.5px; color:var(--ink); display:block; margin-bottom:2px;}
+.compare .type-tag{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint);}
+.compare tbody tr:last-child td{font-weight:400;}
+td.gold, .gold{color:var(--gold)}
+td.teal, .teal{color:var(--teal)}
+td.rust, .rust{color:var(--rust)}
+.row-flag{font-size:11px; font-family:"Public Sans",sans-serif; font-weight:600;}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+@media (max-width:640px){ .verdicts{grid-template-columns:1fr !important} }
+.verdict{
+  border:1px solid var(--rule); border-radius:3px; padding:22px; background:var(--paper-raised); box-shadow:var(--shadow);
+}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;}
+.verdict h3{margin-bottom:10px}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+
+.lever-row{
+  display:grid; grid-template-columns:80px 1fr; gap:18px; padding:18px 0;
+  border-top:1px solid var(--rule);
+}
+.lever-row:last-child{border-bottom:1px solid var(--rule)}
+.lever-tag{
+  font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600;
+  letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;
+}
+.lever-row h3{margin-bottom:6px}
+.lever-row p{font-size:15.5px}
+
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin:20px 0 10px;}
+.toc-part-label:first-child{margin-top:0}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+section[id]{scroll-margin-top:24px;}
+
+.tldr{
+  background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal);
+  border-radius:3px; padding:20px 22px; margin-top:28px;
+}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; color:var(--ink); margin:0;}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px; color:var(--ink);}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+
+footer{
+  margin-top:72px; padding-top:24px; border-top:1px solid var(--rule);
+  font-size:12.5px; color:var(--ink-faint); line-height:1.6;
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Foundations · Part of Personal Finance Library</p>
+    <h1>The Money Roadmap</h1>
+    <p class="subtitle">The starting point for this whole series: the basic vocabulary of personal finance, the order to tackle financial priorities in, and the specific decisions that matter most on the way into retirement. Three levels, roughly matched to where you are in life — pick one, or read straight through.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Personal finance reduces to four moves — earn, spend less than you earn, save and invest the difference, and protect it — and almost everything else is a variation on those four. <strong>Level 1</strong> covers that vocabulary and the mechanics of compounding, debt, and insurance. <strong>Level 2</strong> lays out the order to tackle financial priorities in, from a first paycheck through the peak earning years, and which accounts and products typically show up at each stage. <strong>Level 3</strong> is for the years right around retirement, where the job flips from growing a balance to turning it into income that has to last — Social Security and Medicare timing, withdrawal strategy, healthcare and long-term-care costs, and estate basics. Other episodes in this series, like Annuities Explained, go deep on individual products this page only introduces.</p>
+    </div>
+
+    <div class="verdicts" style="grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:32px;">
+      <div class="verdict" style="border-top:3px solid var(--teal)">
+        <div class="book-label" style="color:var(--teal)">Level 1 · Money 101</div>
+        <h3>New to managing your own money</h3>
+        <p style="font-size:14.5px;">Core vocabulary, the four moves everything reduces to, why time beats amount, and the basics of debt and protection.</p>
+      </div>
+      <div class="verdict" style="border-top:3px solid var(--gold)">
+        <div class="book-label" style="color:var(--gold)">Level 2 · The Sequence</div>
+        <h3>Teens through peak earning years</h3>
+        <p style="font-size:14.5px;">The order to tackle financial priorities in, and which accounts and products typically matter at each life stage.</p>
+      </div>
+      <div class="verdict" style="border-top:3px solid var(--rust)">
+        <div class="book-label" style="color:var(--rust)">Level 3 · Nearing Retirement</div>
+        <h3>Five to ten years out, or already there</h3>
+        <p style="font-size:14.5px;">Turning savings into income, Social Security and Medicare timing, healthcare costs, and estate basics.</p>
+      </div>
+    </div>
+
+    <nav class="toc">
+      <div class="toc-part-label" style="color:var(--teal)">Level 1 — Money 101</div>
+      <a href="#core-concepts">The four moves, and the two numbers worth tracking</a>
+      <a href="#power-of-time">The power of time — compounding</a>
+      <a href="#debt-and-credit">Debt and credit, in plain terms</a>
+      <a href="#protecting-the-downside">Protecting the downside</a>
+      <div class="toc-part-label" style="color:var(--gold)">Level 2 — The Sequence</div>
+      <a href="#priority-waterfall">The order to do things in</a>
+      <a href="#stage-starting-out">Starting out — first job through mid-20s</a>
+      <a href="#stage-building">Building — late 20s through 30s</a>
+      <a href="#stage-peak-earning">Peak earning — 40s and 50s</a>
+      <a href="#products-by-stage">Reference: products by life stage</a>
+      <div class="toc-part-label" style="color:var(--rust)">Level 3 — Nearing Retirement</div>
+      <a href="#retirement-income-plan">Turning savings into income</a>
+      <a href="#social-security-medicare">Social Security and Medicare timing</a>
+      <a href="#healthcare-ltc-taxes">Healthcare, long-term care, and taxes in retirement</a>
+      <a href="#estate-legacy">Estate basics</a>
+      <div class="toc-part-label">Reference</div>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+    </nav>
+  </header>
+
+  <section id="core-concepts">
+    <p class="eyebrow" style="color:var(--teal)">Level 1 · Money 101</p>
+    <h2>The four moves, and the two numbers worth tracking</h2>
+    <p class="lede" style="margin-top:14px;">Strip away every product, account, and acronym and personal finance comes down to four moves. Everything else in this page — every account type, every insurance product, every rule of thumb — is a variation on one of these four.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">EARN</div>
+      <div><h3>Income</h3><p>Money coming in — a paycheck, a business, investment income. The foundation everything else is built on; no amount of budgeting substitutes for it.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">SPEND</div>
+      <div><h3>Expenses, and the gap below income</h3><p>Money going out. The gap between what comes in and what goes out — not the size of the paycheck — is what actually determines whether there's anything left to build with.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">SAVE</div>
+      <div><h3>Saving and investing the difference</h3><p>Putting that gap to work — first as a cash cushion, then invested for growth — so money earns more money instead of sitting idle or, worse, not existing at all because it was spent.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">PROTECT</div>
+      <div><h3>Protecting what the first three built</h3><p>Insurance, an emergency fund, and legal documents that keep one bad event — a job loss, a diagnosis, an early death — from undoing years of the first three moves.</p></div>
+    </div>
+
+    <h3 style="margin-top:36px; font-size:19px; font-style:normal;">The two numbers worth actually tracking</h3>
+    <p style="margin-top:10px;">Of everything a budgeting app or spreadsheet can show, two numbers matter far more than the rest.</p>
+
+    <div class="verdicts" style="margin-top:20px;">
+      <div class="verdict" style="border-top:3px solid var(--teal)">
+        <div class="book-label" style="color:var(--teal)">Cash flow</div>
+        <h3>Income minus expenses, this month</h3>
+        <p>Positive cash flow is the only source of money for every goal below — an emergency fund, retirement, a house. A "budget" is really just naming, on purpose, where that gap goes instead of finding out by accident at the end of the month.</p>
+      </div>
+      <div class="verdict" style="border-top:3px solid var(--gold)">
+        <div class="book-label" style="color:var(--gold)">Net worth</div>
+        <h3>Assets minus liabilities, right now</h3>
+        <p>An <strong>asset</strong> is anything with value — cash, a retirement account, a home. A <strong>liability</strong> is anything owed — a credit card balance, a student loan, a mortgage. Net worth is the single number that answers "how am I doing," independent of any one month's cash flow.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:28px;">Income can be irregular, spending can spike in any given month, and neither one alone tells the whole story. Cash flow and net worth, tracked over time rather than judged in any single month, are what everything else on this page is ultimately trying to move in the right direction.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="power-of-time">
+    <p class="eyebrow" style="color:var(--teal)">Level 1 · Money 101</p>
+    <h2>The power of time — compounding</h2>
+    <p class="lede" style="margin-top:14px;">Compounding is interest earning interest — money grows, and then the growth itself starts growing too. It's the single biggest reason personal finance rewards <em>starting</em> far more than it rewards the amount of any one contribution. The chart below makes that concrete with one deliberately unfair comparison.</p>
+
+    <p class="prose ink-soft" style="margin-top:16px; font-size:13.5px;">Both investors below assume $300/month invested at a 7%/yr average return, a common long-run planning assumption for a diversified stock portfolio — illustrative, not a guarantee of any specific outcome.</p>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">Same $300/month, ten years apart — value by age</div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--teal)"></i>Invests age 25&ndash;35, then stops</span>
+          <span><i class="swatch" style="background:var(--gold)"></i>Invests age 35&ndash;65, never stops</span>
+        </div>
+      </div>
+      <div class="chart-svg-wrap"><svg class="chart" id="chart-compounding" viewBox="0 0 640 300" preserveAspectRatio="xMinYMin meet"></svg></div>
+      <div class="chart-foot">7%/yr average return, monthly compounding, $300/month while contributing. Illustrative, not a specific product or guarantee.</div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>By age 65</th><th>Invests 25&ndash;35, then stops</th><th>Invests 35&ndash;65, never stops</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Years contributing</td><td class="teal">10 years</td><td class="gold">30 years</td></tr>
+          <tr><td>Total contributed</td><td class="teal">$36,000</td><td class="gold">$108,000</td></tr>
+          <tr><td>Value at 65</td><td class="teal">$421,453</td><td class="gold">$365,991</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:20px;">The investor who contributed for only 10 years — and put in a third as much money — ends up with <em>more</em>. The other twenty years of compounding did more work than another twenty years of contributions could make up for. This isn't an argument against saving in your 30s, 40s, and beyond — it's the single strongest argument for starting now, whatever "now" is, rather than waiting for a more convenient year that never quite arrives.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="debt-and-credit">
+    <p class="eyebrow" style="color:var(--teal)">Level 1 · Money 101</p>
+    <h2>Debt and credit, in plain terms</h2>
+    <p class="lede" style="margin-top:14px;">Not all debt behaves the same way, and a credit score is really just a lender's shorthand for "how risky is it to lend this person money." Both matter enough to get right early.</p>
+
+    <div class="verdicts" style="margin-top:20px;">
+      <div class="verdict good">
+        <div class="book-label" style="color:var(--teal)">Debt that can work for you</div>
+        <h3>Low, fixed rates on things that build value</h3>
+        <p>A mortgage, a reasonable-rate student loan, or a low-rate auto loan can be a rational way to finance something that builds equity or earning power, especially when the rate is well below what a diversified investment could plausibly earn over the same years.</p>
+      </div>
+      <div class="verdict bad">
+        <div class="book-label" style="color:var(--rust)">Debt to get rid of fast</div>
+        <h3>High, often double-digit rates on things that don't</h3>
+        <p>Credit cards, payday loans, and many personal loans routinely charge 20%+ annually. Paying that off is a guaranteed, risk-free return few investments can match — which is exactly why it sits so early in the priority order in Level 2.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:36px; font-size:19px; font-style:normal;">What actually moves a credit score</h3>
+    <p style="margin-top:10px;">Five factors, roughly in order of how much they matter.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">35%</div>
+      <div><h3>Payment history</h3><p>Whether you've paid on time. The single biggest factor — one 30-day-late payment can do real, lasting damage.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">30%</div>
+      <div><h3>Credit utilization</h3><p>How much of your available credit you're using. Keeping balances well below the limit — even if you pay in full every month — tends to help.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">15%</div>
+      <div><h3>Length of credit history</h3><p>Older accounts help. It's one reason to think twice before closing your oldest credit card, even one you rarely use.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">10%</div>
+      <div><h3>Credit mix</h3><p>A track record across a couple of different types of credit (a card, a loan) counts slightly in your favor over just one type.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">10%</div>
+      <div><h3>New inquiries</h3><p>Applying for several new accounts in a short window is a small, temporary ding — worth spacing out where you can.</p></div>
+    </div>
+
+    <p style="margin-top:24px;">A credit score isn't just about qualifying for a loan — it routinely affects the interest rate on a mortgage or car loan, and in many states even auto and homeowners insurance premiums. Paying the statement balance in full every month avoids interest entirely while still building the payment history that drives most of the score.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="protecting-the-downside">
+    <p class="eyebrow" style="color:var(--teal)">Level 1 · Money 101</p>
+    <h2>Protecting the downside</h2>
+    <p class="lede" style="margin-top:14px;">Insurance and an emergency fund do the same job through different mechanisms: both convert a rare, potentially catastrophic loss into a small, predictable, plannable cost. An emergency fund is really just self-insurance — money you've set aside instead of paying a premium to someone else — for the smaller, more frequent losses not worth filing a claim over.</p>
+
+    <div class="tbl-wrap compare">
+      <table>
+        <thead>
+          <tr><th>Risk</th><th>What typically protects against it</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="type-tag">Small, frequent</span><span class="type-name">A flat tire, a broken appliance, a medical copay</span></td>
+            <td>An emergency fund — the cost of a claim or a loan, without either.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Large medical event</span><span class="type-name">Illness, injury, hospitalization</span></td>
+            <td>Health insurance, backed by an emergency fund for the deductible and out-of-pocket portion.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Loss of income</span><span class="type-name">Illness or injury that stops you from working</span></td>
+            <td>Disability insurance — statistically more likely during working years than an early death, and far less commonly carried.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Premature death</span><span class="type-name">Dependents rely on your income</span></td>
+            <td>Term life insurance, sized to replace that income for as long as it's needed.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Property loss</span><span class="type-name">A house fire, a car accident, theft</span></td>
+            <td>Homeowners/renters and auto insurance.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">A large lawsuit</span><span class="type-name">Liability beyond a standard policy's limit</span></td>
+            <td>An umbrella policy — inexpensive, and worth it once net worth is meaningful.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Outliving your savings</span><span class="type-name">A long retirement</span></td>
+            <td>Social Security, retirement savings sized to your time horizon, and — for a narrow slice of savings, late in the sequence — an annuity; see <a href="https://claude.ai/code/artifact/32de41d2-154d-44ed-b560-316f3252cedc" style="color:var(--teal)">Annuities Explained</a> for that trade-off in full.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:20px;">A common starting target: a small "starter" emergency fund of $1,000&ndash;$2,000, then, once higher-interest debt is under control, a fuller cushion of three to six months of essential expenses, held somewhere fully liquid — not invested in the market, and not earning much of anything is the point. Level 2 places both of these precisely in the order they're worth tackling.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="priority-waterfall">
+    <p class="eyebrow" style="color:var(--gold)">Level 2 · The Sequence</p>
+    <h2>The order to do things in</h2>
+    <p class="lede" style="margin-top:14px;">Almost every personal-finance question — "should I pay off debt or invest," "should I save or contribute to my 401(k)" — has the same answer: it depends where you are in this order. Later steps are rarely wrong to want; they're just usually wrong to prioritize before the steps ahead of them.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">01</div>
+      <div><h3>A starter emergency fund</h3><p>$1,000&ndash;$2,000, fully liquid, before anything else — so a flat tire or a broken laptop doesn't become new debt.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">02</div>
+      <div><h3>The employer match</h3><p>Contribute enough to a 401(k)/403(b) to capture the full employer match. It's an immediate, guaranteed return no later step can beat.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">03</div>
+      <div><h3>High-interest debt</h3><p>Credit cards and other double-digit-rate debt. Paying it off is a guaranteed, risk-free return most investments can't match.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">04</div>
+      <div><h3>The full emergency fund</h3><p>Three to six months of essential expenses, fully liquid — more if income is variable or a single earner supports the household.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">05</div>
+      <div><h3>An HSA, if you're eligible</h3><p>Triple tax-advantaged — deductible going in, tax-free growth, tax-free for qualified medical expenses — available only alongside a high-deductible health plan.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">06</div>
+      <div><h3>Max out tax-advantaged retirement room</h3><p>A Roth or traditional IRA, then increasing the 401(k) contribution rate toward its annual limit — see the reference table below for current numbers.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">07</div>
+      <div><h3>Other named goals</h3><p>A house down payment, a child's education (a 529 plan), or extra payments on lower-rate debt — priced against each other by rate and timeline, not a fixed order.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">08</div>
+      <div><h3>Taxable investing</h3><p>Broad, low-cost index investing, once tax-advantaged space is maxed and there's still a gap between income and spending.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">09</div>
+      <div><h3>Protect what's been built</h3><p>Term life and disability insurance once others depend on your income, an umbrella policy once net worth is meaningful, a will once there's anything — or anyone — to protect.</p></div>
+    </div>
+
+    <p style="margin-top:24px;">Being "behind" on a later step is normal and rarely permanent — catch-up contributions exist for exactly that reason (see the reference table below). The order matters more than any single step's size.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="stage-starting-out">
+    <p class="eyebrow" style="color:var(--gold)">Level 2 · The Sequence</p>
+    <h2>Starting out — first job through mid-20s</h2>
+    <p class="lede" style="margin-top:14px;">The habits formed here matter more than the dollar amounts, which are usually small at this stage regardless.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">PAY</div>
+      <div><h3>Understand your paycheck</h3><p>What's withheld for taxes, and, if offered, what a 401(k) contribution and employer match actually mean — free money that only shows up if you opt in.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">TRACK</div>
+      <div><h3>Track spending, loosely</h3><p>Not a strict budget necessarily — just enough visibility to know the cash-flow number from Level 1 isn't a surprise at month's end.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">CREDIT</div>
+      <div><h3>Start building credit, carefully</h3><p>A first credit card, used for small recurring purchases and paid in full every month, starts the payment-history clock without carrying a balance.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">LOANS</div>
+      <div><h3>Know your student loan terms</h3><p>Interest rate, whether it's federal or private, and what repayment or forgiveness programs might apply — this determines where it falls in the priority order above.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">START</div>
+      <div><h3>Contribute something, even if small</h3><p>Even 3&ndash;5% into a 401(k) beats waiting for a "someday" that keeps moving — the compounding math from Level 1 rewards the early years disproportionately.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="stage-building">
+    <p class="eyebrow" style="color:var(--gold)">Level 2 · The Sequence</p>
+    <h2>Building — late 20s through 30s</h2>
+    <p class="lede" style="margin-top:14px;">This is typically when income rises, and when other people — a spouse, a child — start depending on the financial decisions being made.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">LIFE</div>
+      <div><h3>Term life insurance, once someone depends on your income</h3><p>Sized to replace that income for as long as it's needed — commonly until a mortgage is paid off or kids are grown. Cheapest when bought young and healthy.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">DISABLE</div>
+      <div><h3>Disability insurance</h3><p>Often overlooked next to life insurance, despite being the more statistically likely risk during working years. Many employers offer a base policy; supplemental coverage is often worth pricing.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">LEGAL</div>
+      <div><h3>A basic will and beneficiary designations</h3><p>Especially with a child — a will is what names a guardian. Beneficiary forms on retirement accounts and life insurance override the will, so both need to exist and stay current.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">HOME</div>
+      <div><h3>The home-buying math, if buying</h3><p>A 20% down payment avoids private mortgage insurance; a common guideline caps total housing cost around 28&ndash;30% of gross income, though local markets vary widely.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">KIDS</div>
+      <div><h3>Education savings, if applicable</h3><p>A 529 plan grows tax-free for qualified education expenses — worth starting small and early rather than waiting to fund it fully.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">RAISE</div>
+      <div><h3>Raise the contribution rate with every raise</h3><p>Increasing a retirement contribution percentage alongside income increases, rather than only increasing spending, is one of the highest-leverage habits in this whole page.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="stage-peak-earning">
+    <p class="eyebrow" style="color:var(--gold)">Level 2 · The Sequence</p>
+    <h2>Peak earning — 40s and 50s</h2>
+    <p class="lede" style="margin-top:14px;">Income is often at its highest here, and so is the highest-leverage window for closing gaps from earlier decades.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">MAX</div>
+      <div><h3>Push toward the contribution limits</h3><p>This is typically the highest-income, highest-savings-rate stretch of a career — the reference table below has current 401(k), IRA, and HSA limits.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">CATCH-UP</div>
+      <div><h3>Use catch-up contributions once eligible</h3><p>Extra room opens at 50, and an even larger "super" catch-up window opens from 60&ndash;63 — see the reference table below for the current numbers.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">TAXABLE</div>
+      <div><h3>Diversify beyond retirement accounts</h3><p>Once tax-advantaged space is maxed, a taxable brokerage account adds flexibility retirement accounts don't have — money reachable before 59½ without a penalty.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">REVIEW</div>
+      <div><h3>Reassess insurance needs</h3><p>As a mortgage shrinks and kids near financial independence, the case for a large term life policy often shrinks with it — worth revisiting rather than auto-renewing.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">LTC</div>
+      <div><h3>Start thinking about long-term care</h3><p>Costs can be large and aren't covered by Medicare beyond limited stays — Level 3 covers this in more depth, but the planning window is wider than most people assume.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="products-by-stage">
+    <p class="eyebrow" style="color:var(--gold)">Level 2 · The Sequence</p>
+    <h2>Reference: products by life stage</h2>
+    <p class="lede" style="margin-top:14px;">A consolidated view of the accounts and products most likely to be relevant at each stage — a starting checklist, not a requirement to have all of them at once.</p>
+
+    <div class="tbl-wrap compare">
+      <table>
+        <thead>
+          <tr><th>Life stage</th><th>Typically relevant</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="type-tag">~16&ndash;22</span><span class="type-name">Teens / first job</span></td>
+            <td>Checking &amp; savings account, first credit card, 401(k) enrollment if offered.</td>
+            <td>Build habits and a credit history while the stakes are still small.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">20s</span><span class="type-name">Early career</span></td>
+            <td>401(k) to the match, Roth IRA, HSA if eligible.</td>
+            <td>Lock in decades of tax-advantaged compounding while contribution room is cheap relative to future income.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">Late 20s&ndash;30s</span><span class="type-name">Family formation</span></td>
+            <td>Term life insurance, disability insurance, will &amp; beneficiary forms, 529 plan, mortgage.</td>
+            <td>Protect dependents and a growing balance sheet, while insurance is still cheap and health is generally good.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">40s&ndash;50s</span><span class="type-name">Peak earning</span></td>
+            <td>Maxed 401(k)/IRA, HSA, taxable brokerage, umbrella policy, LTC insurance consideration.</td>
+            <td>Capture the highest savings-rate years and cover a net worth that now has more to lose.</td>
+          </tr>
+          <tr>
+            <td><span class="type-tag">55&ndash;65+</span><span class="type-name">Pre-retirement / retirement</span></td>
+            <td>Catch-up contributions, Social Security &amp; Medicare timing decisions, a retirement-income plan (bond/TIPS ladders and, for a narrow slice, annuities).</td>
+            <td>The job shifts from growing a balance to sequencing it into reliable income — the subject of Level 3, next.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:28px;">
+      <table>
+        <thead>
+          <tr><th>2026 contribution limits</th><th>Standard</th><th>Age 50+ catch-up</th><th>Ages 60&ndash;63 catch-up</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>401(k) / 403(b)</td><td class="num">$24,500</td><td class="num">+$8,000</td><td class="num">+$11,250 (replaces the 50+ amount)</td></tr>
+          <tr><td>IRA (Roth or traditional)</td><td class="num">$7,500</td><td class="num">+$1,100</td><td class="num ink-faint">n/a</td></tr>
+          <tr><td>HSA — self-only coverage</td><td class="num">$4,400</td><td class="num" colspan="2">+$1,000 from age 55</td></tr>
+          <tr><td>HSA — family coverage</td><td class="num">$8,750</td><td class="num" colspan="2">+$1,000 from age 55</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose ink-soft" style="margin-top:14px; font-size:14px;">Source: IRS Notice 2025-67 (401(k)/IRA limits) and IRS guidance on 2026 HSA/HDHP limits. The 60&ndash;63 "super" catch-up was introduced by SECURE 2.0 and replaces, rather than stacks on top of, the standard 50+ catch-up for those specific ages.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="retirement-income-plan">
+    <p class="eyebrow" style="color:var(--rust)">Level 3 · Nearing Retirement</p>
+    <h2>Turning savings into income</h2>
+    <p class="lede" style="margin-top:14px;">Everything up to this point has been about growing a balance. In the years right around retirement, the job flips: the same balance now has to generate income that lasts an unknown number of years, without running out too early or leaving an unnecessarily large amount unspent.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">RATE</div>
+      <div><h3>A starting withdrawal rate</h3><p>A long-standing rule of thumb is withdrawing around 4% of a portfolio in the first year of retirement, then adjusting that dollar amount for inflation each year after. It's a starting heuristic, not a law — many planners today discuss a range depending on market valuations and how flexible your spending can be.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">BUCKETS</div>
+      <div><h3>A bucket strategy</h3><p>One common structure: cash for 1&ndash;2 years of expenses, high-quality bonds for the next several years, and stocks for the portion not needed for a decade or more — so a market downturn doesn't force selling stocks at a low point to cover this month's bills.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">RISK</div>
+      <div><h3>Sequence-of-returns risk</h3><p>A market downturn in the first few years of retirement can do outsized, hard-to-recover-from damage — withdrawing from a shrinking balance locks in losses in a way the same downturn wouldn't if it happened mid-career. This is precisely the risk a guaranteed floor is built to address for a slice of savings; see the floor/cap trade-off in <a href="https://claude.ai/code/artifact/32de41d2-154d-44ed-b560-316f3252cedc" style="color:var(--rust)">Annuities Explained</a> for the mechanics and the cost of that guarantee.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="social-security-medicare">
+    <p class="eyebrow" style="color:var(--rust)">Level 3 · Nearing Retirement</p>
+    <h2>Social Security and Medicare timing</h2>
+    <p class="lede" style="margin-top:14px;">Two of the highest-leverage, hardest-to-reverse decisions in this entire page are simply <em>when</em> to start each of these — and they run on separate clocks.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Claim Social Security at</th><th>62</th><th>67 (full retirement age)*</th><th>70</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>% of full benefit</td><td class="rust">70%</td><td>100%</td><td class="teal">124%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose ink-soft" style="margin-top:14px; font-size:14px;">*Full retirement age (FRA) is 67 for anyone born 1960 or later. Between FRA and 70, benefits grow by a guaranteed 8% a year via delayed retirement credits — inflation-adjusted, for life, with no market risk. There's no benefit to delaying past 70.</p>
+
+    <p style="margin-top:24px;">Medicare runs on a completely separate, age-based clock — and it doesn't wait for a Social Security claiming decision. The <strong>Initial Enrollment Period</strong> is a seven-month window: three months before the month you turn 65, that birthday month itself, and three months after. Missing it — without qualifying employer coverage — triggers a <strong>10% Part B premium penalty for every 12-month period enrollment was delayed</strong>, added to the premium for as long as it's paid, typically for life.</p>
+
+    <div class="verdicts" style="margin-top:20px;">
+      <div class="verdict bad">
+        <div class="book-label" style="color:var(--rust)">A common trap</div>
+        <h3>Delaying Social Security to 70 does not delay Medicare</h3>
+        <p>Someone planning to claim Social Security at 70 still generally needs to enroll in Medicare at 65 on its own separate timeline, unless still covered by a qualifying employer plan — otherwise the late-enrollment penalty applies regardless of the Social Security decision.</p>
+      </div>
+      <div class="verdict good">
+        <div class="book-label" style="color:var(--teal)">Worth deciding deliberately</div>
+        <h3>Which to claim first isn't automatic</h3>
+        <p>The two decisions are independent and both effectively permanent once made — worth mapping out together, ideally with a specific plan for the years between retiring and each date, rather than defaulting to whichever paperwork arrives first.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="healthcare-ltc-taxes">
+    <p class="eyebrow" style="color:var(--rust)">Level 3 · Nearing Retirement</p>
+    <h2>Healthcare, long-term care, and taxes in retirement</h2>
+    <p class="lede" style="margin-top:14px;">Three costs are easy to underplan for because none of them show up as a single obvious bill during the working years that precede them.</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">Long-term care</h3>
+    <p style="margin-top:10px;">Medicare covers only limited nursing-home or home-health stays, not extended long-term care. Costs for extended care can be substantial and are rarely small enough to casually self-fund. The main choices are self-funding deliberately (setting money aside specifically for this), a dedicated long-term-care insurance policy, or a hybrid life-insurance/long-term-care policy — each with real trade-offs worth pricing well before the need is urgent, since LTC insurance becomes harder and more expensive to buy the closer you get to needing it.</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">Required minimum distributions (RMDs)</h3>
+    <p style="margin-top:10px;">Traditional (pre-tax) retirement accounts require you to start withdrawing a minimum amount each year, whether or not the money is needed.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Born</th><th>RMDs must start at age</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1951&ndash;1959</td><td class="num">73</td></tr>
+          <tr><td>1960 or later</td><td class="num">75</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose ink-soft" style="margin-top:14px; font-size:14px;">Per SECURE 2.0. Missing an RMD carries a real penalty, so this date is worth marking well in advance rather than discovering it after the fact. Roth IRAs are not subject to RMDs during the original owner's lifetime.</p>
+
+    <h3 style="margin-top:32px; font-size:19px; font-style:normal;">The years before RMDs start</h3>
+    <p style="margin-top:10px;">The stretch between retiring and RMDs beginning is often the lowest-income, lowest-tax-bracket window of a person's adult life — which makes it a common time to consider converting some traditional retirement savings to a Roth account, paying tax now at a known, often lower rate instead of later at a rate that isn't yet known. Whether that trade makes sense depends heavily on individual circumstances and is worth running by a tax professional rather than assuming it as a default.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section id="estate-legacy">
+    <p class="eyebrow" style="color:var(--rust)">Level 3 · Nearing Retirement</p>
+    <h2>Estate basics</h2>
+    <p class="lede" style="margin-top:14px;">"Estate planning" sounds like it's only for large estates. In practice, it's mostly a small set of documents that keep decisions in the hands of the people you'd actually want making them.</p>
+
+    <div class="lever-row">
+      <div class="lever-tag">WILL</div>
+      <div><h3>A will</h3><p>Names who receives what, and — critically, if there are minor children — who would raise them. Dying without one lets state law decide both.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">FORMS</div>
+      <div><h3>Beneficiary designations</h3><p>The forms on file with a 401(k), IRA, or life insurance policy override whatever the will says for that specific account. Worth checking after every major life event — marriage, divorce, a new child — since these are easy to forget to update.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">POA</div>
+      <div><h3>Power of attorney</h3><p>Names someone to make financial decisions on your behalf if you're unable to — without it, even a spouse may need a court's permission to act.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">HEALTH</div>
+      <div><h3>A healthcare proxy and advance directive</h3><p>Names someone to make medical decisions if you can't, and records your own wishes about the kind of care you'd want — a conversation worth having before it's urgently needed.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">TRUST</div>
+      <div><h3>A trust, if the situation calls for it</h3><p>Not needed by everyone, but worth a conversation with an estate attorney for a blended family, a minor or special-needs beneficiary, or a desire to avoid probate or keep the details private.</p></div>
+    </div>
+    <div class="lever-row">
+      <div class="lever-tag">DIGITAL</div>
+      <div><h3>A list of accounts and access</h3><p>A modern, easy-to-skip addition — where accounts and important documents actually live, and how a trusted person could get to them, is often the single most useful thing left behind.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">Common questions</p>
+    <h2>Frequently asked, in plain language</h2>
+
+    <div class="faq-item">
+      <h3>Where do I actually start?</h3>
+      <p>If you're not sure, start at Level 1 — the vocabulary and mechanics there make the rest of the page easier to use. If you already know the basics, jump straight to the level that matches your age and situation.</p>
+    </div>
+    <div class="faq-item">
+      <h3>I have credit card debt — should I still contribute to my 401(k)?</h3>
+      <p>At least enough to capture the full employer match (step 02 in the priority order) — that's usually a better return than the interest rate on the debt. Beyond the match, the debt typically comes first.</p>
+    </div>
+    <div class="faq-item">
+      <h3>How much should I actually have in savings?</h3>
+      <p>A starter fund of $1,000&ndash;$2,000 first, then three to six months of essential expenses once higher-priority debt is handled — more if your income is variable or you're the sole earner in your household.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Is a will only for wealthy people?</h3>
+      <p>No — it matters most for naming a guardian for minor children and directing specific belongings, regardless of the size of the estate.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Do I need life insurance if I don't have kids?</h3>
+      <p>Usually only if someone depends on your income or would be left with debt you co-signed — a spouse, a business partner, or a co-signer on a loan. Without dependents, the case is much weaker.</p>
+    </div>
+    <div class="faq-item">
+      <h3>When should I start paying attention to Level 3?</h3>
+      <p>Roughly five to ten years before your planned retirement date — earlier for Social Security and Medicare timing decisions, which benefit from being mapped out well in advance rather than decided at the last minute.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What if I feel behind on all of this?</h3>
+      <p>The order in Level 2 still applies regardless of age — and catch-up contributions exist specifically because starting later is common, not a disqualifying mistake.</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <p class="lede" style="margin-top:14px;">Terms used across all three levels, in one place.</p>
+
+    <dl class="glossary">
+      <div class="gterm"><dt>Net worth</dt><dd>Assets minus liabilities — a single snapshot of financial position.</dd></div>
+      <div class="gterm"><dt>Cash flow</dt><dd>Income minus expenses over a period, usually a month.</dd></div>
+      <div class="gterm"><dt>Emergency fund</dt><dd>Liquid cash set aside for unplanned expenses, separate from investments.</dd></div>
+      <div class="gterm"><dt>Compounding</dt><dd>Growth earning further growth on top of itself over time.</dd></div>
+      <div class="gterm"><dt>Credit score</dt><dd>A lender's numeric estimate of repayment risk, driven mostly by payment history and credit utilization.</dd></div>
+      <div class="gterm"><dt>Employer match</dt><dd>Money an employer contributes to your retirement account, tied to your own contribution.</dd></div>
+      <div class="gterm"><dt>Roth vs. traditional</dt><dd>Roth accounts are funded with after-tax money and withdraw tax-free; traditional accounts are funded pre-tax and withdrawals are taxed as income.</dd></div>
+      <div class="gterm"><dt>HSA</dt><dd>Health Savings Account — triple tax-advantaged, paired with a high-deductible health plan.</dd></div>
+      <div class="gterm"><dt>529 plan</dt><dd>A tax-advantaged account for education expenses.</dd></div>
+      <div class="gterm"><dt>Term life insurance</dt><dd>Life insurance covering a fixed period, paying a death benefit only if death occurs during that term.</dd></div>
+      <div class="gterm"><dt>Disability insurance</dt><dd>Replaces a portion of income if illness or injury prevents working.</dd></div>
+      <div class="gterm"><dt>Umbrella policy</dt><dd>Extra liability coverage above the limits of home and auto insurance.</dd></div>
+      <div class="gterm"><dt>Full retirement age (FRA)</dt><dd>The age — 67 for anyone born 1960 or later — at which Social Security pays 100% of the calculated benefit.</dd></div>
+      <div class="gterm"><dt>Delayed retirement credit</dt><dd>The 8%/yr increase in Social Security benefits for each year claiming is delayed past FRA, up to age 70.</dd></div>
+      <div class="gterm"><dt>Medicare Initial Enrollment Period</dt><dd>The seven-month window around age 65 to enroll in Medicare without a late penalty.</dd></div>
+      <div class="gterm"><dt>RMD</dt><dd>Required Minimum Distribution — the mandatory annual withdrawal from traditional retirement accounts starting at 73 or 75, depending on birth year.</dd></div>
+      <div class="gterm"><dt>Roth conversion</dt><dd>Voluntarily moving money from a traditional account to a Roth account, paying tax on the converted amount now.</dd></div>
+      <div class="gterm"><dt>Sequence-of-returns risk</dt><dd>The outsized damage a market downturn can do when it occurs in the first few years of retirement withdrawals.</dd></div>
+      <div class="gterm"><dt>Bucket strategy</dt><dd>Dividing retirement savings into cash, bonds, and stocks by how soon each portion will be spent.</dd></div>
+      <div class="gterm"><dt>Power of attorney</dt><dd>A legal document naming someone to make financial decisions on your behalf if you're unable to.</dd></div>
+      <div class="gterm"><dt>Beneficiary designation</dt><dd>The named recipient on file for a retirement account or life insurance policy — overrides a will for that account.</dd></div>
+    </dl>
+  </section>
+
+  <footer>
+    Educational material, not a recommendation or financial advice. Contribution limits, ages, and percentages reflect rules in effect for 2026 and are subject to future change — verify current figures before making a specific financial decision, or work with a qualified advisor.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var svgns = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(svgns, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function fmt$(v){
+    return "$" + Math.round(v).toLocaleString("en-US");
+  }
+  function fmt$k(v){
+    return "$" + Math.round(v/1000) + "k";
+  }
+
+  function drawLineChart(svgId, seriesList, opts){
+    var svg = document.getElementById(svgId);
+    if (!svg) return;
+    var W = 640, H = 300;
+    var padL = 56, padR = 18, padT = 24, padB = 34;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var n = opts.labels.length;
+
+    var allVals = [];
+    seriesList.forEach(function(s){ allVals = allVals.concat(s.data); });
+    var vMin = opts.yMin !== undefined ? opts.yMin : Math.min.apply(null, allVals);
+    var vMax = opts.yMax !== undefined ? opts.yMax : Math.max.apply(null, allVals);
+
+    function x(i){ return padL + (plotW * i / (n-1)); }
+    function y(v){ return padT + plotH - (plotH * (v - vMin) / (vMax - vMin)); }
+
+    var ticks = opts.yTicks;
+    ticks.forEach(function(t){
+      svg.appendChild(el("line", {x1:padL, x2:W-padR, y1:y(t), y2:y(t), class:"gridline"}));
+      var lab = el("text", {x:padL-8, y:y(t)+4, class:"axis-label", "text-anchor":"end"});
+      lab.textContent = fmt$k(t);
+      svg.appendChild(lab);
+    });
+    opts.labels.forEach(function(lbl, i){
+      if (i % opts.xLabelEvery !== 0) return;
+      var lab = el("text", {x:x(i), y:H-10, class:"axis-label", "text-anchor":"middle"});
+      lab.textContent = lbl;
+      svg.appendChild(lab);
+    });
+
+    seriesList.forEach(function(s, sIdx){
+      var d = s.data.map(function(v,i){ return (i===0?"M":"L") + x(i).toFixed(1) + " " + y(v).toFixed(1); }).join(" ");
+      svg.appendChild(el("path", {d:d, fill:"none", stroke:s.color, "stroke-width":2, "stroke-linecap":"round", "stroke-linejoin":"round"}));
+      var lastI = n-1;
+      svg.appendChild(el("circle", {cx:x(lastI), cy:y(s.data[lastI]), r:3.5, fill:s.color}));
+      var labelDy = sIdx === 0 ? -10 : 18;
+      var lab = el("text", {x:x(lastI)-6, y:y(s.data[lastI]) + labelDy, class:"axis-label", "text-anchor":"end", fill:s.color, style:"font-weight:600"});
+      lab.textContent = fmt$(s.data[lastI]);
+      svg.appendChild(lab);
+    });
+
+    var hoverGroup = el("g", {class:"tooltip-group", opacity:0});
+    var crosshair = el("line", {class:"crosshair", y1:padT, y2:padT+plotH});
+    hoverGroup.appendChild(crosshair);
+    var dots = seriesList.map(function(s){
+      var c = el("circle", {r:4, fill:s.color, stroke:"var(--paper-raised)", "stroke-width":2});
+      hoverGroup.appendChild(c);
+      return c;
+    });
+    var tipW = 170, tipH = 22 + seriesList.length*16;
+    var tipBg = el("rect", {class:"tooltip-bg", width:tipW, height:tipH, rx:3});
+    hoverGroup.appendChild(tipBg);
+    var tipTitle = el("text", {class:"tooltip-text", x:10, y:16, style:"font-weight:600"});
+    hoverGroup.appendChild(tipTitle);
+    var tipLines = seriesList.map(function(s, idx){
+      var t = el("text", {class:"tooltip-text", x:10, y:34 + idx*16, fill:s.color});
+      hoverGroup.appendChild(t);
+      return t;
+    });
+    svg.appendChild(hoverGroup);
+
+    var hit = el("rect", {class:"hit-area", x:padL, y:padT, width:plotW, height:plotH});
+    svg.appendChild(hit);
+
+    function showAt(i){
+      hoverGroup.setAttribute("opacity", 1);
+      crosshair.setAttribute("x1", x(i)); crosshair.setAttribute("x2", x(i));
+      seriesList.forEach(function(s, idx){
+        dots[idx].setAttribute("cx", x(i));
+        dots[idx].setAttribute("cy", y(s.data[i]));
+        tipLines[idx].textContent = s.label + ": " + fmt$(s.data[i]);
+      });
+      tipTitle.textContent = "Age " + opts.labels[i];
+      var tx = x(i) + 12;
+      if (tx + tipW > W - padR) tx = x(i) - tipW - 12;
+      var ty = padT + 4;
+      tipBg.setAttribute("x", tx); tipBg.setAttribute("y", ty);
+      tipTitle.setAttribute("x", tx+10); tipTitle.setAttribute("y", ty+16);
+      tipLines.forEach(function(t, idx){ t.setAttribute("x", tx+10); t.setAttribute("y", ty+34+idx*16); });
+    }
+
+    hit.addEventListener("mousemove", function(e){
+      var rect = svg.getBoundingClientRect();
+      var scale = W / rect.width;
+      var mx = (e.clientX - rect.left) * scale;
+      var i = Math.round((mx - padL) / plotW * (n-1));
+      i = Math.max(0, Math.min(n-1, i));
+      showAt(i);
+    });
+    hit.addEventListener("mouseleave", function(){ hoverGroup.setAttribute("opacity", 0); });
+    hit.addEventListener("touchstart", function(e){ e.preventDefault(); }, {passive:false});
+  }
+
+  // ---------- compounding: $300/mo, two ten-year-apart starting points ----------
+  (function(){
+    var r = 0.07/12, pmt = 300;
+    function fvContrib(months){
+      var bal = 0, out = [];
+      for (var i=0;i<months;i++){ bal = bal*(1+r) + pmt; out.push(bal); }
+      return out;
+    }
+    function growNoContrib(startBal, months){
+      var bal = startBal, out = [];
+      for (var i=0;i<months;i++){ bal = bal*(1+r); out.push(bal); }
+      return out;
+    }
+    var aContrib = fvContrib(120);
+    var aAfter = growNoContrib(aContrib[aContrib.length-1], 360);
+    var aFull = aContrib.concat(aAfter);
+
+    var bFlat = []; for (var i=0;i<120;i++) bFlat.push(0);
+    var bContrib = fvContrib(360);
+    var bFull = bFlat.concat(bContrib);
+
+    var labels = [], aYearly = [0], bYearly = [0];
+    for (var age=25; age<=65; age++) labels.push(age);
+    for (var yr=1; yr<=40; yr++){
+      aYearly.push(aFull[yr*12-1]);
+      bYearly.push(bFull[yr*12-1]);
+    }
+
+    drawLineChart("chart-compounding", [
+      {data:aYearly, color:"var(--teal)", label:"Invests 25–35"},
+      {data:bYearly, color:"var(--gold)", label:"Invests 35–65"}
+    ], {yTicks:[0,100000,200000,300000,400000], yMin:0, yMax:440000,
+        labels:labels, xLabelEvery:5});
+  })();
+})();
+</script>

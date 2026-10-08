@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scams & Fraud Protection</title>
+<meta name="description" content="Scams & Fraud Protection: how 2026 scams work, a red-flag checker, an account security checklist, what protection you have for each payment method, and what to do in the first 24 hours.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF0EA; --paper-raised:#FAFAF6; --ink:#1C2431; --ink-soft:#57606F; --ink-faint:#8B93A0;
+  --rule:#D8D7C9; --rule-strong:#B9B8A8;
+  --gold:#B8842A; --gold-wash:#B8842A1a; --teal:#0A8A73; --teal-wash:#0A8A731a;
+  --rust:#A8462F; --rust-wash:#A8462F1a; --blue:#006AC9; --ink-wash:#1C243114;
+  --shadow: 0 1px 2px rgba(28,36,49,0.06), 0 6px 20px rgba(28,36,49,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+    --rule:#2B323D; --rule-strong:#3A4250;
+    --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+    --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161C; --paper-raised:#1B212A; --ink:#E7E5DC; --ink-soft:#9AA3AF; --ink-faint:#6B7480;
+  --rule:#2B323D; --rule-strong:#3A4250;
+  --gold:#BB8A3A; --gold-wash:#BB8A3A22; --teal:#29A88F; --teal-wash:#29A88F22;
+  --rust:#C96A4A; --rust-wash:#C96A4A22; --blue:#4C86D0; --ink-wash:#E7E5DC1a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px; margin:0 auto; padding:56px 28px 96px;}
+.prose{max-width:660px}
+a{color:inherit; text-decoration-color:var(--rule-strong); text-underline-offset:2px;}
+a:hover{text-decoration-color:var(--ink-soft)}
+h1,h2,h3{font-family:"Newsreader", Georgia, serif; text-wrap:balance; margin:0; font-weight:600; letter-spacing:-0.01em;}
+.eyebrow{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px;}
+h1{font-size:44px; line-height:1.08;}
+.subtitle{font-family:"Newsreader", Georgia, serif; font-style:italic; font-weight:500; font-size:19px; color:var(--ink-soft); margin-top:14px; max-width:620px; line-height:1.45;}
+h2{font-size:26px; line-height:1.2; margin-bottom:2px;}
+h3{font-size:17px; font-weight:600; font-style:italic; margin-bottom:6px;}
+p{font-size:16px; line-height:1.68; margin:0 0 16px;}
+p:last-child{margin-bottom:0}
+.lede{font-size:17.5px; line-height:1.7; margin-top:14px;}
+.ink-soft{color:var(--ink-soft)}
+.small-note{font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+.num{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+ul.plain{margin:0 0 16px; padding-left:20px;}
+ul.plain li{font-size:15.5px; line-height:1.65; margin-bottom:6px;}
+.back-link{display:inline-block; margin-bottom:28px; font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-soft); text-decoration:none;}
+.back-link:hover{color:var(--ink)}
+header.masthead{padding-bottom:36px; margin-bottom:44px; border-bottom:1px solid var(--rule-strong);}
+section{margin:64px 0;}
+section[id]{scroll-margin-top:24px;}
+.rule{border:0; border-top:1px solid var(--rule); margin:56px 0;}
+
+.tldr{background:var(--teal-wash); border:1px solid var(--rule); border-left:3px solid var(--teal); border-radius:3px; padding:20px 22px; margin-top:28px;}
+.tldr .eyebrow{color:var(--teal); margin-bottom:8px;}
+.tldr p{font-size:15px; line-height:1.65; margin:0;}
+nav.toc{margin-top:32px; padding-top:28px; border-top:1px solid var(--rule);}
+.toc-part-label{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+nav.toc a{display:block; font-size:14.5px; color:var(--ink-soft); text-decoration:none; padding:7px 0; border-bottom:1px dotted var(--rule);}
+nav.toc a:last-child{border-bottom:none}
+nav.toc a:hover{color:var(--ink)}
+
+.chart-card{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:22px 22px 14px; box-shadow:var(--shadow); margin-top:20px;}
+.chart-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px 16px; flex-wrap:wrap; margin-bottom:8px;}
+.chart-title{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px;}
+.legend{display:flex; gap:8px 16px; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+.swatch.dash{height:0; width:14px; border-top:2px dashed var(--ink-faint); border-radius:0;}
+.chart-svg-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+svg.chart{display:block; width:100%; height:auto; min-width:520px; touch-action:pan-y;}
+.axis-label{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-faint);}
+.axis-title{font-family:"IBM Plex Mono",monospace; font-size:10.5px; fill:var(--ink-soft);}
+.direct-label{font-family:"IBM Plex Mono",monospace; font-size:11px; fill:var(--ink-soft);}
+.gridline{stroke:var(--rule); stroke-width:1;}
+.zero{stroke:var(--rule-strong); stroke-width:1.2;}
+.tooltip-group{pointer-events:none;}
+.tooltip-bg{fill:var(--paper-raised); stroke:var(--rule-strong); stroke-width:1;}
+.tooltip-text{font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:var(--ink);}
+.tooltip-text .tt-head{font-weight:600;}
+.crosshair{stroke:var(--ink-faint); stroke-width:1; stroke-dasharray:2,3;}
+.hit{fill:transparent; cursor:crosshair;}
+.chart-foot{font-size:11.5px; color:var(--ink-faint); margin-top:10px; font-family:"IBM Plex Mono",monospace; line-height:1.5;}
+
+.seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:999px; overflow:hidden;}
+.seg button{font:500 11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:0; padding:6px 12px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
+
+.controls{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; margin:6px 0 18px;}
+@media (max-width:560px){ .controls{grid-template-columns:1fr} }
+.control label{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+.control label output{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600;}
+input[type=range]{width:100%; accent-color:var(--teal); height:22px;}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 16px;}
+.tiles.five{grid-template-columns:repeat(5,1fr);}
+@media (max-width:640px){ .tiles{grid-template-columns:1fr} .tiles.five{grid-template-columns:1fr 1fr} }
+.tile{border:1px solid var(--rule); border-radius:3px; padding:12px 14px; background:var(--paper);}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); display:flex; align-items:center; gap:6px;}
+.tile .v{font-family:"Newsreader",serif; font-weight:600; font-size:23px; margin-top:4px; font-variant-numeric:tabular-nums;}
+.tile .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+.tbl-wrap{overflow-x:auto; margin-top:18px;}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px;}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule-strong); vertical-align:bottom;}
+tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tbody td:first-child{font-family:"Public Sans",sans-serif;}
+.compare table{min-width:720px;}
+.wide-compare table{min-width:900px;}
+.wide-compare th:first-child, .wide-compare td:first-child{position:sticky; left:0; background:var(--paper); z-index:1;}
+.compare th,.compare td{text-align:left; vertical-align:top; padding:13px 14px;}
+.compare tbody td{font-family:"Public Sans",sans-serif; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.compare tbody td:first-child{color:var(--ink); font-weight:600; font-size:13px;}
+.compare thead th.base{color:var(--teal);}
+.compare td.base{background:var(--teal-wash); color:var(--ink);}
+
+.lever-row{display:grid; grid-template-columns:72px 1fr; gap:18px; padding:18px 0; border-top:1px solid var(--rule);}
+.lever-row:last-of-type{border-bottom:1px solid var(--rule)}
+.lever-tag{font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px; font-weight:600; letter-spacing:0.04em; color:var(--ink-faint); padding-top:2px;}
+.lever-row p{font-size:15.5px}
+
+.verdicts{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;}
+.verdicts.three{grid-template-columns:1fr 1fr 1fr; gap:14px;}
+@media (max-width:680px){ .verdicts, .verdicts.three{grid-template-columns:1fr} }
+.verdict{border:1px solid var(--rule); border-radius:3px; padding:20px; background:var(--paper-raised); box-shadow:var(--shadow);}
+.verdict .book-label{margin-bottom:8px; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-faint);}
+.verdict h3{margin-bottom:8px}
+.verdict p{font-size:14.5px; line-height:1.6;}
+.verdict.good{border-top:3px solid var(--teal)}
+.verdict.bad{border-top:3px solid var(--rust)}
+.verdict.neutral{border-top:3px solid var(--gold)}
+
+.callout{background:var(--gold-wash); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 20px; margin-top:24px; font-size:14.5px; line-height:1.6;}
+.callout strong{color:var(--ink)}
+
+.waffle{display:grid; grid-template-columns:repeat(20, 1fr); gap:4px; max-width:520px; margin:8px 0 10px;}
+.waffle i{aspect-ratio:1; border-radius:2px; background:var(--rule); display:block;}
+.waffle i.win{background:var(--teal);}
+
+.check-item{display:grid; grid-template-columns:28px 1fr; gap:12px; padding:14px 0; border-top:1px solid var(--rule);}
+.check-item:last-child{border-bottom:1px solid var(--rule)}
+.check-box{width:18px; height:18px; border:1.5px solid var(--ink-faint); border-radius:3px; margin-top:3px;}
+.check-item h3{font-size:16px; margin-bottom:4px;}
+.check-item p{font-size:15px; color:var(--ink-soft);}
+
+.faq-item{border-top:1px solid var(--rule); padding:22px 0;}
+.faq-item:last-child{border-bottom:1px solid var(--rule)}
+.faq-item h3{font-size:17.5px; margin-bottom:8px;}
+.faq-item p{font-size:15.5px}
+.glossary{display:grid; grid-template-columns:1fr 1fr; gap:0 32px; margin-top:24px;}
+@media (max-width:640px){ .glossary{grid-template-columns:1fr} }
+.gterm{padding:14px 0; border-top:1px solid var(--rule);}
+.gterm dt{font-family:"Newsreader",serif; font-weight:600; font-style:italic; font-size:15.5px;}
+.gterm dd{margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.sources li{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px;}
+.next-links{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+@media (max-width:560px){ .next-links{grid-template-columns:1fr} }
+.next-links a{display:block; border:1px solid var(--rule); border-radius:4px; padding:14px 16px; text-decoration:none; background:var(--paper-raised);}
+.next-links a:hover{border-color:var(--rule-strong)}
+.next-links .nl-k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.next-links .nl-t{font-family:"Newsreader",serif; font-weight:600; font-size:16.5px; margin-top:3px;}
+.next-links .nl-d{font-size:13px; color:var(--ink-soft); margin-top:3px; line-height:1.5;}
+.next-links .soon{border-style:dashed; background:transparent;}
+footer{margin-top:72px; padding-top:24px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-faint); line-height:1.6;}
+@media (max-width:560px){ h1{font-size:36px} .wrap{padding:44px 18px 80px} .chart-card{padding:18px 14px 12px} }
+
+/* ---- Which Account? additions ---- */
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.03em; padding:3px 8px; border-radius:3px; white-space:nowrap;}
+.tag.free{background:var(--teal-wash); color:var(--teal); font-weight:600;}
+.tag.tax{background:var(--rust-wash); color:var(--rust); font-weight:600;}
+.tag.part{background:var(--gold-wash); color:var(--gold); font-weight:600;}
+.taxmap td{vertical-align:middle;}
+.taxmap tbody td{font-family:"Public Sans",sans-serif;}
+.taxmap td .sub{display:block; font-size:12px; color:var(--ink-soft); margin-top:4px; white-space:normal; line-height:1.4;}
+.taxmap td:first-child strong{font-family:"Newsreader",serif; font-size:15.5px; font-style:italic;}
+
+/* planner */
+.planner{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 20px; margin:8px 0 18px;}
+@media (max-width:680px){ .planner{grid-template-columns:1fr 1fr} }
+@media (max-width:420px){ .planner{grid-template-columns:1fr} }
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; line-height:1.35;}
+.field input, .field select{width:100%; font:500 14px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:8px 10px;}
+.field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.presets{display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 16px; align-items:center;}
+.presets span{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); margin-right:4px;}
+.presets button{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:6px 12px; cursor:pointer;}
+.presets button:hover{color:var(--ink); border-color:var(--ink-faint);}
+.presets button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.plan-summary{font-size:15px; line-height:1.6; margin:4px 0 14px; padding:14px 16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.buckets{display:flex; flex-direction:column; gap:0;}
+.bucket{display:grid; grid-template-columns:30px minmax(0,1.3fr) minmax(0,1.6fr) 96px; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--rule);}
+.bucket:last-child{border-bottom:1px solid var(--rule);}
+.bucket .step{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-faint);}
+.bucket .name{font-size:14px; font-weight:600; line-height:1.3;}
+.bucket .name small{display:block; font-weight:400; font-size:12px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+.bucket .track{height:12px; background:var(--ink-wash); border-radius:4px; overflow:hidden; position:relative;}
+.bucket .fill{height:100%; border-radius:4px; background:var(--c); transition:width .25s ease;}
+.bucket .amt{font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:right; font-variant-numeric:tabular-nums;}
+.bucket .amt small{display:block; font-size:10.5px; color:var(--ink-faint);}
+.bucket.skip{opacity:.45;}
+.bucket.skip .track{background:repeating-linear-gradient(135deg, var(--ink-wash) 0 4px, transparent 4px 8px);}
+@media (max-width:560px){
+  .bucket{grid-template-columns:24px 1fr 84px; gap:4px 10px;}
+  .bucket .track{grid-column:2 / span 2; grid-row:2;}
+  .bucket .amt{grid-column:3; grid-row:1;}
+}
+.bonus{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.bonus .tile{flex:1 1 150px;}
+.legend-inline{display:flex; gap:8px 16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin:2px 0 10px;}
+.legend-inline span{display:inline-flex; gap:6px; align-items:center;}
+
+/* account spec cards */
+.acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;}
+@media (max-width:680px){ .acct-grid{grid-template-columns:1fr} }
+.acct{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); padding:18px 20px; border-top:3px solid var(--c);}
+.acct h3{font-style:normal; font-size:19px; margin-bottom:2px;}
+.acct .acct-kind{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:10px;}
+.acct p{font-size:14.5px; line-height:1.6; margin-bottom:10px;}
+.acct dl{margin:0; display:grid; grid-template-columns:92px 1fr; gap:6px 12px; font-size:13.5px; line-height:1.5;}
+.acct dt{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px;}
+.acct dd{margin:0; color:var(--ink-soft);}
+.acct dd strong{color:var(--ink);}
+
+/* roth vs traditional */
+.rt-bars{display:flex; flex-direction:column; gap:14px; margin:6px 0 8px;}
+.rt-row{display:grid; grid-template-columns:120px 1fr 110px; gap:12px; align-items:center;}
+.rt-row .lab{font-size:13.5px; font-weight:600;}
+.rt-row .lab small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+.rt-row .track{height:26px; background:var(--ink-wash); border-radius:4px; overflow:hidden;}
+.rt-row .fill{height:100%; border-radius:4px; transition:width .25s ease;}
+.rt-row .val{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600; text-align:right;}
+.rt-verdict{font-size:15px; line-height:1.6; margin-top:12px; padding:12px 16px; border-left:3px solid var(--teal); background:var(--teal-wash); border-radius:0 3px 3px 0;}
+@media (max-width:480px){ .rt-row{grid-template-columns:90px 1fr 84px;} }
+:root{--plum:#881998;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--plum:#BF6DCB;} }
+:root[data-theme="dark"]{--plum:#BF6DCB;}
+
+/* ---- Taxes 101 additions ---- */
+.stair{display:flex; height:44px; border-radius:4px; overflow:hidden; margin:10px 0 6px; background:var(--ink-wash);}
+.stair .sg{height:100%; display:flex; align-items:center; justify-content:center; font:600 11px "IBM Plex Mono",monospace; color:var(--paper-raised); white-space:nowrap; overflow:hidden; min-width:0; border-right:2px solid var(--paper-raised); position:relative; cursor:default;}
+.stair .sg:last-child{border-right:0;}
+.stair .sg.ded{background:var(--ink-faint); color:var(--paper-raised);}
+.stair .sg.pre{background:repeating-linear-gradient(135deg, var(--ink-faint) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair .sg.ord{background:var(--teal);}
+.stair .sg.lt{background:var(--blue);}
+.stair .sg.lt0{background:repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 7px); color:var(--ink);}
+.stair-axis{display:flex; justify-content:space-between; font:11px "IBM Plex Mono",monospace; color:var(--ink-faint);}
+.stair-key{display:flex; flex-wrap:wrap; gap:6px 16px; font:11.5px "IBM Plex Mono",monospace; color:var(--ink-soft); margin:10px 0 4px;}
+.stair-key span{display:inline-flex; align-items:center; gap:6px;}
+.stair-key i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+.brk td.r{font-family:"IBM Plex Mono",monospace;}
+.brk tbody tr:last-child td{font-weight:600;}
+.brk tr.zero td{color:var(--ink-faint);}
+.raise{margin-top:14px; padding:12px 16px; border-left:3px solid var(--gold); background:var(--gold-wash); border-radius:0 3px 3px 0; font-size:15px; line-height:1.6;}
+.flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:22px 0 8px;}
+@media (max-width:680px){ .flow{grid-template-columns:1fr} }
+.flow-step{background:var(--paper-raised); border:1px solid var(--rule); border-radius:3px; padding:14px 14px 12px; position:relative; box-shadow:var(--shadow);}
+.flow-step .n{font:600 11px "IBM Plex Mono",monospace; color:var(--ink-faint); letter-spacing:0.06em;}
+.flow-step h3{font-style:normal; font-size:16px; margin:4px 0 6px;}
+.flow-step p{font-size:13px; line-height:1.5; color:var(--ink-soft); margin:0;}
+.flow-step .op{font:600 13px "IBM Plex Mono",monospace; color:var(--teal); margin-top:8px; display:block;}
+.check-row{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ---- Sales pitch additions ---- */
+.pitch{border-top:1px solid var(--rule); padding:24px 0;}
+.pitch:last-child{border-bottom:1px solid var(--rule);}
+.pitch-claim{font-family:"Newsreader",serif; font-style:italic; font-weight:600; font-size:19px; color:var(--ink); background:var(--gold-wash); border-left:3px solid var(--gold); padding:12px 18px; border-radius:0 3px 3px 0; margin-bottom:14px; line-height:1.4;}
+.reality-tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--rust); font-weight:600; display:block; margin-bottom:6px;}
+.pitch p{font-size:15.5px;}
+.pitch .ask{font-size:14.5px; color:var(--ink-soft); margin-top:8px;}
+.pitch .ask strong{color:var(--teal); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-right:6px;}
+.flags{display:flex; flex-direction:column; margin-top:8px;}
+.flag{display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:start; padding:11px 4px; border-top:1px solid var(--rule); cursor:pointer; font-size:14.5px; line-height:1.5;}
+.flag:last-child{border-bottom:1px solid var(--rule);}
+.flag input{width:18px; height:18px; margin:2px 0 0; accent-color:var(--rust); cursor:pointer;}
+.flag:hover{background:var(--ink-wash);}
+.flag.on{background:var(--rust-wash);}
+.flag small{display:block; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+.meter{display:flex; gap:4px; margin:14px 0 8px;}
+.meter i{flex:1; height:10px; border-radius:3px; background:var(--ink-wash);}
+.meter i.on{background:var(--rust);}
+.verdict-box{padding:14px 16px; border-radius:3px; border-left:3px solid var(--teal); background:var(--teal-wash); font-size:15px; line-height:1.6;}
+.verdict-box.warn{border-left-color:var(--gold); background:var(--gold-wash);}
+.verdict-box.stop{border-left-color:var(--rust); background:var(--rust-wash);}
+.paymodel{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px;}
+@media (max-width:760px){ .paymodel{grid-template-columns:1fr 1fr} }
+@media (max-width:460px){ .paymodel{grid-template-columns:1fr} }
+.pm{background:var(--paper-raised); border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:16px; box-shadow:var(--shadow);}
+.pm .k{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint);}
+.pm h3{font-style:normal; font-size:17px; margin:4px 0 6px;}
+.pm p{font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin:0 0 8px;}
+.pm .nudge{font-size:12.5px; color:var(--ink); border-top:1px dotted var(--rule); padding-top:8px; margin:0;}
+.pm .nudge b{display:block; margin-bottom:2px; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-right:4px;}
+
+/* ---- Health & disability additions ---- */
+.plan-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:8px 0 16px;}
+@media (max-width:620px){ .plan-grid{grid-template-columns:1fr} }
+.plan-box{border:1px solid var(--rule); border-top:3px solid var(--c); border-radius:3px; padding:12px 14px 14px; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; background:var(--paper);}
+.plan-box legend{font:600 11px "IBM Plex Mono",monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); padding:0 6px;}
+@media (max-width:380px){ .plan-box{grid-template-columns:1fr} }
+.win-a{color:var(--gold); font-weight:600;}
+.win-b{color:var(--teal); font-weight:600;}
+.flow.four{grid-template-columns:repeat(4,1fr);}
+@media (max-width:680px){ .flow.four{grid-template-columns:1fr} }
+.plan-box{align-content:start;}
+.plan-box .field{display:flex; flex-direction:column; justify-content:flex-end;}
+
+/* ---- Credit & debt additions ---- */
+.debt-table{min-width:560px;}
+.debt-table td{padding:6px 8px; text-align:left;}
+.debt-table th{text-align:left;}
+.debt-table input{width:100%; font:500 13.5px "IBM Plex Mono",monospace; color:var(--ink); background:var(--paper); border:1px solid var(--rule-strong); border-radius:3px; padding:6px 8px;}
+.debt-table input:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.debt-table tbody tr:last-child td{font-weight:400; border-bottom:1px solid var(--rule);}
+.btn-small{font:500 12px "IBM Plex Mono",monospace; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-strong); border-radius:999px; padding:7px 14px; cursor:pointer;}
+.btn-small:hover{color:var(--ink); border-color:var(--ink-faint);}
+.rm{font:600 14px "IBM Plex Mono",monospace; color:var(--ink-faint); background:none; border:0; cursor:pointer; padding:4px 8px;}
+.rm:hover{color:var(--rust);}
+
+
+/* ---- Scams & fraud additions ---- */
+.flags.good .flag input{accent-color:var(--teal);}
+.flags.good .flag.on{background:var(--teal-wash);}
+.meter.good i.on{background:var(--teal);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/finance/index.html#map">← Personal Finance Library</a>
+
+  <header class="masthead">
+    <p class="eyebrow">Financial Education — Across every thread · Part of Personal Finance Library</p>
+    <h1>Scams &amp; Fraud Protection: Spot It, Lock It Down, Recover</h1>
+    <p class="subtitle">How today's scams work and why smart people fall for them, a checker for the call or message in front of you, a security setup you can finish in an afternoon, what protection you actually have when money leaves your account, and a step-by-step plan if it happens to you or someone you love.</p>
+
+    <div class="tldr">
+      <p class="eyebrow" style="margin:0 0 8px;">TL;DR</p>
+      <p>Americans reported losing a record <strong>$15.9 billion</strong> to fraud in 2025 (FTC), almost half of it to <strong>investment scams</strong>, and the real figure is far higher because most losses go unreported. Nearly every scam follows the same four steps: someone <strong>pretends</strong> to be from a trusted organization, says there's a <strong>problem or prize</strong>, <strong>pressures</strong> you to act now, and tells you to <strong>pay</strong> in a specific way, often a bank transfer, cryptocurrency or gift cards. The single best defense: <strong>hang up and call back on a number you already trust</strong>. Lock down the basics (credit freezes, a password manager, two-factor login, a carrier PIN, alerts), and know the rules: credit cards protect you best; money you send yourself by wire, payment app or crypto is usually gone. If it happens, act within hours, report it, and watch out for "recovery" scammers who come next.</p>
+    </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-part-label">In this episode</div>
+      <a href="#scale">How big the problem is</a>
+      <a href="#playbook">The scammer's playbook</a>
+      <a href="#common">The scams going around now</a>
+      <a href="#checker">Is this a scam? (checker)</a>
+      <a href="#lock-down">Lock down your accounts (checklist)</a>
+      <a href="#protection">What protection you actually have</a>
+      <a href="#if-it-happens">If it happens: the first 24 hours</a>
+      <a href="#identity">Identity theft</a>
+      <a href="#family">Protecting your family</a>
+      <a href="#where-it-fits">Where this fits in the bigger picture</a>
+      <a href="#checklist">A fraud protection checklist</a>
+      <a href="#faq">Frequently asked, in plain language</a>
+      <a href="#glossary">Glossary</a>
+      <a href="#sources">Sources and assumptions</a>
+    </nav>
+  </header>
+
+  <section id="scale">
+    <p class="eyebrow">Start here</p>
+    <h2>How big the problem is</h2>
+    <p class="lede">Fraud is now one of the most common ways people lose money, and the losses are growing fast as scammers use social media, payment apps, cryptocurrency and AI. Reported losses to the FTC are up nearly 430% since 2020.</p>
+    <div class="tiles">
+      <div class="tile"><div class="k">Reported to the FTC, 2025</div><div class="v">$15.9 billion</div><div class="s">about 3 million reports</div></div>
+      <div class="tile"><div class="k">Reported to the FBI, 2025</div><div class="v">$20.9 billion</div><div class="s">$7.7 billion from people 60+</div></div>
+      <div class="tile"><div class="k">Identity theft reports, 2025</div><div class="v">1.36 million</div><div class="s">up about 20% in a year</div></div>
+    </div>
+    <div class="tbl-wrap compare" style="margin-top:14px;">
+      <table>
+        <thead><tr><th>What the 2025 data shows</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td>Investment scams cost the most</td><td>$7.9 billion reported to the FTC, nearly half of all losses; often fake trading apps, crypto "opportunities" or tips from a new online friend</td></tr>
+          <tr><td>Impostor scams are the most common</td><td>More than 1 million reports and $3.5 billion lost; fake bank "fraud departments" and government agents led the losses</td></tr>
+          <tr><td>Social media is where the big losses start</td><td>$2.1 billion lost to scams that began on social media; text messages were the most common first contact</td></tr>
+          <tr><td>Bank transfers and crypto move the most money</td><td>Bank payments had the highest total losses, then cryptocurrency; crypto ATMs alone took $388 million (FBI), mostly from people over 50</td></tr>
+          <tr><td>Your data is already out there</td><td>A record 3,322 data breaches in 2025 (Identity Theft Resource Center), so assume names, emails and old passwords are known to criminals</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="playbook">
+    <p class="eyebrow">Why smart people fall for it</p>
+    <h2>The scammer's playbook</h2>
+    <p class="lede">Scams don't work because victims are foolish. They work because they're designed to trigger fear, hope or urgency and stop careful thinking. The FTC boils almost every scam down to four moves; spot any one of them and slow down.</p>
+    <div class="flow four">
+      <div class="flow-step"><span class="n">1</span><h3>Pretend</h3><p>They claim to be your bank, the IRS, Social Security, the police, Amazon, Microsoft, a grandchild, or a new romantic interest. Caller ID and email names are easy to fake.</p></div>
+      <div class="flow-step"><span class="n">2</span><h3>Problem or prize</h3><p>Your account is hacked, there's a warrant, a relative is in jail, your computer has a virus, or you've won, qualified, been selected.</p></div>
+      <div class="flow-step"><span class="n">3</span><h3>Pressure</h3><p>Act now, stay on the line, don't tell anyone, not even your bank. Secrecy and urgency are the biggest red flags of all.</p></div>
+      <div class="flow-step"><span class="n">4</span><h3>Pay a specific way</h3><p>Wire or bank transfer, payment app, cryptocurrency or a crypto ATM, gift cards, cash or gold handed to a courier. These are hard to reverse.</p></div>
+    </div>
+    <div class="callout"><strong>The one rule that beats almost every scam:</strong> if someone contacts you, never act inside that conversation. Hang up or close the message, then contact the organization yourself using a number or website you already know, such as the one on the back of your card.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="common">
+    <p class="eyebrow">Know the scripts</p>
+    <h2>The scams going around now</h2>
+    <div class="tbl-wrap compare wide-compare">
+      <table>
+        <thead><tr><th>Scam</th><th>How it starts</th><th>The tell</th></tr></thead>
+        <tbody>
+          <tr><td>Fake bank fraud department</td><td>A text about a "suspicious charge," then a call from "your bank"</td><td>They ask you to move money to a "safe account," read back a code, or withdraw cash. Banks never do this.</td></tr>
+          <tr><td>Government impostor</td><td>A call from the "IRS," "Social Security," "FBI" or local police about a warrant, frozen benefits or a problem</td><td>Threats of arrest and a demand for payment by gift card, crypto or cash pickup</td></tr>
+          <tr><td>Tech support</td><td>A pop-up with a phone number and alarm sounds, or a call from "Microsoft" or "Apple"</td><td>They want remote access to your computer, then "refund" too much and ask you to send it back</td></tr>
+          <tr><td>Toll, package and delivery texts</td><td>"Unpaid toll" or "package on hold" with a link</td><td>A link to a look-alike site that collects your card number</td></tr>
+          <tr><td>Investment and crypto ("pig butchering")</td><td>A wrong-number text, dating app or WhatsApp investment group</td><td>A friendly stranger shows you big gains on an app, lets you withdraw a little, then the money disappears</td></tr>
+          <tr><td>Romance</td><td>A match or message from someone overseas, in the military or on an oil rig</td><td>They can't meet or video chat, then need money for an emergency, a ticket or an investment</td></tr>
+          <tr><td>Grandparent / voice clone</td><td>A panicked call from a "grandchild" or "lawyer"; AI can now copy a voice from a short clip</td><td>"Don't tell Mom and Dad," bail money, a courier coming for cash</td></tr>
+          <tr><td>Job and task scams</td><td>An unsolicited offer to earn money liking videos or "optimizing" products</td><td>You have to deposit your own money, often crypto, to unlock earnings</td></tr>
+          <tr><td>Shopping ads</td><td>A great deal in a social media ad</td><td>An unfamiliar site, prices too good, payment by app or wire</td></tr>
+          <tr><td>Debt relief and student loans</td><td>An offer to cut your debt or get loan forgiveness fast</td><td>Upfront fees and requests for your federal student aid login. See <a href="/finance/credit-debt.html#tools">Credit &amp; Debt</a>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checker">
+    <p class="eyebrow">Before you do anything</p>
+    <h2>Is this a scam?</h2>
+    <p class="lede">Got a call, text, email or message that has you worried? Check everything that's true about it.</p>
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Red-flag checker</div></div>
+      <div class="flags" id="rf-list"></div>
+      <div class="meter" id="rf-meter" aria-hidden="true"></div>
+      <div class="raise" id="rf-note"></div>
+      <div class="chart-foot">A guide, not a guarantee: a contact with no red flags can still be a scam, and some real organizations do call you. When in doubt, contact the organization yourself through a number or website you already trust.</div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="lock-down">
+    <p class="eyebrow">An afternoon well spent</p>
+    <h2>Lock down your accounts</h2>
+    <p class="lede">You can't stop scammers from trying, but a few settings make you a much harder target and limit the damage if your information leaks. Tick off what you've done; your progress is saved in this browser only.</p>
+    <div class="chart-card">
+      <div class="chart-head"><div class="chart-title">Your security setup</div><div class="legend" id="sec-score"></div></div>
+      <div class="flags good" id="sec-list"></div>
+      <div class="meter good" id="sec-meter" aria-hidden="true"></div>
+      <div class="raise" id="sec-note"></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="protection">
+    <p class="eyebrow">Where the law helps, and where it doesn't</p>
+    <h2>What protection you actually have</h2>
+    <p class="lede">The key question is whether a payment was <strong>unauthorized</strong> (someone else made it) or <strong>authorized</strong> (you made it, even if you were tricked). The law protects the first far better than the second.</p>
+    <div class="tbl-wrap compare">
+      <table>
+        <thead><tr><th>How the money left</th><th>Protection</th><th>What to do</th></tr></thead>
+        <tbody>
+          <tr><td>Credit card</td><td>Best. Federal law caps your liability for unauthorized charges at $50 (most issuers charge $0), and you can dispute charges for things you didn't receive</td><td>Call the issuer and dispute in writing within 60 days of the statement</td></tr>
+          <tr><td>Debit card or unauthorized bank transfer</td><td>Good if you're fast: up to $50 if reported within 2 business days, up to $500 within 60 days of the statement, possibly unlimited after that. If a scammer used a code you gave them, it's generally still unauthorized</td><td>Report to the bank immediately and in writing</td></tr>
+          <tr><td>Payment app (Zelle, Venmo, Cash App) you sent yourself</td><td>Weak. Usually treated like cash. Zelle's network asks banks to reimburse some impostor scams (fake bank, government or company you already use), case by case</td><td>Call your bank anyway and say "impostor scam"; ask what the network's policy covers</td></tr>
+          <tr><td>Wire transfer</td><td>Very weak once sent; sometimes recalled if caught within hours</td><td>Call the bank's wire department immediately and ask for a recall</td></tr>
+          <tr><td>Cryptocurrency or crypto ATM</td><td>Almost none; transfers are effectively permanent</td><td>Report to IC3.gov and the exchange or ATM operator; never pay a "recovery" service</td></tr>
+          <tr><td>Gift cards</td><td>None, unless the card company freezes the balance before it's spent</td><td>Call the number on the back of the card right away, with the receipt</td></tr>
+          <tr><td>Cash, gold or checks handed over</td><td>None</td><td>Call the police, especially if a courier is coming back</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="if-it-happens">
+    <p class="eyebrow">Speed matters</p>
+    <h2>If it happens: the first 24 hours</h2>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">1 · STOP</div><div><h3>Cut off contact</h3><p>Hang up, stop replying, and don't send anything more, however urgent they make it sound. If they had remote access to your computer, disconnect it from the internet.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">2 · CALL</div><div><h3>Call your bank and card companies</h3><p>Use the number on your card or statement. Report the fraud, ask them to stop or recall payments, and change account passwords and PINs. Ask the bank to note the account.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">3 · SECURE</div><div><h3>Secure your accounts and identity</h3><p>Change passwords, starting with email (it can reset everything else) and anything that shares that password; turn on two-factor login; freeze your credit at all three bureaus if any personal information was shared.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">4 · REPORT</div><div><h3>Report it</h3><p>To the FTC at ReportFraud.ftc.gov, to the FBI at IC3.gov for online scams, and to local police if you need a report for your bank or insurer. For identity theft, IdentityTheft.gov builds a personal recovery plan and pre-filled letters.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">5 · WATCH</div><div><h3>Beware the second scam</h3><p>Victims are often targeted again by "recovery" services, fake lawyers or fake government agents promising to get the money back for a fee. Real agencies never charge to recover money.</p></div></div>
+    <div class="callout"><strong>Be kind to yourself, or whoever was scammed.</strong> Shame keeps people from reporting and from asking for help, which is exactly what scammers count on. Professionals, executives and financial experts fall for these too; the scripts are built by full-time criminals.</div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="identity">
+    <p class="eyebrow">When someone becomes you</p>
+    <h2>Identity theft</h2>
+    <p class="lede">The FTC received 1.36 million identity theft reports in 2025. Credit card fraud led (about 598,000 reports, mostly new accounts opened in someone's name), followed by loan and lease fraud, bank account fraud, tax and employment fraud, and phone and utility accounts.</p>
+    <div class="lever-row" style="margin-top:14px;"><div class="lever-tag">FREEZE</div><div><h3>Credit freezes</h3><p>Free at Equifax, Experian and TransUnion, and the strongest protection against new accounts in your name. You can lift a freeze in minutes when you apply for credit. See <a href="/finance/credit-debt.html#report">Credit &amp; Debt</a>.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">TAXES</div><div><h3>An IRS Identity Protection PIN</h3><p>Anyone can request one at IRS.gov; it stops someone else from filing a tax return (and taking a refund) using your Social Security number.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">BENEFITS</div><div><h3>Claim your Social Security account</h3><p>Create your my Social Security account at ssa.gov before a thief does, and check your earnings record each year.</p></div></div>
+    <div class="lever-row"><div class="lever-tag">MONITOR</div><div><h3>Watch the reports, skip the paid service</h3><p>Free weekly credit reports at AnnualCreditReport.com and alerts from your bank and card apps cover most of what paid "identity protection" services sell.</p></div></div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="family">
+    <p class="eyebrow">The people around you</p>
+    <h2>Protecting your family</h2>
+    <div class="verdicts three">
+      <div class="verdict good"><div class="book-label">Parents and grandparents</div><h3>Settings plus conversation</h3><p>Trusted contacts at their banks, alerts, a credit freeze, and regular, friendly check-ins. More in <a href="/finance/aging-parents.html#fraud">Caring for Aging Parents</a>.</p></div>
+      <div class="verdict good"><div class="book-label">Everyone</div><h3>A family code word</h3><p>Agree on a word or question only family knows, to check any "emergency" call, especially now that voices can be cloned.</p></div>
+      <div class="verdict good"><div class="book-label">Kids</div><h3>Freeze their credit too</h3><p>Children's Social Security numbers are attractive because nobody checks them for years. Parents can freeze a child's credit at all three bureaus for free.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="where-it-fits">
+    <p class="eyebrow">The bigger picture</p>
+    <h2>Where this fits in the bigger picture</h2>
+    <p class="lede">Fraud cuts across every thread of the <a href="/finance/money-river.html">Money River</a>: it can drain an emergency fund, open debts in your name or wipe out a retirement account. <a href="/finance/sales-pitch.html">Spotting the Sales Pitch</a> covers the legal-but-costly side, products with hidden fees and conflicted advice; this episode covers outright crime.</p>
+    <div class="next-links">
+      <a href="/finance/sales-pitch.html"><div class="nl-k">Related</div><div class="nl-t">Spotting the Sales Pitch</div><div class="nl-d">The legal pitches that still cost you.</div></a>
+      <a href="/finance/aging-parents.html#fraud"><div class="nl-k">Related</div><div class="nl-t">Caring for Aging Parents</div><div class="nl-d">Helping older relatives stay safe.</div></a>
+      <a href="/finance/where-to-keep-cash.html#safety"><div class="nl-k">Related</div><div class="nl-t">Where to Keep Your Cash</div><div class="nl-d">FDIC, SIPC and the apps that aren't banks.</div></a>
+      <a href="/finance/paycheck-benefits.html"><div class="nl-k">Read next</div><div class="nl-t">Paycheck &amp; Benefits</div><div class="nl-d">Reading a pay stub, the W-4 and open enrollment.</div></a>
+      <a href="/finance/money-behavior.html"><div class="nl-k">Related</div><div class="nl-t">Money Behavior</div><div class="nl-d">Why urgency and emotion lead us astray.</div></a>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="checklist">
+    <p class="eyebrow">Do this</p>
+    <h2>A fraud protection checklist</h2>
+    <div style="margin-top:20px;">
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Adopt the call-back rule</h3><p>Never act inside a call, text or email you didn't start. Contact the organization yourself.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Freeze your credit at all three bureaus</h3><p>And your children's. It's free and takes minutes each.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Use a password manager and two-factor login</h3><p>Start with email and banking. Prefer an authenticator app or passkey over text-message codes.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Add a PIN and port-out lock with your phone carrier</h3><p>Stops "SIM swap" thieves from taking over your number and your text codes.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Turn on transaction alerts</h3><p>For every bank and card account, so you see fraud within minutes.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Get an IRS IP PIN and a my Social Security account</h3><p>Before someone else uses your number.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Pick a family code word</h3><p>For any "emergency" call asking for money.</p></div></div>
+      <div class="check-item"><span class="check-box" aria-hidden="true"></span><div><h3>Save the reporting sites</h3><p>ReportFraud.ftc.gov, IC3.gov and IdentityTheft.gov, so you aren't searching for them in a panic.</p></div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Frequently asked, in plain language</h2>
+    <div style="margin-top:20px;">
+      <div class="faq-item"><h3>The caller ID showed my bank's real number. Isn't that proof?</h3><p>No. Caller ID is easy to fake ("spoofing"). So are email sender names and text message sender names. Hang up and call the number on your card.</p></div>
+      <div class="faq-item"><h3>Is it safe to click "unsubscribe" or reply "STOP" to a scam text?</h3><p>Better not to: it confirms your number is active. Report it instead by forwarding the text to 7726 (SPAM), then delete it.</p></div>
+      <div class="faq-item"><h3>Should I pay for an identity theft protection service?</h3><p>Usually not necessary. Free credit freezes, free weekly credit reports, bank alerts and the IRS IP PIN cover most of it. Some services add insurance and help with recovery, which some people value; compare the price with what you'd get free.</p></div>
+      <div class="faq-item"><h3>My information was in a data breach. What should I do?</h3><p>Freeze your credit, change the password for that account and anywhere you reused it, turn on two-factor login, and watch your statements. If your Social Security number was exposed, get an IRS IP PIN.</p></div>
+      <div class="faq-item"><h3>Can I get money back from a crypto scam?</h3><p>Rarely. Report it to IC3.gov and the exchange quickly, because exchanges sometimes freeze funds that reach them. Anyone who contacts you offering to recover crypto for a fee is almost certainly running a second scam.</p></div>
+      <div class="faq-item"><h3>Is it a scam if they want me to install an app or share my screen?</h3><p>Very often. Real banks and agencies don't need remote access to your computer or phone. Remote-access apps let a scammer see your accounts and one-time codes.</p></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section id="glossary">
+    <p class="eyebrow">Reference</p>
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div class="gterm"><dt>Phishing / smishing / vishing</dt><dd>Fake emails, texts or phone calls designed to steal information or money.</dd></div>
+      <div class="gterm"><dt>Spoofing</dt><dd>Faking a phone number, email address or website so it looks legitimate.</dd></div>
+      <div class="gterm"><dt>Impostor scam</dt><dd>A scammer pretending to be a business, agency, relative or romantic partner.</dd></div>
+      <div class="gterm"><dt>Pig butchering</dt><dd>A long con that builds trust, then steers the victim into a fake investment.</dd></div>
+      <div class="gterm"><dt>Authorized push payment</dt><dd>A payment you send yourself, even if tricked; generally harder to recover.</dd></div>
+      <div class="gterm"><dt>Unauthorized transfer</dt><dd>A payment someone else made from your account; protected by federal law if reported promptly.</dd></div>
+      <div class="gterm"><dt>Chargeback</dt><dd>A card dispute that reverses a charge.</dd></div>
+      <div class="gterm"><dt>Credit freeze</dt><dd>A free block on new credit being opened in your name.</dd></div>
+      <div class="gterm"><dt>Fraud alert</dt><dd>A note on your credit file asking lenders to verify your identity; free for one year, seven for identity theft victims.</dd></div>
+      <div class="gterm"><dt>Two-factor authentication</dt><dd>A second check, such as an app code or passkey, in addition to a password.</dd></div>
+      <div class="gterm"><dt>Passkey</dt><dd>A phishing-resistant login stored on your device instead of a password.</dd></div>
+      <div class="gterm"><dt>SIM swap</dt><dd>A thief moving your phone number to their device to receive your codes.</dd></div>
+      <div class="gterm"><dt>IRS IP PIN</dt><dd>A six-digit number that blocks others from filing taxes with your Social Security number.</dd></div>
+      <div class="gterm"><dt>Recovery scam</dt><dd>A follow-up scam targeting victims with promises to get lost money back.</dd></div>
+      <div class="gterm"><dt>Data breach</dt><dd>An incident that exposes personal information held by a company.</dd></div>
+    </dl>
+  </section>
+
+  <hr class="rule">
+
+  <section id="sources">
+    <p class="eyebrow">Sources and assumptions</p>
+    <h2>Where the numbers come from</h2>
+    <ul class="plain sources" style="margin-top:16px;">
+      <li>FTC 2025 fraud data ($15.9 billion; about 3 million reports; investment $7.9 billion; impostor $3.5 billion and more than 1 million reports; social media $2.1 billion; contact and payment methods): FTC, as reported by the Spokesman-Review, BleepingComputer and TechCrunch (2026).</li>
+      <li>FBI Internet Crime Complaint Center 2025 ($20.9 billion overall; $7.7 billion from people 60+; crypto ATMs $388 million): via AARP and BleepingComputer.</li>
+      <li>Identity theft reports (1,358,253 in 2025; credit card 597,770): FTC Consumer Sentinel data, via Experian.</li>
+      <li>Data breaches (3,322 in 2025): Identity Theft Resource Center 2025 Annual Data Breach Report (January 29, 2026).</li>
+      <li>Payment protections: Regulation E and the Fair Credit Billing Act (long-standing federal rules); Zelle impostor-scam reimbursement policy (since June 2023) and the status of related lawsuits: Advora (2026).</li>
+      <li>The four-step "pretend, problem, pressure, pay" framing comes from FTC consumer guidance.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Educational material, not legal advice. If you believe you're being scammed right now, stop, hang up, and contact your bank using a number you trust. Figures were checked in October 2026.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+  /* ================= Red-flag checker ================= */
+  var FLAGS = [
+    ["They contacted me out of the blue", "A call, text, email, pop-up or message I didn't ask for.", 1, "contact"],
+    ["They say they're my bank, a government agency, a big company or a relative", "Caller ID and sender names are easy to fake.", 1, "pretend"],
+    ["There's a problem, a threat, or a prize", "Fraud on my account, a warrant, a virus, a relative in trouble, a refund, a winning.", 1, "problem"],
+    ["They want me to act right now", "Stay on the line, don't hang up, today only.", 1, "pressure"],
+    ["They told me to keep it secret", "Don't tell your bank, family or the store clerk.", 2, "secret"],
+    ["They want payment by gift card, crypto, crypto ATM, wire, payment app, cash or gold", "Or to move my money to a 'safe account.'", 3, "pay"],
+    ["They asked for a one-time code, password or PIN", "Or to read back a code that was just texted to me.", 3, "code"],
+    ["They want remote access to my computer or phone", "Or asked me to install an app or share my screen.", 3, "remote"],
+    ["It promises big, guaranteed or 'risk-free' returns", "Or someone I met online wants to guide my investing.", 2, "invest"],
+    ["They moved the conversation to WhatsApp, Telegram or another app", "Or won't video chat or meet in person.", 1, "move"],
+    ["The message has a link to pay, verify or track something", "Especially a toll, package or account alert.", 1, "link"]
+  ];
+  var list = $("rf-list");
+  list.innerHTML = FLAGS.map(function(f, i){
+    return '<label class="flag" for="rf-'+i+'"><input type="checkbox" id="rf-'+i+'"><span>'+esc(f[0])+'<small>'+esc(f[1])+'</small></span></label>';
+  }).join("");
+  $("rf-meter").innerHTML = new Array(10).join("<i></i>") + "<i></i>";
+  list.addEventListener("change", rf);
+  function rf(){
+    var on = [], score = 0;
+    FLAGS.forEach(function(f, i){ var cb = $("rf-"+i), lab = cb.parentNode; lab.classList.toggle("on", cb.checked); if (cb.checked){ on.push(f[3]); score += f[2]; } });
+    var bars = Math.min(10, Math.round(score*10/8));
+    [].forEach.call($("rf-meter").children, function(b, i){ b.classList.toggle("on", i < bars); });
+    var has = function(k){ return on.indexOf(k) >= 0; }, note;
+    if (!on.length) note = "<strong>No red flags checked.</strong> If anything about it still feels off, it's fine to hang up and call the organization back on a number you know.";
+    else if (score >= 3 || has("pay") || has("code") || has("remote") || has("secret")) note = "<strong>This looks like a scam. Stop now.</strong> Don't send money, codes or access. Hang up or stop replying, then contact the organization yourself using a number or website you already trust.";
+    else if (score >= 2) note = "<strong>Several warning signs.</strong> Treat it as a scam until you've verified it independently, by calling the organization on a number you already know.";
+    else note = "<strong>One warning sign.</strong> Often harmless, but verify before you act: don't use links, numbers or apps the message gives you.";
+    var tips = [];
+    if (has("code")) tips.push("No bank, agency or company will ever ask you to read back a one-time code; it's the key to your account.");
+    if (has("pay")) tips.push("Real organizations don't take gift cards, crypto or cash couriers, and your bank will never ask you to move money to a \"safe account.\"");
+    if (has("remote")) tips.push("If you already gave remote access, disconnect from the internet and have the device checked; change passwords from a different device.");
+    if (has("invest")) tips.push("Check any investment professional at FINRA BrokerCheck or the SEC's adviser search, and never invest through an app or site a stranger recommends.");
+    if (has("link")) tips.push("Don't tap the link. Go to the toll agency, shipper or bank site yourself, and forward scam texts to 7726.");
+    if (has("pretend") && has("problem")) tips.push("Fake calls from \"your bank's fraud department\" are among the costliest scams: hang up and call the number on your card.");
+    $("rf-note").innerHTML = note + (tips.length ? "<br><br>" + tips.map(function(t){ return "• " + t; }).join("<br>") : "");
+  }
+  rf();
+
+  /* ================= Security setup ================= */
+  var SEC = [
+    ["Credit frozen at Equifax, Experian and TransUnion", "Free; lift it for a few minutes when you apply for credit.", 3],
+    ["Unique passwords stored in a password manager", "One breach then can't unlock your other accounts.", 2],
+    ["Two-factor login (or a passkey) on email and banking", "An authenticator app or passkey beats text-message codes.", 3],
+    ["Phone carrier PIN and number-transfer lock", "Blocks SIM-swap thieves who steal your text codes.", 2],
+    ["Transaction alerts on every bank and card account", "Spot fraud within minutes, not at the month's end.", 2],
+    ["IRS Identity Protection PIN", "Stops tax-refund fraud using your Social Security number.", 1],
+    ["my Social Security account created", "Claim it before an identity thief does.", 1],
+    ["Automatic updates on phone, computer and browser", "Most attacks use known, already-fixed holes.", 1],
+    ["Recovery email, phone and backup codes up to date", "So you can get back in if an account is taken over.", 1],
+    ["Opted out of prescreened credit offers", "At OptOutPrescreen.com; fewer offers in your mailbox to steal.", 1],
+    ["A family code word for emergencies", "To check any urgent call asking for money.", 1],
+    ["Trusted contact named at banks and brokerages", "So the firm can reach someone if something looks wrong.", 1]
+  ];
+  var KEY = "pfl-security-checklist", saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch(e){ saved = {}; }
+  var sl = $("sec-list");
+  sl.innerHTML = SEC.map(function(s, i){
+    return '<label class="flag" for="sec-'+i+'"><input type="checkbox" id="sec-'+i+'"'+(saved[i] ? ' checked' : '')+'><span>'+esc(s[0])+'<small>'+esc(s[1])+'</small></span></label>';
+  }).join("");
+  $("sec-meter").innerHTML = SEC.map(function(){ return "<i></i>"; }).join("");
+  sl.addEventListener("change", sec);
+  function sec(){
+    var total = 0, got = 0, missing = [], state = {};
+    SEC.forEach(function(s, i){ var cb = $("sec-"+i); cb.parentNode.classList.toggle("on", cb.checked); total += s[2]; if (cb.checked){ got += s[2]; state[i] = 1; } else missing.push(s); });
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
+    var done = SEC.length - missing.length;
+    [].forEach.call($("sec-meter").children, function(b, i){ b.classList.toggle("on", i < done); });
+    var pct = Math.round(100*got/total);
+    $("sec-score").innerHTML = '<span><b>'+pct+'%</b> protected · '+done+' of '+SEC.length+' done</span>';
+    var top = missing.slice().sort(function(a,b){ return b[2]-a[2]; }).slice(0,3).map(function(s){ return s[0]; });
+    $("sec-note").innerHTML = !missing.length ? "<strong>All done.</strong> Recheck once a year, and after any breach notice or new phone." : "<strong>Next, the biggest wins:</strong> " + top.map(esc).join("; ") + ".";
+  }
+  sec();
+})();
+</script>
+</body>
+</html>
