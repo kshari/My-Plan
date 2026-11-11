@@ -14,6 +14,7 @@ import { REFLECTION_QUESTIONS, MOOD_EMOJIS, MOOD_LABELS } from '@/lib/constants/
 import { computeResilienceScore, computeNetWorth } from '@/lib/utils/pulse-calculations'
 import { BENCHMARK_DATA } from '@/lib/constants/benchmark-data'
 import { EMPTY_PROFILE, type DemographicProfile, type PulseCheck } from '@/lib/demographics'
+import { refreshAppSummary } from '@/lib/dashboard/refresh'
 
 export function PulseCheckFlow() {
   const router = useRouter()
@@ -96,6 +97,7 @@ export function PulseCheckFlow() {
       toast.error('Failed to save pulse check')
     } else {
       toast.success('Pulse Check saved!')
+      if (userId) void refreshAppSummary(supabase, userId, 'pulse')
       router.push('/apps/pulse/dashboard')
     }
     setSubmitting(false)

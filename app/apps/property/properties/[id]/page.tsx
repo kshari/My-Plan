@@ -2,7 +2,7 @@ import { requireAuth } from '@/lib/utils/auth'
 import { PAGE_CONTAINER, BACK_LINK } from '@/lib/constants/css'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import DealWorkspace from '@/components/property/deal-workspace'
+import DealWorkspaceShell from '@/components/property/deal-workspace-shell'
 import ShareBackButton from '@/components/property/teams/share-back-button'
 import DeletePropertyButton from '@/components/property/delete-property-button'
 import { buildBaseScenarioSeed } from '@/lib/property/build-base-scenario-from-property'
@@ -77,11 +77,22 @@ export default async function PropertyDetailPage({ params, searchParams }: Prope
     .filter(m => m.teams)
     .map(m => m.teams as unknown as { id: string; name: string })
 
+  const [{ data: stageHistory }, { data: pmContact }] = await Promise.all([
+    supabase
+      .from('pi_deal_stage_history')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('entered_at', { ascending: false }),
+    property.pm_contact_id
+      ? supabase.from('pi_contacts').select('*').eq('id', property.pm_contact_id).single()
+      : Promise.resolve({ data: null }),
+  ])
+
   return (
     <div className={PAGE_CONTAINER}>
       <div className="flex items-center justify-between mb-4">
-        <Link href="/apps/property/dashboard" className={BACK_LINK}>
-          ← Back to Properties
+        <Link href="/apps/property/pipeline" className={BACK_LINK}>
+          ← Pipeline
         </Link>
         <div className="flex gap-2">
           {teams.length > 0 && (
@@ -94,10 +105,12 @@ export default async function PropertyDetailPage({ params, searchParams }: Prope
         </div>
       </div>
 
-      <DealWorkspace
+      <DealWorkspaceShell
         property={property}
         initialScenarios={sortedScenarios}
         initialScenarioId={initialScenarioId && !isNaN(initialScenarioId) ? initialScenarioId : undefined}
+        stageHistory={stageHistory ?? []}
+        pmContact={pmContact ?? null}
       />
     </div>
   )

@@ -12,6 +12,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { buildBaseScenarioSeed } from '@/lib/property/build-base-scenario-from-property'
+import { refreshAppSummary } from '@/lib/dashboard/refresh'
 
 interface PropertyFormProps {
   propertyId?: number
@@ -147,6 +148,7 @@ export default function PropertyForm({ propertyId, initialData }: PropertyFormPr
         }
       }
 
+      void refreshAppSummary(supabase, user.id, 'property')
       router.push('/apps/property/dashboard')
       router.refresh()
     } catch (error: any) {

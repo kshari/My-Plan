@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { refreshAppSummary } from '@/lib/dashboard/refresh'
 import {
   DEFAULT_RETIREMENT_AGE,
   DEFAULT_SSA_START_AGE,
@@ -234,6 +235,10 @@ export async function calculateAndSaveProjectionsForScenario(
       console.error('rp_plan_metrics upsert failed:', metricsError)
       throw metricsError
     }
+
+    // Refresh home dashboard cache (fire-and-forget)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) void refreshAppSummary(supabase, user.id, 'retirement')
   } catch (error: any) {
     console.error('Error calculating projections:', error)
     throw error

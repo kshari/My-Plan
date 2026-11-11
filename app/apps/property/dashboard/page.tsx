@@ -4,7 +4,7 @@ import Link from 'next/link'
 import PropertyList from '@/components/property/property-list'
 import PropertyPortfolioSummary from '@/components/property/portfolio-summary'
 import SharePropertiesDialog from '@/components/property/teams/share-properties-dialog'
-import { Share2 } from 'lucide-react'
+import { Share2, Kanban } from 'lucide-react'
 
 interface DashboardPageProps {
   searchParams: Promise<{ load?: string }>
@@ -97,6 +97,13 @@ export default async function PropertyDashboardPage({ searchParams }: DashboardP
               }
             />
           ))}
+          <Link
+            href="/apps/property/pipeline"
+            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium shadow-xs hover:bg-accent transition-colors"
+          >
+            <Kanban className="h-4 w-4" />
+            Pipeline
+          </Link>
           <Link
             href="/apps/property/imports/upload"
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium shadow-xs hover:bg-accent transition-colors"
