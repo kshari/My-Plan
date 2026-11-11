@@ -37,6 +37,7 @@ export function AppShell({ children, userEmail, isAdmin = false, features }: App
   const { nav } = useSidebarNav()
   const { mode: agentMode, open: openAgent } = useAgentPanel()
   const aiAgentEnabled = features?.aiAgent !== false
+  const familyAppEnabled = features?.familyApp === true
 
   // Defer mounting the mobile Sheet's Sidebar to after hydration.
   // AppShell renders two <Sidebar> instances (desktop + mobile Sheet), and Radix
@@ -58,7 +59,7 @@ export function AppShell({ children, userEmail, isAdmin = false, features }: App
       {/* Desktop sidebar — fixed */}
       <aside className="hidden lg:flex w-60 flex-col border-r border-border shrink-0">
         <div className="h-full">
-          <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} />
+          <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} familyAppEnabled={familyAppEnabled} />
         </div>
       </aside>
 
@@ -67,7 +68,7 @@ export function AppShell({ children, userEmail, isAdmin = false, features }: App
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-60 p-0 border-r">
           {clientMounted && (
-            <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} onClose={() => setMobileOpen(false)} />
+            <Sidebar userEmail={userEmail} isAdmin={isAdmin} aiAgentEnabled={aiAgentEnabled} familyAppEnabled={familyAppEnabled} onClose={() => setMobileOpen(false)} />
           )}
         </SheetContent>
       </Sheet>

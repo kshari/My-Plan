@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
+import { refreshAppSummary } from "@/lib/dashboard/refresh"
 
 // GET /api/partnerships — list entities for current user
 export async function GET() {
@@ -70,5 +71,6 @@ export async function POST(request: Request) {
     supabase.rpc("create_default_fiscal_year", { p_entity_id: entity.id, p_created_by: user.id }),
   ])
 
+  void refreshAppSummary(supabase, user.id, 'partnerships')
   return NextResponse.json({ entity }, { status: 201 })
 }

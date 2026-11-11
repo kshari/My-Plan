@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { ALargeSmall, ChevronDown, Plus, Minus, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +26,10 @@ interface FontScaleToggleProps {
 
 export function FontScaleToggle({ variant = 'sidebar' }: FontScaleToggleProps) {
   const { fontScale, setFontScale } = useFontScale()
+  // Only render Radix-based dropdown after client mount to prevent SSR hydration
+  // mismatch (Radix generates fiber-path-based IDs that differ between SSR and CSR).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const idx = SCALES.findIndex((s) => s.value === fontScale)
   const atMin = idx === 0
@@ -94,30 +99,32 @@ export function FontScaleToggle({ variant = 'sidebar' }: FontScaleToggleProps) {
           <Plus className="h-3.5 w-3.5" />
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`px-1 h-7 ${iconCls}`}
-              title="Choose text size"
-            >
-              <ChevronDown className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            {SCALES.map((scale) => (
-              <DropdownMenuItem
-                key={scale.value}
-                onClick={() => setFontScale(scale.value)}
-                className="flex items-center justify-between"
+        {mounted && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`px-1 h-7 ${iconCls}`}
+                title="Choose text size"
               >
-                <span>{scale.label}</span>
-                {fontScale === scale.value && <Check className="h-3.5 w-3.5 text-primary" />}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              {SCALES.map((scale) => (
+                <DropdownMenuItem
+                  key={scale.value}
+                  onClick={() => setFontScale(scale.value)}
+                  className="flex items-center justify-between"
+                >
+                  <span>{scale.label}</span>
+                  {fontScale === scale.value && <Check className="h-3.5 w-3.5 text-primary" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   )

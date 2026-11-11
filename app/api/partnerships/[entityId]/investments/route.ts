@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
+import { refreshAppSummary } from "@/lib/dashboard/refresh"
 import { WORKFLOW_STAGES } from "@/lib/constants/partnerships"
 import type { WorkflowStage } from "@/lib/types/partnerships"
 
@@ -65,6 +66,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  void refreshAppSummary(supabase, user.id, 'partnerships')
 
   // Build stage history: backfill every stage before startStage as "completed",
   // then add the startStage itself as the initial entry.

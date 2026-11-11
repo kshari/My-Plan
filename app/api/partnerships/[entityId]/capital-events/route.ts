@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
+import { refreshAppSummary } from "@/lib/dashboard/refresh"
 
 interface RouteParams {
   params: Promise<{ entityId: string }>
@@ -59,5 +60,6 @@ export async function POST(request: Request, { params }: RouteParams) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  void refreshAppSummary(supabase, user.id, 'partnerships')
   return NextResponse.json({ event: data }, { status: 201 })
 }

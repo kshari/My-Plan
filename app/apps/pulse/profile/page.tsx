@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { EMPTY_PROFILE, type DemographicProfile } from '@/lib/demographics'
 import { ProfileForm } from '@/components/pulse/profile-form'
+import { refreshAppSummary } from '@/lib/dashboard/refresh'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<DemographicProfile>(EMPTY_PROFILE)
@@ -47,6 +48,7 @@ export default function ProfilePage() {
       toast.error('Failed to save profile')
     } else {
       toast.success('Profile saved', { duration: 1500 })
+      void refreshAppSummary(supabase, userId, 'pulse')
     }
   }, [userId, supabase])
 

@@ -1,16 +1,20 @@
 "use client"
 
 import Link from 'next/link'
-import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight, ShieldCheck, Bot, Handshake } from 'lucide-react'
+import { Building2, Target, Activity, ChevronRight, Shield, ArrowRight, ShieldCheck, Bot, Handshake, Heart, BookOpen } from 'lucide-react'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
+import { FontScaleToggle } from '@/components/layout/font-scale-toggle'
 import { Button } from '@/components/ui/button'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
 import { BetaBanner } from '@/components/layout/beta-banner'
 import { HomeAgentCard } from '@/components/agent/home-agent-card'
 import { useAgentPanel } from '@/components/agent/agent-panel-context'
 import { AgentPanel } from '@/components/agent/agent-panel'
+import { PlanHealthStrip } from '@/components/dashboard/plan-health-strip'
+import { AppSummaryCard } from '@/components/dashboard/app-summary-card'
 import { cn } from '@/lib/utils'
 import type { FeatureFlags } from '@/lib/app-features'
+import type { AppSummary } from '@/lib/dashboard/types'
 
 const apps = [
   {
@@ -73,21 +77,43 @@ const apps = [
     badge: 'Group Investing',
     badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   },
+  {
+    id: 'family',
+    name: 'Family Activities',
+    shortName: 'Family',
+    description: 'Plan family activities and trips together — add interests, availability, discover places, get AI-powered recommendations, vote on suggestions, and book travel.',
+    shortDesc: 'Activity recommendations, voting & trip planning',
+    icon: Heart,
+    authHref: '/apps/family',
+    tryHref: '/login',
+    accent: 'text-rose-500',
+    bg: 'bg-rose-50 dark:bg-rose-950/30',
+    border: 'border-rose-100 dark:border-rose-900/50',
+    badge: 'Family',
+    badgeColor: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  },
 ]
 
 interface HomeContentProps {
   userEmail: string | null
   isAdmin?: boolean
   features?: FeatureFlags
+  summaries?: AppSummary[]
 }
 
-export function HomeContent({ userEmail, isAdmin = false, features }: HomeContentProps) {
+export function HomeContent({ userEmail, isAdmin = false, features, summaries: allSummaries = [] }: HomeContentProps) {
   const isAuthenticated = !!userEmail
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : ''
   const { mode: agentMode, openInline: openAgentInline } = useAgentPanel()
   const aiAgentEnabled = features?.aiAgent !== false
+  const familyAppEnabled = features?.familyApp === true
 
-  const visibleApps = apps.filter((app) => isAuthenticated || app.id !== 'partnerships')
+  const visibleApps = apps.filter(
+    (app) =>
+      (isAuthenticated || app.id !== 'partnerships') &&
+      (familyAppEnabled || app.id !== 'family')
+  )
+  const summaries = allSummaries.filter((s) => familyAppEnabled || s.app !== 'family')
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -117,6 +143,7 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary select-none">
                   {initials}
                 </div>
+                <FontScaleToggle variant="inline" />
                 <ThemeToggle compact />
                 <form action="/auth/signout" method="post" className="shrink-0">
                   <Button type="submit" variant="outline" size="sm">
@@ -126,6 +153,7 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
               </>
             ) : (
               <>
+                <FontScaleToggle variant="inline" />
                 <ThemeToggle compact />
                 <Link href="/login">
                   <Button variant="outline" size="sm">Sign In</Button>
@@ -145,14 +173,14 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
           agentMode === 'fullscreen' && "hidden"
         )}>
           {isAuthenticated ? (
-            /* ── Compact authenticated layout ── */
-            <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+            /* ── Dashboard authenticated layout ── */
+            <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
               <BetaBanner />
 
               <div className="mb-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+                <h1 className="text-2xl font-bold tracking-tight">My Plan Dashboard</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Pick up where you left off.
+                  Your financial plan — all in one place.
                 </p>
               </div>
 
@@ -162,27 +190,79 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {visibleApps.map((app, i) => (
-                  <Link
-                    key={app.id}
-                    href={app.authHref}
-                    className={cn(
-                      'group flex items-center gap-3.5 rounded-xl border p-3.5 bg-card transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 animate-in fade-in slide-in-from-bottom-3 duration-200',
-                      app.border
-                    )}
-                    style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
-                  >
-                    <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', app.bg)}>
-                      <app.icon className={cn('h-5 w-5', app.accent)} />
+              {summaries.length > 0 && (
+                <div className="animate-in fade-in slide-in-from-bottom-3 duration-300" style={{ animationDelay: '80ms', animationFillMode: 'both' }}>
+                  <PlanHealthStrip summaries={summaries} />
+                </div>
+              )}
+
+              <a
+                href="/finance"
+                className="group mb-5 flex items-center gap-3 rounded-2xl border border-amber-100 dark:border-amber-900/50 bg-card px-4 py-3 transition-all hover:shadow-sm hover:-translate-y-px animate-in fade-in slide-in-from-bottom-3 duration-300"
+                style={{ animationDelay: '100ms', animationFillMode: 'both' }}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/30">
+                  <BookOpen className="h-4 w-4 text-amber-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Personal Finance Library</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    Plain-language guides on annuities, life insurance, and more
+                  </p>
+                </div>
+                <span className="flex items-center gap-1 text-xs font-medium text-amber-600 shrink-0">
+                  Browse <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </a>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {visibleApps.map((app, i) => {
+                  const summary = summaries.find((s) => s.app === app.id)
+                  if (!summary) {
+                    // Fallback: simple link card while summaries load
+                    return (
+                      <div
+                        key={app.id}
+                        className={cn(
+                          'rounded-2xl border bg-card animate-in fade-in slide-in-from-bottom-3 duration-200',
+                          app.border,
+                        )}
+                        style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
+                      >
+                        <div className="flex items-center gap-3 p-4">
+                          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', app.bg)}>
+                            <app.icon className={cn('h-5 w-5', app.accent)} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold">{app.name}</p>
+                            <p className="text-xs text-muted-foreground">{app.shortDesc}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div
+                      key={app.id}
+                      className="animate-in fade-in slide-in-from-bottom-3 duration-200"
+                      style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
+                    >
+                      <AppSummaryCard
+                        summary={summary}
+                        config={{
+                          icon: app.icon,
+                          accent: app.accent,
+                          bg: app.bg,
+                          border: app.border,
+                          badge: app.badge,
+                          badgeColor: app.badgeColor,
+                        }}
+                        name={app.name}
+                        authHref={app.authHref}
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-sm font-semibold tracking-tight">{app.name}</h2>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{app.shortDesc}</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 shrink-0" />
-                  </Link>
-                ))}
+                  )
+                })}
               </div>
 
               <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
@@ -244,6 +324,32 @@ export function HomeContent({ userEmail, isAdmin = false, features }: HomeConten
                     </Link>
                   </div>
                 ))}
+                <div
+                  className="animate-in fade-in slide-in-from-bottom-4 duration-300"
+                  style={{ animationDelay: `${(visibleApps.length + 1) * 80}ms`, animationFillMode: 'both' }}
+                >
+                  <a
+                    href="/finance"
+                    className="group flex flex-col h-full rounded-2xl border border-amber-100 dark:border-amber-900/50 p-6 bg-card transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/30">
+                      <BookOpen className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <span className="mb-3 inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                      Free Reading
+                    </span>
+                    <h2 className="mb-2 text-lg font-semibold tracking-tight">
+                      Personal Finance Library
+                    </h2>
+                    <p className="flex-1 text-sm text-muted-foreground leading-relaxed">
+                      Plain-language, numbers-first explainers on how financial products actually work — annuities, life insurance, and more topics added over time.
+                    </p>
+                    <div className="mt-5 flex items-center gap-1 text-sm font-medium transition-all group-hover:gap-2">
+                      Start reading
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </a>
+                </div>
               </div>
 
               <div className="mt-10 text-center animate-in fade-in duration-500" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>

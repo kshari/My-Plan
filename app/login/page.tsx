@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Target, Building2, Shield, Eye, EyeOff, ChevronDown, ChevronUp, Lock, ServerIcon, Globe, Lightbulb, Map, AlertTriangle, Activity, Users } from 'lucide-react'
+import { Target, Building2, Shield, Eye, EyeOff, ChevronDown, ChevronUp, Lock, ServerIcon, Globe, Lightbulb, Map, AlertTriangle, Activity, Users, BookOpen } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -132,6 +132,11 @@ function LoginContent() {
       icon: Target,
       title: 'Retirement Planner',
       description: 'Retirement projections, scenario modeling, risk and tax analysis',
+    },
+    {
+      icon: BookOpen,
+      title: 'Personal Finance Library',
+      description: 'Plain-language explainers on annuities, life insurance, and more',
     },
   ]
 
@@ -486,6 +491,18 @@ function LoginContent() {
             <p className="text-[11px] text-violet-600/70 dark:text-violet-400/70 mt-2">
               All tools available free. Data saved in your browser.
             </p>
+            <div className="mt-3 pt-3 border-t border-violet-200 dark:border-violet-800">
+              <a
+                href="/finance"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 dark:text-violet-300 hover:text-violet-900 dark:hover:text-violet-100 transition-colors"
+              >
+                <BookOpen className="h-4 w-4" />
+                Browse the Personal Finance Library →
+              </a>
+              <p className="text-[11px] text-violet-600/70 dark:text-violet-400/70 mt-1">
+                Free reading, no sign-in needed.
+              </p>
+            </div>
           </div>
 
           {/* Security & privacy note */}

@@ -17,6 +17,14 @@ import {
   BarChart3,
   Users,
   Handshake,
+  Kanban,
+  BookUser,
+  CalendarDays,
+  MapPin,
+  Lightbulb,
+  Plane,
+  Heart,
+  BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -57,16 +65,26 @@ const appNavItems = [
     icon: Handshake,
     color: "text-blue-500",
   },
+  {
+    href: "/apps/family",
+    label: "Family Activities",
+    icon: Heart,
+    color: "text-rose-500",
+  },
 ]
 
 interface SidebarProps {
   userEmail: string
   isAdmin?: boolean
   aiAgentEnabled?: boolean
+  familyAppEnabled?: boolean
   onClose?: () => void
 }
 
-export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onClose }: SidebarProps) {
+export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, familyAppEnabled = false, onClose }: SidebarProps) {
+  const visibleAppNavItems = appNavItems.filter(
+    (item) => familyAppEnabled || item.href !== "/apps/family"
+  )
   const pathname = usePathname()
   const { nav } = useSidebarNav()
   const { open: openAgent } = useAgentPanel()
@@ -130,7 +148,7 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
           {/* Expanded list */}
           {appsExpanded && (
             <>
-              {appNavItems.map((item) => {
+              {visibleAppNavItems.map((item) => {
                 const active = isActive(item)
                 return (
                   <Link
@@ -155,6 +173,14 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
                   </Link>
                 )
               })}
+              <a
+                href="/finance"
+                onClick={onClose}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors"
+              >
+                <BookOpen className="h-4 w-4 shrink-0 opacity-70 text-amber-500" />
+                Finance Library
+              </a>
               {aiAgentEnabled && (
                 <button
                   onClick={() => { openAgent(); onClose?.() }}
@@ -176,6 +202,19 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
             </div>
             <nav className="space-y-0.5 px-3 py-3">
               <Link
+                href="/apps/property/pipeline"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith("/apps/property/pipeline")
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                )}
+              >
+                <Kanban className="h-4 w-4 shrink-0" />
+                Pipeline
+              </Link>
+              <Link
                 href="/apps/property/dashboard"
                 onClick={onClose}
                 className={cn(
@@ -186,7 +225,20 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
                 )}
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
-                Dashboard
+                Properties
+              </Link>
+              <Link
+                href="/apps/property/contacts"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith("/apps/property/contacts")
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                )}
+              >
+                <BookUser className="h-4 w-4 shrink-0" />
+                Network
               </Link>
               <Link
                 href="/apps/property/teams"
@@ -231,7 +283,68 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
           </>
         )}
 
-              {/* Retirement Planner — Plan Structure & Dashboard (visible when in retirement app, not in a plan) */}
+              {/* Family Activities — contextual nav */}
+        {pathname.startsWith("/apps/family") && (
+          <>
+            <div className="px-3">
+              <Separator className="bg-sidebar-border" />
+            </div>
+            <nav className="space-y-0.5 px-3 py-3">
+              {/* Dynamic family section — extract familyId from path if present */}
+              {(() => {
+                const match = pathname.match(/^\/apps\/family\/([^/]+)/)
+                const familyId = match?.[1]
+                const base = familyId ? `/apps/family/${familyId}` : null
+                const familyLinks = base
+                  ? [
+                      { href: base, label: "Dashboard", icon: LayoutDashboard, exact: true },
+                      { href: `${base}/suggestions`, label: "Suggestions", icon: Lightbulb },
+                      { href: `${base}/trips`, label: "Trips", icon: Plane },
+                      { href: `${base}/places`, label: "Places", icon: MapPin },
+                      { href: `${base}/interests`, label: "Interests", icon: Heart },
+                      { href: `${base}/availability`, label: "Availability", icon: CalendarDays },
+                      { href: `${base}/members`, label: "Members", icon: Users },
+                    ]
+                  : []
+                return (
+                  <>
+                    <Link
+                      href="/apps/family"
+                      onClick={onClose}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        pathname === "/apps/family"
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                      )}
+                    >
+                      <Heart className="h-4 w-4 shrink-0 text-rose-500" />
+                      All Families
+                    </Link>
+                    {familyLinks.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          (item.exact ? pathname === item.href : pathname.startsWith(item.href))
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                        )}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {item.label}
+                      </Link>
+                    ))}
+                  </>
+                )
+              })()}
+            </nav>
+          </>
+        )}
+
+        {/* Retirement Planner — Plan Structure & Dashboard (visible when in retirement app, not in a plan) */}
         {pathname.startsWith("/apps/retirement") && !nav && (
           <>
             <div className="px-3">
