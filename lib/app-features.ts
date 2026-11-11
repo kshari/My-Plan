@@ -7,6 +7,7 @@ export const APP_ENVIRONMENTS: AppEnvironment[] = ['local', 'staging', 'producti
 
 export type FeatureFlags = {
   aiAgent: boolean
+  familyApp: boolean
 }
 
 export interface BetaInvitation {
@@ -17,7 +18,7 @@ export interface BetaInvitation {
   invited_at: string
 }
 
-const FEATURE_IDS = ['ai_agent'] as const
+const FEATURE_IDS = ['ai_agent', 'family_app'] as const
 
 /**
  * Current app environment. Set APP_ENV (or NEXT_PUBLIC_APP_ENV) to
@@ -81,6 +82,8 @@ export async function getFeatureFlags(
 
   return {
     aiAgent: map.get('ai_agent') ?? true,
+    // Beta app: stays hidden if its flag row is missing
+    familyApp: map.get('family_app') ?? false,
   }
 }
 

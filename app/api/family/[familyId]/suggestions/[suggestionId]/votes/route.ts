@@ -1,7 +1,10 @@
 import { withAuth, safeJson } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
+import { familyAppForbidden } from "@/lib/family/feature-gate"
 
 export const POST = withAuth(async (request, { user, supabase, params }) => {
+  const forbidden = await familyAppForbidden(supabase, user.id)
+  if (forbidden) return forbidden
   const { familyId, suggestionId } = params
   const body = await safeJson<{ vote: 1 | -1 }>(request)
   if (!body || (body.vote !== 1 && body.vote !== -1)) {
@@ -36,6 +39,8 @@ export const POST = withAuth(async (request, { user, supabase, params }) => {
 })
 
 export const DELETE = withAuth(async (request, { user, supabase, params }) => {
+  const forbidden = await familyAppForbidden(supabase, user.id)
+  if (forbidden) return forbidden
   const { familyId, suggestionId } = params
 
   const { data: member } = await supabase

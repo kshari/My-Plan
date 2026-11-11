@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { decryptAgentCredential, encryptAgentCredential } from "@/lib/agent/encryption"
 import { NextResponse } from "next/server"
+import { familyAppForbidden } from "@/lib/family/feature-gate"
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
 const FREEBUSY_URL = "https://www.googleapis.com/calendar/v3/freeBusy"
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const forbidden = await familyAppForbidden(supabase, user.id)
+  if (forbidden) return forbidden
 
   const body = await request.json().catch(() => ({}))
   const { familyId, memberId, timeMin, timeMax } = body as {

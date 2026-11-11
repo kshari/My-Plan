@@ -77,10 +77,14 @@ interface SidebarProps {
   userEmail: string
   isAdmin?: boolean
   aiAgentEnabled?: boolean
+  familyAppEnabled?: boolean
   onClose?: () => void
 }
 
-export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onClose }: SidebarProps) {
+export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, familyAppEnabled = false, onClose }: SidebarProps) {
+  const visibleAppNavItems = appNavItems.filter(
+    (item) => familyAppEnabled || item.href !== "/apps/family"
+  )
   const pathname = usePathname()
   const { nav } = useSidebarNav()
   const { open: openAgent } = useAgentPanel()
@@ -144,7 +148,7 @@ export function Sidebar({ userEmail, isAdmin = false, aiAgentEnabled = true, onC
           {/* Expanded list */}
           {appsExpanded && (
             <>
-              {appNavItems.map((item) => {
+              {visibleAppNavItems.map((item) => {
                 const active = isActive(item)
                 return (
                   <Link

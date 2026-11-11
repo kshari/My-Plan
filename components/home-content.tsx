@@ -101,13 +101,19 @@ interface HomeContentProps {
   summaries?: AppSummary[]
 }
 
-export function HomeContent({ userEmail, isAdmin = false, features, summaries = [] }: HomeContentProps) {
+export function HomeContent({ userEmail, isAdmin = false, features, summaries: allSummaries = [] }: HomeContentProps) {
   const isAuthenticated = !!userEmail
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : ''
   const { mode: agentMode, openInline: openAgentInline } = useAgentPanel()
   const aiAgentEnabled = features?.aiAgent !== false
+  const familyAppEnabled = features?.familyApp === true
 
-  const visibleApps = apps.filter((app) => isAuthenticated || app.id !== 'partnerships')
+  const visibleApps = apps.filter(
+    (app) =>
+      (isAuthenticated || app.id !== 'partnerships') &&
+      (familyAppEnabled || app.id !== 'family')
+  )
+  const summaries = allSummaries.filter((s) => familyAppEnabled || s.app !== 'family')
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

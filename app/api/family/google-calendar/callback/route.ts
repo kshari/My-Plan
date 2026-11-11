@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { encryptAgentCredential } from "@/lib/agent/encryption"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { familyAppForbidden } from "@/lib/family/feature-gate"
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
 
@@ -42,6 +43,9 @@ export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return htmlResponse(false, "Session expired.")
+  if (await familyAppForbidden(supabase, user.id)) {
+    return htmlResponse(false, "Family Activities is not enabled for your account.")
+  }
 
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET

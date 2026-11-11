@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { randomBytes } from "crypto"
 import { cookies } from "next/headers"
+import { familyAppForbidden } from "@/lib/family/feature-gate"
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 const SCOPES = [
@@ -14,6 +15,8 @@ export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const forbidden = await familyAppForbidden(supabase, user.id)
+  if (forbidden) return forbidden
 
   const clientId = process.env.GOOGLE_CLIENT_ID
   if (!clientId) {

@@ -10,7 +10,7 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let isAdmin = false
-  let features: FeatureFlags = { aiAgent: true }
+  let features: FeatureFlags = { aiAgent: true, familyApp: false }
   let summaries: AppSummary[] = []
 
   if (user) {

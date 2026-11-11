@@ -3,11 +3,14 @@ import { NextResponse } from "next/server"
 import { getDecryptedCredential, getGeminiAccessToken, getPreferredModel } from "@/lib/agent/credentials"
 import { INTEREST_TAG_LABELS } from "@/lib/constants/family"
 import OpenAI from "openai"
+import { familyAppForbidden } from "@/lib/family/feature-gate"
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const forbidden = await familyAppForbidden(supabase, user.id)
+  if (forbidden) return forbidden
 
   const { familyId } = await request.json().catch(() => ({}))
   if (!familyId) return NextResponse.json({ error: "familyId required" }, { status: 400 })

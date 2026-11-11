@@ -17,6 +17,7 @@ export default async function FamilyLayout({
     checkAdmin(supabase, user.id),
     getFeatureFlags(supabase, user.id),
   ])
+  if (!features.familyApp) redirect("/")
 
   return (
     <AppShell userEmail={user.email ?? ""} isAdmin={isAdmin} features={features}>

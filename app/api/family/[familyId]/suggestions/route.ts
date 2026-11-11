@@ -1,8 +1,11 @@
 import { withAuth } from "@/lib/utils/route-handler"
 import { NextResponse } from "next/server"
 import { generateRuleBasedSuggestions } from "@/lib/family/recommend"
+import { familyAppForbidden } from "@/lib/family/feature-gate"
 
 export const POST = withAuth(async (request, { user, supabase, params }) => {
+  const forbidden = await familyAppForbidden(supabase, user.id)
+  if (forbidden) return forbidden
   const { familyId } = params
 
   const { data: member } = await supabase
