@@ -240,7 +240,6 @@ export function RehabTable({ propertyId }: RehabTableProps) {
                   className="h-8 text-sm w-32"
                 />
                 <ContactPicker
-                  propertyId={propertyId}
                   filterType="contractor"
                   defaultNewType="contractor"
                   selectedId={contractorId}

@@ -67,10 +67,9 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
   // Merge into a unified list, deduplicating by property id
   const propertyMap = new Map<number, LinkedProperty>()
 
-  function addProperty(
-    prop: { id: number; address: string | null; city: string | null; deal_stage: string } | null,
-    relation: string
-  ) {
+  type PropertyRef = { id: number; address: string | null; city: string | null; deal_stage: string }
+
+  function addProperty(prop: PropertyRef | null, relation: string) {
     if (!prop) return
     const existing = propertyMap.get(prop.id)
     if (existing) {
@@ -83,25 +82,26 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
     }
   }
 
+  // Supabase types embedded relations as arrays even when the FK yields one row
+  function asProperty(rel: unknown): PropertyRef | null {
+    const value = Array.isArray(rel) ? rel[0] : rel
+    return (value as PropertyRef | undefined) ?? null
+  }
+
   for (const dc of dealContacts ?? []) {
-    const prop = dc.property as { id: number; address: string | null; city: string | null; deal_stage: string } | null
-    addProperty(prop, dc.role ? `Deal contact (${dc.role})` : 'Deal contact')
+    addProperty(asProperty(dc.property), dc.role ? `Deal contact (${dc.role})` : 'Deal contact')
   }
   for (const p of pmProperties ?? []) {
-    addProperty(p as { id: number; address: string | null; city: string | null; deal_stage: string }, 'Property manager')
+    addProperty(asProperty(p), 'Property manager')
   }
   for (const l of leases ?? []) {
-    const prop = (l as Record<string, unknown>)['pi_properties'] as { id: number; address: string | null; city: string | null; deal_stage: string } | null
-    const unit = (l as Record<string, unknown>)['unit_label'] as string | null
-    addProperty(prop, unit ? `Tenant (Unit ${unit})` : 'Tenant')
+    addProperty(asProperty(l.pi_properties), l.unit_label ? `Tenant (Unit ${l.unit_label})` : 'Tenant')
   }
   for (const r of rehabItems ?? []) {
-    const prop = (r as Record<string, unknown>)['pi_properties'] as { id: number; address: string | null; city: string | null; deal_stage: string } | null
-    addProperty(prop, `Contractor – ${(r as Record<string, unknown>)['description'] ?? 'rehab'}`)
+    addProperty(asProperty(r.pi_properties), `Contractor – ${r.description ?? 'rehab'}`)
   }
   for (const w of workOrders ?? []) {
-    const prop = (w as Record<string, unknown>)['pi_properties'] as { id: number; address: string | null; city: string | null; deal_stage: string } | null
-    addProperty(prop, `Contractor – ${(w as Record<string, unknown>)['title'] ?? 'work order'}`)
+    addProperty(asProperty(w.pi_properties), `Contractor – ${w.title ?? 'work order'}`)
   }
 
   const linkedProperties = Array.from(propertyMap.values())
