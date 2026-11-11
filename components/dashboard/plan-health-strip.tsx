@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { ArrowRight, TrendingUp } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AppSummary } from '@/lib/dashboard/types'
 
@@ -10,11 +10,6 @@ interface PlanHealthStripProps {
 }
 
 export function PlanHealthStrip({ summaries }: PlanHealthStripProps) {
-  // Combined net worth from all apps that supply one
-  const netWorthSources = summaries.filter((s) => s.netWorth != null)
-  const combinedNetWorth = netWorthSources.reduce((sum, s) => sum + (s.netWorth ?? 0), 0)
-  const hasNetWorth = netWorthSources.length > 0
-
   // Setup completeness: average pctComplete across all 4 apps, weighted by started
   const appsStarted = summaries.filter((s) => s.started).length
   const avgSetup = summaries.length > 0
@@ -66,25 +61,6 @@ export function PlanHealthStrip({ summaries }: PlanHealthStripProps) {
 
         <div className="h-px sm:h-10 sm:w-px bg-border" />
 
-        {/* Combined net worth */}
-        {hasNetWorth && (
-          <>
-            <div className="shrink-0">
-              <p className="text-xs text-muted-foreground">Combined Portfolio</p>
-              <div className="flex items-baseline gap-1.5">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                <span className="text-xl font-bold tracking-tight">
-                  {formatCurrency(combinedNetWorth)}
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                across {netWorthSources.length} app{netWorthSources.length > 1 ? 's' : ''}
-              </p>
-            </div>
-            <div className="h-px sm:h-10 sm:w-px bg-border" />
-          </>
-        )}
-
         {/* Top next action */}
         {topAction && (
           <div className="flex-1 min-w-0">
@@ -101,12 +77,4 @@ export function PlanHealthStrip({ summaries }: PlanHealthStripProps) {
       </div>
     </div>
   )
-}
-
-function formatCurrency(n: number): string {
-  const abs = Math.abs(n)
-  const sign = n < 0 ? '-' : ''
-  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`
-  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`
-  return `${sign}$${abs.toFixed(0)}`
 }

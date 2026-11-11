@@ -32,13 +32,17 @@ export function AppSummaryCard({ summary, config, name, authHref }: AppSummaryCa
       )}
     >
       {/* Card header */}
-      <div className="flex items-start justify-between gap-3 p-4 pb-3">
+      <Link
+        href={authHref}
+        aria-label={`Open ${name}`}
+        className="group/header flex items-start justify-between gap-3 rounded-t-2xl p-4 pb-3 transition-colors hover:bg-muted/30"
+      >
         <div className="flex items-center gap-3 min-w-0">
           <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', config.bg)}>
             <config.icon className={cn('h-5 w-5', config.accent)} />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold tracking-tight truncate">{name}</h2>
+            <h2 className="text-sm font-semibold tracking-tight truncate group-hover/header:underline">{name}</h2>
             <span className={cn('mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium', config.badgeColor)}>
               {config.badge}
             </span>
@@ -67,7 +71,7 @@ export function AppSummaryCard({ summary, config, name, authHref }: AppSummaryCa
             {setup.pctComplete}%
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Not started state */}
       {!started ? (
