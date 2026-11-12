@@ -94,6 +94,15 @@ const ALL_COLUMNS_VISIBLE = {
   balanceHsa: true, balanceIra: true, balanceOther: true,
 }
 
+function BreakdownAmount({ value }: { value: number }) {
+  return (
+    <span className="text-[10px] text-foreground/50 ml-auto tabular-nums">
+      <span className="hidden md:inline">${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+      <span className="md:hidden">${Math.round(value / 1000).toLocaleString()}k</span>
+    </span>
+  )
+}
+
 export default function DetailsTab({ planId, initialSubTab, initialAllColumns, initialViewMode }: DetailsTabProps) {
   const supabase = createClient()
   const dataService = useOptionalDataService()
@@ -1559,7 +1568,7 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                             <div className={`h-full w-full rounded-full ${color}`} />
                           </div>
                           <span className="text-[10px] font-medium text-foreground/70">{label}</span>
-                          <span className="text-[10px] text-foreground/50 ml-auto">${(value / 1000).toFixed(0)}k</span>
+                          <BreakdownAmount value={value} />
                         </div>
                       ))}
                     </div>
@@ -1586,7 +1595,7 @@ export default function DetailsTab({ planId, initialSubTab, initialAllColumns, i
                             <div className={`h-full w-full rounded-full ${color}`} />
                           </div>
                           <span className="text-[10px] font-medium text-foreground/70">{label}</span>
-                          <span className="text-[10px] text-foreground/50 ml-auto">${(value / 1000).toFixed(0)}k</span>
+                          <BreakdownAmount value={value} />
                         </div>
                       ))}
                     </div>

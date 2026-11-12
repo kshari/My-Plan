@@ -207,7 +207,7 @@ export function HomeContent({ userEmail, isAdmin = false, features, summaries: a
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">Personal Finance Library</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    Plain-language guides on annuities, life insurance, and more
+                    Plain-language guides on personal finance for every life stage
                   </p>
                 </div>
                 <span className="flex items-center gap-1 text-xs font-medium text-amber-600 shrink-0">
@@ -221,10 +221,11 @@ export function HomeContent({ userEmail, isAdmin = false, features, summaries: a
                   if (!summary) {
                     // Fallback: simple link card while summaries load
                     return (
-                      <div
+                      <Link
                         key={app.id}
+                        href={app.authHref}
                         className={cn(
-                          'rounded-2xl border bg-card animate-in fade-in slide-in-from-bottom-3 duration-200',
+                          'block rounded-2xl border bg-card transition-colors hover:bg-muted/30 animate-in fade-in slide-in-from-bottom-3 duration-200',
                           app.border,
                         )}
                         style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
@@ -238,7 +239,7 @@ export function HomeContent({ userEmail, isAdmin = false, features, summaries: a
                             <p className="text-xs text-muted-foreground">{app.shortDesc}</p>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     )
                   }
                   return (
